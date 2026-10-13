@@ -12,10 +12,12 @@ import {
   Cpu,
   Layers,
   ShoppingBag,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { authService, MOCK_ACCOUNTS, AuthUser } from '../../../services/authService';
 import { ActiveNavScreen } from '../../../types/mining';
+import { AppLogo } from '../../../components/common/AppLogo';
 
 interface LoginViewProps {
   onLoginSuccess: (user: AuthUser, destinationScreen: ActiveNavScreen) => void;
@@ -109,16 +111,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, initialRol
 
       <div className="sm:mx-auto sm:w-full sm:max-w-4xl relative z-10 px-4">
         {/* Brand Header */}
-        <div className="text-center space-y-2 mb-8">
-          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#E5F3EB] border border-[#CAEADA] text-xs font-semibold text-[#1E3A2F]">
-            <span className="w-2 h-2 rounded-full bg-[#1E3A2F] animate-pulse" />
-            <span>HUPM Product Arrangement • Analytics Platform</span>
+        <div className="text-center space-y-4 mb-8">
+          <div className="flex items-center justify-center mx-auto">
+            <AppLogo className="w-16 h-16 sm:w-20 sm:h-20" />
+          </div>
+          <div>
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#E5F3EB] border border-[#CAEADA] text-xs font-semibold text-[#1E3A2F]">
+              <span className="w-2 h-2 rounded-full bg-[#1E3A2F] animate-pulse" />
+              <span>HUPM Product Arrangement • Analytics Platform</span>
+            </div>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#191C1B]">
             Sign in to your Workspace
           </h1>
           <p className="text-sm text-[#707973] max-w-lg mx-auto">
-            Choose from the 4 pre-configured roles below to preview role-specific permissions and target workflows.
+            Choose from the pre-configured roles below to preview role-specific permissions and target workflows.
           </p>
         </div>
 
@@ -211,17 +218,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, initialRol
           >
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="w-8 h-8 rounded-lg bg-[#FDF8F3] text-[#954A17] flex items-center justify-center font-bold text-xs">
-                  <Layers className="w-4 h-4" />
+                <span className="w-8 h-8 rounded-lg bg-[#E5F3EB] text-[#1E3A2F] flex items-center justify-center font-bold text-xs">
+                  <Sparkles className="w-4 h-4" />
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FDF8F3] text-[#954A17] font-mono">
-                  MC
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#E5F3EB] text-[#1E3A2F] font-mono">
+                  ME
                 </span>
               </div>
               <div className="text-xs font-bold text-[#191C1B]">MERCHANDISER</div>
-              <div className="text-[11px] text-[#707973] mt-0.5">Minh Tran</div>
-              <div className="text-[11px] text-[#954A17] font-medium mt-2 bg-[#FDF8F3] p-1.5 rounded border border-[#E7E2D8]">
-                👉 Lands on: <strong className="font-semibold">Campaign Activations</strong>
+              <div className="text-[11px] text-[#707973] mt-0.5">Minh Tran • Retail Planner</div>
+              <div className="text-[11px] text-[#1E3A2F] font-medium mt-2 bg-[#E5F3EB]/60 p-1.5 rounded border border-[#CAEADA]">
+                👉 Lands on: <strong className="font-semibold text-[#1E3A2F]">Recommendations Dashboard</strong>
               </div>
             </div>
             <button

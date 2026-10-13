@@ -10,7 +10,6 @@ import {
   Settings2, 
   Zap, 
   Users, 
-  FolderTree,
   Store,
   CheckCircle2,
   LogOut,
@@ -27,6 +26,7 @@ import {
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
 import { AuthUser, MOCK_ACCOUNTS } from '../../services/authService';
+import { AppLogo } from '../common/AppLogo';
 
 interface AppLayoutProps {
   currentScreen: ActiveNavScreen;
@@ -61,13 +61,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Structural Sidebar - 260px fixed width */}
       <aside className="w-full md:w-[260px] bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 min-h-screen sticky top-0 z-20" data-purpose="sidebar">
         <div className="overflow-y-auto max-h-[calc(100vh-90px)]">
-          {/* Brand Header: HUPM Product Arrangement Nordic Architectural Logo Lockup */}
-          <div className="p-5 border-b border-[#E7E2D8] flex items-center space-x-3" data-purpose="brand-logo">
-            <div className="w-9 h-9 rounded-lg bg-[#1E3A2F] text-[#CAEADA] flex items-center justify-center font-bold tracking-tight text-sm shadow-[0_1px_3px_rgba(41,37,36,0.08)] shrink-0">
-              HA
+          {/* Brand Header: HUPM Synchronized 4-Tile Logo */}
+          <div className="p-5 border-b border-[#E7E2D8] flex items-center space-x-3.5" data-purpose="brand-logo">
+            <div className="shrink-0 flex items-center justify-center">
+              <AppLogo className="w-11 h-11" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold tracking-tight text-[#191C1B] leading-tight truncate">
+              <span className="text-base font-bold tracking-tight text-[#191C1B] leading-tight truncate">
                 HUPM
               </span>
               <span className="text-[10px] font-medium tracking-[0.08em] text-[#707973] uppercase truncate mt-0.5">
@@ -78,7 +78,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
           {/* Navigation Section with Unified Color Scheme Across All Roles */}
           <nav className="px-3 py-4 space-y-5" aria-label="Main Navigation">
-            {/* Role 1: Merchandiser Navigation */}
+            {/* Role 1: Merchandiser Navigation - Only this single Recommendations page */}
             {isMerchandiser && (
               <div>
                 <div className="px-3.5 mb-2">
@@ -89,54 +89,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 <ul className="space-y-1" role="list">
                   <li>
                     <button
-                      onClick={() => onNavigate('store-campaigns')}
+                      onClick={() => onNavigate('merchandiser-recommendations')}
                       className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-campaigns'
+                        currentScreen === 'merchandiser-recommendations'
                           ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
                           : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
                       }`}
                     >
-                      <Megaphone className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-campaigns' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Campaign Activations</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => onNavigate('store-reports')}
-                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-reports'
-                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
-                      }`}
-                    >
-                      <BarChart3 className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-reports' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Retail Performance</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => onNavigate('store-ab-report')}
-                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-ab-report'
-                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
-                      }`}
-                    >
-                      <FileBarChart className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-ab-report' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>A/B Test Report</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => onNavigate('store-inventory')}
-                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-inventory' || currentScreen === 'store-edit-product'
-                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
-                      }`}
-                    >
-                      <Package className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-inventory' || currentScreen === 'store-edit-product' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Catalog &amp; Products</span>
+                      <Sparkles className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-recommendations' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Recommendations</span>
                     </button>
                   </li>
                 </ul>
@@ -163,6 +124,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     >
                       <Package className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-inventory' || currentScreen === 'store-edit-product' ? 'text-white' : 'text-[#707973]'}`} />
                       <span>Products &amp; Inventory</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('store-campaigns')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'store-campaigns'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <Megaphone className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-campaigns' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Campaign Activation Review</span>
                     </button>
                   </li>
                   <li>
@@ -295,19 +269,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       <span>API Connections</span>
                     </button>
                   </li>
-                  <li>
-                    <button
-                      onClick={() => onNavigate('structure-doc')}
-                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'structure-doc'
-                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
-                      }`}
-                    >
-                      <FolderTree className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'structure-doc' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Architecture Tree</span>
-                    </button>
-                  </li>
                 </ul>
               </div>
             )}
@@ -340,14 +301,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         <div className="p-4 border-t border-[#E7E2D8] bg-[#FAF8F5] flex items-center justify-between shrink-0" data-purpose="user-profile-badge">
           <div className="flex items-center space-x-3 min-w-0">
             <div className="w-9 h-9 rounded-lg bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-[0_1px_3px_rgba(41,37,36,0.08)]">
-              {currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'MC' : 'CU')}
+              {currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU')}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-[#191C1B] truncate leading-tight">
                 {currentUser?.name || (isStoreAdmin ? 'Lan Nguyen' : isSystemAdmin ? 'Kenji T.' : isMerchandiser ? 'Minh Tran' : 'Quynh Le')}
               </p>
               <p className="text-[11px] text-[#707973] truncate leading-tight mt-0.5">
-                {currentUser?.role || role}
+                {currentUser?.department || (isMerchandiser ? 'Retail Planner' : (currentUser?.role || role))}
               </p>
             </div>
           </div>
@@ -502,10 +463,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             {/* User Avatar */}
             <div 
               onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-              className="w-8 h-8 rounded-lg bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-[0_1px_3px_rgba(41,37,36,0.08)] cursor-pointer"
+              className="w-8 h-8 rounded-full bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-[0_1px_3px_rgba(41,37,36,0.08)] cursor-pointer hover:bg-[#25473A] transition-colors"
               title="Click to switch role"
             >
-              {currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'MC' : 'CU')}
+              {currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU')}
             </div>
           </div>
         </header>

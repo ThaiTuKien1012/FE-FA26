@@ -40,6 +40,7 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
     allowedScreens: [
       'store-inventory',
       'store-edit-product',
+      'store-campaigns',
       'store-transactions',
       'store-validation-issues',
       'store-reports',
@@ -63,8 +64,7 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
       'failure',
       'benchmark',
       'users',
-      'api-connections',
-      'structure-doc'
+      'api-connections'
     ]
   },
   'merchandiser': {
@@ -73,16 +73,12 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
     email: 'merchandiser@retailspace.demo',
     defaultPassword: 'admin123',
     role: 'Merchandiser',
-    avatarText: 'MC',
-    department: 'Category Planning & Merchandising',
-    description: 'Reviews cross-sell opportunities, campaign activations, and retail performance',
-    defaultScreen: 'store-campaigns',
+    avatarText: 'ME',
+    department: 'Retail Planner',
+    description: 'Review mining-derived product groups and approve them for layout planning',
+    defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
-      'store-campaigns',
-      'store-reports',
-      'store-ab-report',
-      'store-inventory',
-      'store-edit-product'
+      'merchandiser-recommendations'
     ]
   },
   'customer': {
@@ -114,13 +110,13 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
     title: 'Products & Inventory',
-    allowedRoles: ['Store Admin', 'Merchandiser']
+    allowedRoles: ['Store Admin']
   },
   'store-edit-product': {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
     title: 'Edit Product Details',
-    allowedRoles: ['Store Admin', 'Merchandiser']
+    allowedRoles: ['Store Admin']
   },
   'store-transactions': {
     primaryRole: 'Store Admin',
@@ -138,20 +134,28 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
     title: 'Retail Performance Reports',
-    allowedRoles: ['Store Admin', 'Merchandiser']
+    allowedRoles: ['Store Admin']
   },
   'store-ab-report': {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
     title: 'A/B Test Report (O07)',
-    allowedRoles: ['Store Admin', 'Merchandiser']
+    allowedRoles: ['Store Admin']
   },
 
-  // Merchandiser Module
+  // Store Operations & Campaigns
   'store-campaigns': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Campaign Activation Review',
+    allowedRoles: ['Store Admin']
+  },
+
+  // Merchandiser Module (Recommendations Dashboard)
+  'merchandiser-recommendations': {
     primaryRole: 'Merchandiser',
     roleKey: 'merchandiser',
-    title: 'Campaign Activations',
+    title: 'Recommendations Dashboard',
     allowedRoles: ['Merchandiser']
   },
 
@@ -196,12 +200,6 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     primaryRole: 'System Admin',
     roleKey: 'system-admin',
     title: 'External API Connections',
-    allowedRoles: ['System Admin']
-  },
-  'structure-doc': {
-    primaryRole: 'System Admin',
-    roleKey: 'system-admin',
-    title: 'System Architecture Specification',
     allowedRoles: ['System Admin']
   },
 

@@ -362,7 +362,7 @@ export const UsersRolesView: React.FC = () => {
           <div className="space-y-1">
             <h4 className="text-sm font-semibold text-[#1e3a2f]">Merchandiser</h4>
             <p className="text-xs text-[#6d7974] leading-relaxed">
-              Product arrangements, cross-sell recommendations, campaign drafts
+              Recommendations Dashboard: Review mining product groups, approve for layouts, and tune utility profiles.
             </p>
           </div>
 

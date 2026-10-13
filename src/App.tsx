@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { Layers } from 'lucide-react';
 import { ActiveNavScreen, MiningJob, MiningAlgorithm, ExecutionMode } from './types/mining';
 import { initialMiningJobs } from './mocks/miningData';
 import { AppLayout } from './components/layout/AppLayout';
@@ -12,7 +13,6 @@ import { MiningSetupView } from './features/mining/components/setup/MiningSetupV
 import { MiningResultsView } from './features/mining/components/results/MiningResultsView';
 import { MiningFailureView } from './features/mining/components/failure/MiningFailureView';
 import { MiningBenchmarkView } from './features/mining/components/benchmark/MiningBenchmarkView';
-import { FolderProposalView } from './features/mining/components/proposal/FolderProposalView';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
 import { ProductInventoryView } from './features/store/components/ProductInventoryView';
@@ -24,6 +24,7 @@ import { StoreReportsView } from './features/store/components/StoreReportsView';
 import { StoreABReportView } from './features/store/components/StoreABReportView';
 import { LoginView } from './features/auth/components/LoginView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
+import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { AccessRestrictedView } from './features/auth/components/AccessRestrictedView';
 import { authService, AuthUser } from './services/authService';
 import { initialProducts } from './mocks/storeInventoryData';
@@ -139,29 +140,25 @@ export default function App() {
       case 'customer-storefront':
         return ['Storefront Kiosk', 'Catalog & Basket'];
 
-      // Store Admin & Merchandiser Product views
+      // Merchandiser screen (Recommendations Dashboard - Single Page)
+      case 'merchandiser-recommendations':
+        return ['Merchandiser', 'Operations'];
+
+      // Store Operations views (Store Admin)
       case 'store-inventory':
-        return currentUser?.role === 'Merchandiser' 
-          ? ['Merchandising', 'Product Assortment', 'Catalog & Margins']
-          : ['Store Operations', 'Product Management', 'Products & Inventory'];
+        return ['Store Operations', 'Product Management', 'Products & Inventory'];
       case 'store-edit-product':
-        return currentUser?.role === 'Merchandiser'
-          ? ['Merchandising', 'Product Details', 'Pricing & Margin Review']
-          : ['Store Operations', 'Product Management', 'Edit Product'];
+        return ['Store Operations', 'Product Management', 'Edit Product'];
       case 'store-transactions':
         return ['Store Operations', 'Transactions', 'Transaction Data Center'];
       case 'store-validation-issues':
         return ['Store Operations', 'Transaction Data Center', 'Validation Issues'];
       case 'store-campaigns':
-        return ['Merchandising', 'Campaign Activations', 'Campaign Activation Review'];
+        return ['Store Operations', 'Campaigns', 'Campaign Activation Review'];
       case 'store-reports':
-        return currentUser?.role === 'Merchandiser'
-          ? ['Merchandising', 'Retail Performance', 'Category & Cross-Sell Reports']
-          : ['Store Operations', 'Reports', 'Retail Performance Reports'];
+        return ['Store Operations', 'Reports', 'Retail Performance Reports'];
       case 'store-ab-report':
-        return currentUser?.role === 'Merchandiser'
-          ? ['Merchandising', 'Planogram Layouts', 'A/B Test Report (O07)']
-          : ['Store Operations', 'Reports', 'A/B Test Report (O07)'];
+        return ['Store Operations', 'Reports', 'A/B Test Report (O07)'];
 
       // F01 System Admin screens
       case 'overview':
@@ -178,8 +175,6 @@ export default function App() {
         return ['System Administration', 'Accounts & Roles (RBAC)'];
       case 'api-connections':
         return ['System Administration', 'External Integrations & API Connections'];
-      case 'structure-doc':
-        return ['System Administration', 'Architecture & Project Structure'];
       default:
         return ['Platform', 'Workspace'];
     }
@@ -235,6 +230,14 @@ export default function App() {
         />
       ) : (
         <>
+          {/* Merchandiser: Single Recommendations Dashboard Screen */}
+          {currentScreen === 'merchandiser-recommendations' && (
+            <MerchandiserRecommendationsView 
+              currentScreen={currentScreen}
+              onNavigate={handleNavigate}
+            />
+          )}
+
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (
         <ProductInventoryView 
@@ -336,11 +339,6 @@ export default function App() {
       {/* System Admin: API Connections */}
       {currentScreen === 'api-connections' && (
         <ApiConnectionsView />
-      )}
-
-      {/* Architecture Proposal Document */}
-      {currentScreen === 'structure-doc' && (
-        <FolderProposalView onNavigate={handleNavigate} />
       )}
         </>
       )}
