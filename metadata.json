@@ -1,0 +1,8 @@
+{
+  "name": "Remix RetailSpace - Mining Service Operations",
+  "description": "RetailSpace Operations Platform - F01 System Admin: Prepare and operate High-Utility Itemset Mining service (HUI-Miner \u0026 EFIM).",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
