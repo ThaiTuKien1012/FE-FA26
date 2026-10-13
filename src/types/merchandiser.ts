@@ -5,6 +5,8 @@ export interface GroupItemDetail {
   id: string;
   name: string;
   category: string;
+  sku?: string;
+  iconType?: 'juice' | 'water' | 'snack' | 'energy' | 'coffee' | 'default';
   unitPrice: number;
   utilityContribution: number;
   marginPct: number;
@@ -13,6 +15,7 @@ export interface GroupItemDetail {
 
 export interface RecommendedProductGroup {
   id: string;
+  groupCode?: string; // e.g. 'REC-014'
   groupName: string;
   itemsCount: number;
   type: ProductGroupType;
@@ -20,10 +23,13 @@ export interface RecommendedProductGroup {
   status: ProductGroupStatus;
   sourceMiningRun: string; // e.g. '#0024'
   miningRunDetails: string; // e.g. 'EFIM · Sales Q3'
+  sourceDataPeriod?: string; // e.g. 'Sales Q3 2026'
   items: GroupItemDetail[];
   expectedBasketLiftPct: number;
   projectedMarginPct: number;
   coOccurrenceCount: number;
+  suggestedPlacement?: string; // e.g. 'Beverages + Snacks · Adjacent gondola endcap'
+  utilityThresholdNote?: string; // e.g. 'Utility threshold > 980'
   layoutTarget?: 'Layout A' | 'Layout B' | 'Promotional Endcap' | null;
   notes?: string;
 }

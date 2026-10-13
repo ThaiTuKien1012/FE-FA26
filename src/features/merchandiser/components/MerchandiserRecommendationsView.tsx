@@ -20,11 +20,13 @@ import { ActiveNavScreen } from '../../../types/mining';
 interface MerchandiserRecommendationsViewProps {
   currentScreen?: ActiveNavScreen;
   onNavigate?: (screen: ActiveNavScreen) => void;
+  onReviewGroup?: (groupId: string) => void;
 }
 
 export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendationsViewProps> = ({
   currentScreen = 'merchandiser-recommendations',
-  onNavigate
+  onNavigate,
+  onReviewGroup
 }) => {
   // State
   const [groups, setGroups] = useState<RecommendedProductGroup[]>(INITIAL_RECOMMENDED_GROUPS);

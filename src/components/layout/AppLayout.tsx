@@ -100,6 +100,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       <span>Recommendations</span>
                     </button>
                   </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('merchandiser-approve')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'merchandiser-approve'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <CheckCircle2 className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-approve' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Approve Group</span>
+                    </button>
+                  </li>
                 </ul>
               </div>
             )}

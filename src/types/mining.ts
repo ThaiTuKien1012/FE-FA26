@@ -58,7 +58,8 @@ export type ActiveNavScreen =
   | 'benchmark'       // S06: HUI-Miner vs EFIM Benchmark
   | 'users'           // Accounts & Roles (User Management & RBAC)
   | 'api-connections' // API Connections & Import Settings
-  | 'merchandiser-recommendations' // Merchandiser: Recommendations Dashboard (From Screenshot)
+  | 'merchandiser-recommendations' // Merchandiser: Recommendations Dashboard (From Screenshot 1)
+  | 'merchandiser-approve'         // Merchandiser: Review & Approve Product Group (From Screenshot 2)
   | 'store-inventory' // F02 Store Admin: Product & Inventory
   | 'store-edit-product' // F02 Store Admin: Edit Product Page
   | 'store-transactions' // F02 Store Admin: Transactions (Data Center)

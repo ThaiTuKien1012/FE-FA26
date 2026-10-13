@@ -12,22 +12,26 @@ export const INITIAL_UTILITY_PROFILE: UtilityProfileConfig = {
 export const INITIAL_RECOMMENDED_GROUPS: RecommendedProductGroup[] = [
   {
     id: 'grp-01',
+    groupCode: 'REC-014',
     groupName: 'Summer Drink Set',
     itemsCount: 4,
     type: 'Cross-sell',
     utilityScore: 1250,
     status: 'Pending',
     sourceMiningRun: '#0024',
-    miningRunDetails: 'EFIM · Sales Q3',
+    miningRunDetails: 'EFIM',
+    sourceDataPeriod: 'Sales Q3 2026',
     expectedBasketLiftPct: 24.5,
     projectedMarginPct: 41.2,
     coOccurrenceCount: 412,
-    notes: 'High synergy between iced cold brew and citrus syrup during peak afternoon hours.',
+    suggestedPlacement: 'Beverages + Snacks',
+    utilityThresholdNote: 'Utility threshold > 980',
+    notes: 'Proposed cross-sell recommendation from latest high-utility mining run.',
     items: [
-      { id: 'it-01', name: 'Artisan Cold Brew Bottle 250ml', category: 'Beverages', unitPrice: 45000, utilityContribution: 420, marginPct: 48 },
-      { id: 'it-02', name: 'Fresh Mint Lemonade Soda 330ml', category: 'Beverages', unitPrice: 32000, utilityContribution: 310, marginPct: 39 },
-      { id: 'it-03', name: 'Sparkling Tonic Water Can', category: 'Mixers', unitPrice: 22000, utilityContribution: 260, marginPct: 35 },
-      { id: 'it-04', name: 'Organic Citrus & Yuzu Syrup 100ml', category: 'Syrups', unitPrice: 58000, utilityContribution: 260, marginPct: 43 }
+      { id: 'it-01', name: 'Orange Juice 1L', category: 'BEVERAGES', sku: 'SKU: DRK-101', iconType: 'juice', unitPrice: 42000, utilityContribution: 420, marginPct: 48 },
+      { id: 'it-02', name: 'Sparkling Water 500ml', category: 'BEVERAGES', sku: 'SKU: DRK-114', iconType: 'water', unitPrice: 22000, utilityContribution: 310, marginPct: 39 },
+      { id: 'it-03', name: 'Potato Chips 70g', category: 'SNACKS', sku: 'SKU: SNK-043', iconType: 'snack', unitPrice: 28000, utilityContribution: 260, marginPct: 35 },
+      { id: 'it-04', name: 'Energy Drink 250ml', category: 'BEVERAGES', sku: 'SKU: DRK-091', iconType: 'energy', unitPrice: 32000, utilityContribution: 260, marginPct: 43 }
     ]
   },
   {

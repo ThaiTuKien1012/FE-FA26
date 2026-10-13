@@ -78,7 +78,8 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
     description: 'Review mining-derived product groups and approve them for layout planning',
     defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
-      'merchandiser-recommendations'
+      'merchandiser-recommendations',
+      'merchandiser-approve'
     ]
   },
   'customer': {
@@ -151,11 +152,17 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     allowedRoles: ['Store Admin']
   },
 
-  // Merchandiser Module (Recommendations Dashboard)
+  // Merchandiser Modules (Recommendations & Approval Review)
   'merchandiser-recommendations': {
     primaryRole: 'Merchandiser',
     roleKey: 'merchandiser',
     title: 'Recommendations Dashboard',
+    allowedRoles: ['Merchandiser']
+  },
+  'merchandiser-approve': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Review & Approve Product Group',
     allowedRoles: ['Merchandiser']
   },
 
