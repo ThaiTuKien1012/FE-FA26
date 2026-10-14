@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { 
-  ArrowLeft, 
-  Image as ImageIcon, 
-  ChevronDown, 
-  Check, 
-  Plus, 
-  X, 
-  Upload, 
+import {
+  ArrowLeft,
+  Image as ImageIcon,
+  ChevronDown,
+  Check,
+  Plus,
+  X,
+  Upload,
   CheckCircle2,
   Trash2,
   Sparkles
@@ -54,7 +54,7 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
   const [description, setDescription] = useState<string>(
     product?.description || 'Classic potato chips, original flavor.'
   );
-  
+
   // Pricing & Inventory State (storing as strings to allow formatted inputs)
   const [sellingPriceInput, setSellingPriceInput] = useState<string>(
     product?.priceVnd ? product.priceVnd.toLocaleString('en-US') : '32,000'
@@ -187,12 +187,12 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
       stockQuantity: stockQuantity,
       isActive: isActive,
       image: previewImage || undefined,
-      status: !isActive 
-        ? 'Out of Stock' 
-        : stockQuantity === 0 
-          ? 'Out of Stock' 
-          : stockQuantity <= 20 
-            ? 'Low Stock' 
+      status: !isActive
+        ? 'Out of Stock'
+        : stockQuantity === 0
+          ? 'Out of Stock'
+          : stockQuantity <= 20
+            ? 'Low Stock'
             : 'In Stock',
       updatedAt: 'Today'
     };
@@ -212,8 +212,8 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
         <div className="fixed top-5 right-5 z-50 bg-[#1e3a2f] text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-xs font-semibold animate-in fade-in slide-in-from-top-3 border border-[#caeada]/20">
           <CheckCircle2 className="w-4 h-4 text-[#caeada] shrink-0" />
           <span>{toastNotice}</span>
-          <button 
-            onClick={() => setToastNotice(null)} 
+          <button
+            onClick={() => setToastNotice(null)}
             className="text-white/70 hover:text-white ml-2 text-xs cursor-pointer"
           >
             ✕
@@ -279,9 +279,8 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
               SKU: {sku || product?.sku}
             </span>
 
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-              isActive ? 'bg-[#caeada] text-[#1E3A2F]' : 'bg-[#e9e1df] text-[#6d7974]'
-            }`}>
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${isActive ? 'bg-[#caeada] text-[#1E3A2F]' : 'bg-[#e9e1df] text-[#6d7974]'
+              }`}>
               {isActive ? 'Active' : 'Inactive'}
             </span>
           </div>
@@ -359,7 +358,7 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
                   <label className="block text-xs font-semibold text-[#191c1b] mb-1.5">
                     Category <span className="text-[#b3261e]">*</span>
                   </label>
-                  
+
                   <div className="flex items-center gap-3">
                     <div className="relative flex-1">
                       <select
@@ -572,7 +571,7 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div 
+                  <div
                     onClick={() => fileInputRef.current?.click()}
                     className="border-2 border-dashed border-[#E7E2D8] hover:border-[#1e3a2f] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-[#FAF8F5] hover:bg-[#eaf0eb]/50 transition-colors group"
                   >
@@ -611,9 +610,8 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
                       <span className="text-sm font-bold text-[#191c1b] truncate">
                         {name || "Lay's Classic 70g"}
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        isActive ? 'bg-[#caeada] text-[#1E3A2F]' : 'bg-[#e9e1df] text-[#6d7974]'
-                      }`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isActive ? 'bg-[#caeada] text-[#1E3A2F]' : 'bg-[#e9e1df] text-[#6d7974]'
+                        }`}>
                         {isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>

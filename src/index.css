@@ -33,7 +33,9 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  code, pre, .font-mono {
+  code,
+  pre,
+  .font-mono {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-variant-numeric: tabular-nums;
   }
@@ -44,13 +46,16 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: #FAF8F5;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #E7E2D8;
   border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #8C857B;
 }

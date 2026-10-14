@@ -300,10 +300,10 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#191c1b]">
-            Product &amp; Inventory Management
+            Products &amp; Inventory
           </h1>
           <p className="text-sm text-[#6d7974] mt-1">
-            Manage product information and inventory for your store.
+            Monitor catalog items, stock levels, and store availability.
           </p>
         </div>
         <div className="flex items-center gap-2.5">

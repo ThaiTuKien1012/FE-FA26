@@ -197,19 +197,19 @@ export default function App() {
 
       // Store Operations views (Store Admin)
       case 'store-inventory':
-        return ['Store Operations', 'Product Management', 'Products & Inventory'];
+        return [];
       case 'store-edit-product':
-        return ['Store Operations', 'Product Management', 'Edit Product'];
+        return ['Products & Inventory', 'Edit Product'];
       case 'store-transactions':
-        return ['Store Operations', 'Transactions', 'Transaction Data Center'];
+        return [];
       case 'store-validation-issues':
-        return ['Store Operations', 'Transaction Data Center', 'Validation Issues'];
+        return ['Transaction Data Center', 'Validation Issues'];
       case 'store-campaigns':
-        return ['Store Operations', 'Campaigns', 'Campaign Activation Review'];
+        return [];
       case 'store-reports':
-        return ['Store Operations', 'Reports', 'Retail Performance Reports'];
+        return [];
       case 'store-ab-report':
-        return ['Store Operations', 'Reports', 'A/B Test Report (O07)'];
+        return ['Retail Performance Reports', 'A/B Test Report (O07)'];
 
       // F01 System Admin screens
       case 'overview':
@@ -234,15 +234,15 @@ export default function App() {
   // 1. If currently on Login screen, render LoginView standalone full-screen
   if (currentScreen === 'login') {
     return (
-      <LoginView 
+      <LoginView
         onLoginSuccess={handleLoginSuccess}
         initialRoleKey={
-          currentUser?.role === 'System Admin' 
-            ? 'system-admin' 
-            : currentUser?.role === 'Merchandiser' 
-              ? 'merchandiser' 
-              : currentUser?.role === 'End-Customer' 
-                ? 'customer' 
+          currentUser?.role === 'System Admin'
+            ? 'system-admin'
+            : currentUser?.role === 'Merchandiser'
+              ? 'merchandiser'
+              : currentUser?.role === 'End-Customer'
+                ? 'customer'
                 : 'store-admin'
         }
       />
@@ -252,7 +252,7 @@ export default function App() {
   // 2. If Customer role on customer-storefront, render full-screen Kiosk
   if (currentScreen === 'customer-storefront') {
     return (
-      <CustomerStorefrontView 
+      <CustomerStorefrontView
         products={storeProducts}
         user={currentUser}
         onLogout={handleLogout}
@@ -283,7 +283,7 @@ export default function App() {
         <>
           {/* Merchandiser: Single Recommendations Dashboard Screen */}
           {currentScreen === 'merchandiser-recommendations' && (
-            <MerchandiserRecommendationsView 
+            <MerchandiserRecommendationsView
               currentScreen={currentScreen}
               onNavigate={handleNavigate}
             />
@@ -331,106 +331,106 @@ export default function App() {
 
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (
-        <ProductInventoryView 
-          onNavigate={handleNavigate}
-          products={storeProducts}
-          setProducts={setStoreProducts}
-          onEditProduct={handleEditProduct}
-        />
-      )}
+            <ProductInventoryView
+              onNavigate={handleNavigate}
+              products={storeProducts}
+              setProducts={setStoreProducts}
+              onEditProduct={handleEditProduct}
+            />
+          )}
 
-      {/* F02: Store Admin - Edit Product Page */}
-      {currentScreen === 'store-edit-product' && (
-        <EditProductView 
-          productId={editingProductId}
-          onNavigate={handleNavigate}
-          products={storeProducts}
-          onProductUpdated={(updatedProd) => {
-            setStoreProducts((prev) => prev.map((p) => p.id === updatedProd.id ? updatedProd : p));
-          }}
-          onProductDeleted={(prodId) => {
-            setStoreProducts((prev) => prev.filter((p) => p.id !== prodId));
-          }}
-        />
-      )}
+          {/* F02: Store Admin - Edit Product Page */}
+          {currentScreen === 'store-edit-product' && (
+            <EditProductView
+              productId={editingProductId}
+              onNavigate={handleNavigate}
+              products={storeProducts}
+              onProductUpdated={(updatedProd) => {
+                setStoreProducts((prev) => prev.map((p) => p.id === updatedProd.id ? updatedProd : p));
+              }}
+              onProductDeleted={(prodId) => {
+                setStoreProducts((prev) => prev.filter((p) => p.id !== prodId));
+              }}
+            />
+          )}
 
-      {/* F02: Store Admin - Transactions (Transaction Data Center) */}
-      {currentScreen === 'store-transactions' && (
-        <StoreTransactionsView onNavigate={handleNavigate} />
-      )}
+          {/* F02: Store Admin - Transactions (Transaction Data Center) */}
+          {currentScreen === 'store-transactions' && (
+            <StoreTransactionsView onNavigate={handleNavigate} />
+          )}
 
-      {/* F02: Store Admin - Validation Issues */}
-      {currentScreen === 'store-validation-issues' && (
-        <StoreValidationIssuesView onNavigate={handleNavigate} />
-      )}
+          {/* F02: Store Admin - Validation Issues */}
+          {currentScreen === 'store-validation-issues' && (
+            <StoreValidationIssuesView onNavigate={handleNavigate} />
+          )}
 
-      {/* F02 / Merchandiser: Campaigns (Activation Review) */}
-      {currentScreen === 'store-campaigns' && (
-        <StoreCampaignsView onNavigate={handleNavigate} />
-      )}
+          {/* F02 / Merchandiser: Campaigns (Activation Review) */}
+          {currentScreen === 'store-campaigns' && (
+            <StoreCampaignsView onNavigate={handleNavigate} />
+          )}
 
-      {/* F02 / Merchandiser: Reports */}
-      {currentScreen === 'store-reports' && (
-        <StoreReportsView onNavigate={handleNavigate} />
-      )}
+          {/* F02 / Merchandiser: Reports */}
+          {currentScreen === 'store-reports' && (
+            <StoreReportsView onNavigate={handleNavigate} />
+          )}
 
-      {/* F02 / Merchandiser: O07 A/B Test Report */}
-      {currentScreen === 'store-ab-report' && (
-        <StoreABReportView onNavigate={handleNavigate} />
-      )}
+          {/* F02 / Merchandiser: O07 A/B Test Report */}
+          {currentScreen === 'store-ab-report' && (
+            <StoreABReportView onNavigate={handleNavigate} />
+          )}
 
-      {/* F01: Mining Overview */}
-      {currentScreen === 'overview' && (
-        <MiningOverviewView
-          jobs={jobs}
-          onNavigate={handleNavigate}
-          onQuickRun={() => handleNavigate('setup')}
-        />
-      )}
+          {/* F01: Mining Overview */}
+          {currentScreen === 'overview' && (
+            <MiningOverviewView
+              jobs={jobs}
+              onNavigate={handleNavigate}
+              onQuickRun={() => handleNavigate('setup')}
+            />
+          )}
 
-      {/* F01: Mining Setup */}
-      {currentScreen === 'setup' && (
-        <MiningSetupView
-          onNavigate={handleNavigate}
-          onRunMining={handleRunMining}
-        />
-      )}
+          {/* F01: Mining Setup */}
+          {currentScreen === 'setup' && (
+            <MiningSetupView
+              onNavigate={handleNavigate}
+              onRunMining={handleRunMining}
+            />
+          )}
 
-      {/* F01: Mining Results */}
-      {currentScreen === 'results' && (
-        <MiningResultsView
-          job={selectedJob.status === 'Completed' ? selectedJob : (jobs.find(j => j.status === 'Completed') || jobs[1])}
-          onNavigate={handleNavigate}
-          onRerun={(j) => {
-            setActiveRunId(j.runId);
-            handleNavigate('setup');
-          }}
-        />
-      )}
+          {/* F01: Mining Results */}
+          {currentScreen === 'results' && (
+            <MiningResultsView
+              job={selectedJob.status === 'Completed' ? selectedJob : (jobs.find(j => j.status === 'Completed') || jobs[1])}
+              onNavigate={handleNavigate}
+              onRerun={(j) => {
+                setActiveRunId(j.runId);
+                handleNavigate('setup');
+              }}
+            />
+          )}
 
-      {/* F01: Mining Failure */}
-      {currentScreen === 'failure' && (
-        <MiningFailureView
-          job={selectedJob.status === 'Failed' ? selectedJob : (jobs.find(j => j.status === 'Failed') || jobs[0])}
-          onNavigate={handleNavigate}
-          onRetry={handleRetryFailedJob}
-        />
-      )}
+          {/* F01: Mining Failure */}
+          {currentScreen === 'failure' && (
+            <MiningFailureView
+              job={selectedJob.status === 'Failed' ? selectedJob : (jobs.find(j => j.status === 'Failed') || jobs[0])}
+              onNavigate={handleNavigate}
+              onRetry={handleRetryFailedJob}
+            />
+          )}
 
-      {/* F01: Benchmark */}
-      {currentScreen === 'benchmark' && (
-        <MiningBenchmarkView onNavigate={handleNavigate} />
-      )}
+          {/* F01: Benchmark */}
+          {currentScreen === 'benchmark' && (
+            <MiningBenchmarkView onNavigate={handleNavigate} />
+          )}
 
-      {/* System Admin: Users & Roles */}
-      {currentScreen === 'users' && (
-        <UsersRolesView />
-      )}
+          {/* System Admin: Users & Roles */}
+          {currentScreen === 'users' && (
+            <UsersRolesView />
+          )}
 
-      {/* System Admin: API Connections */}
-      {currentScreen === 'api-connections' && (
-        <ApiConnectionsView />
-      )}
+          {/* System Admin: API Connections */}
+          {currentScreen === 'api-connections' && (
+            <ApiConnectionsView />
+          )}
         </>
       )}
     </AppLayout>

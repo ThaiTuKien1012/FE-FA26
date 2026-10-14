@@ -26,7 +26,8 @@ import {
   Radio,
   LayoutGrid,
   Settings,
-  Filter
+  Filter,
+  Search
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
 import { AuthUser, MOCK_ACCOUNTS } from '../../services/authService';
@@ -53,6 +54,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   children
 }) => {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const role = currentUser?.role || 'Store Admin';
   const isSystemAdmin = role === 'System Admin';
@@ -60,10 +62,33 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isMerchandiser = role === 'Merchandiser';
   const isCustomer = role === 'End-Customer';
 
+  // Dynamic time-based greeting (Chào đúng giờ)
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  // Full name & First name (Đúng tên người dùng)
+  const fullName = currentUser?.name || (isStoreAdmin ? 'Lan Nguyen' : isSystemAdmin ? 'Kenji Takahashi' : isMerchandiser ? 'Minh Tran' : 'Quynh Le');
+  const firstName = fullName.split(' ')[0];
+
+  // Specific role title (Đúng role)
+  const displayRole = currentUser?.department || (
+    isStoreAdmin 
+      ? 'Store Operations Manager' 
+      : isSystemAdmin 
+        ? 'System Administrator' 
+        : isMerchandiser 
+          ? 'Senior Merchandiser' 
+          : 'Customer Representative'
+  );
+
   return (
     <div className="min-h-screen w-full bg-[#FAF8F5] text-[#191C1B] flex flex-col md:flex-row font-sans selection:bg-[#1E3A2F] selection:text-white antialiased">
       {/* Structural Sidebar - Sticky top-0 and full viewport height */}
-      <aside className="w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-20" data-purpose="sidebar">
+      <aside className="w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]" data-purpose="sidebar">
         <div className="flex-1 overflow-y-auto">
           {/* Brand Header: HUPM Synchronized 4-Tile Logo */}
           <div className="p-5 border-b border-[#E7E2D8] flex items-center space-x-3.5" data-purpose="brand-logo">
@@ -410,21 +435,42 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top Header - Sticky at top */}
-        <header className="h-16 px-6 md:px-8 border-b border-[#E7E2D8] bg-[#FAF8F5]/95 backdrop-blur-xs flex items-center justify-between shrink-0 sticky top-0 z-10" data-purpose="top-navigation-bar">
-          {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="flex items-center space-x-2 text-xs font-medium text-[#707973] overflow-x-auto">
-            {breadcrumbs.map((crumb, idx) => {
-              const isLast = idx === breadcrumbs.length - 1;
-              return (
-                <React.Fragment key={idx}>
-                  {idx > 0 && <span className="text-[#E7E2D8]">/</span>}
-                  <span className={isLast ? 'text-[#191C1B] font-semibold truncate' : 'hover:text-[#191C1B] cursor-pointer transition-colors truncate'}>
-                    {crumb}
-                  </span>
-                </React.Fragment>
-              );
-            })}
-          </nav>
+        <header className="h-16 px-6 md:px-8 border-b border-[#E7E2D8] bg-[#FAF8F5]/98 backdrop-blur-md flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-[0_1px_4px_rgba(41,37,36,0.04)] transition-all" data-purpose="top-navigation-bar">
+          {/* Left: Dynamic Time Greeting + User Name + Role Title */}
+          <div className="flex flex-col justify-center min-w-0 shrink-0">
+            <h2 className="text-sm sm:text-base font-bold text-[#191C1B] tracking-tight leading-tight flex items-center gap-1.5 truncate">
+              <span>{getGreeting()}, {firstName}!</span>
+            </h2>
+            <span className="text-[11px] font-medium text-[#707973] truncate leading-tight mt-0.5">
+              {displayRole}
+            </span>
+          </div>
+
+          {/* Center: Quick Search Bar */}
+          <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-3 sm:mx-6 hidden sm:block">
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-9 pl-3.5 pr-9 text-xs bg-white text-[#191C1B] border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-[#1E3A2F] focus:ring-1 focus:ring-[#1E3A2F]/20 transition-all placeholder:text-[#8C857B] shadow-2xs font-normal"
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-3 flex items-center text-[#8C857B] hover:text-[#191C1B] cursor-pointer text-xs"
+                >
+                  ✕
+                </button>
+              ) : (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#8C857B]">
+                  <Search className="w-3.5 h-3.5" />
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Top Right Controls & Role Switcher */}
           <div className="flex items-center space-x-3 shrink-0">
