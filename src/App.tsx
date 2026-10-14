@@ -24,6 +24,7 @@ import { StoreCampaignsView } from './features/store/components/StoreCampaignsVi
 import { StoreReportsView } from './features/store/components/StoreReportsView';
 import { StoreABReportView } from './features/store/components/StoreABReportView';
 import { LoginView } from './features/auth/components/LoginView';
+import { RegisterView } from './features/auth/components/RegisterView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
@@ -236,6 +237,32 @@ export default function App() {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
+        onNavigateRegister={() => {
+          syncBrowserUrl('register');
+          setCurrentScreen('register');
+        }}
+        initialRoleKey={
+          currentUser?.role === 'System Admin'
+            ? 'system-admin'
+            : currentUser?.role === 'Merchandiser'
+              ? 'merchandiser'
+              : currentUser?.role === 'End-Customer'
+                ? 'customer'
+                : 'store-admin'
+        }
+      />
+    );
+  }
+
+  // 1b. If currently on Register screen, render RegisterView standalone full-screen
+  if (currentScreen === 'register') {
+    return (
+      <RegisterView
+        onRegisterSuccess={handleLoginSuccess}
+        onNavigateLogin={() => {
+          syncBrowserUrl('login');
+          setCurrentScreen('login');
+        }}
         initialRoleKey={
           currentUser?.role === 'System Admin'
             ? 'system-admin'

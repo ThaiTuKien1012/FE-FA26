@@ -20,11 +20,13 @@ import { ActiveNavScreen } from '../../../types/mining';
 
 interface LoginViewProps {
   onLoginSuccess: (user: AuthUser, destinationScreen: ActiveNavScreen) => void;
+  onNavigateRegister?: () => void;
   initialRoleKey?: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer';
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
+  onNavigateRegister,
   initialRoleKey = 'merchandiser'
 }) => {
   const [selectedRoleKey, setSelectedRoleKey] = useState<'store-admin' | 'system-admin' | 'merchandiser' | 'customer'>(initialRoleKey);
@@ -330,9 +332,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <div className="text-center pt-2">
                   <p className="text-xs text-[#6D7974]">
                     Chưa có tài khoản quản trị?{' '}
-                    <a className="font-semibold text-[#1E3A2F] hover:underline transition-colors cursor-pointer" href="#">
-                      Liên hệ cấp quyền
-                    </a>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateRegister ? onNavigateRegister() : undefined}
+                      className="font-semibold text-[#1E3A2F] hover:underline transition-colors cursor-pointer inline-flex items-center gap-1"
+                    >
+                      Đăng ký tài khoản mới
+                      <ArrowRight className="w-3 h-3 inline" />
+                    </button>
                   </p>
                 </div>
               </form>

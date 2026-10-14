@@ -18,6 +18,14 @@ export interface LoginCredentials {
   rememberMe?: boolean;
 }
 
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  password?: string;
+  roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer';
+  phone?: string;
+}
+
 export interface AuthResponse {
   success: boolean;
   token?: string;
@@ -273,6 +281,12 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     roleKey: 'store-admin',
     title: 'User Authentication',
     allowedRoles: ['Store Admin', 'System Admin', 'Merchandiser', 'End-Customer']
+  },
+  'register': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'User Registration',
+    allowedRoles: ['Store Admin', 'System Admin', 'Merchandiser', 'End-Customer']
   }
 };
 
@@ -387,6 +401,57 @@ class MockAuthService {
       return { success: false, error: 'Unknown role' };
     }
     return this.login({ email: account.email, password: account.defaultPassword });
+  }
+
+  /**
+   * Register a new user and generate session
+   */
+  public async register(payload: RegisterPayload): Promise<AuthResponse> {
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    if (!payload.email || !payload.name) {
+      return {
+        success: false,
+        error: 'Vui lòng điền đầy đủ họ tên và email.'
+      };
+    }
+
+    const templateAccount = MOCK_ACCOUNTS[payload.roleKey] || MOCK_ACCOUNTS['store-admin'];
+
+    // Generate initials for avatarText
+    const words = payload.name.trim().split(/\s+/);
+    const avatarText = words.length >= 2 
+      ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
+      : payload.name.slice(0, 2).toUpperCase();
+
+    const newUser: AuthUser = {
+      id: `usr-reg-${Date.now()}`,
+      name: payload.name.trim(),
+      email: payload.email.trim().toLowerCase(),
+      role: templateAccount.role,
+      avatarText,
+      department: templateAccount.department,
+      defaultScreen: templateAccount.defaultScreen,
+      allowedScreens: templateAccount.allowedScreens
+    };
+
+    const token = `token_reg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    this.currentUser = newUser;
+
+    try {
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
+      localStorage.setItem(STORAGE_KEY_TOKEN, token);
+    } catch {
+      // Ignore
+    }
+
+    return {
+      success: true,
+      token,
+      user: newUser,
+      redirectScreen: newUser.defaultScreen
+    };
   }
 
   /**
