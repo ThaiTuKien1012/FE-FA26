@@ -5,6 +5,7 @@ import {
   Package, 
   FileBarChart, 
   BarChart3, 
+  BarChart2, 
   Bell, 
   LayoutDashboard, 
   Settings2, 
@@ -12,6 +13,8 @@ import {
   Users, 
   Store,
   CheckCircle2,
+  Flag,
+  SlidersHorizontal,
   LogOut,
   ChevronDown,
   ShoppingBag,
@@ -22,7 +25,8 @@ import {
   AlertCircle,
   Radio,
   LayoutGrid,
-  Settings
+  Settings,
+  Filter
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
 import { AuthUser, MOCK_ACCOUNTS } from '../../services/authService';
@@ -111,6 +115,71 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     >
                       <CheckCircle2 className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-approve' ? 'text-white' : 'text-[#707973]'}`} />
                       <span>Approve Group</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('merchandiser-campaign-draft')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'merchandiser-campaign-draft'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <Megaphone className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-campaign-draft' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Campaign Drafts</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('merchandiser-campaign-status')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'merchandiser-campaign-status'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <Flag className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-campaign-status' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Published / Waiting</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('merchandiser-utility-profile')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'merchandiser-utility-profile'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-utility-profile' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Utility Profile</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('merchandiser-refine-criteria')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'merchandiser-refine-criteria'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <Filter className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-refine-criteria' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Refine Criteria</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('merchandiser-ab-simulation')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'merchandiser-ab-simulation' || currentScreen === 'merchandiser-compare-simulation' || currentScreen === 'merchandiser-keep-layout-a'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <BarChart2 className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'merchandiser-ab-simulation' || currentScreen === 'merchandiser-compare-simulation' || currentScreen === 'merchandiser-keep-layout-a' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>A/B Simulation</span>
                     </button>
                   </li>
                 </ul>

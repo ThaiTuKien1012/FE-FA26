@@ -79,7 +79,14 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
     defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
       'merchandiser-recommendations',
-      'merchandiser-approve'
+      'merchandiser-approve',
+      'merchandiser-campaign-draft',
+      'merchandiser-campaign-status',
+      'merchandiser-utility-profile',
+      'merchandiser-refine-criteria',
+      'merchandiser-ab-simulation',
+      'merchandiser-compare-simulation',
+      'merchandiser-keep-layout-a'
     ]
   },
   'customer': {
@@ -165,6 +172,48 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     title: 'Review & Approve Product Group',
     allowedRoles: ['Merchandiser']
   },
+  'merchandiser-campaign-draft': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Campaign Draft & Publish',
+    allowedRoles: ['Merchandiser']
+  },
+  'merchandiser-campaign-status': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Published / Waiting Campaign Status',
+    allowedRoles: ['Merchandiser']
+  },
+  'merchandiser-utility-profile': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Utility Profile & Priority Weights',
+    allowedRoles: ['Merchandiser']
+  },
+  'merchandiser-refine-criteria': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Rework / Refine Criteria',
+    allowedRoles: ['Merchandiser']
+  },
+  'merchandiser-ab-simulation': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'A/B Simulation Setup',
+    allowedRoles: ['Merchandiser']
+  },
+  'merchandiser-compare-simulation': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Compare A/B Simulation',
+    allowedRoles: ['Merchandiser']
+  },
+  'merchandiser-keep-layout-a': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Keep Layout A Review',
+    allowedRoles: ['Merchandiser']
+  },
 
   // System Admin Core Modules
   'overview': {
@@ -241,7 +290,16 @@ class MockAuthService {
     try {
       const savedUser = localStorage.getItem(STORAGE_KEY_USER);
       if (savedUser) {
-        this.currentUser = JSON.parse(savedUser);
+        const parsed = JSON.parse(savedUser);
+        // Sync with latest MOCK_ACCOUNTS permissions in case new screens were added
+        const matchedAccount = Object.values(MOCK_ACCOUNTS).find(
+          (acc) => acc.role === parsed.role
+        );
+        if (matchedAccount) {
+          parsed.allowedScreens = matchedAccount.allowedScreens;
+          parsed.defaultScreen = matchedAccount.defaultScreen;
+        }
+        this.currentUser = parsed;
       }
     } catch {
       this.currentUser = null;
@@ -249,11 +307,26 @@ class MockAuthService {
   }
 
   public getCurrentUser(): AuthUser | null {
+    if (this.currentUser) {
+      const matchedAccount = Object.values(MOCK_ACCOUNTS).find(
+        (acc) => acc.role === this.currentUser!.role
+      );
+      if (matchedAccount) {
+        this.currentUser.allowedScreens = matchedAccount.allowedScreens;
+      }
+    }
     return this.currentUser;
   }
 
   public isAuthenticated(): boolean {
     return this.currentUser !== null;
+  }
+
+  public isScreenAllowed(user: AuthUser | null, screen: ActiveNavScreen): boolean {
+    if (!user) return false;
+    const matched = Object.values(MOCK_ACCOUNTS).find((acc) => acc.role === user.role);
+    const allowed = matched ? matched.allowedScreens : user.allowedScreens;
+    return allowed.includes(screen);
   }
 
   /**

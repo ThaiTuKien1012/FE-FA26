@@ -6,6 +6,8 @@ export interface GroupItemDetail {
   name: string;
   category: string;
   sku?: string;
+  location?: string;
+  role?: 'Active' | 'Pivot SKU';
   iconType?: 'juice' | 'water' | 'snack' | 'energy' | 'coffee' | 'default';
   unitPrice: number;
   utilityContribution: number;
@@ -24,10 +26,12 @@ export interface RecommendedProductGroup {
   sourceMiningRun: string; // e.g. '#0024'
   miningRunDetails: string; // e.g. 'EFIM · Sales Q3'
   sourceDataPeriod?: string; // e.g. 'Sales Q3 2026'
+  storeNode?: string; // e.g. 'Regional A-14 (Oslo Central)'
   items: GroupItemDetail[];
   expectedBasketLiftPct: number;
   projectedMarginPct: number;
   coOccurrenceCount: number;
+  confidencePct?: number; // e.g. 68.4
   suggestedPlacement?: string; // e.g. 'Beverages + Snacks · Adjacent gondola endcap'
   utilityThresholdNote?: string; // e.g. 'Utility threshold > 980'
   layoutTarget?: 'Layout A' | 'Layout B' | 'Promotional Endcap' | null;

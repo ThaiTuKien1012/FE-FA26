@@ -25,6 +25,14 @@ import { StoreABReportView } from './features/store/components/StoreABReportView
 import { LoginView } from './features/auth/components/LoginView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
+import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
+import { PublishedCampaignStatusView } from './features/merchandiser/components/PublishedCampaignStatusView';
+import { CampaignDraftPublishView } from './features/merchandiser/components/CampaignDraftPublishView';
+import { UtilityProfileView } from './features/merchandiser/components/UtilityProfileView';
+import { RefineCriteriaView } from './features/merchandiser/components/RefineCriteriaView';
+import { ABSimulationSetupView } from './features/merchandiser/components/ABSimulationSetupView';
+import { CompareABSimulationView } from './features/merchandiser/components/CompareABSimulationView';
+import { KeepLayoutAReviewView } from './features/merchandiser/components/KeepLayoutAReviewView';
 import { AccessRestrictedView } from './features/auth/components/AccessRestrictedView';
 import { authService, AuthUser } from './services/authService';
 import { initialProducts } from './mocks/storeInventoryData';
@@ -143,6 +151,22 @@ export default function App() {
       // Merchandiser screen (Recommendations Dashboard - Single Page)
       case 'merchandiser-recommendations':
         return ['Merchandiser', 'Operations'];
+      case 'merchandiser-approve':
+        return ['Merchandiser', 'Operations', 'Product Group Review'];
+      case 'merchandiser-campaign-draft':
+        return ['Merchandiser', 'Operations', 'Campaign Draft & Publish'];
+      case 'merchandiser-campaign-status':
+        return ['Merchandiser', 'Operations', 'Published / Waiting Campaign Status'];
+      case 'merchandiser-utility-profile':
+        return ['Merchandiser', 'Operations', 'Utility Profile & Priority Weights'];
+      case 'merchandiser-refine-criteria':
+        return ['Merchandiser', 'Operations', 'Rework / Refine Criteria'];
+      case 'merchandiser-ab-simulation':
+        return ['Merchandiser', 'Campaign Draft', 'A/B Simulation'];
+      case 'merchandiser-compare-simulation':
+        return ['Merchandiser', 'Campaign Draft', 'Compare A/B Simulation'];
+      case 'merchandiser-keep-layout-a':
+        return ['Merchandiser', 'Campaign Draft', 'Keep Layout A – Review'];
 
       // Store Operations views (Store Admin)
       case 'store-inventory':
@@ -221,7 +245,7 @@ export default function App() {
       onSwitchRole={handleSwitchRole}
     >
       {/* RBAC Access Guard: If current screen is not allowed for user role */}
-      {currentUser && !currentUser.allowedScreens.includes(currentScreen) ? (
+      {currentUser && !authService.isScreenAllowed(currentUser, currentScreen) ? (
         <AccessRestrictedView
           attemptedScreen={currentScreen}
           currentUser={currentUser}
@@ -236,6 +260,46 @@ export default function App() {
               currentScreen={currentScreen}
               onNavigate={handleNavigate}
             />
+          )}
+
+          {/* Merchandiser: Review & Approve Product Group */}
+          {currentScreen === 'merchandiser-approve' && (
+            <ReviewApproveGroupView onNavigate={handleNavigate} />
+          )}
+
+          {/* Merchandiser: Campaign Draft & Publish */}
+          {currentScreen === 'merchandiser-campaign-draft' && (
+            <CampaignDraftPublishView onNavigate={handleNavigate} />
+          )}
+
+          {/* Merchandiser: Published / Waiting Campaign Status */}
+          {currentScreen === 'merchandiser-campaign-status' && (
+            <PublishedCampaignStatusView onNavigate={handleNavigate} />
+          )}
+
+          {/* Merchandiser: Utility Profile & Priority Weights */}
+          {currentScreen === 'merchandiser-utility-profile' && (
+            <UtilityProfileView onNavigate={handleNavigate} />
+          )}
+
+          {/* Merchandiser: Rework / Refine Criteria */}
+          {currentScreen === 'merchandiser-refine-criteria' && (
+            <RefineCriteriaView onNavigate={handleNavigate} />
+          )}
+
+          {/* Merchandiser: A/B Simulation Setup */}
+          {currentScreen === 'merchandiser-ab-simulation' && (
+            <ABSimulationSetupView onNavigate={handleNavigate} />
+          )}
+
+          {/* Merchandiser: Compare A/B Simulation */}
+          {currentScreen === 'merchandiser-compare-simulation' && (
+            <CompareABSimulationView onNavigate={handleNavigate} />
+          )}
+
+          {/* Merchandiser: Keep Layout A Review */}
+          {currentScreen === 'merchandiser-keep-layout-a' && (
+            <KeepLayoutAReviewView onNavigate={handleNavigate} />
           )}
 
           {/* F02: Store Admin - Product & Inventory */}

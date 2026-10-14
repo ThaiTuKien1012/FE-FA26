@@ -60,6 +60,13 @@ export type ActiveNavScreen =
   | 'api-connections' // API Connections & Import Settings
   | 'merchandiser-recommendations' // Merchandiser: Recommendations Dashboard (From Screenshot 1)
   | 'merchandiser-approve'         // Merchandiser: Review & Approve Product Group (From Screenshot 2)
+  | 'merchandiser-campaign-draft'  // Merchandiser: Campaign Draft & Publish
+  | 'merchandiser-campaign-status' // Merchandiser: Published / Waiting Campaign Status
+  | 'merchandiser-utility-profile' // Merchandiser: Utility Profile & Priority Weights
+  | 'merchandiser-refine-criteria' // Merchandiser: Rework / Refine Criteria
+  | 'merchandiser-ab-simulation'   // Merchandiser: A/B Simulation Setup
+  | 'merchandiser-compare-simulation' // Merchandiser: Compare A/B Simulation
+  | 'merchandiser-keep-layout-a'      // Merchandiser: Keep Layout A Review
   | 'store-inventory' // F02 Store Admin: Product & Inventory
   | 'store-edit-product' // F02 Store Admin: Edit Product Page
   | 'store-transactions' // F02 Store Admin: Transactions (Data Center)

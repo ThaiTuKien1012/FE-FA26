@@ -138,7 +138,13 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
         {/* Top-Right Action Button: Open Utility Profile */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setIsUtilityProfileOpen(true)}
+            onClick={() => {
+              if (onNavigate) {
+                onNavigate('merchandiser-utility-profile');
+              } else {
+                setIsUtilityProfileOpen(true);
+              }
+            }}
             className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white border border-[#E7E2D8] text-[#1E3A2F] hover:bg-[#FAF8F5] hover:border-[#1E3A2F]/30 transition-all shadow-xs cursor-pointer"
           >
             <SlidersHorizontal className="w-4 h-4 text-[#1E3A2F]" />

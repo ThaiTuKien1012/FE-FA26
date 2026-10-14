@@ -21,17 +21,19 @@ export const INITIAL_RECOMMENDED_GROUPS: RecommendedProductGroup[] = [
     sourceMiningRun: '#0024',
     miningRunDetails: 'EFIM',
     sourceDataPeriod: 'Sales Q3 2026',
+    storeNode: 'Regional A-14 (Oslo Central)',
+    confidencePct: 68.4,
     expectedBasketLiftPct: 24.5,
     projectedMarginPct: 41.2,
     coOccurrenceCount: 412,
     suggestedPlacement: 'Beverages + Snacks',
     utilityThresholdNote: 'Utility threshold > 980',
-    notes: 'Proposed cross-sell recommendation from latest high-utility mining run.',
+    notes: 'Proposed cross-sell merchandise association',
     items: [
-      { id: 'it-01', name: 'Orange Juice 1L', category: 'BEVERAGES', sku: 'SKU: DRK-101', iconType: 'juice', unitPrice: 42000, utilityContribution: 420, marginPct: 48 },
-      { id: 'it-02', name: 'Sparkling Water 500ml', category: 'BEVERAGES', sku: 'SKU: DRK-114', iconType: 'water', unitPrice: 22000, utilityContribution: 310, marginPct: 39 },
-      { id: 'it-03', name: 'Potato Chips 70g', category: 'SNACKS', sku: 'SKU: SNK-043', iconType: 'snack', unitPrice: 28000, utilityContribution: 260, marginPct: 35 },
-      { id: 'it-04', name: 'Energy Drink 250ml', category: 'BEVERAGES', sku: 'SKU: DRK-091', iconType: 'energy', unitPrice: 32000, utilityContribution: 260, marginPct: 43 }
+      { id: 'it-01', name: 'Orange Juice 1L', category: 'BEVERAGES', sku: 'SKU: DRK-101', location: 'Aisle 3 • Bay 2', role: 'Active', iconType: 'juice', unitPrice: 42000, utilityContribution: 412, marginPct: 48 },
+      { id: 'it-02', name: 'Sparkling Water 500ml', category: 'BEVERAGES', sku: 'SKU: DRK-114', location: 'Aisle 3 • Bay 1', role: 'Active', iconType: 'water', unitPrice: 22000, utilityContribution: 348, marginPct: 39 },
+      { id: 'it-03', name: 'Potato Chips 70g', category: 'SNACKS', sku: 'SKU: SNK-043', location: 'Aisle 4 • Bay 6', role: 'Pivot SKU', iconType: 'snack', unitPrice: 28000, utilityContribution: 295, marginPct: 35 },
+      { id: 'it-04', name: 'Energy Drink 250ml', category: 'BEVERAGES', sku: 'SKU: DRK-091', location: 'Aisle 3 • Bay 4', role: 'Active', iconType: 'energy', unitPrice: 32000, utilityContribution: 195, marginPct: 43 }
     ]
   },
   {
