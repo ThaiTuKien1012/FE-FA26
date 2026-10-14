@@ -2,15 +2,6 @@ import React, { useState } from 'react';
 import {
   CheckCircle2,
   AlertCircle,
-  Zap,
-  Store,
-  Cpu,
-  Sparkles,
-  ShoppingBag,
-  ArrowRight,
-  ShieldCheck,
-  Lock,
-  Mail,
   Play,
   Volume2,
   VolumeX
@@ -207,21 +198,16 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="identifier">
                     Email / Tên tài khoản
                   </label>
-                  <div className="relative">
-                    <input
-                      className="w-full h-11 px-3.5 pr-10 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
-                      id="identifier"
-                      name="identifier"
-                      placeholder="name@retailspace.demo"
-                      required
-                      type="text"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#89938F]">
-                      <Mail className="w-4 h-4 text-[#89938F]" />
-                    </div>
-                  </div>
+                  <input
+                    className="w-full h-11 px-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
+                    id="identifier"
+                    name="identifier"
+                    placeholder="name@retailspace.demo"
+                    required
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                  />
                 </div>
 
                 {/* Field: Password */}
@@ -271,10 +257,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     {isLoading ? (
                       <span>Đang xác thực...</span>
                     ) : (
-                      <>
-                        <span>Đăng nhập</span>
-                        <ArrowRight className="w-4 h-4 text-emerald-100" />
-                      </>
+                      <span>Đăng nhập</span>
                     )}
                   </button>
                 </div>
@@ -321,9 +304,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleQuickLogin('system-admin')}
-                    className="h-10 flex items-center justify-center gap-1 px-2.5 border border-[#E1D8D6] hover:border-[#1E3A2F]/40 hover:bg-[#FFF8F6] rounded-xl text-xs font-semibold text-[#191C1B] transition-colors cursor-pointer"
+                    className="h-10 flex items-center justify-center px-2.5 border border-[#E1D8D6] hover:border-[#1E3A2F]/40 hover:bg-[#FFF8F6] rounded-xl text-xs font-semibold text-[#191C1B] transition-colors cursor-pointer"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-[#1E3A2F]" />
                     <span className="truncate">SSO</span>
                   </button>
                 </div>
@@ -335,10 +317,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onNavigateRegister ? onNavigateRegister() : undefined}
-                      className="font-semibold text-[#1E3A2F] hover:underline transition-colors cursor-pointer inline-flex items-center gap-1"
+                      className="font-semibold text-[#1E3A2F] hover:underline transition-colors cursor-pointer"
                     >
                       Đăng ký tài khoản mới
-                      <ArrowRight className="w-3 h-3 inline" />
                     </button>
                   </p>
                 </div>
@@ -349,8 +330,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             {/* Quick Role Switcher Bar for Pair Programming & Instant Testing */}
             <div className="w-full mt-5 bg-white/85 backdrop-blur-xs rounded-2xl border border-[#E1D8D6] p-3.5 shadow-xs z-10">
               <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#6D7974] flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-[#1E3A2F]" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#6D7974]">
                   Chọn vai trò thử nghiệm nhanh (1-Click Test Login)
                 </span>
                 <span className="text-[10px] text-[#6D7974] font-medium">Bấm để đăng nhập tức thì</span>
@@ -384,7 +364,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     }`}
                 >
                   <div className="w-7 h-7 rounded-lg bg-[#E5F3EB] text-[#1E3A2F] flex items-center justify-center font-bold text-[10px] shrink-0 border border-[#CAEADA]">
-                    <Store className="w-3.5 h-3.5" />
+                    ST
                   </div>
                   <div className="overflow-hidden min-w-0">
                     <p className="text-xs font-bold text-[#191C1B] truncate leading-tight">Store Admin</p>
@@ -402,7 +382,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     }`}
                 >
                   <div className="w-7 h-7 rounded-lg bg-[#E5F3EB] text-[#1E3A2F] flex items-center justify-center font-bold text-[10px] shrink-0 border border-[#CAEADA]">
-                    <Cpu className="w-3.5 h-3.5" />
+                    SA
                   </div>
                   <div className="overflow-hidden min-w-0">
                     <p className="text-xs font-bold text-[#191C1B] truncate leading-tight">Sys Admin</p>
@@ -420,7 +400,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     }`}
                 >
                   <div className="w-7 h-7 rounded-lg bg-[#FDF2F0] text-[#B3261E] flex items-center justify-center font-bold text-[10px] shrink-0 border border-[#F6D5CF]">
-                    <ShoppingBag className="w-3.5 h-3.5" />
+                    CU
                   </div>
                   <div className="overflow-hidden min-w-0">
                     <p className="text-xs font-bold text-[#191C1B] truncate leading-tight">Customer</p>

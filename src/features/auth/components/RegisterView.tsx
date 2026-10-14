@@ -1,24 +1,10 @@
 import React, { useState } from 'react';
 import { 
-  CheckCircle2, 
   AlertCircle, 
-  Zap, 
-  Store, 
-  Cpu, 
-  Sparkles, 
-  ShoppingBag,
-  ArrowRight,
-  ShieldCheck,
-  Lock,
-  Mail,
-  User,
-  Eye,
-  EyeOff,
-  Play,
-  Volume2,
-  VolumeX,
-  Phone,
-  Check
+  CheckCircle2, 
+  Play, 
+  Volume2, 
+  VolumeX 
 } from 'lucide-react';
 import { authService, AuthUser } from '../../../services/authService';
 import { ActiveNavScreen } from '../../../types/mining';
@@ -60,10 +46,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     if (/[A-Z]/.test(pass) || /[0-9]/.test(pass)) score += 1;
     if (/[^A-Za-z0-9]/.test(pass)) score += 1;
 
-    if (score <= 1) return { score: 1, label: 'Yếu', color: 'bg-rose-500 text-rose-600' };
-    if (score === 2) return { score: 2, label: 'Trung bình', color: 'bg-amber-500 text-amber-600' };
-    if (score === 3) return { score: 3, label: 'Khá mạnh', color: 'bg-emerald-500 text-emerald-600' };
-    return { score: 4, label: 'Rất mạnh', color: 'bg-emerald-600 text-emerald-700' };
+    if (score <= 1) return { score: 1, label: 'Yếu', color: 'text-rose-600' };
+    if (score === 2) return { score: 2, label: 'Trung bình', color: 'text-amber-600' };
+    if (score === 3) return { score: 3, label: 'Khá mạnh', color: 'text-emerald-600' };
+    return { score: 4, label: 'Rất mạnh', color: 'text-emerald-700' };
   };
 
   const passwordStrength = calculatePasswordStrength(password);
@@ -110,7 +96,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       });
 
       if (response.success && response.user && response.redirectScreen) {
-        setSuccessNotice('Đăng ký tài khoản thành công! Đang chuyển hướng đến bảng điều khiển...');
+        setSuccessNotice('Đăng ký tài khoản thành công! Đang chuyển hướng...');
         setTimeout(() => {
           onRegisterSuccess(response.user!, response.redirectScreen!);
         }, 600);
@@ -157,63 +143,43 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
             </div>
           </div>
           <span className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-semibold tracking-wider uppercase text-white">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
             System Online
           </span>
         </header>
         {/* END: MainHeader */}
 
-        <div className="flex-1 w-full max-w-[1280px] mx-auto px-6 sm:px-10 py-6 lg:py-10 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-10 xl:gap-16 items-center">
+        <div className="flex-1 w-full max-w-[1280px] mx-auto px-6 sm:px-10 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-10 xl:gap-20 items-center">
           {/* BEGIN: HeroText */}
           <section className="hidden lg:block text-white" data-purpose="hero-text">
-            <h2 className="text-4xl xl:text-5xl font-bold tracking-tight leading-[1.1] drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+            <h2 className="text-5xl xl:text-6xl font-bold tracking-tight leading-[1.05] drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
               Khởi tạo tài khoản{' '}
               <span className="bg-gradient-to-r from-emerald-200 via-[#CAEADA] to-white bg-clip-text text-transparent">
                 vận hành bán lẻ.
               </span>
             </h2>
-            <p className="mt-5 text-sm sm:text-base text-white/75 max-w-lg leading-relaxed">
+            <p className="mt-6 text-base text-white/75 max-w-xl leading-relaxed">
               Truy cập ngay vào công cụ mô phỏng bố trí A/B, theo dõi tồn kho và tối ưu quy luật giỏ hàng trên nền tảng RetailSpace.
             </p>
 
-            {/* Feature Highlights Cards */}
-            <div className="mt-8 space-y-3.5 max-w-lg">
+            {/* Clean Enterprise Metric Stats (no AI icons) */}
+            <div className="mt-10 grid grid-cols-3 gap-4 max-w-xl">
               {[
-                {
-                  icon: Zap,
-                  title: 'Phân quyền vai trò tức thì',
-                  desc: 'Truy cập đúng bảng điều khiển theo trách nhiệm chuyên môn của bạn.'
-                },
-                {
-                  icon: ShieldCheck,
-                  title: 'Bảo mật dữ liệu chuẩn doanh nghiệp',
-                  desc: 'Mã hóa phiên làm việc và bảo vệ luồng giao dịch chuỗi cửa hàng.'
-                },
-                {
-                  icon: Sparkles,
-                  title: 'Mô hình khai phá HUPM tự động',
-                  desc: 'Tự động tính toán các cụm sản phẩm có lợi nhuận cao nhất.'
-                }
-              ].map((feat) => {
-                const IconComponent = feat.icon;
-                return (
-                  <div key={feat.title} className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.25)] flex items-start gap-3.5 hover:bg-white/15 transition-all">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-200 flex items-center justify-center shrink-0 border border-emerald-400/30">
-                      <IconComponent className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">{feat.title}</h4>
-                      <p className="text-[11px] text-white/70 mt-1 leading-snug">{feat.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
+                { v: '100%', l: 'Phân quyền chuẩn' },
+                { v: 'Real-time', l: 'Đồng bộ dữ liệu' },
+                { v: 'SOC 2', l: 'Bảo mật tiêu chuẩn' }
+              ].map((it) => (
+                <div key={it.l} className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 px-4 py-4 shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:bg-white/15 hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="text-2xl font-bold leading-none">{it.v}</div>
+                  <div className="mt-2 text-[10px] uppercase tracking-wider text-white/65">{it.l}</div>
+                </div>
+              ))}
             </div>
           </section>
           {/* END: HeroText */}
 
           {/* BEGIN: RegisterCard Section */}
-          <main className="w-full max-w-[520px] mx-auto lg:mr-0 flex flex-col items-center">
+          <main className="w-full max-w-[480px] mx-auto lg:mr-0 flex flex-col items-center">
             <div className="w-full bg-white/85 backdrop-blur-xl rounded-[28px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] border border-white/60 p-7 sm:p-9 z-10 mx-auto animate-fadeIn" data-purpose="register-form-card">
               {/* Card Title */}
               <div className="text-center mb-6">
@@ -221,7 +187,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   Đăng ký Tài khoản
                 </h1>
                 <p className="mt-1 text-xs text-[#6D7974] leading-relaxed">
-                  Thiết lập thông tin quản trị và chọn vai trò vận hành của bạn.
+                  Thiết lập thông tin để bắt đầu vận hành hệ thống.
                 </p>
               </div>
 
@@ -241,81 +207,68 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
               )}
 
               {/* Registration Form */}
-              <form className="space-y-3.5" onSubmit={handleSubmit}>
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 {/* Field 1: Full Name */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#191C1B] mb-1" htmlFor="fullname">
+                  <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="fullname">
                     Họ và tên
                   </label>
-                  <div className="relative">
-                    <input
-                      id="fullname"
-                      type="text"
-                      required
-                      placeholder="Nguyễn Văn A"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="w-full h-10 px-3.5 pr-10 text-xs sm:text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#89938F]">
-                      <User className="w-4 h-4 text-[#89938F]" />
-                    </div>
-                  </div>
+                  <input
+                    id="fullname"
+                    type="text"
+                    required
+                    placeholder="Nguyễn Văn A"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full h-11 px-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
+                  />
                 </div>
 
                 {/* Field 2: Work Email */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#191C1B] mb-1" htmlFor="reg-email">
+                  <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="reg-email">
                     Email công vụ
                   </label>
-                  <div className="relative">
-                    <input
-                      id="reg-email"
-                      type="email"
-                      required
-                      placeholder="name@retailspace.demo"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full h-10 px-3.5 pr-10 text-xs sm:text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#89938F]">
-                      <Mail className="w-4 h-4 text-[#89938F]" />
-                    </div>
-                  </div>
+                  <input
+                    id="reg-email"
+                    type="email"
+                    required
+                    placeholder="name@retailspace.demo"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-11 px-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
+                  />
                 </div>
 
-                {/* Field 3: Role Selector (Pills) */}
+                {/* Field 3: Role Selector (Segmented Cards) */}
                 <div>
                   <label className="block text-xs font-semibold text-[#191C1B] mb-1.5">
-                    Chọn vai trò vận hành
+                    Vai trò vận hành
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { key: 'store-admin', label: 'Store Admin', icon: Store, desc: 'Cửa hàng' },
-                      { key: 'merchandiser', label: 'Merchandiser', icon: Sparkles, desc: 'Tối ưu A/B' },
-                      { key: 'system-admin', label: 'Sys Admin', icon: Cpu, desc: 'Hệ thống' }
+                      { key: 'store-admin', label: 'Store Admin', desc: 'Quản lý cửa hàng' },
+                      { key: 'merchandiser', label: 'Merchandiser', desc: 'Quy hoạch kệ hàng' },
+                      { key: 'system-admin', label: 'Sys Admin', desc: 'Hệ thống mining' }
                     ].map((it) => {
-                      const IconComp = it.icon;
                       const isSelected = roleKey === it.key;
                       return (
                         <button
                           key={it.key}
                           type="button"
                           onClick={() => setRoleKey(it.key as any)}
-                          className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
+                          className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
                             isSelected
-                              ? 'border-[#1E3A2F] bg-[#EEF5F1] ring-1 ring-[#1E3A2F]'
-                              : 'border-[#E1D8D6] bg-white hover:bg-[#FFF8F6]'
+                              ? 'border-[#1E3A2F] bg-[#1E3A2F] text-white shadow-xs'
+                              : 'border-[#E1D8D6] bg-white text-[#191C1B] hover:bg-[#F8FAF9]'
                           }`}
                         >
-                          <div className="flex items-center justify-between w-full">
-                            <IconComp className={`w-3.5 h-3.5 ${isSelected ? 'text-[#1E3A2F]' : 'text-[#707973]'}`} />
-                            {isSelected && <Check className="w-3 h-3 text-[#1E3A2F]" />}
-                          </div>
-                          <div className="mt-1.5">
-                            <p className="text-[11px] font-bold text-[#191C1B] leading-tight truncate">{it.label}</p>
-                            <p className="text-[9px] text-[#707973] truncate">{it.desc}</p>
-                          </div>
+                          <p className={`text-xs font-bold leading-tight ${isSelected ? 'text-white' : 'text-[#191C1B]'}`}>
+                            {it.label}
+                          </p>
+                          <p className={`text-[10px] mt-0.5 leading-snug ${isSelected ? 'text-white/80' : 'text-[#6D7974]'}`}>
+                            {it.desc}
+                          </p>
                         </button>
                       );
                     })}
@@ -324,7 +277,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                 {/* Field 4: Password & Strength */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold text-[#191C1B]" htmlFor="reg-password">
                       Mật khẩu
                     </label>
@@ -342,14 +295,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-10 px-3.5 pr-10 text-xs sm:text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
+                      className="w-full h-11 px-3.5 pr-14 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#89938F] hover:text-[#191C1B] cursor-pointer"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-semibold text-[#6D7974] hover:text-[#191C1B] cursor-pointer transition-colors"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPassword ? 'Ẩn' : 'Hiện'}
                     </button>
                   </div>
 
@@ -376,35 +329,27 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                 {/* Field 5: Confirm Password */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#191C1B] mb-1" htmlFor="confirm-passcode">
+                  <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="confirm-passcode">
                     Xác nhận mật khẩu
                   </label>
-                  <div className="relative">
-                    <input
-                      id="confirm-passcode"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      placeholder="••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={`w-full h-10 px-3.5 pr-10 text-xs sm:text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border outline-hidden transition-all duration-200 font-medium ${
-                        confirmPassword
-                          ? isPasswordMatch
-                            ? 'border-emerald-500 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/15'
-                            : 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/15'
-                          : 'border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15'
-                      }`}
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
-                      {confirmPassword && (
-                        isPasswordMatch ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 animate-fadeIn" />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 text-rose-500 animate-fadeIn" />
-                        )
-                      )}
-                    </div>
-                  </div>
+                  <input
+                    id="confirm-passcode"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`w-full h-11 px-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border outline-hidden transition-all duration-200 font-medium ${
+                      confirmPassword
+                        ? isPasswordMatch
+                          ? 'border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15'
+                          : 'border-rose-400 focus:ring-2 focus:ring-rose-500/15'
+                        : 'border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15'
+                    }`}
+                  />
+                  {confirmPassword && !isPasswordMatch && (
+                    <p className="mt-1 text-[11px] text-rose-600 font-medium">Mật khẩu xác nhận chưa khớp</p>
+                  )}
                 </div>
 
                 {/* Checkbox: Agreement */}
@@ -423,9 +368,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       </a>{' '}
                       và{' '}
                       <a href="#" className="font-semibold text-[#1E3A2F] hover:underline">
-                        Chính sách bảo mật dữ liệu
-                      </a>{' '}
-                      của RetailSpace.
+                        Chính sách bảo mật
+                      </a>.
                     </span>
                   </label>
                 </div>
@@ -435,16 +379,9 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   <button
                     disabled={isLoading}
                     type="submit"
-                    className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] active:scale-[0.99] text-white font-semibold text-sm transition-all duration-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+                    className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] active:scale-[0.99] text-white font-semibold text-sm transition-all duration-200 shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-70"
                   >
-                    {isLoading ? (
-                      <span>Đang khởi tạo tài khoản...</span>
-                    ) : (
-                      <>
-                        <span>Hoàn tất đăng ký</span>
-                        <ArrowRight className="w-4 h-4 text-emerald-100" />
-                      </>
-                    )}
+                    {isLoading ? 'Đang khởi tạo tài khoản...' : 'Hoàn tất đăng ký'}
                   </button>
                 </div>
 
