@@ -32,6 +32,21 @@ interface CartItem {
   quantity: number;
 }
 
+const PRODUCT_IMAGE_MAP: Record<string, string> = {
+  'P001': '/images/products/lays.jpg',
+  'P002': '/images/products/aquafina.jpg',
+  'P003': '/images/products/haohao.jpg',
+  'P004': '/images/products/cocacola.jpg',
+  'P005': '/images/products/vinamilk.jpg',
+  'P006': '/images/products/dove.png',
+  'P007': '/images/products/pulppy.jpg',
+  'P008': '/images/products/kitkat.jpg',
+  'P009': '/images/products/chocopie.png',
+  'P010': '/images/products/thtruemilk.png',
+  'P011': '/images/products/maggi.jpg',
+  'P012': '/images/products/lifebuoy.jpg'
+};
+
 export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
   products,
   user,
@@ -327,9 +342,9 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
                   <div>
                     {/* Thumbnail / Image container */}
                     <div className="h-32 w-full bg-[#FAF8F5] rounded-lg border border-[#E7E2D8]/60 flex items-center justify-center text-4xl mb-3 overflow-hidden">
-                      {product.image ? (
+                      {(PRODUCT_IMAGE_MAP[product.sku] || product.image) ? (
                         <img 
-                          src={product.image} 
+                          src={PRODUCT_IMAGE_MAP[product.sku] || product.image} 
                           alt={product.name} 
                           className="h-full w-full object-contain p-2" 
                         />
@@ -432,8 +447,12 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
                       className="p-3 rounded-xl border border-[#E7E2D8] bg-[#FAF8F5] flex items-center justify-between gap-3"
                     >
                       <div className="w-12 h-12 rounded-lg bg-white border border-[#E7E2D8] flex items-center justify-center shrink-0 overflow-hidden p-1">
-                        {item.product.image ? (
-                          <img src={item.product.image} alt={item.product.name} className="w-full h-full object-contain" />
+                        {(PRODUCT_IMAGE_MAP[item.product.sku] || item.product.image) ? (
+                          <img 
+                            src={PRODUCT_IMAGE_MAP[item.product.sku] || item.product.image} 
+                            alt={item.product.name} 
+                            className="w-full h-full object-contain" 
+                          />
                         ) : (
                           <span className="text-2xl">{item.product.thumbnail || '📦'}</span>
                         )}

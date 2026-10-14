@@ -24,7 +24,7 @@ export const initialProducts: ProductItem[] = [
     isActive: true,
     description: 'Khoai tây chiên giòn tự nhiên vị truyền thống Lay’s Classic.',
     thumbnail: '🥔',
-    image: '/images/products/lays.png',
+    image: '/images/products/lays.jpg',
     unit: 'Pack',
     barcode: '893601234001',
     updatedAt: '12/10/2026'
@@ -38,7 +38,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 240,
     status: 'In Stock',
     thumbnail: '💧',
-    image: '/images/products/aquafina.png',
+    image: '/images/products/aquafina.jpg',
     unit: 'Bottle',
     barcode: '893601234002',
     updatedAt: '12/10/2026'
@@ -108,7 +108,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 15,
     status: 'Low Stock',
     thumbnail: '🧻',
-    image: '/images/products/pulppy.png',
+    image: '/images/products/pulppy.jpg',
     unit: 'Box',
     barcode: '893601234007',
     updatedAt: '08/10/2026'

@@ -31,6 +31,21 @@ const DEFAULT_CATEGORIES: string[] = [
   'Household'
 ];
 
+const PRODUCT_IMAGE_MAP: Record<string, string> = {
+  'P001': '/images/products/lays.jpg',
+  'P002': '/images/products/aquafina.jpg',
+  'P003': '/images/products/haohao.jpg',
+  'P004': '/images/products/cocacola.jpg',
+  'P005': '/images/products/vinamilk.jpg',
+  'P006': '/images/products/dove.png',
+  'P007': '/images/products/pulppy.jpg',
+  'P008': '/images/products/kitkat.jpg',
+  'P009': '/images/products/chocopie.png',
+  'P010': '/images/products/thtruemilk.png',
+  'P011': '/images/products/maggi.jpg',
+  'P012': '/images/products/lifebuoy.jpg'
+};
+
 export const EditProductView: React.FC<EditProductViewProps> = ({
   productId,
   onNavigate,
@@ -595,9 +610,13 @@ export const EditProductView: React.FC<EditProductViewProps> = ({
                 </h2>
 
                 <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#E7E2D8] space-y-3 shadow-2xs">
-                  {previewImage ? (
-                    <div className="h-32 w-full rounded-lg bg-white border border-[#E7E2D8] overflow-hidden flex items-center justify-center">
-                      <img src={previewImage} alt="Preview" className="h-full object-contain" />
+                  {(previewImage || (product ? PRODUCT_IMAGE_MAP[product.sku] || product.image : null)) ? (
+                    <div className="h-32 w-full rounded-lg bg-white border border-[#E7E2D8] overflow-hidden flex items-center justify-center p-2">
+                      <img 
+                        src={previewImage || (product ? PRODUCT_IMAGE_MAP[product.sku] || product.image : '')} 
+                        alt="Preview" 
+                        className="h-full object-contain" 
+                      />
                     </div>
                   ) : (
                     <div className="h-28 w-full rounded-lg bg-white border border-[#E7E2D8] flex items-center justify-center text-4xl shadow-2xs">

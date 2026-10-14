@@ -31,6 +31,21 @@ interface ProductInventoryViewProps {
   onEditProduct?: (product: ProductItem) => void;
 }
 
+const PRODUCT_IMAGE_MAP: Record<string, string> = {
+  'P001': '/images/products/lays.jpg',
+  'P002': '/images/products/aquafina.jpg',
+  'P003': '/images/products/haohao.jpg',
+  'P004': '/images/products/cocacola.jpg',
+  'P005': '/images/products/vinamilk.jpg',
+  'P006': '/images/products/dove.png',
+  'P007': '/images/products/pulppy.jpg',
+  'P008': '/images/products/kitkat.jpg',
+  'P009': '/images/products/chocopie.png',
+  'P010': '/images/products/thtruemilk.png',
+  'P011': '/images/products/maggi.jpg',
+  'P012': '/images/products/lifebuoy.jpg'
+};
+
 export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
   onNavigate,
   products: externalProducts,
@@ -666,9 +681,9 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
                       <td className="py-3.5 px-3">
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-lg border border-[#E7E2D8] flex items-center justify-center shrink-0 shadow-2xs overflow-hidden bg-white p-1">
-                            {product.image ? (
+                            {(PRODUCT_IMAGE_MAP[product.sku] || product.image) ? (
                               <img 
-                                src={product.image} 
+                                src={PRODUCT_IMAGE_MAP[product.sku] || product.image} 
                                 alt={product.name} 
                                 className="w-full h-full object-contain"
                                 onError={(e) => {
