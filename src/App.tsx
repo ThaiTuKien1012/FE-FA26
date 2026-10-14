@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen, MiningJob, MiningAlgorithm, ExecutionMode } from './types/mining';
+import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { initialMiningJobs } from './mocks/miningData';
 import { AppLayout } from './components/layout/AppLayout';
 import { MiningOverviewView } from './features/mining/components/overview/MiningOverviewView';
@@ -41,6 +42,10 @@ import { ProductItem } from './types/storeInventory';
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
+    const screenFromUrl = typeof window !== 'undefined' ? getScreenFromPathname(window.location.pathname) : null;
+    if (screenFromUrl) {
+      return screenFromUrl;
+    }
     const user = authService.getCurrentUser();
     // Default to login page so the user can immediately test the 4-role mock API login
     return user ? user.defaultScreen : 'login';
@@ -51,24 +56,42 @@ export default function App() {
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>(initialProducts);
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
 
+  // Synchronize browser URL bar on load and handle back/forward browser buttons
+  useEffect(() => {
+    syncBrowserUrl(currentScreen, true);
+
+    const handlePopState = () => {
+      const screenFromUrl = getScreenFromPathname(window.location.pathname);
+      if (screenFromUrl) {
+        setCurrentScreen(screenFromUrl);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const selectedJob = jobs.find((j) => j.runId === activeRunId) || jobs[0];
 
   const handleNavigate = (screen: ActiveNavScreen, runId?: string) => {
     if (runId) {
       setActiveRunId(runId);
     }
+    syncBrowserUrl(screen);
     setCurrentScreen(screen);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleEditProduct = (prod: ProductItem) => {
     setEditingProductId(prod.id);
+    syncBrowserUrl('store-edit-product');
     setCurrentScreen('store-edit-product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLoginSuccess = (user: AuthUser, destinationScreen: ActiveNavScreen) => {
     setCurrentUser(user);
+    syncBrowserUrl(destinationScreen);
     setCurrentScreen(destinationScreen);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -76,6 +99,7 @@ export default function App() {
   const handleLogout = () => {
     authService.logout();
     setCurrentUser(null);
+    syncBrowserUrl('login');
     setCurrentScreen('login');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -84,6 +108,7 @@ export default function App() {
     const res = await authService.quickLogin(roleKey);
     if (res.success && res.user && res.redirectScreen) {
       setCurrentUser(res.user);
+      syncBrowserUrl(res.redirectScreen);
       setCurrentScreen(res.redirectScreen);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -114,6 +139,7 @@ export default function App() {
 
     setJobs([newJob, ...jobs]);
     setActiveRunId(newRunId);
+    syncBrowserUrl('results');
     setCurrentScreen('results');
   };
 
@@ -137,6 +163,7 @@ export default function App() {
 
     setJobs([retriedJob, ...jobs]);
     setActiveRunId(newRunId);
+    syncBrowserUrl('results');
     setCurrentScreen('results');
   };
 
