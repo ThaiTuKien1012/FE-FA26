@@ -11,7 +11,9 @@ import {
   ChevronRight, 
   TrendingUp, 
   Check, 
-  RefreshCw
+  RefreshCw,
+  Clock,
+  Layers
 } from 'lucide-react';
 import { RecommendedProductGroup, UtilityProfileConfig, ProductGroupStatus } from '../../../types/merchandiser';
 import { INITIAL_RECOMMENDED_GROUPS, INITIAL_UTILITY_PROFILE } from '../data/initialProductGroups';
@@ -153,69 +155,96 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
         </div>
       </div>
 
-      {/* 4 Metric / KPI Cards with vertical accent line */}
+      {/* 4 Metric / KPI Cards - Unified Standard Component Design */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Suggested Groups */}
-        <div className="bg-white rounded-2xl border border-[#E7E2D8] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-5 left-0 w-1.5 h-10 bg-[#1E3A2F] rounded-r-md" />
-          <div className="pl-2">
-            <div className="text-xs font-semibold text-[#707973]">
-              Suggested Groups
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#1E3A2F]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#eaf0eb] text-[#1E3A2F] flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-extrabold text-[#191C1B] mt-2 tracking-tight">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#eaf0eb] text-[#1E3A2F]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#1E3A2F]" />
+              Auto-Mined
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Suggested Groups</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191C1B] mt-1 tabular-nums font-mono">
               {suggestedCount}
             </div>
-            <div className="text-xs text-[#707973] mt-1">
-              From latest mining run
-            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Origin Pipeline</span>
+            <span className="font-medium text-[#1E3A2F]">From latest mining run</span>
           </div>
         </div>
 
         {/* Card 2: Pending Approval */}
-        <div className="bg-white rounded-2xl border border-[#E7E2D8] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-5 left-0 w-1.5 h-10 bg-[#D97706] rounded-r-md" />
-          <div className="pl-2">
-            <div className="text-xs font-semibold text-[#707973]">
-              Pending Approval
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#D97706]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#fef3c7] text-[#D97706] flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-extrabold text-[#191C1B] mt-2 tracking-tight">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#fffbeb] text-[#b45309] border border-[#fde68a]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse" />
+              Action Required
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Pending Approval</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#b45309] mt-1 tabular-nums font-mono">
               {pendingCount}
             </div>
-            <div className="text-xs text-[#707973] mt-1">
-              Awaiting review
-            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Status</span>
+            <span className="font-medium text-[#D97706]">Awaiting review</span>
           </div>
         </div>
 
         {/* Card 3: Approved Groups */}
-        <div className="bg-white rounded-2xl border border-[#E7E2D8] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-5 left-0 w-1.5 h-10 bg-[#10B981] rounded-r-md" />
-          <div className="pl-2">
-            <div className="text-xs font-semibold text-[#707973]">
-              Approved Groups
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#10B981]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#e6f4ea] text-[#10B981] flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-extrabold text-[#191C1B] mt-2 tracking-tight">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#e6f4ea] text-[#059669]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+              Ready for A/B
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Approved Groups</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#059669] mt-1 tabular-nums font-mono">
               {approvedCount}
             </div>
-            <div className="text-xs text-[#707973] mt-1">
-              Available for Layout B
-            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Simulation</span>
+            <span className="font-medium text-[#059669]">Available for Layout B</span>
           </div>
         </div>
 
         {/* Card 4: Source Mining Run */}
-        <div className="bg-white rounded-2xl border border-[#E7E2D8] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-5 left-0 w-1.5 h-10 bg-[#0284C7] rounded-r-md" />
-          <div className="pl-2">
-            <div className="text-xs font-semibold text-[#707973]">
-              Source Mining Run
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#0284C7]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#e0f2fe] text-[#0284C7] flex items-center justify-center shrink-0">
+              <Layers className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-extrabold text-[#191C1B] mt-2 tracking-tight font-mono">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#e0f2fe] text-[#0284c7]">
+              Active Pipeline
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Source Mining Run</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191C1B] mt-1 tabular-nums font-mono">
               {sourceMiningRun}
             </div>
-            <div className="text-xs text-[#707973] mt-1">
-              {miningRunDetails}
-            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Algorithm Data</span>
+            <span className="font-mono text-[#0284c7]">{miningRunDetails}</span>
           </div>
         </div>
       </div>

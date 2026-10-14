@@ -141,99 +141,95 @@ export const MiningBenchmarkView: React.FC<MiningBenchmarkViewProps> = ({
         </div>
       </div>
 
-      {/* 4 Metric KPI Cards with Sleek Small Accent Bars (Small accent bar) & Distinct Colors */}
+      {/* 4 Metric KPI Cards - Unified Standard Component Design */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Execution Time (Forest Pine) */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#1e3a2f]" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#6d7974]">Total Execution Time</span>
-              </div>
-              {/* Sleek Small Accent Bar (Small accent bar) */}
-              <span className="w-8 h-1 rounded-full bg-[#1e3a2f] shrink-0" />
+        {/* Card 1: Total Execution Time */}
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#1e3a2f]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#eaf0eb] text-[#1e3a2f] flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-bold text-[#191c1b] font-mono tabular-nums mt-3">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#e7ede9] text-[#1e3a2f] border border-[#1e3a2f]/20">
+              <ArrowDown className="w-3 h-3 text-[#1e3a2f]" />
+              <span>{benchmarkData.timeImprovementPct}% (EFIM)</span>
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Total Execution Time</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums font-mono">
               {benchmarkData.efim.executionTime}s
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between pt-2 border-t border-[#f6ece9]">
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#e7ede9] text-[#1e3a2f] border border-[#1e3a2f]/20">
-              <ArrowDown className="w-3 h-3 text-[#1e3a2f]" />
-              <span>{benchmarkData.timeImprovementPct}% faster (EFIM)</span>
-            </span>
-            <span className="text-[11px] text-[#89938f] font-mono">HUI: {benchmarkData.huiMiner.executionTime}s</span>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Baseline (HUI)</span>
+            <span className="font-mono text-[#89938f]">{benchmarkData.huiMiner.executionTime}s</span>
           </div>
         </div>
 
-        {/* Card 2: Peak Memory Usage (Cognac Amber) */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#c26d38]" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#6d7974]">Peak Memory Usage</span>
-              </div>
-              {/* Sleek Small Accent Bar (Small accent bar) */}
-              <span className="w-8 h-1 rounded-full bg-[#c26d38] shrink-0" />
+        {/* Card 2: Peak Memory Usage */}
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#c26d38]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#fdf4ed] text-[#c26d38] flex items-center justify-center shrink-0">
+              <Cpu className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-bold text-[#191c1b] font-mono tabular-nums mt-3">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#fdf4ed] text-[#c26d38] border border-[#c26d38]/20">
+              <ArrowDown className="w-3 h-3 text-[#c26d38]" />
+              <span>{benchmarkData.memoryImprovementPct}% (EFIM)</span>
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Peak Memory Usage</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums font-mono">
               {benchmarkData.efim.peakMemoryMB} MB
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between pt-2 border-t border-[#f6ece9]">
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#fdf4ed] text-[#c26d38] border border-[#c26d38]/20">
-              <ArrowDown className="w-3 h-3 text-[#c26d38]" />
-              <span>{benchmarkData.memoryImprovementPct}% less (EFIM)</span>
-            </span>
-            <span className="text-[11px] text-[#89938f] font-mono">HUI: {benchmarkData.huiMiner.peakMemoryMB} MB</span>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Baseline (HUI)</span>
+            <span className="font-mono text-[#89938f]">{benchmarkData.huiMiner.peakMemoryMB} MB</span>
           </div>
         </div>
 
-        {/* Card 3: Total High-Utility Arrangements (Ocean Azure) */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#0284c7]" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#6d7974]">Arrangements</span>
-              </div>
-              {/* Sleek Small Accent Bar (Small accent bar) */}
-              <span className="w-8 h-1 rounded-full bg-[#0284c7] shrink-0" />
+        {/* Card 3: Arrangements */}
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#0284c7]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#e0f2fe] text-[#0284c7] flex items-center justify-center shrink-0">
+              <Layers className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-bold text-[#191c1b] font-mono tabular-nums mt-3">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#e0f2fe] text-[#0284c7] border border-[#0284c7]/20">
+              Identical parity
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Arrangements</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums font-mono">
               {benchmarkData.efim.itemsetsCount}
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between pt-2 border-t border-[#f6ece9]">
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#e0f2fe] text-[#0284c7] border border-[#0284c7]/20">
-              Identical parity
-            </span>
-            <span className="text-[11px] text-[#89938f]">HUI = EFIM</span>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Itemsets Output</span>
+            <span className="font-mono text-[#89938f]">HUI = EFIM</span>
           </div>
         </div>
 
-        {/* Card 4: Active Dataset (Plum Rose) */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#8b263e]" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#6d7974]">Active Dataset</span>
-              </div>
-              {/* Sleek Small Accent Bar (Small accent bar) */}
-              <span className="w-8 h-1 rounded-full bg-[#8b263e] shrink-0" />
+        {/* Card 4: Active Dataset */}
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#8b263e]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div className="w-10 h-10 rounded-xl bg-[#fdf2f4] text-[#8b263e] flex items-center justify-center shrink-0">
+              <Database className="w-5 h-5" />
             </div>
-            <div className="text-xl font-bold text-[#191c1b] truncate mt-3" title="Sales Q3 2026">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#fdf2f4] text-[#8b263e] border border-[#8b263e]/20 font-mono">
+              minUtil = {benchmarkData.minUtil}
+            </span>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Active Dataset</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums truncate" title="Sales Q3 2026">
               Sales Q3 2026
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between pt-2 border-t border-[#f6ece9]">
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#fdf2f4] text-[#8b263e] border border-[#8b263e]/20 font-mono">
-              minUtil = {benchmarkData.minUtil}
-            </span>
-            <span className="text-[11px] text-[#89938f]">Prepared matrix</span>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Matrix Status</span>
+            <span className="font-medium text-[#89938f]">Prepared matrix</span>
           </div>
         </div>
       </div>

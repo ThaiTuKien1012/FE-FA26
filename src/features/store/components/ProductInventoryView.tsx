@@ -348,124 +348,128 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
       {/* KPI Stat Cards (4 Cards - Sleek Small Accent Bars (Small accent bar) for Clean Clarity) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Products */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-2xs hover:border-[#1e3a2f]/40 transition-colors relative overflow-hidden">
-          {/* Small Accent Bar (Small accent bar) */}
-          <div className="w-8 h-1 rounded-full bg-[#1e3a2f] mb-3" />
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#1e3a2f]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-lg bg-[#eaf0eb] text-[#1e3a2f] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#eaf0eb] text-[#1e3a2f] flex items-center justify-center shrink-0">
               <Package className="w-5 h-5" />
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#eaf0eb] text-[#1e3a2f]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#eaf0eb] text-[#1e3a2f]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a2f]" />
               Store Base
             </span>
           </div>
-          <div className="mt-3">
-            <div className="text-xs font-medium text-[#6d7974]">Total Products</div>
-            <div className="text-2xl font-bold tracking-tight text-[#191c1b] mt-0.5 tabular-nums">
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Total Products</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums font-mono">
               {initialInventoryStats.totalProducts.toLocaleString()}
             </div>
-            <div className="text-xs font-semibold text-[#1e3a2f] flex items-center gap-1 mt-1">
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Current Catalog</span>
+            <span className="font-semibold text-[#1e3a2f] flex items-center gap-1">
               <span>↑</span>
               <span>{initialInventoryStats.totalProductsDelta}</span>
-            </div>
+            </span>
           </div>
         </div>
 
         {/* Card 2: Active Products */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-2xs hover:border-[#0284c7]/40 transition-colors relative overflow-hidden">
-          {/* Small Accent Bar (Small accent bar) */}
-          <div className="w-8 h-1 rounded-full bg-[#0284c7] mb-3" />
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#0284c7]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-lg bg-[#e0f2fe] text-[#0284c7] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#e0f2fe] text-[#0284c7] flex items-center justify-center shrink-0">
               <ShoppingCart className="w-5 h-5" />
             </div>
-            {/* Progress Circular Badge with distinct cyan/blue accent */}
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              <svg className="w-10 h-10 transform -rotate-90">
+            {/* Progress Circular Badge */}
+            <div className="relative w-9 h-9 flex items-center justify-center">
+              <svg className="w-9 h-9 transform -rotate-90">
                 <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
+                  cx="18"
+                  cy="18"
+                  r="14"
                   stroke="#E7E2D8"
-                  strokeWidth="3"
+                  strokeWidth="2.5"
                   fill="transparent"
                 />
                 <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
+                  cx="18"
+                  cy="18"
+                  r="14"
                   stroke="#0284c7"
-                  strokeWidth="3.5"
-                  strokeDasharray={`${88 * 1.0} 100`}
+                  strokeWidth="3"
+                  strokeDasharray={`${88 * 0.88} 100`}
                   strokeLinecap="round"
                   fill="transparent"
                 />
               </svg>
-              <span className="absolute text-[11px] font-bold text-[#0284c7]">
+              <span className="absolute text-[10px] font-bold text-[#0284c7]">
                 {initialInventoryStats.activeProductsPercentage}%
               </span>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-xs font-medium text-[#6d7974]">Active Products</div>
-            <div className="text-2xl font-bold tracking-tight text-[#191c1b] mt-0.5 tabular-nums">
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Active Products</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums font-mono">
               {initialInventoryStats.activeProducts.toLocaleString()}
             </div>
-            <div className="text-xs font-semibold text-[#0284c7] flex items-center gap-1 mt-1">
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Shelf Status</span>
+            <span className="font-semibold text-[#0284c7] flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#0284c7]" />
               <span>Available on shelves</span>
-            </div>
+            </span>
           </div>
         </div>
 
         {/* Card 3: Low Stock */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-2xs hover:border-[#d97706]/40 transition-colors relative overflow-hidden">
-          {/* Small Accent Bar (Small accent bar) */}
-          <div className="w-8 h-1 rounded-full bg-[#d97706] mb-3" />
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#d97706]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-lg bg-[#fef3c7] text-[#d97706] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#fef3c7] text-[#d97706] flex items-center justify-center shrink-0">
               <AlertTriangle className="w-5 h-5" />
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#fffbeb] text-[#b45309] border border-[#fde68a]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#fffbeb] text-[#b45309] border border-[#fde68a]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse" />
               Warning
             </span>
           </div>
-          <div className="mt-3">
-            <div className="text-xs font-medium text-[#6d7974]">Low Stock</div>
-            <div className="text-2xl font-bold tracking-tight text-[#b45309] mt-0.5 tabular-nums">
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Low Stock</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#b45309] mt-1 tabular-nums font-mono">
               {initialInventoryStats.lowStock}
             </div>
-            <div className="text-xs font-semibold text-[#d97706] flex items-center gap-1 mt-1">
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Reorder Threshold</span>
+            <span className="font-semibold text-[#d97706] flex items-center gap-1">
               <span>▲</span>
               <span>{initialInventoryStats.lowStockDelta}</span>
-            </div>
+            </span>
           </div>
         </div>
 
         {/* Card 4: Out of Stock */}
-        <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 shadow-2xs hover:border-[#dc2626]/40 transition-colors relative overflow-hidden">
-          {/* Small Accent Bar (Small accent bar) */}
-          <div className="w-8 h-1 rounded-full bg-[#dc2626] mb-3" />
+        <div className="bg-white border border-[#E7E2D8] rounded-2xl p-5 shadow-xs hover:border-[#dc2626]/40 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-lg bg-[#fee2e2] text-[#dc2626] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#fee2e2] text-[#dc2626] flex items-center justify-center shrink-0">
               <Ban className="w-5 h-5" />
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
               Action Needed
             </span>
           </div>
-          <div className="mt-3">
-            <div className="text-xs font-medium text-[#6d7974]">Out of Stock</div>
-            <div className="text-2xl font-bold tracking-tight text-[#dc2626] mt-0.5 tabular-nums">
+          <div className="mt-3.5">
+            <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Out of Stock</div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#dc2626] mt-1 tabular-nums font-mono">
               {initialInventoryStats.outOfStock}
             </div>
-            <div className="text-xs font-semibold text-[#dc2626] flex items-center gap-1 mt-1">
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
+            <span className="text-[#707973]">Inventory Deficit</span>
+            <span className="font-semibold text-[#dc2626] flex items-center gap-1">
               <span>▲</span>
               <span>{initialInventoryStats.outOfStockDelta}</span>
-            </div>
+            </span>
           </div>
         </div>
       </div>
