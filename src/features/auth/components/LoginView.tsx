@@ -7,7 +7,6 @@ import {
   Cpu, 
   Sparkles, 
   ShoppingBag,
-  Globe,
   ArrowRight,
   ShieldCheck,
   Lock,
@@ -108,52 +107,21 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       {/* BEGIN: MainHeader */}
       <header className="w-full max-w-[1440px] mx-auto px-6 sm:px-12 pt-8 pb-4 flex items-center justify-between z-20">
-        {/* Left: Brand Logo & Support Contact */}
-        <div className="flex flex-col space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-sm shadow-xs">
-              <svg className="w-4 h-4 text-emerald-100" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zm-9 9h7v7H4v-7zm9 0h7v7h-7v-7z"></path>
-              </svg>
-            </div>
-            <div>
-              <span className="text-sm font-bold tracking-wider uppercase text-[#191C1B] leading-tight block">
-                RETAILSPACE
-              </span>
-              <span className="text-[10px] text-[#6D7974] font-medium tracking-wide block uppercase">
-                Operations Platform
-              </span>
-            </div>
-          </div>
-          <a 
-            className="text-xs text-[#6D7974] hover:text-[#1E3A2F] font-medium inline-flex items-center gap-1 group transition-colors pt-0.5" 
-            href="mailto:support@retailspace.vn"
-          >
-            <span>support@retailspace.vn</span>
-            <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 text-[#1E3A2F]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" strokeLinecap="round" strokeLinejoin="round"></path>
+        {/* Left: Brand Logo */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+            <svg className="w-4 h-4 text-emerald-100" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zm-9 9h7v7H4v-7zm9 0h7v7h-7v-7z"></path>
             </svg>
-          </a>
-        </div>
-
-        {/* Right: Language Selector, Sign Up and Demo CTA */}
-        <div className="flex items-center space-x-4 sm:space-x-7">
-          <button 
-            aria-label="Đổi ngôn ngữ" 
-            className="text-[#6D7974] hover:text-[#191C1B] p-1.5 rounded-lg hover:bg-white/60 transition-colors cursor-pointer" 
-            type="button"
-          >
-            <Globe className="w-4.5 h-4.5 stroke-[1.75]" />
-          </button>
-          <a className="text-xs sm:text-sm font-semibold text-[#191C1B] hover:text-[#1E3A2F] transition-colors hidden sm:inline-block cursor-pointer" href="#">
-            Tài liệu Hướng dẫn
-          </a>
-          <a 
-            className="inline-flex items-center justify-center px-5 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-[#1E3A2F] hover:bg-[#294D3F] text-white shadow-xs transition-all duration-200 cursor-pointer" 
-            href="#"
-          >
-            Yêu cầu Demo
-          </a>
+          </div>
+          <div>
+            <span className="text-sm font-bold tracking-wider uppercase text-[#191C1B] leading-tight block">
+              RETAILSPACE
+            </span>
+            <span className="text-[10px] text-[#6D7974] font-medium tracking-wide block uppercase">
+              Operations Platform
+            </span>
+          </div>
         </div>
       </header>
       {/* END: MainHeader */}
@@ -278,10 +246,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
         <div className="w-full max-w-[460px] bg-white rounded-[28px] shadow-[0_20px_50px_-15px_rgba(30,58,47,0.07),0_0_1px_1px_rgba(30,58,47,0.04)] border border-[#E1D8D6] p-8 sm:p-10 z-10 mx-auto" data-purpose="login-form-card">
           {/* Card Title & Welcome Heading */}
           <div className="text-center mb-7">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EEF5F1] border border-[#D8E8DF] text-[11px] font-semibold text-[#1E3A2F] mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#1E3A2F]" />
-              <span>RetailSpace Operations Portal</span>
-            </div>
             <h1 className="text-2xl sm:text-[26px] font-bold text-[#191C1B] tracking-tight leading-snug">
               Đăng nhập Hệ thống
             </h1>
