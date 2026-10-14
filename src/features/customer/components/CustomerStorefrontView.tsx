@@ -431,8 +431,12 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
                       key={item.product.id}
                       className="p-3 rounded-xl border border-[#E7E2D8] bg-[#FAF8F5] flex items-center justify-between gap-3"
                     >
-                      <div className="w-12 h-12 rounded-lg bg-white border border-[#E7E2D8] flex items-center justify-center text-2xl shrink-0">
-                        {item.product.thumbnail || '📦'}
+                      <div className="w-12 h-12 rounded-lg bg-white border border-[#E7E2D8] flex items-center justify-center shrink-0 overflow-hidden p-1">
+                        {item.product.image ? (
+                          <img src={item.product.image} alt={item.product.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-2xl">{item.product.thumbnail || '📦'}</span>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-xs font-bold text-[#191c1b] truncate">

@@ -665,57 +665,18 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
                       {/* Product Name with Thumbnail */}
                       <td className="py-3.5 px-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg border border-[#E7E2D8] flex items-center justify-center shrink-0 shadow-2xs overflow-hidden bg-white">
-                            {product.sku === 'P001' && (
-                              <div className="w-full h-full bg-linear-to-b from-yellow-300 to-amber-500 flex flex-col items-center justify-center text-white text-[9px] font-black tracking-tighter px-0.5">
-                                <span className="bg-red-600 text-white rounded-full px-1 scale-90">Lay's</span>
-                                <span className="text-[7px] text-yellow-950 font-bold">Classic</span>
-                              </div>
-                            )}
-                            {product.sku === 'P002' && (
-                              <div className="w-full h-full bg-linear-to-b from-sky-400 to-blue-600 flex flex-col items-center justify-center text-white text-[9px] font-bold">
-                                <span className="tracking-tighter">AQUAFINA</span>
-                                <span className="text-[7px] text-sky-100">500ml</span>
-                              </div>
-                            )}
-                            {product.sku === 'P003' && (
-                              <div className="w-full h-full bg-linear-to-b from-pink-500 to-rose-600 flex flex-col items-center justify-center text-white text-[8px] font-extrabold">
-                                <span>HAO HAO</span>
-                                <span className="text-[7px] text-yellow-200">Noodles</span>
-                              </div>
-                            )}
-                            {product.sku === 'P004' && (
-                              <div className="w-full h-full bg-red-600 flex flex-col items-center justify-center text-white text-[9px] font-black">
-                                <span className="italic tracking-tighter">Coca-Cola</span>
-                                <span className="text-[7px] text-red-100">330ml</span>
-                              </div>
-                            )}
-                            {product.sku === 'P005' && (
-                              <div className="w-full h-full bg-linear-to-b from-blue-100 to-blue-600 flex flex-col items-center justify-center text-white text-[8px] font-bold">
-                                <span className="text-blue-900 font-black">VINAMILK</span>
-                                <span className="text-[7px] text-white">Fresh Milk</span>
-                              </div>
-                            )}
-                            {product.sku === 'P006' && (
-                              <div className="w-full h-full bg-linear-to-b from-slate-100 to-blue-100 flex flex-col items-center justify-center text-slate-700 text-[9px] font-semibold border border-amber-300">
-                                <span className="font-serif font-bold text-blue-900">Dove</span>
-                                <span className="text-[7px] text-amber-600 font-medium">Shampoo</span>
-                              </div>
-                            )}
-                            {product.sku === 'P007' && (
-                              <div className="w-full h-full bg-linear-to-b from-red-100 to-red-400 flex flex-col items-center justify-center text-red-900 text-[8px] font-bold">
-                                <span>Pulppy</span>
-                                <span className="text-[7px] text-white font-medium">180 sheets</span>
-                              </div>
-                            )}
-                            {product.sku === 'P008' && (
-                              <div className="w-full h-full bg-red-700 flex flex-col items-center justify-center text-white text-[8px] font-black tracking-tight">
-                                <span className="bg-white text-red-700 px-1 rounded-sm scale-90">KitKat</span>
-                                <span className="text-[7px] text-red-200">4 Finger</span>
-                              </div>
-                            )}
-                            {!['P001','P002','P003','P004','P005','P006','P007','P008'].includes(product.sku) && (
-                              <span className="text-lg">{product.thumbnail}</span>
+                          <div className="w-11 h-11 rounded-lg border border-[#E7E2D8] flex items-center justify-center shrink-0 shadow-2xs overflow-hidden bg-white p-1">
+                            {product.image ? (
+                              <img 
+                                src={product.image} 
+                                alt={product.name} 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <span className="text-lg">{product.thumbnail || '📦'}</span>
                             )}
                           </div>
                           <div>

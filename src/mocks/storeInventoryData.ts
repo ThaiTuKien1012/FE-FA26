@@ -22,8 +22,9 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 120,
     status: 'In Stock',
     isActive: true,
-    description: 'Classic potato chips, original flavor.',
+    description: 'Khoai tây chiên giòn tự nhiên vị truyền thống Lay’s Classic.',
     thumbnail: '🥔',
+    image: '/images/products/lays.png',
     unit: 'Pack',
     barcode: '893601234001',
     updatedAt: '12/10/2026'
@@ -37,6 +38,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 240,
     status: 'In Stock',
     thumbnail: '💧',
+    image: '/images/products/aquafina.png',
     unit: 'Bottle',
     barcode: '893601234002',
     updatedAt: '12/10/2026'
@@ -50,6 +52,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 36,
     status: 'Low Stock',
     thumbnail: '🍜',
+    image: '/images/products/haohao.jpg',
     unit: 'Pack',
     barcode: '893601234003',
     updatedAt: '11/10/2026'
@@ -63,6 +66,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 0,
     status: 'Out of Stock',
     thumbnail: '🥤',
+    image: '/images/products/cocacola.jpg',
     unit: 'Can',
     barcode: '893601234004',
     updatedAt: '12/10/2026'
@@ -76,6 +80,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 58,
     status: 'Low Stock',
     thumbnail: '🥛',
+    image: '/images/products/vinamilk.jpg',
     unit: 'Box',
     barcode: '893601234005',
     updatedAt: '10/10/2026'
@@ -89,6 +94,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 76,
     status: 'In Stock',
     thumbnail: '🧴',
+    image: '/images/products/dove.png',
     unit: 'Bottle',
     barcode: '893601234006',
     updatedAt: '09/10/2026'
@@ -102,6 +108,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 15,
     status: 'Low Stock',
     thumbnail: '🧻',
+    image: '/images/products/pulppy.png',
     unit: 'Box',
     barcode: '893601234007',
     updatedAt: '08/10/2026'
@@ -115,6 +122,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 200,
     status: 'In Stock',
     thumbnail: '🍫',
+    image: '/images/products/kitkat.jpg',
     unit: 'Bar',
     barcode: '893601234008',
     updatedAt: '12/10/2026'
@@ -128,6 +136,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 84,
     status: 'In Stock',
     thumbnail: '🥧',
+    image: '/images/products/chocopie.png',
     unit: 'Box',
     barcode: '893601234009',
     updatedAt: '11/10/2026'
@@ -141,6 +150,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 140,
     status: 'In Stock',
     thumbnail: '🥛',
+    image: '/images/products/thtruemilk.png',
     unit: 'Box',
     barcode: '893601234010',
     updatedAt: '10/10/2026'
@@ -154,6 +164,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 28,
     status: 'Low Stock',
     thumbnail: '🍾',
+    image: '/images/products/maggi.jpg',
     unit: 'Bottle',
     barcode: '893601234011',
     updatedAt: '09/10/2026'
@@ -167,6 +178,7 @@ export const initialProducts: ProductItem[] = [
     stockQuantity: 0,
     status: 'Out of Stock',
     thumbnail: '🧼',
+    image: '/images/products/lifebuoy.jpg',
     unit: 'Bottle',
     barcode: '893601234012',
     updatedAt: '11/10/2026'
