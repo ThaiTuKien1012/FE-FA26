@@ -61,9 +61,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isCustomer = role === 'End-Customer';
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#FAF8F5] text-[#191C1B] flex flex-col md:flex-row font-sans selection:bg-[#1E3A2F] selection:text-white antialiased">
-      {/* Structural Sidebar - Fixed 260px width and full height */}
-      <aside className="w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 select-none z-20" data-purpose="sidebar">
+    <div className="min-h-screen w-full bg-[#FAF8F5] text-[#191C1B] flex flex-col md:flex-row font-sans selection:bg-[#1E3A2F] selection:text-white antialiased">
+      {/* Structural Sidebar - Sticky top-0 and full viewport height */}
+      <aside className="w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-20" data-purpose="sidebar">
         <div className="flex-1 overflow-y-auto">
           {/* Brand Header: HUPM Synchronized 4-Tile Logo */}
           <div className="p-5 border-b border-[#E7E2D8] flex items-center space-x-3.5" data-purpose="brand-logo">
@@ -408,9 +408,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
-        {/* Top Header - Fixed at top */}
-        <header className="h-16 px-6 md:px-8 border-b border-[#E7E2D8] bg-[#FAF8F5]/95 backdrop-blur-xs flex items-center justify-between shrink-0 z-10" data-purpose="top-navigation-bar">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
+        {/* Top Header - Sticky at top */}
+        <header className="h-16 px-6 md:px-8 border-b border-[#E7E2D8] bg-[#FAF8F5]/95 backdrop-blur-xs flex items-center justify-between shrink-0 sticky top-0 z-10" data-purpose="top-navigation-bar">
           {/* Breadcrumbs */}
           <nav aria-label="Breadcrumb" className="flex items-center space-x-2 text-xs font-medium text-[#707973] overflow-x-auto">
             {breadcrumbs.map((crumb, idx) => {
