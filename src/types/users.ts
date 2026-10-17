@@ -9,5 +9,6 @@ export interface UserAccount {
   role: SystemRole;
   storeId?: number | null;
   status: UserStatus;
+  emailVerified?: boolean;
   lastActive?: string;
 }

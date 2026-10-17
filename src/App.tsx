@@ -363,9 +363,6 @@ export default function App() {
           {currentScreen === 'store-inventory' && (
             <ProductInventoryView
               onNavigate={handleNavigate}
-              products={storeProducts}
-              setProducts={setStoreProducts}
-              onEditProduct={handleEditProduct}
             />
           )}
 
