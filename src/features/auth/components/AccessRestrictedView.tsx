@@ -10,14 +10,14 @@ import {
   Lock,
   ArrowRight
 } from 'lucide-react';
-import { AuthUser, SCREEN_OWNER_MAP, MOCK_ACCOUNTS } from '../../../services/authService';
+import { AuthUser, SCREEN_OWNER_MAP } from '../../../services/authService';
 import { ActiveNavScreen } from '../../../types/mining';
 
 interface AccessRestrictedViewProps {
   attemptedScreen: ActiveNavScreen;
   currentUser: AuthUser | null;
   onNavigate: (screen: ActiveNavScreen) => void;
-  onSwitchRole: (roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer') => void;
+  onSwitchRole?: (roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer') => void;
 }
 
 export const AccessRestrictedView: React.FC<AccessRestrictedViewProps> = ({
@@ -32,8 +32,6 @@ export const AccessRestrictedView: React.FC<AccessRestrictedViewProps> = ({
     title: attemptedScreen,
     allowedRoles: ['System Admin']
   };
-
-  const targetAccount = MOCK_ACCOUNTS[screenInfo.roleKey];
 
   return (
     <div className="max-w-3xl mx-auto my-12 bg-white rounded-2xl border border-[#E7E2D8] shadow-sm overflow-hidden text-[#191c1b]">
@@ -85,7 +83,7 @@ export const AccessRestrictedView: React.FC<AccessRestrictedViewProps> = ({
               <span>Required Role</span>
             </div>
             <div className="text-base font-bold text-[#191C1B]">
-              {screenInfo.primaryRole} ({targetAccount?.name})
+              {screenInfo.primaryRole}
             </div>
             <div className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#1E3A2F] text-white mt-1">
               Authorized Role: {screenInfo.allowedRoles.join(', ')}
@@ -107,10 +105,10 @@ export const AccessRestrictedView: React.FC<AccessRestrictedViewProps> = ({
           </button>
 
           <button
-            onClick={() => onSwitchRole(screenInfo.roleKey)}
+            onClick={() => onNavigate('login')}
             className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-[#1E3A2F] hover:bg-[#162B23] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_1px_3px_rgba(41,37,36,0.08)]"
           >
-            <span>Switch to {screenInfo.primaryRole} Account</span>
+            <span>Đăng nhập tài khoản khác</span>
             <ArrowRight className="w-4 h-4 text-[#CAEADA]" />
           </button>
         </div>

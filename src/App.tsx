@@ -25,6 +25,8 @@ import { StoreReportsView } from './features/store/components/StoreReportsView';
 import { StoreABReportView } from './features/store/components/StoreABReportView';
 import { LoginView } from './features/auth/components/LoginView';
 import { RegisterView } from './features/auth/components/RegisterView';
+import { ActivateView } from './features/auth/components/ActivateView';
+import { ProfileView } from './features/auth/components/ProfileView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
@@ -48,7 +50,7 @@ export default function App() {
       return screenFromUrl;
     }
     const user = authService.getCurrentUser();
-    // Default to login page so the user can immediately test the 4-role mock API login
+    // Default to login page if unauthenticated
     return user ? user.defaultScreen : 'login';
   });
 
@@ -105,14 +107,17 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSwitchRole = async (roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer') => {
-    const res = await authService.quickLogin(roleKey);
-    if (res.success && res.user && res.redirectScreen) {
-      setCurrentUser(res.user);
-      syncBrowserUrl(res.redirectScreen);
-      setCurrentScreen(res.redirectScreen);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  const handleSwitchRole = (roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer') => {
+    const roleScreens: Record<string, ActiveNavScreen> = {
+      'store-admin': 'store-inventory',
+      'system-admin': 'overview',
+      'merchandiser': 'merchandiser-recommendations',
+      'customer': 'customer-storefront'
+    };
+    const dest = roleScreens[roleKey] || 'overview';
+    syncBrowserUrl(dest);
+    setCurrentScreen(dest);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleRunMining = (config: {
@@ -172,7 +177,7 @@ export default function App() {
   const getBreadcrumbs = () => {
     switch (currentScreen) {
       case 'login':
-        return ['Authentication', 'Multi-Role Mock API Sign In'];
+        return ['Authentication', 'Sign In'];
       case 'customer-storefront':
         return ['Storefront Kiosk', 'Catalog & Basket'];
 
@@ -227,6 +232,8 @@ export default function App() {
         return ['System Administration', 'Accounts & Roles (RBAC)'];
       case 'api-connections':
         return ['System Administration', 'External Integrations & API Connections'];
+      case 'profile':
+        return ['Tài khoản', 'Hồ sơ & Cài đặt bảo mật'];
       default:
         return ['Platform', 'Workspace'];
     }
@@ -241,15 +248,10 @@ export default function App() {
           syncBrowserUrl('register');
           setCurrentScreen('register');
         }}
-        initialRoleKey={
-          currentUser?.role === 'System Admin'
-            ? 'system-admin'
-            : currentUser?.role === 'Merchandiser'
-              ? 'merchandiser'
-              : currentUser?.role === 'End-Customer'
-                ? 'customer'
-                : 'store-admin'
-        }
+        onNavigateActivate={() => {
+          syncBrowserUrl('activate');
+          setCurrentScreen('activate');
+        }}
       />
     );
   }
@@ -263,15 +265,18 @@ export default function App() {
           syncBrowserUrl('login');
           setCurrentScreen('login');
         }}
-        initialRoleKey={
-          currentUser?.role === 'System Admin'
-            ? 'system-admin'
-            : currentUser?.role === 'Merchandiser'
-              ? 'merchandiser'
-              : currentUser?.role === 'End-Customer'
-                ? 'customer'
-                : 'store-admin'
-        }
+      />
+    );
+  }
+
+  // 1c. If currently on Activate screen, render ActivateView standalone full-screen
+  if (currentScreen === 'activate') {
+    return (
+      <ActivateView
+        onNavigateLogin={() => {
+          syncBrowserUrl('login');
+          setCurrentScreen('login');
+        }}
       />
     );
   }
@@ -457,6 +462,15 @@ export default function App() {
           {/* System Admin: API Connections */}
           {currentScreen === 'api-connections' && (
             <ApiConnectionsView />
+          )}
+
+          {/* Account Profile & Security Settings */}
+          {currentScreen === 'profile' && (
+            <ProfileView
+              currentUser={currentUser}
+              onNavigateBack={() => handleNavigate(currentUser?.defaultScreen || 'overview')}
+              onLogout={handleLogout}
+            />
           )}
         </>
       )}

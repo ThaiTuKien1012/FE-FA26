@@ -3,6 +3,8 @@ import { ActiveNavScreen } from '../types/mining';
 export const SCREEN_TO_PATH: Record<ActiveNavScreen, string> = {
   'login': '/login',
   'register': '/register',
+  'activate': '/activate',
+  'profile': '/profile',
   'customer-storefront': '/storefront',
 
   // Merchandiser Screens

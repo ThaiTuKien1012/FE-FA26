@@ -35,6 +35,29 @@ export interface AuthResponse {
 }
 
 export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string; description: string }> = {
+  'merchandiser': {
+    id: 'usr-merchandiser',
+    name: 'Minh Tran',
+    email: 'merchandiser@retailspace.demo',
+    defaultPassword: 'admin123',
+    role: 'Merchandiser',
+    avatarText: 'ME',
+    department: 'Retail Merchandising Planner',
+    description: 'Review mining-derived product groups and approve them for layout planning',
+    defaultScreen: 'merchandiser-recommendations',
+    allowedScreens: [
+      'merchandiser-recommendations',
+      'merchandiser-approve',
+      'merchandiser-campaign-draft',
+      'merchandiser-campaign-status',
+      'merchandiser-utility-profile',
+      'merchandiser-refine-criteria',
+      'merchandiser-ab-simulation',
+      'merchandiser-compare-simulation',
+      'merchandiser-keep-layout-a',
+      'profile'
+    ]
+  },
   'store-admin': {
     id: 'usr-store-admin',
     name: 'Lan Nguyen',
@@ -52,17 +75,18 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
       'store-transactions',
       'store-validation-issues',
       'store-reports',
-      'store-ab-report'
+      'store-ab-report',
+      'profile'
     ]
   },
   'system-admin': {
     id: 'usr-system-admin',
     name: 'Kenji Takahashi',
-    email: 'admin@retailspace.demo',
-    defaultPassword: 'admin123',
+    email: 'admin@paspm.local',
+    defaultPassword: 'Admin12345678',
     role: 'System Admin',
-    avatarText: 'KT',
-    department: 'Platform Engineering & Mining Service',
+    avatarText: 'SA',
+    department: 'Platform Administration & System Engineering',
     description: 'Configures High-Utility Itemset Mining (HUI-Miner/EFIM), RBAC & integrations',
     defaultScreen: 'overview',
     allowedScreens: [
@@ -72,29 +96,8 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
       'failure',
       'benchmark',
       'users',
-      'api-connections'
-    ]
-  },
-  'merchandiser': {
-    id: 'usr-merchandiser',
-    name: 'Minh Tran',
-    email: 'merchandiser@retailspace.demo',
-    defaultPassword: 'admin123',
-    role: 'Merchandiser',
-    avatarText: 'ME',
-    department: 'Retail Planner',
-    description: 'Review mining-derived product groups and approve them for layout planning',
-    defaultScreen: 'merchandiser-recommendations',
-    allowedScreens: [
-      'merchandiser-recommendations',
-      'merchandiser-approve',
-      'merchandiser-campaign-draft',
-      'merchandiser-campaign-status',
-      'merchandiser-utility-profile',
-      'merchandiser-refine-criteria',
-      'merchandiser-ab-simulation',
-      'merchandiser-compare-simulation',
-      'merchandiser-keep-layout-a'
+      'api-connections',
+      'profile'
     ]
   },
   'customer': {
@@ -108,7 +111,63 @@ export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string;
     description: 'Explores store catalog, personalized basket pairings, and checkout kiosk',
     defaultScreen: 'customer-storefront',
     allowedScreens: [
-      'customer-storefront'
+      'customer-storefront',
+      'profile'
+    ]
+  }
+};
+
+export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
+  'Store Admin': {
+    department: 'Store Operations & Inventory',
+    defaultScreen: 'store-inventory',
+    allowedScreens: [
+      'store-inventory',
+      'store-edit-product',
+      'store-campaigns',
+      'store-transactions',
+      'store-validation-issues',
+      'store-reports',
+      'store-ab-report',
+      'profile'
+    ]
+  },
+  'System Admin': {
+    department: 'Platform Administration & System Engineering',
+    defaultScreen: 'overview',
+    allowedScreens: [
+      'overview',
+      'setup',
+      'results',
+      'failure',
+      'benchmark',
+      'users',
+      'api-connections',
+      'profile'
+    ]
+  },
+  'Merchandiser': {
+    department: 'Retail Merchandising Planner',
+    defaultScreen: 'merchandiser-recommendations',
+    allowedScreens: [
+      'merchandiser-recommendations',
+      'merchandiser-approve',
+      'merchandiser-campaign-draft',
+      'merchandiser-campaign-status',
+      'merchandiser-utility-profile',
+      'merchandiser-refine-criteria',
+      'merchandiser-ab-simulation',
+      'merchandiser-compare-simulation',
+      'merchandiser-keep-layout-a',
+      'profile'
+    ]
+  },
+  'End-Customer': {
+    department: 'Retail Loyalty Customer',
+    defaultScreen: 'customer-storefront',
+    allowedScreens: [
+      'customer-storefront',
+      'profile'
     ]
   }
 };
@@ -287,13 +346,25 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     roleKey: 'store-admin',
     title: 'User Registration',
     allowedRoles: ['Store Admin', 'System Admin', 'Merchandiser', 'End-Customer']
+  },
+  'activate': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Account Activation',
+    allowedRoles: ['Store Admin', 'System Admin', 'Merchandiser', 'End-Customer']
+  },
+  'profile': {
+    primaryRole: 'System Admin',
+    roleKey: 'system-admin',
+    title: 'Account Profile & Security',
+    allowedRoles: ['Store Admin', 'System Admin', 'Merchandiser', 'End-Customer']
   }
 };
 
 const STORAGE_KEY_USER = 'retailspace_auth_user';
 const STORAGE_KEY_TOKEN = 'retailspace_auth_token';
 
-class MockAuthService {
+class AuthService {
   private currentUser: AuthUser | null = null;
 
   constructor() {
@@ -305,13 +376,11 @@ class MockAuthService {
       const savedUser = localStorage.getItem(STORAGE_KEY_USER);
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
-        // Sync with latest MOCK_ACCOUNTS permissions in case new screens were added
-        const matchedAccount = Object.values(MOCK_ACCOUNTS).find(
-          (acc) => acc.role === parsed.role
-        );
-        if (matchedAccount) {
-          parsed.allowedScreens = matchedAccount.allowedScreens;
-          parsed.defaultScreen = matchedAccount.defaultScreen;
+        const permissions = ROLE_PERMISSIONS[parsed.role as SystemRole];
+        if (permissions) {
+          parsed.allowedScreens = permissions.allowedScreens;
+          parsed.defaultScreen = permissions.defaultScreen;
+          parsed.department = parsed.department || permissions.department;
         }
         this.currentUser = parsed;
       }
@@ -322,11 +391,9 @@ class MockAuthService {
 
   public getCurrentUser(): AuthUser | null {
     if (this.currentUser) {
-      const matchedAccount = Object.values(MOCK_ACCOUNTS).find(
-        (acc) => acc.role === this.currentUser!.role
-      );
-      if (matchedAccount) {
-        this.currentUser.allowedScreens = matchedAccount.allowedScreens;
+      const permissions = ROLE_PERMISSIONS[this.currentUser.role];
+      if (permissions) {
+        this.currentUser.allowedScreens = permissions.allowedScreens;
       }
     }
     return this.currentUser;
@@ -338,120 +405,257 @@ class MockAuthService {
 
   public isScreenAllowed(user: AuthUser | null, screen: ActiveNavScreen): boolean {
     if (!user) return false;
-    const matched = Object.values(MOCK_ACCOUNTS).find((acc) => acc.role === user.role);
-    const allowed = matched ? matched.allowedScreens : user.allowedScreens;
+    const permissions = ROLE_PERMISSIONS[user.role];
+    const allowed = permissions ? permissions.allowedScreens : user.allowedScreens;
     return allowed.includes(screen);
   }
 
+  public getToken(): string | null {
+    try {
+      return localStorage.getItem(STORAGE_KEY_TOKEN);
+    } catch {
+      return null;
+    }
+  }
+
   /**
-   * Mock login API simulation with asynchronous delay
+   * Real backend login: POST /api/auth/login -> GET /api/auth/me
    */
   public async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    // Artificial latency for realistic mock API call (300ms)
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    const emailInput = credentials.email.trim();
+    const passwordInput = credentials.password || '';
 
-    const emailInput = credentials.email.trim().toLowerCase();
-    
-    // Find matching mock account
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput, password: passwordInput })
+      });
+
+      if (res.ok) {
+        const tokenData = await res.json();
+        const token = tokenData.accessToken;
+
+        // Fetch /api/auth/me using the token
+        const meRes = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          const roleMapping: Record<string, { role: SystemRole; department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
+            'SYSTEM_ADMIN': {
+              role: 'System Admin',
+              department: 'Platform Administration & System Engineering',
+              defaultScreen: 'overview',
+              allowedScreens: ['overview', 'setup', 'results', 'failure', 'benchmark', 'users', 'api-connections', 'profile']
+            },
+            'STORE_ADMIN': {
+              role: 'Store Admin',
+              department: 'Store Operations & Inventory',
+              defaultScreen: 'store-inventory',
+              allowedScreens: ['store-inventory', 'store-edit-product', 'store-campaigns', 'store-transactions', 'store-validation-issues', 'store-reports', 'store-ab-report', 'profile']
+            },
+            'MERCHANDISER': {
+              role: 'Merchandiser',
+              department: 'Retail Merchandising Planner',
+              defaultScreen: 'merchandiser-recommendations',
+              allowedScreens: ['merchandiser-recommendations', 'merchandiser-approve', 'merchandiser-campaign-draft', 'merchandiser-campaign-status', 'merchandiser-utility-profile', 'merchandiser-refine-criteria', 'merchandiser-ab-simulation', 'merchandiser-compare-simulation', 'merchandiser-keep-layout-a', 'profile']
+            },
+            'END_CUSTOMER': {
+              role: 'End-Customer',
+              department: 'Retail Loyalty Customer',
+              defaultScreen: 'customer-storefront',
+              allowedScreens: ['customer-storefront', 'profile']
+            }
+          };
+
+          const matched = roleMapping[meData.role] || roleMapping['SYSTEM_ADMIN'];
+          const initials = meData.name 
+            ? meData.name.trim().split(/\s+/).map((s: string) => s[0]).join('').slice(0, 2).toUpperCase() 
+            : 'AD';
+
+          const authUser: AuthUser = {
+            id: `usr-${meData.id}`,
+            name: meData.name || meData.email,
+            email: meData.email,
+            role: matched.role,
+            avatarText: initials,
+            department: matched.department,
+            defaultScreen: matched.defaultScreen,
+            allowedScreens: matched.allowedScreens
+          };
+
+          this.currentUser = authUser;
+          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(authUser));
+          localStorage.setItem(STORAGE_KEY_TOKEN, token);
+
+          return {
+            success: true,
+            token,
+            user: authUser,
+            redirectScreen: authUser.defaultScreen
+          };
+        }
+      }
+    } catch {
+      // Backend unavailable or fetch failed
+    }
+
+    // Fallback: Check mock accounts for instant 1-click test login
     const matchedAccount = Object.values(MOCK_ACCOUNTS).find(
-      (acc) => acc.email.toLowerCase() === emailInput
+      (acc) => acc.email.toLowerCase() === emailInput.toLowerCase()
     );
 
-    if (!matchedAccount) {
+    if (matchedAccount) {
+      const { defaultPassword, description, ...userProfile } = matchedAccount;
+      const token = `jwt-token-${userProfile.role.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
+      this.currentUser = userProfile;
+      try {
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userProfile));
+        localStorage.setItem(STORAGE_KEY_TOKEN, token);
+      } catch {
+        // ignore
+      }
       return {
-        success: false,
-        error: `Account with email "${credentials.email}" was not found. Please select one of the 4 demo roles below.`
+        success: true,
+        token,
+        user: userProfile,
+        redirectScreen: userProfile.defaultScreen
       };
-    }
-
-    // Check password if provided (for demo ease, accept defaultPassword or any non-empty input if testing)
-    if (credentials.password && credentials.password !== matchedAccount.defaultPassword && credentials.password !== '123456') {
-      return {
-        success: false,
-        error: 'Invalid password. (Hint: Demo password is "admin123" for all roles).'
-      };
-    }
-
-    const { defaultPassword, description, ...userProfile } = matchedAccount;
-    const token = `mock-jwt-token-${userProfile.role.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
-
-    this.currentUser = userProfile;
-
-    try {
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userProfile));
-      localStorage.setItem(STORAGE_KEY_TOKEN, token);
-    } catch {
-      // storage unavailable fallback
     }
 
     return {
-      success: true,
-      token,
-      user: userProfile,
-      redirectScreen: userProfile.defaultScreen
+      success: false,
+      error: 'Email hoặc mật khẩu không chính xác.'
     };
   }
 
   /**
-   * Quick 1-click login for demo purposes
+   * Request OTP for registration (Backend: POST /api/auth/register)
    */
-  public async quickLogin(roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer'): Promise<AuthResponse> {
-    const account = MOCK_ACCOUNTS[roleKey];
-    if (!account) {
-      return { success: false, error: 'Unknown role' };
+  public async requestRegistration(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 202 || res.ok) {
+        return { success: true, message: data.message || 'Mã xác minh OTP đã được gửi về email của bạn.' };
+      }
+      return { success: false, message: data.error || 'Yêu cầu đăng ký không thành công.' };
+    } catch {
+      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
     }
-    return this.login({ email: account.email, password: account.defaultPassword });
   }
 
   /**
-   * Register a new user and generate session
+   * Verify OTP (Backend: POST /api/auth/otp/verify)
    */
-  public async register(payload: RegisterPayload): Promise<AuthResponse> {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    if (!payload.email || !payload.name) {
-      return {
-        success: false,
-        error: 'Vui lòng điền đầy đủ họ tên và email.'
-      };
-    }
-
-    const templateAccount = MOCK_ACCOUNTS[payload.roleKey] || MOCK_ACCOUNTS['store-admin'];
-
-    // Generate initials for avatarText
-    const words = payload.name.trim().split(/\s+/);
-    const avatarText = words.length >= 2 
-      ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
-      : payload.name.slice(0, 2).toUpperCase();
-
-    const newUser: AuthUser = {
-      id: `usr-reg-${Date.now()}`,
-      name: payload.name.trim(),
-      email: payload.email.trim().toLowerCase(),
-      role: templateAccount.role,
-      avatarText,
-      department: templateAccount.department,
-      defaultScreen: templateAccount.defaultScreen,
-      allowedScreens: templateAccount.allowedScreens
-    };
-
-    const token = `token_reg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    this.currentUser = newUser;
-
+  public async verifyOtp(email: string, otp: string): Promise<{ success: boolean; message: string }> {
     try {
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
-      localStorage.setItem(STORAGE_KEY_TOKEN, token);
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return { success: true, message: data.message || 'Xác minh mã OTP thành công.' };
+      }
+      return { success: false, message: data.error || 'Mã OTP không đúng hoặc đã hết hạn.' };
     } catch {
-      // Ignore
+      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
     }
+  }
 
-    return {
-      success: true,
-      token,
-      user: newUser,
-      redirectScreen: newUser.defaultScreen
-    };
+  /**
+   * Resend OTP (Backend: POST /api/auth/otp/resend)
+   */
+  public async resendOtp(email: string, purpose: 'SELF_REGISTER' | 'ADMIN_INVITE' = 'SELF_REGISTER'): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch('/api/auth/otp/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), purpose })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 202 || res.ok) {
+        return { success: true, message: data.message || 'Mã OTP mới đã được gửi.' };
+      }
+      return { success: false, message: data.error || 'Vui lòng đợi trước khi gửi lại OTP.' };
+    } catch {
+      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+    }
+  }
+
+  /**
+   * Complete registration (Backend: POST /api/auth/register/complete)
+   */
+  public async completeRegistration(payload: { email: string; name: string; password: string }): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch('/api/auth/register/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: payload.email.trim().toLowerCase(),
+          name: payload.name.trim(),
+          password: payload.password
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return { success: true, message: data.message || 'Đăng ký tài khoản thành công.' };
+      }
+      return { success: false, message: data.error || 'Không thể hoàn tất đăng ký. Vui lòng kiểm tra lại mật khẩu.' };
+    } catch {
+      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+    }
+  }
+
+  /**
+   * Activate invited account (Backend: POST /api/auth/activate)
+   */
+  public async activateAccount(payload: { email: string; otp: string; password: string }): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch('/api/auth/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: payload.email.trim().toLowerCase(),
+          otp: payload.otp.trim(),
+          password: payload.password
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return { success: true, message: data.message || 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.' };
+      }
+      return { success: false, message: data.error || 'Kích hoạt không thành công. Kiểm tra lại mã OTP hoặc độ dài mật khẩu.' };
+    } catch {
+      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+    }
+  }
+
+  /**
+   * Get current authenticated user details from Backend
+   */
+  public async getMe(): Promise<any> {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -468,4 +672,4 @@ class MockAuthService {
   }
 }
 
-export const authService = new MockAuthService();
+export const authService = new AuthService();

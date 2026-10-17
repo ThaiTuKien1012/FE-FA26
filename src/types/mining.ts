@@ -74,6 +74,8 @@ export type ActiveNavScreen =
   | 'store-campaigns' // F02 Store Admin: Campaigns (Activation Review)
   | 'store-reports'   // F02 Store Admin: Reports
   | 'store-ab-report' // F02 Store Admin: O07 A/B Test Report
-  | 'login'           // Auth: Multi-role Mock API Login Page
+  | 'login'           // Auth: Login Page
   | 'register'        // Auth: Registration Page
+  | 'activate'        // Auth: Staff Account Activation with OTP
+  | 'profile'         // Auth: Current User Profile & Security Settings
   | 'customer-storefront'; // Customer: Storefront Kiosk & Basket Recommendations

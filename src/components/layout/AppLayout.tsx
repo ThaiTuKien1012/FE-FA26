@@ -30,7 +30,7 @@ import {
   Search
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
-import { AuthUser, MOCK_ACCOUNTS } from '../../services/authService';
+import { AuthUser } from '../../services/authService';
 import { AppLogo } from '../common/AppLogo';
 
 interface AppLayoutProps {
@@ -489,77 +489,30 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               {/* Dropdown Menu */}
               {isRoleDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-[#E7E2D8] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 text-xs">
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-[#8C857B] uppercase tracking-wider border-b border-[#E7E2D8]/80">
-                    Switch Mock Account
+                  <div className="px-3 py-2 border-b border-[#E7E2D8]/80">
+                    <p className="font-bold text-sm text-[#191C1B] truncate">
+                      {currentUser?.name || 'Administrator'}
+                    </p>
+                    <p className="text-[11px] text-[#707973] truncate">
+                      {currentUser?.email || 'admin@paspm.local'}
+                    </p>
+                    <div className="mt-1.5 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E5F3EB] text-[#1E3A2F]">
+                      {currentUser?.role || role}
+                    </div>
                   </div>
-                  
-                  {onSwitchRole && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setIsRoleDropdownOpen(false);
-                          onSwitchRole('store-admin');
-                        }}
-                        className={`w-full px-3 py-2 text-left flex items-center justify-between hover:bg-[#FAF8F5] cursor-pointer ${
-                          isStoreAdmin ? 'bg-[#E5F3EB] font-bold text-[#1E3A2F]' : 'text-[#191C1B]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Store className="w-3.5 h-3.5 text-[#1E3A2F]" />
-                          <span>Store Admin</span>
-                        </div>
-                        <span className="text-[10px] text-[#8C857B]">Lan Nguyen</span>
-                      </button>
 
-                      <button
-                        onClick={() => {
-                          setIsRoleDropdownOpen(false);
-                          onSwitchRole('system-admin');
-                        }}
-                        className={`w-full px-3 py-2 text-left flex items-center justify-between hover:bg-[#FAF8F5] cursor-pointer ${
-                          isSystemAdmin ? 'bg-[#E5F3EB] font-bold text-[#1E3A2F]' : 'text-[#191C1B]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Cpu className="w-3.5 h-3.5 text-[#1E3A2F]" />
-                          <span>System Admin</span>
-                        </div>
-                        <span className="text-[10px] text-[#8C857B]">Kenji T.</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setIsRoleDropdownOpen(false);
-                          onSwitchRole('merchandiser');
-                        }}
-                        className={`w-full px-3 py-2 text-left flex items-center justify-between hover:bg-[#FAF8F5] cursor-pointer ${
-                          isMerchandiser ? 'bg-[#E5F3EB] font-bold text-[#1E3A2F]' : 'text-[#191C1B]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Layers className="w-3.5 h-3.5 text-[#954A17]" />
-                          <span>Merchandiser</span>
-                        </div>
-                        <span className="text-[10px] text-[#8C857B]">Minh Tran</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setIsRoleDropdownOpen(false);
-                          onSwitchRole('customer');
-                        }}
-                        className={`w-full px-3 py-2 text-left flex items-center justify-between hover:bg-[#FAF8F5] cursor-pointer ${
-                          isCustomer ? 'bg-[#E5F3EB] font-bold text-[#1E3A2F]' : 'text-[#191C1B]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ShoppingBag className="w-3.5 h-3.5 text-[#BA1A1A]" />
-                          <span>Customer Kiosk</span>
-                        </div>
-                        <span className="text-[10px] text-[#8C857B]">Quynh Le</span>
-                      </button>
-                    </>
-                  )}
+                  <div className="pt-1 mt-1 border-t border-[#E7E2D8]/80">
+                    <button
+                      onClick={() => {
+                        setIsRoleDropdownOpen(false);
+                        onNavigate('profile');
+                      }}
+                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-[#FAF8F5] cursor-pointer text-[#191C1B] font-semibold text-xs"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Hồ sơ cá nhân & Bảo mật</span>
+                    </button>
+                  </div>
 
                   {onLogout && (
                     <div className="pt-1 mt-1 border-t border-[#E7E2D8]/80">

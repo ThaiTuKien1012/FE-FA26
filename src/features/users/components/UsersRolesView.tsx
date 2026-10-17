@@ -2,11 +2,16 @@ import React, { useState } from 'react';
 import { Search, ChevronDown, UserPlus, X, Shield } from 'lucide-react';
 import { UserAccount, SystemRole, UserStatus, initialUsers } from '../../../types/users';
 
+import { authService } from '../../../services/authService';
+
 export const UsersRolesView: React.FC = () => {
   const [users, setUsers] = useState<UserAccount[]>(initialUsers);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isBackendLive, setIsBackendLive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -17,6 +22,53 @@ export const UsersRolesView: React.FC = () => {
   const [formEmail, setFormEmail] = useState('');
   const [formRole, setFormRole] = useState<SystemRole>('Merchandiser');
   const [formStatus, setFormStatus] = useState<UserStatus>('Active');
+
+  const roleCodeMap: Record<SystemRole, string> = {
+    'System Admin': 'SYSTEM_ADMIN',
+    'Store Admin': 'STORE_ADMIN',
+    'Merchandiser': 'MERCHANDISER',
+    'End-Customer': 'END_CUSTOMER'
+  };
+
+  const roleRevMap: Record<string, SystemRole> = {
+    'SYSTEM_ADMIN': 'System Admin',
+    'STORE_ADMIN': 'Store Admin',
+    'MERCHANDISER': 'Merchandiser',
+    'END_CUSTOMER': 'End-Customer'
+  };
+
+  const fetchBackendUsers = async () => {
+    const token = authService.getToken();
+    if (!token) return;
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      const res = await fetch('/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mappedUsers: UserAccount[] = data.map((u: any) => ({
+          id: String(u.id),
+          name: u.name || '(Chưa đặt tên)',
+          email: u.email,
+          role: roleRevMap[u.role] || 'End-Customer',
+          status: u.status === 'ACTIVE' ? 'Active' : 'Inactive',
+          lastActive: u.emailVerifiedAt ? new Date(u.emailVerifiedAt).toLocaleDateString() : 'Chờ xác thực OTP'
+        }));
+        setUsers(mappedUsers);
+        setIsBackendLive(true);
+      }
+    } catch {
+      // Backend not reached, keep initialUsers
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchBackendUsers();
+  }, []);
 
   const filteredUsers = users.filter((u) => {
     if (roleFilter !== 'all') {
@@ -45,13 +97,48 @@ export const UsersRolesView: React.FC = () => {
     setFormEmail('');
     setFormRole('Merchandiser');
     setFormStatus('Active');
+    setApiError(null);
     setIsAddModalOpen(true);
   };
 
-  const handleSaveAddUser = (e: React.FormEvent) => {
+  const handleSaveAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formEmail.trim()) return;
+    setApiError(null);
 
+    const token = authService.getToken();
+    if (isBackendLive && token) {
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: formName.trim(),
+            email: formEmail.trim(),
+            roleCode: roleCodeMap[formRole],
+            storeId: null
+          })
+        });
+
+        if (res.ok) {
+          await fetchBackendUsers();
+          setIsAddModalOpen(false);
+          return;
+        } else {
+          const errData = await res.json().catch(() => null);
+          setApiError(errData?.error || 'Không thể tạo tài khoản người dùng.');
+          return;
+        }
+      } catch {
+        setApiError('Lỗi kết nối Backend.');
+        return;
+      }
+    }
+
+    // Fallback local state
     const newUser: UserAccount = {
       id: `usr-${Date.now()}`,
       name: formName.trim(),
@@ -71,12 +158,58 @@ export const UsersRolesView: React.FC = () => {
     setFormEmail(user.email);
     setFormRole(user.role);
     setFormStatus(user.status);
+    setApiError(null);
   };
 
-  const handleSaveEditUser = (e: React.FormEvent) => {
+  const handleSaveEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+    setApiError(null);
 
+    const token = authService.getToken();
+    const userIdNum = parseInt(editingUser.id.replace(/\D/g, ''), 10);
+
+    if (isBackendLive && token && !isNaN(userIdNum)) {
+      try {
+        // 1. Update name
+        await fetch(`/api/users/${userIdNum}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name: formName.trim() })
+        });
+
+        // 2. Update status
+        await fetch(`/api/users/${userIdNum}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: formStatus === 'Active' ? 'ACTIVE' : 'INACTIVE' })
+        });
+
+        // 3. Update role
+        await fetch(`/api/users/${userIdNum}/role`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ roleCode: roleCodeMap[formRole], storeId: null })
+        });
+
+        await fetchBackendUsers();
+        setEditingUser(null);
+        return;
+      } catch {
+        setApiError('Không thể cập nhật tài khoản trên Backend.');
+      }
+    }
+
+    // Local state fallback
     setUsers(
       users.map((u) =>
         u.id === editingUser.id
@@ -104,11 +237,23 @@ export const UsersRolesView: React.FC = () => {
           <p className="mt-1 text-sm text-[#6d7974]">
             Manage store user accounts, planogram assignments and effective role permissions.
           </p>
-          <div className="mt-2.5">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-[#f6ece9] text-[#6d7974]">
-              DEMO DATA
-            </span>
+          <div className="mt-2.5 flex items-center gap-2">
+            {isBackendLive ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                Backend Live (/api/users)
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-[#f6ece9] text-[#6d7974]">
+                DEMO DATA
+              </span>
+            )}
           </div>
+          {apiError && (
+            <div className="mt-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+              {apiError}
+            </div>
+          )}
         </div>
         <div>
           <button
