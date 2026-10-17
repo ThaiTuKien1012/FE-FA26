@@ -69,3 +69,34 @@ table th,
 table td {
   vertical-align: middle;
 }
+
+/* Keep save errors visible above an open modal instead of behind the form. */
+body:has(form) div.rounded-xl.border-red-200.bg-red-50 {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 100;
+  width: min(26rem, calc(100vw - 3rem));
+  box-shadow: 0 12px 30px rgb(30 58 47 / 16%);
+}
+
+/* Inventory summary colors communicate stock health at a glance. */
+div.grid.grid-cols-2.gap-4 > div:nth-child(2) {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+div.grid.grid-cols-2.gap-4 > div:nth-child(3) {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+div.grid.grid-cols-2.gap-4 > div:nth-child(4) {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+div.grid.grid-cols-2.gap-4 > div:nth-child(5) {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
