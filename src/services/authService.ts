@@ -43,6 +43,8 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'store-edit-product',
       'store-categories',
       'store-batches',
+      'f03-utility',
+      'f03-expiry-window', 'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot',
       'profile'
     ]
   },
@@ -57,6 +59,8 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'benchmark',
       'users',
       'api-connections',
+      'f03-utility',
+      'f03-expiry-window', 'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot',
       'profile'
     ]
   },
@@ -64,15 +68,12 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     department: 'Retail Merchandising Planner',
     defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
-      'merchandiser-recommendations',
-      'merchandiser-approve',
-      'merchandiser-campaign-draft',
-      'merchandiser-campaign-status',
-      'merchandiser-utility-profile',
-      'merchandiser-refine-criteria',
-      'merchandiser-ab-simulation',
-      'merchandiser-compare-simulation',
-      'merchandiser-keep-layout-a',
+      'f03-configuration',
+      'f03-product-scores',
+      'f03-preview',
+      'f03-snapshot',
+      'f03-utility',
+      'f03-expiry-window', 'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot',
       'profile'
     ]
   },
@@ -353,8 +354,8 @@ class AuthService {
             'MERCHANDISER': {
               role: 'Merchandiser',
               department: 'Retail Merchandising Planner',
-              defaultScreen: 'merchandiser-recommendations',
-              allowedScreens: ['merchandiser-recommendations', 'merchandiser-approve', 'merchandiser-campaign-draft', 'merchandiser-campaign-status', 'merchandiser-utility-profile', 'merchandiser-refine-criteria', 'merchandiser-ab-simulation', 'merchandiser-compare-simulation', 'merchandiser-keep-layout-a', 'profile']
+              defaultScreen: 'f03-configuration',
+              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'profile']
             },
             'END_CUSTOMER': {
               role: 'End-Customer',

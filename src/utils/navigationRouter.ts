@@ -17,6 +17,12 @@ export const SCREEN_TO_PATH: Record<ActiveNavScreen, string> = {
   'merchandiser-ab-simulation': '/merchandiser/ab-simulation',
   'merchandiser-compare-simulation': '/merchandiser/compare-simulation',
   'merchandiser-keep-layout-a': '/merchandiser/keep-layout-a',
+  'f03-utility': '/f03/utility',
+  'f03-expiry-window': '/f03/expiry-window',
+  'f03-configuration': '/f03/configuration',
+  'f03-product-scores': '/f03/product-scores',
+  'f03-preview': '/f03/preview',
+  'f03-snapshot': '/f03/snapshot',
 
   // Store Admin Screens
   'store-inventory': '/store/inventory',

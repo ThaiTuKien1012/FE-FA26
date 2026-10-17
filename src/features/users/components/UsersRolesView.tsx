@@ -262,7 +262,7 @@ export const UsersRolesView: React.FC = () => {
     if (isBackendLive && token && !isNaN(userIdNum)) {
       try {
         // 1. Update name
-        await fetch(`/api/users/${userIdNum}`, {
+        const nameResponse = await fetch(`/api/users/${userIdNum}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -270,9 +270,13 @@ export const UsersRolesView: React.FC = () => {
           },
           body: JSON.stringify({ name: formName.trim() })
         });
+        if (!nameResponse.ok) {
+          const data = await nameResponse.json().catch(() => ({}));
+          throw new Error(data?.error || 'Unable to update account name.');
+        }
 
         // 2. Update role and Store
-        await fetch(`/api/users/${userIdNum}/role`, {
+        const roleResponse = await fetch(`/api/users/${userIdNum}/role`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -280,10 +284,14 @@ export const UsersRolesView: React.FC = () => {
           },
           body: JSON.stringify({ roleCode: roleCodeMap[formRole], storeId })
         });
+        if (!roleResponse.ok) {
+          const data = await roleResponse.json().catch(() => ({}));
+          throw new Error(data?.error || 'Unable to update account role.');
+        }
 
         // 3. Update status only for accounts that completed OTP activation.
         if (editingUser.emailVerified === true) {
-          await fetch(`/api/users/${userIdNum}/status`, {
+          const statusResponse = await fetch(`/api/users/${userIdNum}/status`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -291,13 +299,17 @@ export const UsersRolesView: React.FC = () => {
             },
             body: JSON.stringify({ status: formStatus === 'Active' ? 'ACTIVE' : 'INACTIVE' })
           });
+          if (!statusResponse.ok) {
+            const data = await statusResponse.json().catch(() => ({}));
+            throw new Error(data?.error || 'Unable to update account status.');
+          }
         }
 
         await fetchBackendUsers();
         setEditingUser(null);
         return;
       } catch {
-        setApiError('Không thể cập nhật tài khoản trên Backend.');
+      setApiError('Không thể cập nhật tài khoản trên Backend. Vui lòng kiểm tra quyền SYSTEM_ADMIN, role và Store ID.');
       }
     }
 
@@ -644,7 +656,13 @@ export const UsersRolesView: React.FC = () => {
                   <label className="text-xs font-semibold text-[#191c1b] block mb-1">Role Assignment</label>
                   <select
                     value={formRole}
-                    onChange={(e) => setFormRole(e.target.value as SystemRole)}
+                    onChange={(e) => {
+                      const nextRole = e.target.value as SystemRole;
+                      setFormRole(nextRole);
+                      if (nextRole === 'System Admin' || nextRole === 'End-Customer') {
+                        setFormStoreId('');
+                      }
+                    }}
                     className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
                   >
                     {backendRoles.map((role) => (
@@ -740,7 +758,13 @@ export const UsersRolesView: React.FC = () => {
                   <label className="text-xs font-semibold text-[#191c1b] block mb-1">Role Assignment</label>
                   <select
                     value={formRole}
-                    onChange={(e) => setFormRole(e.target.value as SystemRole)}
+                    onChange={(e) => {
+                      const nextRole = e.target.value as SystemRole;
+                      setFormRole(nextRole);
+                      if (nextRole === 'System Admin' || nextRole === 'End-Customer') {
+                        setFormStoreId('');
+                      }
+                    }}
                     className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
                   >
                     {backendRoles.map((role) => (

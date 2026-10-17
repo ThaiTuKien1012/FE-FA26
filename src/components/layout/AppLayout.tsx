@@ -108,7 +108,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           {/* Navigation Section with Unified Color Scheme Across All Roles */}
           <nav className="px-3 py-4 space-y-5" aria-label="Main Navigation">
             {/* Role 1: Merchandiser Navigation - Only this single Recommendations page */}
-            {isMerchandiser && (
+            {isMerchandiser && false && (
               <div>
                 <div className="px-3.5 mb-2">
                   <span className="text-[11px] font-bold tracking-wider text-[#707973] uppercase">
@@ -207,6 +207,33 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       <span>A/B Simulation</span>
                     </button>
                   </li>
+                  <li>
+                    <button onClick={() => onNavigate('f03-utility')} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f03-utility' ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
+                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-utility' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Utility Configuration</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {isMerchandiser && (
+              <div>
+                <div className="px-3.5 mb-2"><span className="text-[11px] font-bold tracking-wider text-[#707973] uppercase">MERCHANDISER</span></div>
+                <ul className="space-y-1" role="list">
+                  {[
+                    ['f03-configuration', 'Utility Configuration'],
+                    ['f03-product-scores', 'Product Priority Scores'],
+                    ['f03-preview', 'Utility Preview'],
+                    ['f03-snapshot', 'Utility Snapshot'],
+                  ].map(([screen, label]) => (
+                    <li key={screen}>
+                      <button onClick={() => onNavigate(screen as ActiveNavScreen)} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === screen ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
+                        <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === screen ? 'text-white' : 'text-[#707973]'}`} />
+                        <span>{label}</span>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </div>
             )}
@@ -257,6 +284,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     >
                       <ShoppingBag className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-batches' ? 'text-white' : 'text-[#707973]'}`} />
                       <span>Inventory Batches</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={() => onNavigate('f03-utility')} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f03-utility' ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
+                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-utility' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Expiry Window</span>
                     </button>
                   </li>
                 </ul>
@@ -335,6 +368,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     >
                       <Zap className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'api-connections' ? 'text-white' : 'text-[#707973]'}`} />
                       <span>API Connections</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={() => onNavigate('f03-utility')} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f03-utility' ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
+                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-utility' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Lambda Policy</span>
                     </button>
                   </li>
                 </ul>

@@ -34,6 +34,7 @@ import { ABSimulationSetupView } from './features/merchandiser/components/ABSimu
 import { CompareABSimulationView } from './features/merchandiser/components/CompareABSimulationView';
 import { KeepLayoutAReviewView } from './features/merchandiser/components/KeepLayoutAReviewView';
 import { AccessRestrictedView } from './features/auth/components/AccessRestrictedView';
+import { F03WorkspaceView } from './features/f03/components/F03WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
@@ -195,6 +196,13 @@ export default function App() {
         return ['Merchandiser', 'Campaign Draft', 'Compare A/B Simulation'];
       case 'merchandiser-keep-layout-a':
         return ['Merchandiser', 'Campaign Draft', 'Keep Layout A – Review'];
+      case 'f03-utility':
+        return ['F03', 'Utility & Retail Planner'];
+      case 'f03-expiry-window': return ['F03', 'Expiry Window'];
+      case 'f03-configuration': return ['F03', 'Utility Configuration'];
+      case 'f03-product-scores': return ['F03', 'Product Priority Scores'];
+      case 'f03-preview': return ['F03', 'Utility Preview'];
+      case 'f03-snapshot': return ['F03', 'Utility Snapshot'];
 
       // Store Operations views (Store Admin)
       case 'store-inventory':
@@ -349,6 +357,8 @@ export default function App() {
           {currentScreen === 'merchandiser-keep-layout-a' && (
             <KeepLayoutAReviewView onNavigate={handleNavigate} />
           )}
+
+          {currentScreen.startsWith('f03-') && <F03WorkspaceView currentUser={currentUser} section={currentScreen} />}
 
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (

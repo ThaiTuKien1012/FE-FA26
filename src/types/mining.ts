@@ -67,6 +67,12 @@ export type ActiveNavScreen =
   | 'merchandiser-ab-simulation'   // Merchandiser: A/B Simulation Setup
   | 'merchandiser-compare-simulation' // Merchandiser: Compare A/B Simulation
   | 'merchandiser-keep-layout-a'      // Merchandiser: Keep Layout A Review
+  | 'f03-utility'
+  | 'f03-expiry-window'
+  | 'f03-configuration'
+  | 'f03-product-scores'
+  | 'f03-preview'
+  | 'f03-snapshot'
   | 'store-inventory' // F02 Store Admin: Product & Inventory
   | 'store-edit-product' // F02 Store Admin: Edit Product Page
   | 'store-categories' // F02 Store Admin: Category Management
