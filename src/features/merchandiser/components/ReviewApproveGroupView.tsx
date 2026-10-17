@@ -196,7 +196,7 @@ export const ReviewApproveGroupView: React.FC<ReviewApproveGroupViewProps> = ({
             {/* Products in this group Section */}
             <div>
               <div className="flex items-center justify-between mb-3.5">
-                <span className={LABEL}>GROUP SKU COMPOSITION</span>
+                <span className={LABEL}>UTILITY WEIGHT CONTRIBUTION</span>
                 <span className={LABEL}>UTILITY WEIGHT CONTRIBUTION</span>
               </div>
 

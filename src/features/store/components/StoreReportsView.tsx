@@ -429,11 +429,11 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({ onNavigate }
           <table className="w-full text-left text-xs">
             <thead className="bg-[#FAF8F5] text-[#89938f] text-[10px] font-bold uppercase tracking-wider border-b border-[#E7E2D8]">
               <tr>
-                <th className="py-3 px-4">BUNDLE</th>
-                <th className="py-3 px-4">CAMPAIGN</th>
-                <th className="py-3 px-4">REVENUE (VND)</th>
-                <th className="py-3 px-4">CONTRIBUTION</th>
                 <th className="py-3 px-4">SOURCE</th>
+              <th className="py-3 px-4">CAMPAIGN</th>
+              <th className="py-3 px-4">REVENUE (VND)</th>
+              <th className="py-3 px-4">CONTRIBUTION</th>
+              <th className="py-3 px-4">NGUỒN</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E7E2D8]/60">

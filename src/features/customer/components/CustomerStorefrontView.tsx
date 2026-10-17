@@ -437,7 +437,7 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
                 {cart.length === 0 ? (
                   <div className="h-64 flex flex-col items-center justify-center text-center text-[#6d7974]">
                     <ShoppingBag className="w-12 h-12 stroke-[1.25] text-[#89938f] mb-2" />
-                    <p className="text-sm font-semibold">Your basket is empty</p>
+                    <p className="text-xs text-[#89938f] mt-1">Select items from the catalog above</p>
                     <p className="text-xs text-[#89938f] mt-1">Select items from the catalog above</p>
                   </div>
                 ) : (

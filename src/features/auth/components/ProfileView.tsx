@@ -22,12 +22,13 @@ interface ProfileViewProps {
 }
 
 interface MeData {
-  id: number;
+  userId: number;
   email: string;
   name: string;
-  role: string;
+  roleCode: string;
   storeId: number | null;
-  emailVerifiedAt: string | null;
+  status: string;
+  emailVerified: boolean;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigateBack, onLogout }) => {
@@ -49,17 +50,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
       if (data) {
         setMe(data);
       } else {
-        // Fallback to local user
-        if (currentUser) {
-          setMe({
-            id: 1,
-            email: currentUser.email,
-            name: currentUser.name,
-            role: currentUser.role,
-            storeId: null,
-            emailVerifiedAt: new Date().toISOString()
-          });
-        }
+        setErrorMessage('Unable to load account information from the server.');
       }
     } catch {
       setErrorMessage('Không thể tải thông tin tài khoản từ máy chủ.');
@@ -121,7 +112,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
             Hồ sơ tài khoản & Cài đặt bảo mật
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Quản lý thông tin định danh, quyền hạn hệ thống và liên kết xác thực SSO
+            Manage identity information, system permissions, and SSO authentication links
           </p>
         </div>
 
@@ -159,12 +150,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
             {currentUser?.avatarText || 'US'}
           </div>
 
-          <h2 className="text-lg font-bold text-slate-900">{me?.name || currentUser?.name || 'User'}</h2>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">{me?.email || currentUser?.email}</p>
+          <h2 className="text-lg font-bold text-slate-900">{me?.name || 'User'}</h2>
+          <p className="text-xs text-slate-500 font-mono mt-0.5">{me?.email}</p>
 
           <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{me?.role || currentUser?.role || 'User'}</span>
+            <span>{me?.roleCode || 'User'}</span>
           </div>
 
           <div className="w-full mt-6 pt-6 border-t border-slate-100 text-left space-y-3 text-xs text-slate-600">
@@ -176,12 +167,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">Mã User ID:</span>
-              <span className="font-mono font-medium text-slate-800">#{me?.id || '1'}</span>
+              <span className="text-slate-400">User ID:</span>
+              <span className="font-mono font-medium text-slate-800">#{me?.userId || '-'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">Chi nhánh Store:</span>
-              <span className="font-medium text-slate-800">{me?.storeId ? `Store #${me.storeId}` : 'Global (Toàn hệ thống)'}</span>
+              <span className="text-slate-400">Store:</span>
+              <span className="font-medium text-slate-800">{me?.storeId ? `Store #${me.storeId}` : 'Global (All system)'}</span>
             </div>
           </div>
         </div>
@@ -192,30 +183,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
           <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
               <User className="w-4 h-4 text-emerald-600" />
-              Thông tin chi tiết danh tính
+              Identity Details
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-xs text-slate-400 font-medium">Họ và tên</p>
-                <p className="font-semibold text-slate-800 mt-1">{me?.name || 'Chưa cập nhật'}</p>
+                <p className="font-semibold text-slate-800 mt-1">{me?.name || 'Not provided'}</p>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                <p className="text-xs text-slate-400 font-medium">Địa chỉ Email</p>
+                <p className="text-xs text-slate-400 font-medium">Email Address</p>
                 <p className="font-semibold text-slate-800 mt-1 font-mono text-xs">{me?.email}</p>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                <p className="text-xs text-slate-400 font-medium">Vai trò hệ thống (Role)</p>
-                <p className="font-semibold text-slate-800 mt-1">{me?.role || currentUser?.role}</p>
+                <p className="text-xs text-slate-400 font-medium">System Role</p>
+                <p className="font-semibold text-slate-800 mt-1">{me?.roleCode || '-'}</p>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                <p className="text-xs text-slate-400 font-medium">Xác thực Email</p>
+                <p className="text-xs text-slate-400 font-medium">Email Verification</p>
                 <p className="font-semibold text-emerald-600 mt-1 flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4" />
-                  {me?.emailVerifiedAt ? `Đã xác thực (${new Date(me.emailVerifiedAt).toLocaleDateString()})` : 'Đã xác minh'}
+                  {me?.emailVerified ? 'Verified' : 'Not verified'}
                 </p>
               </div>
             </div>
@@ -230,7 +221,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
                   Liên kết tài khoản Google
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Liên kết Google ID Token với tài khoản hiện tại để có thể đăng nhập bằng Google
+                  Link a Google ID Token to this account to enable Google sign-in
                 </p>
               </div>
               <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600">

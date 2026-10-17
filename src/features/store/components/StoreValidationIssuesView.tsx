@@ -249,12 +249,12 @@ export const StoreValidationIssuesView: React.FC<StoreValidationIssuesViewProps>
             <table className="w-full text-left text-xs">
               <thead className="bg-[#FAF8F5] text-[#89938f] text-[10px] font-bold uppercase tracking-wider border-b border-[#E7E2D8]">
                 <tr>
-                  <th className="py-3 px-4">ROW</th>
-                  <th className="py-3 px-4">TXN ID</th>
-                  <th className="py-3 px-4">FIELD</th>
-                  <th className="py-3 px-4">ISSUE DESCRIPTION</th>
-                  <th className="py-3 px-4">SEVERITY</th>
                   <th className="py-3 px-4">SUGGESTED ACTION</th>
+                  <th className="py-3 px-4">MÃ GIAO DỊCH</th>
+                  <th className="py-3 px-4">TRƯỜNG</th>
+                  <th className="py-3 px-4">MÔ TẢ LỖI</th>
+                  <th className="py-3 px-4">MỨC ĐỘ</th>
+                  <th className="py-3 px-4">ĐỀ XUẤT XỬ LÝ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E2D8]/60">

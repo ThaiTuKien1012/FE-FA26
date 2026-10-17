@@ -21,8 +21,18 @@ import {
   Tag
 } from 'lucide-react';
 import { ProductItem, ProductCategory, ProductStatus } from '../../../types/storeInventory';
-import { initialProducts, initialInventoryStats } from '../../../mocks/storeInventoryData';
 import { ActiveNavScreen } from '../../../types/mining';
+
+const emptyInventoryStats = {
+  totalProducts: 0,
+  totalProductsDelta: 'No data',
+  activeProductsPercentage: 0,
+  activeProducts: 0,
+  lowStock: 0,
+  lowStockDelta: 'No data',
+  outOfStock: 0,
+  outOfStockDelta: 'No data'
+};
 
 interface ProductInventoryViewProps {
   onNavigate?: (screen: ActiveNavScreen) => void;
@@ -52,7 +62,7 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
   setProducts: externalSetProducts,
   onEditProduct
 }) => {
-  const [internalProducts, setInternalProducts] = useState<ProductItem[]>(initialProducts);
+  const [internalProducts, setInternalProducts] = useState<ProductItem[]>([]);
   const products = externalProducts || internalProducts;
   const setProducts = externalSetProducts || setInternalProducts;
   const [searchQuery, setSearchQuery] = useState('');
@@ -376,14 +386,14 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
           <div className="mt-3.5">
             <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Total Products</div>
             <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums font-mono">
-              {initialInventoryStats.totalProducts.toLocaleString()}
+              {emptyInventoryStats.totalProducts.toLocaleString()}
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
             <span className="text-[#707973]">Current Catalog</span>
             <span className="font-semibold text-[#1e3a2f] flex items-center gap-1">
               <span>↑</span>
-              <span>{initialInventoryStats.totalProductsDelta}</span>
+              <span>{emptyInventoryStats.totalProductsDelta}</span>
             </span>
           </div>
         </div>
@@ -417,14 +427,14 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
                 />
               </svg>
               <span className="absolute text-[10px] font-bold text-[#0284c7]">
-                {initialInventoryStats.activeProductsPercentage}%
+                {emptyInventoryStats.activeProductsPercentage}%
               </span>
             </div>
           </div>
           <div className="mt-3.5">
             <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Active Products</div>
             <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#191c1b] mt-1 tabular-nums font-mono">
-              {initialInventoryStats.activeProducts.toLocaleString()}
+              {emptyInventoryStats.activeProducts.toLocaleString()}
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
@@ -450,14 +460,14 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
           <div className="mt-3.5">
             <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Low Stock</div>
             <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#b45309] mt-1 tabular-nums font-mono">
-              {initialInventoryStats.lowStock}
+                {emptyInventoryStats.lowStock}
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
             <span className="text-[#707973]">Reorder Threshold</span>
             <span className="font-semibold text-[#d97706] flex items-center gap-1">
               <span>▲</span>
-              <span>{initialInventoryStats.lowStockDelta}</span>
+              <span>{emptyInventoryStats.lowStockDelta}</span>
             </span>
           </div>
         </div>
@@ -476,14 +486,14 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
           <div className="mt-3.5">
             <div className="text-xs font-semibold text-[#707973] uppercase tracking-wider">Out of Stock</div>
             <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#dc2626] mt-1 tabular-nums font-mono">
-              {initialInventoryStats.outOfStock}
+                {emptyInventoryStats.outOfStock}
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
             <span className="text-[#707973]">Inventory Deficit</span>
             <span className="font-semibold text-[#dc2626] flex items-center gap-1">
               <span>▲</span>
-              <span>{initialInventoryStats.outOfStockDelta}</span>
+              <span>{emptyInventoryStats.outOfStockDelta}</span>
             </span>
           </div>
         </div>
@@ -539,7 +549,7 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
             aria-label="Filter by status"
             className="w-full appearance-none pl-3.5 pr-8 py-2 bg-[#FAF8F5] border border-[#E7E2D8] rounded-lg text-sm text-[#191c1b] font-medium focus:outline-none focus:border-[#1e3a2f] cursor-pointer"
           >
-            <option value="All Statuses">All Statuses</option>
+            <option value="Out of Stock">Out of Stock</option>
             <option value="In Stock">In Stock</option>
             <option value="Low Stock">Low Stock</option>
             <option value="Out of Stock">Out of Stock</option>
@@ -645,7 +655,7 @@ export const ProductInventoryView: React.FC<ProductInventoryViewProps> = ({
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-[#6d7974]">
                     <Package className="w-10 h-10 mx-auto text-[#89938f] mb-2 opacity-50" />
-                    <p className="font-medium text-[#191c1b]">No products found</p>
+                    <p className="text-xs text-[#89938f] mt-1">Try adjusting your search terms or filter criteria.</p>
                     <p className="text-xs text-[#89938f] mt-1">Try adjusting your search terms or filter criteria.</p>
                   </td>
                 </tr>

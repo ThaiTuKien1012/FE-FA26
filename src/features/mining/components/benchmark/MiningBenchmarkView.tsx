@@ -228,7 +228,7 @@ export const MiningBenchmarkView: React.FC<MiningBenchmarkViewProps> = ({
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
-            <span className="text-[#707973]">Matrix Status</span>
+            <span className="font-medium text-[#89938f]">Prepared matrix</span>
             <span className="font-medium text-[#89938f]">Prepared matrix</span>
           </div>
         </div>

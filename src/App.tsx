@@ -7,7 +7,6 @@ import React, { useState, useEffect } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen, MiningJob, MiningAlgorithm, ExecutionMode } from './types/mining';
 import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
-import { initialMiningJobs } from './mocks/miningData';
 import { AppLayout } from './components/layout/AppLayout';
 import { MiningOverviewView } from './features/mining/components/overview/MiningOverviewView';
 import { MiningSetupView } from './features/mining/components/setup/MiningSetupView';
@@ -39,7 +38,6 @@ import { CompareABSimulationView } from './features/merchandiser/components/Comp
 import { KeepLayoutAReviewView } from './features/merchandiser/components/KeepLayoutAReviewView';
 import { AccessRestrictedView } from './features/auth/components/AccessRestrictedView';
 import { authService, AuthUser } from './services/authService';
-import { initialProducts } from './mocks/storeInventoryData';
 import { ProductItem } from './types/storeInventory';
 
 export default function App() {
@@ -55,8 +53,8 @@ export default function App() {
   });
 
   const [activeRunId, setActiveRunId] = useState<string>('#0024');
-  const [jobs, setJobs] = useState<MiningJob[]>(initialMiningJobs);
-  const [storeProducts, setStoreProducts] = useState<ProductItem[]>(initialProducts);
+  const [jobs, setJobs] = useState<MiningJob[]>([]);
+  const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
 
   // Synchronize browser URL bar on load and handle back/forward browser buttons

@@ -79,12 +79,12 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
 
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      setErrorMessage('Vui lòng nhập địa chỉ email hợp lệ.');
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
 
     if (!otp.trim() || otp.trim().length !== 6) {
-      setErrorMessage('Mã xác nhận phải gồm đúng 6 chữ số.');
+      setErrorMessage('The verification code must contain exactly 6 digits.');
       return;
     }
 
@@ -96,7 +96,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
     if (resendCooldown > 0 || isLoading) return;
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      setErrorMessage('Vui lòng nhập địa chỉ email trước khi yêu cầu gửi lại mã.');
+      setErrorMessage('Please enter your email address before requesting a new code.');
       return;
     }
 
@@ -105,13 +105,13 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
     try {
       const res = await authService.resendOtp(cleanEmail, 'ADMIN_INVITE');
       if (res.success) {
-        setSuccessNotice('Mã kích hoạt mới đã được gửi tới email của bạn.');
+        setSuccessNotice('A new activation code has been sent to your email.');
         setResendCooldown(60);
       } else {
         setErrorMessage(res.message);
       }
     } catch {
-      setErrorMessage('Không thể gửi lại mã kích hoạt. Vui lòng thử lại sau.');
+      setErrorMessage('Unable to resend the activation code. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -124,12 +124,12 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
     setSuccessNotice(null);
 
     if (!isPasswordValid) {
-      setErrorMessage('Mật khẩu cần tối thiểu 12 ký tự, bao gồm chữ hoa, chữ thường và chữ số.');
+      setErrorMessage('Password must be at least 12 characters and include uppercase, lowercase, and numbers.');
       return;
     }
 
     if (!isMatch) {
-      setErrorMessage('Xác nhận mật khẩu không khớp. Vui lòng kiểm tra lại.');
+      setErrorMessage('Passwords do not match. Please check again.');
       return;
     }
 
@@ -147,10 +147,10 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
           onNavigateLogin();
         }, 2200);
       } else {
-        setErrorMessage(response.message || 'Kích hoạt không thành công. Vui lòng kiểm tra lại mã kích hoạt.');
+        setErrorMessage(response.message || 'Activation failed. Please check the activation code.');
       }
     } catch {
-      setErrorMessage('Không thể kết nối đến máy chủ xác thực.');
+      setErrorMessage('Unable to connect to the authentication server.');
     } finally {
       setIsLoading(false);
     }
@@ -201,7 +201,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
             </button>
             <span className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-semibold tracking-wider uppercase text-white">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Bảo mật 256-bit
+              256-bit security
             </span>
           </div>
         </header>
@@ -213,25 +213,25 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
           <section className="hidden lg:block text-white">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs font-medium mb-6">
               <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-              <span>Dành cho thành viên được mời</span>
+              <span>For invited members</span>
             </div>
 
             <h2 className="text-4xl xl:text-5xl font-bold tracking-tight leading-[1.15] drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
-              Kích hoạt tài khoản
+              Activate your account
               <span className="bg-gradient-to-r from-emerald-200 via-[#CAEADA] to-white bg-clip-text text-transparent block mt-2">
-                nhân viên &amp; đối tác.
+                for staff &amp; partners.
               </span>
             </h2>
 
             <p className="mt-5 text-sm xl:text-base text-white/75 max-w-lg leading-relaxed">
-              Chào mừng bạn gia nhập hệ thống bán lẻ RetailSpace. Nhập mã kích hoạt từ thư mời của Quản trị viên và thiết lập mật khẩu bảo mật để truy cập bảng điều khiển.
+              Welcome to the RetailSpace platform. Enter the activation code from your administrator invitation and set a secure password to access the dashboard.
             </p>
 
             <div className="mt-8 grid grid-cols-3 gap-3.5 max-w-lg">
               {[
-                { v: 'Xác thực', l: 'Mã gửi qua email' },
-                { v: 'Tức thời', l: 'Kích hoạt phân quyền' },
-                { v: 'Bảo mật', l: 'Mã hóa an toàn' }
+                { v: 'Verified', l: 'Code sent by email' },
+                { v: 'Instant', l: 'Permissions activated' },
+                { v: 'Secure', l: 'Safe encryption' }
               ].map((it) => (
                 <div key={it.l} className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 px-3.5 py-3.5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:bg-white/15 transition-all">
                   <div className="text-lg font-bold leading-none">{it.v}</div>
@@ -255,8 +255,8 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                       {step > 1 ? <Check className="w-4 h-4" /> : '1'}
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-800">Thư mời &amp; Xác thực</div>
-                      <div className="text-[10px] text-slate-400">Xác thực danh tính</div>
+                      <div className="text-xs font-bold text-slate-800">Invitation &amp; Verification</div>
+                      <div className="text-[10px] text-slate-400">Identity verification</div>
                     </div>
                   </div>
 
@@ -269,8 +269,8 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                       2
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-800">Mật khẩu mới</div>
-                      <div className="text-[10px] text-slate-400">Hoàn tất truy cập</div>
+                      <div className="text-xs font-bold text-slate-800">New password</div>
+                      <div className="text-[10px] text-slate-400">Access completed</div>
                     </div>
                   </div>
                 </div>
@@ -300,17 +300,17 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                       <KeyRound className="w-5 h-5" />
                     </div>
                     <h1 className="text-xl font-bold text-[#191C1B]">
-                      Kích hoạt tài khoản
+                      Activate account
                     </h1>
                     <p className="mt-1 text-xs text-[#6D7974]">
-                      Nhập email nhận thư mời và mã kích hoạt 6 chữ số từ Quản trị viên.
+                      Enter the invitation email and 6-digit activation code from your administrator.
                     </p>
                   </div>
 
                   {/* Email Input */}
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="act-email">
-                      Email nhận thư mời
+                      Invitation email
                     </label>
                     <div className="relative">
                       <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -330,7 +330,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="block text-xs font-semibold text-[#191C1B]" htmlFor="act-otp">
-                        Mã kích hoạt (6 chữ số)
+                        Activation code (6 digits)
                       </label>
                       <button
                         type="button"
@@ -339,7 +339,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                         className="text-[11px] font-semibold text-[#1E3A2F] hover:underline disabled:text-slate-400 disabled:no-underline transition-colors cursor-pointer flex items-center gap-1"
                       >
                         <RotateCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-                        {resendCooldown > 0 ? `Gửi lại sau (${resendCooldown}s)` : 'Gửi lại mã'}
+                        {resendCooldown > 0 ? `Resend in (${resendCooldown}s)` : 'Resend code'}
                       </button>
                     </div>
                     <div className="relative">
@@ -364,7 +364,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                       disabled={!email || otp.length !== 6}
                       className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
-                      <span>Tiếp tục thiết lập mật khẩu</span>
+                      <span>Continue to set password</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -372,13 +372,13 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                   {/* Back to Login Link */}
                   <div className="text-center pt-3 border-t border-slate-100">
                     <p className="text-xs text-[#6D7974]">
-                      Đã kích hoạt trước đây?{' '}
+                      Already activated?{' '}
                       <button
                         type="button"
                         onClick={onNavigateLogin}
                         className="font-semibold text-[#1E3A2F] hover:underline transition-colors cursor-pointer"
                       >
-                        Quay lại Đăng nhập
+                        Return to sign in
                       </button>
                     </p>
                   </div>

@@ -212,11 +212,11 @@ export const StoreTransactionsView: React.FC<StoreTransactionsViewProps> = ({ on
             <table className="w-full text-left text-xs">
               <thead className="bg-[#FAF8F5] text-[#89938f] text-[10px] font-bold uppercase tracking-wider border-b border-[#E7E2D8]">
                 <tr>
-                  <th className="py-3 px-4">BATCH</th>
+                  <th className="py-3 px-4 text-right">ACTION</th>
                   <th className="py-3 px-4">FILENAME</th>
                   <th className="py-3 px-4">RECORDS</th>
-                  <th className="py-3 px-4">STATUS</th>
-                  <th className="py-3 px-4 text-right">ACTION</th>
+                  <th className="py-3 px-4">TRẠNG THÁI</th>
+                  <th className="py-3 px-4 text-right">THAO TÁC</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E2D8]/60">
@@ -311,7 +311,7 @@ export const StoreTransactionsView: React.FC<StoreTransactionsViewProps> = ({ on
             <table className="w-full text-left text-xs">
               <thead className="bg-[#FAF8F5] text-[#89938f] text-[10px] font-bold uppercase tracking-wider border-b border-[#E7E2D8]">
                 <tr>
-                  <th className="py-3 px-4">TXN ID</th>
+                  <th className="py-3 px-4 text-right">AMOUNT</th>
                   <th className="py-3 px-4">ORDER STATUS</th>
                   <th className="py-3 px-4 text-right">AMOUNT</th>
                 </tr>

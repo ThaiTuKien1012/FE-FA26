@@ -34,89 +34,6 @@ export interface AuthResponse {
   redirectScreen?: ActiveNavScreen;
 }
 
-export const MOCK_ACCOUNTS: Record<string, AuthUser & { defaultPassword: string; description: string }> = {
-  'merchandiser': {
-    id: 'usr-merchandiser',
-    name: 'Minh Tran',
-    email: 'merchandiser@retailspace.demo',
-    defaultPassword: 'admin123',
-    role: 'Merchandiser',
-    avatarText: 'ME',
-    department: 'Retail Merchandising Planner',
-    description: 'Review mining-derived product groups and approve them for layout planning',
-    defaultScreen: 'merchandiser-recommendations',
-    allowedScreens: [
-      'merchandiser-recommendations',
-      'merchandiser-approve',
-      'merchandiser-campaign-draft',
-      'merchandiser-campaign-status',
-      'merchandiser-utility-profile',
-      'merchandiser-refine-criteria',
-      'merchandiser-ab-simulation',
-      'merchandiser-compare-simulation',
-      'merchandiser-keep-layout-a',
-      'profile'
-    ]
-  },
-  'store-admin': {
-    id: 'usr-store-admin',
-    name: 'Lan Nguyen',
-    email: 'store.admin@retailspace.demo',
-    defaultPassword: 'admin123',
-    role: 'Store Admin',
-    avatarText: 'SA',
-    department: 'Store Operations & Inventory',
-    description: 'Manages products, inventory stock, POS transactions, and retail reporting',
-    defaultScreen: 'store-inventory',
-    allowedScreens: [
-      'store-inventory',
-      'store-edit-product',
-      'store-campaigns',
-      'store-transactions',
-      'store-validation-issues',
-      'store-reports',
-      'store-ab-report',
-      'profile'
-    ]
-  },
-  'system-admin': {
-    id: 'usr-system-admin',
-    name: 'Kenji Takahashi',
-    email: 'admin@paspm.local',
-    defaultPassword: 'Admin12345678',
-    role: 'System Admin',
-    avatarText: 'SA',
-    department: 'Platform Administration & System Engineering',
-    description: 'Configures High-Utility Itemset Mining (HUI-Miner/EFIM), RBAC & integrations',
-    defaultScreen: 'overview',
-    allowedScreens: [
-      'overview',
-      'setup',
-      'results',
-      'failure',
-      'benchmark',
-      'users',
-      'api-connections',
-      'profile'
-    ]
-  },
-  'customer': {
-    id: 'usr-customer',
-    name: 'Quynh Le',
-    email: 'customer@retailspace.demo',
-    defaultPassword: 'admin123',
-    role: 'End-Customer',
-    avatarText: 'CU',
-    department: 'Retail Loyalty Customer',
-    description: 'Explores store catalog, personalized basket pairings, and checkout kiosk',
-    defaultScreen: 'customer-storefront',
-    allowedScreens: [
-      'customer-storefront',
-      'profile'
-    ]
-  }
-};
-
 export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
   'Store Admin': {
     department: 'Store Operations & Inventory',
@@ -470,13 +387,13 @@ class AuthService {
             }
           };
 
-          const matched = roleMapping[meData.role] || roleMapping['SYSTEM_ADMIN'];
+          const matched = roleMapping[meData.roleCode] || roleMapping['SYSTEM_ADMIN'];
           const initials = meData.name 
             ? meData.name.trim().split(/\s+/).map((s: string) => s[0]).join('').slice(0, 2).toUpperCase() 
             : 'AD';
 
           const authUser: AuthUser = {
-            id: `usr-${meData.id}`,
+            id: `usr-${meData.userId}`,
             name: meData.name || meData.email,
             email: meData.email,
             role: matched.role,
@@ -502,32 +419,9 @@ class AuthService {
       // Backend unavailable or fetch failed
     }
 
-    // Fallback: Check mock accounts for instant 1-click test login
-    const matchedAccount = Object.values(MOCK_ACCOUNTS).find(
-      (acc) => acc.email.toLowerCase() === emailInput.toLowerCase()
-    );
-
-    if (matchedAccount) {
-      const { defaultPassword, description, ...userProfile } = matchedAccount;
-      const token = `jwt-token-${userProfile.role.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`;
-      this.currentUser = userProfile;
-      try {
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userProfile));
-        localStorage.setItem(STORAGE_KEY_TOKEN, token);
-      } catch {
-        // ignore
-      }
-      return {
-        success: true,
-        token,
-        user: userProfile,
-        redirectScreen: userProfile.defaultScreen
-      };
-    }
-
     return {
       success: false,
-      error: 'Email hoặc mật khẩu không chính xác.'
+      error: 'Unable to sign in. Please check your email, password, or server connection.'
     };
   }
 
@@ -543,11 +437,14 @@ class AuthService {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 202 || res.ok) {
-        return { success: true, message: data.message || 'Mã xác minh OTP đã được gửi về email của bạn.' };
+        const message = data.message === 'If the account is eligible, a verification email will be sent'
+          ? 'If eligible, a verification code will be sent to your email.'
+          : data.message;
+        return { success: true, message: message || 'A verification code has been sent to your email.' };
       }
-      return { success: false, message: data.error || 'Yêu cầu đăng ký không thành công.' };
+      return { success: false, message: data.error || 'Registration request failed.' };
     } catch {
-      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+      return { success: false, message: 'Unable to connect to the Backend server.' };
     }
   }
 
@@ -563,11 +460,11 @@ class AuthService {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        return { success: true, message: data.message || 'Xác minh mã OTP thành công.' };
+        return { success: true, message: data.message || 'OTP verified successfully.' };
       }
-      return { success: false, message: data.error || 'Mã OTP không đúng hoặc đã hết hạn.' };
+      return { success: false, message: data.error || 'The OTP is invalid or has expired.' };
     } catch {
-      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+      return { success: false, message: 'Unable to connect to the Backend server.' };
     }
   }
 
@@ -583,11 +480,14 @@ class AuthService {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 202 || res.ok) {
-        return { success: true, message: data.message || 'Mã OTP mới đã được gửi.' };
+        const message = data.message === 'If the account is eligible, a verification email will be sent'
+          ? 'If eligible, a new verification code will be sent to your email.'
+          : data.message;
+        return { success: true, message: message || 'A new OTP has been sent.' };
       }
-      return { success: false, message: data.error || 'Vui lòng đợi trước khi gửi lại OTP.' };
+      return { success: false, message: data.error || 'Please wait before requesting another OTP.' };
     } catch {
-      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+      return { success: false, message: 'Unable to connect to the Backend server.' };
     }
   }
 
@@ -607,11 +507,11 @@ class AuthService {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        return { success: true, message: data.message || 'Đăng ký tài khoản thành công.' };
+        return { success: true, message: data.message || 'Account registration completed successfully.' };
       }
-      return { success: false, message: data.error || 'Không thể hoàn tất đăng ký. Vui lòng kiểm tra lại mật khẩu.' };
+      return { success: false, message: data.error || 'Registration could not be completed. Please check your password.' };
     } catch {
-      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+      return { success: false, message: 'Unable to connect to the Backend server.' };
     }
   }
 
@@ -631,11 +531,11 @@ class AuthService {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        return { success: true, message: data.message || 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.' };
+        return { success: true, message: data.message || 'Account activated successfully. You can sign in now.' };
       }
-      return { success: false, message: data.error || 'Kích hoạt không thành công. Kiểm tra lại mã OTP hoặc độ dài mật khẩu.' };
+      return { success: false, message: data.error || 'Activation failed. Check the OTP and password requirements.' };
     } catch {
-      return { success: false, message: 'Không thể kết nối đến máy chủ Backend.' };
+      return { success: false, message: 'Unable to connect to the Backend server.' };
     }
   }
 

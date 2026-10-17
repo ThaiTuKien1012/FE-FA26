@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { Search, ChevronDown, UserPlus, X, Shield } from 'lucide-react';
-import { UserAccount, SystemRole, UserStatus, initialUsers } from '../../../types/users';
+import { UserAccount, SystemRole, UserStatus } from '../../../types/users';
 
 import { authService } from '../../../services/authService';
 
 export const UsersRolesView: React.FC = () => {
-  const [users, setUsers] = useState<UserAccount[]>(initialUsers);
+  const [users, setUsers] = useState<UserAccount[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isBackendLive, setIsBackendLive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [backendRoles, setBackendRoles] = useState<Array<{ code: string; display_name: string }>>([]);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -21,7 +24,8 @@ export const UsersRolesView: React.FC = () => {
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formRole, setFormRole] = useState<SystemRole>('Merchandiser');
-  const [formStatus, setFormStatus] = useState<UserStatus>('Active');
+  const [formStatus, setFormStatus] = useState<UserStatus>('Inactive');
+  const [formStoreId, setFormStoreId] = useState('');
 
   const roleCodeMap: Record<SystemRole, string> = {
     'System Admin': 'SYSTEM_ADMIN',
@@ -37,6 +41,24 @@ export const UsersRolesView: React.FC = () => {
     'END_CUSTOMER': 'End-Customer'
   };
 
+  const getUserFriendlyApiError = (message?: string) => {
+    const normalized = (message || '').toLowerCase();
+
+    if (normalized.includes('already exists') || normalized.includes('duplicate') || normalized.includes('unique')) {
+      return 'Email này đã được đăng ký. Vui lòng sử dụng email khác hoặc đăng nhập bằng tài khoản hiện có.';
+    }
+
+    if (normalized.includes('store') && (normalized.includes('exist') || normalized.includes('constraint') || normalized.includes('invalid'))) {
+      return 'Store được chọn không tồn tại hoặc không phù hợp với vai trò này.';
+    }
+
+    if (normalized.includes('role') && (normalized.includes('invalid') || normalized.includes('constraint'))) {
+      return 'Vai trò không hợp lệ. Vui lòng chọn lại vai trò tài khoản.';
+    }
+
+    return 'Không thể tạo tài khoản. Vui lòng kiểm tra thông tin và thử lại.';
+  };
+
   const fetchBackendUsers = async () => {
     const token = authService.getToken();
     if (!token) return;
@@ -49,25 +71,41 @@ export const UsersRolesView: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         const mappedUsers: UserAccount[] = data.map((u: any) => ({
-          id: String(u.id),
-          name: u.name || '(Chưa đặt tên)',
+          id: String(u.userId),
+          name: u.name || '(Unnamed)',
           email: u.email,
-          role: roleRevMap[u.role] || 'End-Customer',
+          role: roleRevMap[u.roleCode] || 'End-Customer',
+          storeId: u.storeId,
           status: u.status === 'ACTIVE' ? 'Active' : 'Inactive',
-          lastActive: u.emailVerifiedAt ? new Date(u.emailVerifiedAt).toLocaleDateString() : 'Chờ xác thực OTP'
+          lastActive: u.emailVerified ? 'Email verified' : 'Waiting for OTP verification'
         }));
         setUsers(mappedUsers);
         setIsBackendLive(true);
       }
     } catch {
-      // Backend not reached, keep initialUsers
+      // Backend not reached: keep the list empty instead of showing demo accounts.
     } finally {
       setIsLoading(false);
     }
   };
 
+  const fetchBackendRoles = async () => {
+    const token = authService.getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/roles', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Unable to load roles');
+      setBackendRoles(await res.json());
+    } catch {
+      setApiError('Unable to load roles from the Backend.');
+    }
+  };
+
   React.useEffect(() => {
     fetchBackendUsers();
+    fetchBackendRoles();
   }, []);
 
   const filteredUsers = users.filter((u) => {
@@ -96,8 +134,10 @@ export const UsersRolesView: React.FC = () => {
     setFormName('');
     setFormEmail('');
     setFormRole('Merchandiser');
-    setFormStatus('Active');
+    setFormStatus('Inactive');
+    setFormStoreId('');
     setApiError(null);
+    setSuccessMessage(null);
     setIsAddModalOpen(true);
   };
 
@@ -105,9 +145,21 @@ export const UsersRolesView: React.FC = () => {
     e.preventDefault();
     if (!formName.trim() || !formEmail.trim()) return;
     setApiError(null);
+    setSuccessMessage(null);
 
     const token = authService.getToken();
-    if (isBackendLive && token) {
+    const needsStore = formRole === 'Store Admin' || formRole === 'Merchandiser';
+    const storeId = formStoreId.trim() ? Number(formStoreId) : null;
+    if (needsStore && (!storeId || !Number.isInteger(storeId) || storeId < 1)) {
+      setApiError('This role requires a valid Store ID.');
+      return;
+    }
+    if (!token) {
+      setApiError('Your session has expired. Please sign in again as System Admin.');
+      return;
+    }
+    setIsCreatingUser(true);
+    {
       try {
         const res = await fetch('/api/users', {
           method: 'POST',
@@ -119,46 +171,65 @@ export const UsersRolesView: React.FC = () => {
             name: formName.trim(),
             email: formEmail.trim(),
             roleCode: roleCodeMap[formRole],
-            storeId: null
+            storeId
           })
         });
 
         if (res.ok) {
           await fetchBackendUsers();
           setIsAddModalOpen(false);
+          setSuccessMessage(`Đã tạo tài khoản và gửi lời mời kích hoạt tới ${formEmail.trim()}.`);
           return;
         } else {
           const errData = await res.json().catch(() => null);
-          setApiError(errData?.error || 'Không thể tạo tài khoản người dùng.');
+          const backendMessage = errData?.error || errData?.message;
+          console.error('Create user failed:', backendMessage || res.statusText);
+          setApiError(getUserFriendlyApiError(backendMessage));
           return;
         }
       } catch {
         setApiError('Lỗi kết nối Backend.');
         return;
+      } finally {
+        setIsCreatingUser(false);
       }
     }
 
-    // Fallback local state
-    const newUser: UserAccount = {
-      id: `usr-${Date.now()}`,
-      name: formName.trim(),
-      email: formEmail.trim(),
-      role: formRole,
-      status: formStatus,
-      lastActive: 'Just now'
-    };
-
-    setUsers([newUser, ...users]);
-    setIsAddModalOpen(false);
   };
 
-  const handleOpenEditModal = (user: UserAccount) => {
-    setEditingUser(user);
-    setFormName(user.name);
-    setFormEmail(user.email);
-    setFormRole(user.role);
-    setFormStatus(user.status);
+  const handleOpenEditModal = async (user: UserAccount) => {
+    const token = authService.getToken();
+    const userId = Number(user.id);
     setApiError(null);
+
+    if (!token || !Number.isInteger(userId)) {
+      setApiError('Unable to load account information.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Unable to load user');
+      const detail = await res.json();
+      setEditingUser({
+        ...user,
+        id: String(detail.userId),
+        name: detail.name || '(Unnamed)',
+        email: detail.email,
+        role: roleRevMap[detail.roleCode] || 'End-Customer',
+        storeId: detail.storeId,
+        status: detail.status === 'ACTIVE' ? 'Active' : 'Inactive'
+      });
+      setFormName(detail.name || '');
+      setFormEmail(detail.email || '');
+      setFormRole(roleRevMap[detail.roleCode] || 'End-Customer');
+      setFormStatus(detail.status === 'ACTIVE' ? 'Active' : 'Inactive');
+      setFormStoreId(detail.storeId ? String(detail.storeId) : '');
+    } catch {
+      setApiError('Unable to load account details from the Backend.');
+    }
   };
 
   const handleSaveEditUser = async (e: React.FormEvent) => {
@@ -168,6 +239,13 @@ export const UsersRolesView: React.FC = () => {
 
     const token = authService.getToken();
     const userIdNum = parseInt(editingUser.id.replace(/\D/g, ''), 10);
+    const needsStore = formRole === 'Store Admin' || formRole === 'Merchandiser';
+    const storeId = formStoreId.trim() ? Number(formStoreId) : null;
+
+    if (needsStore && (!storeId || !Number.isInteger(storeId) || storeId < 1)) {
+      setApiError('Vui lòng nhập Store ID hợp lệ cho vai trò này.');
+      return;
+    }
 
     if (isBackendLive && token && !isNaN(userIdNum)) {
       try {
@@ -198,7 +276,7 @@ export const UsersRolesView: React.FC = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ roleCode: roleCodeMap[formRole], storeId: null })
+          body: JSON.stringify({ roleCode: roleCodeMap[formRole], storeId })
         });
 
         await fetchBackendUsers();
@@ -209,20 +287,6 @@ export const UsersRolesView: React.FC = () => {
       }
     }
 
-    // Local state fallback
-    setUsers(
-      users.map((u) =>
-        u.id === editingUser.id
-          ? {
-              ...u,
-              name: formName.trim(),
-              email: formEmail.trim(),
-              role: formRole,
-              status: formStatus
-            }
-          : u
-      )
-    );
     setEditingUser(null);
   };
 
@@ -237,21 +301,14 @@ export const UsersRolesView: React.FC = () => {
           <p className="mt-1 text-sm text-[#6d7974]">
             Manage store user accounts, planogram assignments and effective role permissions.
           </p>
-          <div className="mt-2.5 flex items-center gap-2">
-            {isBackendLive ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                Backend Live (/api/users)
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-[#f6ece9] text-[#6d7974]">
-                DEMO DATA
-              </span>
-            )}
-          </div>
           {apiError && (
             <div className="mt-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
               {apiError}
+            </div>
+          )}
+          {successMessage && (
+            <div className="mt-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
+              {successMessage}
             </div>
           )}
         </div>
@@ -477,7 +534,7 @@ export const UsersRolesView: React.FC = () => {
 
         {/* Table Footer Count */}
         <div className="px-6 py-3.5 border-t border-[#E7E2D8] text-xs text-[#89938f]">
-          Showing {filteredUsers.length} of {users.length} demo users
+          Showing {filteredUsers.length} of {users.length} accounts from Backend
         </div>
       </section>
 
@@ -523,7 +580,7 @@ export const UsersRolesView: React.FC = () => {
 
       {/* Footer Note */}
       <footer className="pt-2 pb-6 text-xs text-[#89938f]">
-        <p>Role changes require explicit confirmation · Interface preview only; no backend connected.</p>
+        <p>Role and status changes are applied directly through the Backend.</p>
       </footer>
 
       {/* Add User Modal */}
@@ -561,7 +618,7 @@ export const UsersRolesView: React.FC = () => {
                 <input
                   type="email"
                   required
-                  placeholder="e.g. hoang.duc@retailspace.demo"
+                  placeholder="e.g. hoang.duc@example.com"
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
                   className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
@@ -576,24 +633,27 @@ export const UsersRolesView: React.FC = () => {
                     onChange={(e) => setFormRole(e.target.value as SystemRole)}
                     className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
                   >
-                    <option value="System Admin">System Admin</option>
-                    <option value="Store Admin">Store Admin</option>
-                    <option value="Merchandiser">Merchandiser</option>
-                    <option value="End-Customer">End-Customer</option>
+                    {backendRoles.map((role) => (
+                      <option key={role.code} value={roleRevMap[role.code]}>
+                        {role.display_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-[#191c1b] block mb-1">Initial Status</label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as UserStatus)}
-                    className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+          <div>
+            <label className="text-xs font-semibold text-[#191c1b] block mb-1">Store ID</label>
+            <input
+              type="number"
+              min="1"
+              required={formRole === 'Store Admin' || formRole === 'Merchandiser'}
+              value={formStoreId}
+              onChange={(e) => setFormStoreId(e.target.value)}
+              placeholder={formRole === 'System Admin' || formRole === 'End-Customer' ? 'Not applicable' : 'e.g. 1'}
+              disabled={formRole === 'System Admin' || formRole === 'End-Customer'}
+              className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none disabled:bg-[#f6f3ef] disabled:text-[#89938f]"
+            />
+          </div>
               </div>
 
               <div className="mt-6 pt-4 border-t border-[#E7E2D8] flex justify-end gap-2">
@@ -606,9 +666,10 @@ export const UsersRolesView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-[#1e3a2f] text-white text-xs font-semibold rounded-lg hover:bg-[#294d3f] cursor-pointer"
+                  disabled={isCreatingUser}
+                  className="px-4 py-1.5 bg-[#1e3a2f] text-white text-xs font-semibold rounded-lg hover:bg-[#294d3f] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Create Account
+                  {isCreatingUser ? 'Creating...' : 'Create Account'}
                 </button>
               </div>
             </form>
@@ -664,10 +725,11 @@ export const UsersRolesView: React.FC = () => {
                     onChange={(e) => setFormRole(e.target.value as SystemRole)}
                     className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
                   >
-                    <option value="System Admin">System Admin</option>
-                    <option value="Store Admin">Store Admin</option>
-                    <option value="Merchandiser">Merchandiser</option>
-                    <option value="End-Customer">End-Customer</option>
+                    {backendRoles.map((role) => (
+                      <option key={role.code} value={roleRevMap[role.code]}>
+                        {role.display_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -682,6 +744,20 @@ export const UsersRolesView: React.FC = () => {
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#191c1b] block mb-1">Store ID</label>
+                <input
+                  type="number"
+                  min="1"
+                  required={formRole === 'Store Admin' || formRole === 'Merchandiser'}
+                  value={formStoreId}
+                  onChange={(e) => setFormStoreId(e.target.value)}
+                  placeholder={formRole === 'System Admin' || formRole === 'End-Customer' ? 'Not applicable' : 'e.g. 1'}
+                  disabled={formRole === 'System Admin' || formRole === 'End-Customer'}
+                  className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none disabled:bg-[#f6f3ef] disabled:text-[#89938f]"
+                />
               </div>
 
               <div className="mt-6 pt-4 border-t border-[#E7E2D8] flex justify-end gap-2">

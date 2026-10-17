@@ -231,7 +231,7 @@ export const ApiConnectionsView: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between pt-2 border-t border-[#f6ece9]">
-            <span className="text-xs text-[#89938f] font-mono">Ping: 34ms</span>
+                <span className="text-xs text-[#89938f] font-mono">Ping: 34ms</span>
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#fdf2f4] text-[#8b263e]">
               Passed
             </span>
@@ -245,7 +245,7 @@ export const ApiConnectionsView: React.FC = () => {
         <div className="bg-white rounded-xl border border-[#E7E2D8] p-6 shadow-xs flex flex-col justify-between" data-purpose="connection-list-card">
           <div>
             <div className="mb-5">
-              <h2 className="text-base font-semibold text-[#191c1b]">Connection List</h2>
+              <p className="text-xs text-[#6d7974] mt-0.5">Configured sources (sample only)</p>
               <p className="text-xs text-[#6d7974] mt-0.5">Configured sources (sample only)</p>
             </div>
 
@@ -291,7 +291,7 @@ export const ApiConnectionsView: React.FC = () => {
 
           {/* Alert Box at card bottom */}
           <div className="mt-6 p-4 rounded-lg bg-[#e7ede9]/40 border border-[#1e3a2f]/15">
-            <p className="text-xs font-semibold text-[#1e3a2f]">No active production API connection</p>
+            <p className="text-xs text-[#6d7974] mt-0.5">Configure and test a source before enabling automated POS imports.</p>
             <p className="text-xs text-[#6d7974] mt-0.5">Configure and test a source before enabling automated POS imports.</p>
           </div>
         </div>
@@ -299,7 +299,7 @@ export const ApiConnectionsView: React.FC = () => {
         {/* Top Right Card: Connection Details Form */}
         <div className="bg-white rounded-xl border border-[#E7E2D8] p-6 shadow-xs" data-purpose="connection-details-card">
           <div className="mb-5">
-            <h2 className="text-base font-semibold text-[#191c1b]">Connection Details</h2>
+            <p className="text-xs text-[#6d7974] mt-0.5">Sample configuration — sensitive credentials are masked</p>
             <p className="text-xs text-[#6d7974] mt-0.5">Sample configuration — sensitive credentials are masked</p>
           </div>
 
@@ -406,7 +406,7 @@ export const ApiConnectionsView: React.FC = () => {
         <div className="bg-white rounded-xl border border-[#E7E2D8] p-6 shadow-xs flex flex-col justify-between" data-purpose="mapping-settings-card">
           <div>
             <div className="mb-4">
-              <h2 className="text-base font-semibold text-[#191c1b]">CSV / Excel Import Mapping</h2>
+              <p className="text-xs text-[#6d7974] mt-0.5">Map transaction ID, item SKU, quantity, and gross profit fields.</p>
               <p className="text-xs text-[#6d7974] mt-0.5">Map transaction ID, item SKU, quantity, and gross profit fields.</p>
             </div>
             <div className="p-3.5 rounded-lg border border-[#E7E2D8] bg-[#fbf2f0] flex items-center justify-between">

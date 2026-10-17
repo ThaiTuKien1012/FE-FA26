@@ -178,7 +178,7 @@ export const PublishedCampaignStatusView: React.FC<PublishedCampaignStatusViewPr
           <table className="w-full text-left border-collapse min-w-[640px]">
             <thead>
               <tr className="border-b border-[#E7E2D8] text-[11px] font-bold uppercase tracking-wider text-[#707973]">
-                <th className="pb-3 px-2" scope="col">Campaign</th>
+                <th className="pb-3 px-2 text-right" scope="col">Action</th>
                 <th className="pb-3 px-4" scope="col">Layout</th>
                 <th className="pb-3 px-4" scope="col">Groups</th>
                 <th className="pb-3 px-4" scope="col">Published At</th>
@@ -244,7 +244,7 @@ export const PublishedCampaignStatusView: React.FC<PublishedCampaignStatusViewPr
                         onClick={() => setSelectedCampaign(camp)}
                         className="text-xs font-semibold text-[#1E3A2F] hover:text-[#2E7D32] inline-flex items-center gap-1 cursor-pointer transition-colors"
                       >
-                        <span>View</span>
+                        <span>Xem</span>
                         <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                       </button>
                     </td>

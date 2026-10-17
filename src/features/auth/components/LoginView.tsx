@@ -38,7 +38,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [isMuted, setIsMuted] = useState(true);
 
   const handleGoogleLogin = () => {
-    setErrorMessage('Đăng nhập với Google tạm thời chưa khả dụng. Vui lòng đăng nhập bằng email hoặc đăng ký tài khoản mới.');
+    setErrorMessage('Google sign-in is temporarily unavailable. Please sign in with email or create a new account.');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,7 +48,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setSuccessNotice(null);
 
     if (!identifier.trim() || !passcode) {
-      setErrorMessage('Vui lòng nhập đầy đủ email và mật khẩu.');
+    setErrorMessage('Please enter your email and password.');
       setIsLoading(false);
       return;
     }
@@ -61,15 +61,15 @@ export const LoginView: React.FC<LoginViewProps> = ({
       });
 
       if (response.success && response.user) {
-        setSuccessNotice(`Đăng nhập thành công! Đang chuyển hướng vào hệ thống...`);
+        setSuccessNotice(`Signed in successfully! Redirecting to the system...`);
         setTimeout(() => {
           onLoginSuccess(response.user!, response.user!.defaultScreen);
         }, 350);
       } else {
-        setErrorMessage(response.error || 'Email hoặc mật khẩu không chính xác.');
+      setErrorMessage(response.error || 'Incorrect email or password.');
       }
     } catch {
-      setErrorMessage('Không thể kết nối đến máy chủ xác thực.');
+      setErrorMessage('Unable to connect to the authentication server.');
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +109,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           </div>
           <span className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-semibold tracking-wider uppercase text-white">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
-            Hệ thống trực tuyến
+            Online system
           </span>
         </header>
         {/* END: MainHeader */}
@@ -118,20 +118,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
           {/* BEGIN: HeroText */}
           <section className="hidden lg:block text-white" data-purpose="hero-text">
             <h2 className="text-5xl xl:text-6xl font-bold tracking-tight leading-[1.05] drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
-              Vận hành bán lẻ{' '}
+              Retail operations{' '}
               <span className="bg-gradient-to-r from-emerald-200 via-[#CAEADA] to-white bg-clip-text text-transparent">
-                chuẩn xác &amp; tối ưu.
+                precise &amp; optimized.
               </span>
             </h2>
             <p className="mt-6 text-base text-white/75 max-w-xl leading-relaxed">
-              Truy cập hệ thống quản trị danh mục, tối ưu hóa bố trí mặt sàn bán lẻ và theo dõi hiệu suất tồn kho thời gian thực.
+              Access catalog administration, optimize retail floor layouts, and monitor inventory performance in real time.
             </p>
 
             <div className="mt-10 grid grid-cols-3 gap-4 max-w-xl">
               {[
-                { v: '100%', l: 'Phân quyền vai trò' },
-                { v: 'Tức thời', l: 'Đồng bộ dữ liệu' },
-                { v: 'Bảo mật', l: 'Bảo vệ đa tầng' }
+                { v: '100%', l: 'Role-based access' },
+                { v: 'Instant', l: 'Data synchronization' },
+                { v: 'Secure', l: 'Multi-layer protection' }
               ].map((it) => (
                 <div key={it.l} className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 px-4 py-4 shadow-[0_8px_30px_rgba(0,0,0,0.25)] hover:bg-white/15 hover:-translate-y-0.5 transition-all duration-300">
                   <div className="text-2xl font-bold leading-none">{it.v}</div>
@@ -148,10 +148,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
               {/* Card Title */}
               <div className="text-center mb-6">
                 <h1 className="text-2xl sm:text-[26px] font-bold text-[#191C1B] tracking-tight leading-snug">
-                  Đăng nhập Hệ thống
+                  Sign in to the system
                 </h1>
                 <p className="mt-1 text-xs text-[#6D7974] leading-relaxed">
-                  Đăng nhập để tiếp tục trải nghiệm và quản lý tài khoản của bạn.
+                  Sign in to continue and manage your account.
                 </p>
               </div>
 
@@ -175,7 +175,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 {/* Username / Email Field */}
                 <div>
                   <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="identifier">
-                    Email đăng nhập
+                    Sign-in email
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -183,7 +183,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       className="w-full h-11 pl-10 pr-3.5 text-sm bg-[#EEF5FD] text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#D5E2F1] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
                       id="identifier"
                       name="identifier"
-                      placeholder="Nhập email của bạn"
+                      placeholder="Enter your email"
                       required
                       type="email"
                       value={identifier}
@@ -195,7 +195,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 {/* Password Field */}
                 <div>
                   <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="passcode">
-                    Mật khẩu
+                    Password
                   </label>
                   <div className="relative">
                     <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -229,10 +229,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="rounded text-[#1E3A2F] focus:ring-[#1E3A2F] cursor-pointer"
                     />
-                    <span className="text-[11px] text-[#6D7974]">Ghi nhớ đăng nhập</span>
+                    <span className="text-[11px] text-[#6D7974]">Remember me</span>
                   </label>
                   <a href="#" className="text-[11px] font-medium text-[#6D7974] hover:text-[#1E3A2F] transition-colors">
-                    Quên mật khẩu?
+                    Forgot password?
                   </a>
                 </div>
 
@@ -247,7 +247,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>Đăng nhập</span>
+                        <span>Sign in</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -258,7 +258,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <div className="relative flex items-center justify-center py-2.5">
                   <div className="grow border-t border-[#E1D8D6]/70"></div>
                   <span className="shrink-0 mx-3 text-[11px] text-[#89938F] font-medium uppercase tracking-wider">
-                    Hoặc tiếp tục với
+                    Or continue with
                   </span>
                   <div className="grow border-t border-[#E1D8D6]/70"></div>
                 </div>
@@ -276,30 +276,30 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       <path d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.02 0 12s.45 3.82 1.25 5.42l4.03-3.15z" fill="#FBBC05"></path>
                       <path d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" fill="#EA4335"></path>
                     </svg>
-                    <span>Đăng nhập với Google</span>
+                    <span>Sign in with Google</span>
                   </button>
                 </div>
 
                 {/* Registration Link Note */}
                 <div className="text-center pt-2 space-y-1.5 border-t border-[#E1D8D6]/70 mt-3">
                   <p className="text-xs text-[#6D7974]">
-                    Bạn chưa có tài khoản?{' '}
+                    Don&apos;t have an account?{' '}
                     <button
                       type="button"
                       onClick={() => onNavigateRegister ? onNavigateRegister() : undefined}
                       className="font-semibold text-[#1E3A2F] hover:underline transition-colors cursor-pointer"
                     >
-                      Tạo tài khoản
+                      Create an account
                     </button>
                   </p>
                   <p className="text-[11px] text-[#6D7974]">
-                    Bạn nhận được lời mời tham gia?{' '}
+                    Have you received an invitation?{' '}
                     <button
                       type="button"
                       onClick={() => onNavigateActivate ? onNavigateActivate() : undefined}
                       className="font-semibold text-emerald-700 hover:underline transition-colors cursor-pointer"
                     >
-                      Kích hoạt tài khoản
+                      Activate account
                     </button>
                   </p>
                 </div>

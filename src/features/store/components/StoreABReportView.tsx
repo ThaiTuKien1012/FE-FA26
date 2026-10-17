@@ -742,12 +742,12 @@ export const StoreABReportView: React.FC<StoreABReportViewProps> = ({ onNavigate
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="text-[11px] font-bold text-[#89938f] uppercase tracking-wider border-b border-[#E7E2D8]">
-                  <th className="pb-3 font-semibold">RANK</th>
-                  <th className="pb-3 font-semibold">PRODUCT</th>
-                  <th className="pb-3 font-semibold">CATEGORY</th>
+                  <th className="pb-3 font-semibold text-right">CHANGE</th>
+                  <th className="pb-3 font-semibold">SẢN PHẨM</th>
+                  <th className="pb-3 font-semibold">DANH MỤC</th>
                   <th className="pb-3 font-semibold text-right">SALES<br />(A)</th>
                   <th className="pb-3 font-semibold text-right">SALES<br />(B)</th>
-                  <th className="pb-3 font-semibold text-right">CHANGE</th>
+                  <th className="pb-3 font-semibold text-right">THAY ĐỔI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E2D8]/60">

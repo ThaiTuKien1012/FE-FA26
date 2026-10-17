@@ -175,7 +175,7 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-[#F5ECE8] flex items-center justify-between text-xs">
-            <span className="text-[#707973]">Origin Pipeline</span>
+            <span className="font-medium text-[#1E3A2F]">From latest mining run</span>
             <span className="font-medium text-[#1E3A2F]">From latest mining run</span>
           </div>
         </div>
@@ -296,7 +296,7 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
                 }}
                 className="appearance-none pl-3 pr-8 py-2 text-xs font-medium rounded-xl bg-[#FAF8F5] border border-[#E7E2D8] text-[#191C1B] cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#1E3A2F]"
               >
-                <option value="All">Status: All</option>
+                <option value="Rejected">Status: Rejected</option>
                 <option value="Pending">Status: Pending</option>
                 <option value="Approved">Status: Approved</option>
                 <option value="Rejected">Status: Rejected</option>
@@ -313,11 +313,11 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-[#E7E2D8] bg-[#FAF8F5]/80 text-[#707973] font-bold uppercase tracking-wider text-[11px]">
-                <th className="py-3.5 px-5">GROUP</th>
+                <th className="py-3.5 px-4">TYPE</th>
                 <th className="py-3.5 px-4">ITEMS</th>
                 <th className="py-3.5 px-4">TYPE</th>
                 <th className="py-3.5 px-4">UTILITY</th>
-                <th className="py-3.5 px-4">STATUS</th>
+                <th className="py-3.5 px-5 text-right">ACTION</th>
                 <th className="py-3.5 px-5 text-right">ACTION</th>
               </tr>
             </thead>

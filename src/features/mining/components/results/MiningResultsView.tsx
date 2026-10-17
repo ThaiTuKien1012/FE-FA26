@@ -11,7 +11,6 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { MiningJob, HighUtilityItemset, ActiveNavScreen } from '../../../../types/mining';
-import { mockItemsets } from '../../../../mocks/miningData';
 
 interface MiningResultsViewProps {
   job: MiningJob;
@@ -31,19 +30,7 @@ export const MiningResultsView: React.FC<MiningResultsViewProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
-  const filteredItemsets = mockItemsets.filter((item) => {
-    if (filterLength !== 'all') {
-      const len = parseInt(filterLength);
-      if (item.itemsCount !== len) return false;
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const matchId = item.itemsetId.toLowerCase().includes(q);
-      const matchProducts = item.products.some((p) => p.toLowerCase().includes(q));
-      if (!matchId && !matchProducts) return false;
-    }
-    return true;
-  });
+  const filteredItemsets: HighUtilityItemset[] = [];
 
   const handleExport = (format: 'CSV' | 'JSON') => {
     setIsExporting(true);
@@ -238,7 +225,7 @@ export const MiningResultsView: React.FC<MiningResultsViewProps> = ({
                 aria-label="Filter itemset length"
                 className="text-xs bg-white border border-[#E7E2D8] rounded-lg px-2.5 py-1.5 text-[#191c1b] focus:border-[#1e3a2f] outline-none cursor-pointer"
               >
-                <option value="all">All basket sizes</option>
+                <option value="3">3 items</option>
                 <option value="2">2 items</option>
                 <option value="3">3 items</option>
               </select>
@@ -250,10 +237,10 @@ export const MiningResultsView: React.FC<MiningResultsViewProps> = ({
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-[#E7E2D8] text-[11px] font-semibold text-[#89938f] uppercase tracking-wider bg-[#fbf2f0]">
-                  <th className="py-3 px-3">ITEMSET ID</th>
+                  <th className="py-3 px-3">BASKET PRODUCTS</th>
                   <th className="py-3 px-3">BASKET PRODUCTS</th>
                   <th className="py-3 px-3 text-right">UTILITY</th>
-                  <th className="py-3 px-3 text-center">ITEMS</th>
+                  <th className="py-3 px-3 text-right">DETAIL</th>
                   <th className="py-3 px-3 text-right">DETAIL</th>
                 </tr>
               </thead>

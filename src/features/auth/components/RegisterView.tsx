@@ -36,7 +36,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   // States
   const [isLoading, setIsLoading] = useState(false);
@@ -237,20 +237,20 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
         <div className="flex-1 w-full max-w-[1280px] mx-auto px-6 sm:px-10 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-10 xl:gap-20 items-center">
           <section className="hidden lg:block text-white">
             <h2 className="text-5xl xl:text-6xl font-bold tracking-tight leading-[1.05]">
-              Đăng ký tài khoản{' '}
+              Create your account{' '}
               <span className="bg-gradient-to-r from-emerald-200 via-[#CAEADA] to-white bg-clip-text text-transparent">
-                xác thực bảo mật.
+                with secure verification.
               </span>
             </h2>
             <p className="mt-6 text-base text-white/75 max-w-xl leading-relaxed">
-              Quy trình đăng ký 3 bước an toàn: Xác thực danh tính qua email, kích hoạt tài khoản và thiết lập mật khẩu bảo vệ đa tầng.
+              A secure three-step registration process: verify your identity by email, activate your account, and set a multi-layer password.
             </p>
 
             <div className="mt-10 grid grid-cols-3 gap-4 max-w-xl">
               {[
-                { v: 'Xác thực', l: 'Bảo mật qua email' },
-                { v: 'Tức thời', l: 'Kích hoạt ngay lập tức' },
-                { v: 'An toàn', l: 'Bảo mật tiêu chuẩn cao' }
+                { v: 'Verified', l: 'Email security' },
+                { v: 'Instant', l: 'Immediate activation' },
+                { v: 'Secure', l: 'High-standard protection' }
               ].map((it) => (
                 <div key={it.l} className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 px-4 py-4 shadow-lg">
                   <div className="text-xl font-bold leading-none">{it.v}</div>
@@ -267,8 +267,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
               <div className="mb-6 flex items-center justify-between px-2">
                 {[
                   { num: 1, title: 'Email' },
-                  { num: 2, title: 'Mã xác nhận' },
-                  { num: 3, title: 'Mật khẩu' }
+                  { num: 2, title: 'Verification code' },
+                  { num: 3, title: 'Password' }
                 ].map((s, idx) => (
                   <React.Fragment key={s.num}>
                     <div className="flex flex-col items-center">
@@ -420,7 +420,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>Xác thực OTP</span>
+                        <span>Verify OTP</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -522,14 +522,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                   <button
                     type="submit"
-                    disabled={isLoading || !isPasswordValid || !isPasswordMatch}
+                    disabled={isLoading || !isPasswordValid || !isPasswordMatch || !agreeTerms}
                     className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isLoading ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>Hoàn tất tạo tài khoản</span>
+                        <span>Complete account creation</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}

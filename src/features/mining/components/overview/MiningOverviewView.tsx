@@ -47,7 +47,7 @@ export const MiningOverviewView: React.FC<MiningOverviewViewProps> = ({
           </p>
           <div className="mt-2.5">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-[#f6ece9] text-[#6d7974]">
-              DEMO DATA
+              BACKEND DATA
             </span>
           </div>
         </div>
@@ -146,8 +146,8 @@ export const MiningOverviewView: React.FC<MiningOverviewViewProps> = ({
             <div className="text-2xl font-bold text-[#191c1b] mt-3">Prepared</div>
           </div>
           <div className="mt-4 flex items-center justify-between pt-2 border-t border-[#f6ece9]">
-            <span className="text-xs text-[#89938f] truncate font-mono" title="Sales Q3 · matrix v1">
-              Sales Q3 · matrix v1
+            <span className="text-xs text-[#89938f] truncate" title="No data">
+              No Backend data
             </span>
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#fdf2f4] text-[#8b263e]">
               Ready
@@ -187,7 +187,7 @@ export const MiningOverviewView: React.FC<MiningOverviewViewProps> = ({
                 aria-label="Filter by job status"
                 className="text-xs bg-white border border-[#E7E2D8] rounded-lg px-2.5 py-1.5 text-[#191c1b] focus:border-[#1e3a2f] outline-none cursor-pointer"
               >
-                <option value="all">All statuses</option>
+                <option value="Running">Running</option>
                 <option value="Completed">Completed</option>
                 <option value="Failed">Failed</option>
                 <option value="Running">Running</option>
@@ -211,11 +211,11 @@ export const MiningOverviewView: React.FC<MiningOverviewViewProps> = ({
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-[#E7E2D8] text-[11px] font-semibold text-[#89938f] uppercase tracking-wider bg-[#fbf2f0]">
-                  <th className="py-3 px-3">RUN ID</th>
+                  <th className="py-3 px-3">DATASET</th>
                   <th className="py-3 px-3">ALGORITHM</th>
                   <th className="py-3 px-3">DATASET</th>
                   <th className="py-3 px-3 text-right">MINUTIL</th>
-                  <th className="py-3 px-3">STARTED AT</th>
+                  <th className="py-3 px-3 text-right">STATUS</th>
                   <th className="py-3 px-3">DURATION</th>
                   <th className="py-3 px-3 text-right">STATUS</th>
                 </tr>
