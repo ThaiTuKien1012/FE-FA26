@@ -69,11 +69,8 @@ export type ActiveNavScreen =
   | 'merchandiser-keep-layout-a'      // Merchandiser: Keep Layout A Review
   | 'store-inventory' // F02 Store Admin: Product & Inventory
   | 'store-edit-product' // F02 Store Admin: Edit Product Page
-  | 'store-transactions' // F02 Store Admin: Transactions (Data Center)
-  | 'store-validation-issues' // F02 Store Admin: Validation Issues
-  | 'store-campaigns' // F02 Store Admin: Campaigns (Activation Review)
-  | 'store-reports'   // F02 Store Admin: Reports
-  | 'store-ab-report' // F02 Store Admin: O07 A/B Test Report
+  | 'store-categories' // F02 Store Admin: Category Management
+  | 'store-batches' // F02 Store Admin: Inventory Batch Management
   | 'login'           // Auth: Login Page
   | 'register'        // Auth: Registration Page
   | 'activate'        // Auth: Staff Account Activation with OTP

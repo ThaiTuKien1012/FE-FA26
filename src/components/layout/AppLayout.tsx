@@ -235,67 +235,28 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   </li>
                   <li>
                     <button
-                      onClick={() => onNavigate('store-campaigns')}
+                      onClick={() => onNavigate('store-categories')}
                       className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-campaigns'
+                        currentScreen === 'store-categories'
                           ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
                           : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
                       }`}
                     >
-                      <Megaphone className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-campaigns' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Campaign Activation Review</span>
+                      <Layers className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-categories' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Categories</span>
                     </button>
                   </li>
                   <li>
                     <button
-                      onClick={() => onNavigate('store-transactions')}
+                      onClick={() => onNavigate('store-batches')}
                       className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-transactions'
+                        currentScreen === 'store-batches'
                           ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
                           : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
                       }`}
                     >
-                      <ArrowLeftRight className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-transactions' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Transactions</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => onNavigate('store-validation-issues')}
-                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-validation-issues'
-                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
-                      }`}
-                    >
-                      <AlertCircle className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-validation-issues' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Validation Issues</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => onNavigate('store-reports')}
-                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-reports'
-                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
-                      }`}
-                    >
-                      <BarChart3 className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-reports' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Reports</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => onNavigate('store-ab-report')}
-                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
-                        currentScreen === 'store-ab-report'
-                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
-                      }`}
-                    >
-                      <FileBarChart className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-ab-report' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>A/B Test Report</span>
+                      <ShoppingBag className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-batches' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Inventory Batches</span>
                     </button>
                   </li>
                 </ul>

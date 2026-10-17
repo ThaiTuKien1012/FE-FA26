@@ -21,11 +21,8 @@ export const SCREEN_TO_PATH: Record<ActiveNavScreen, string> = {
   // Store Admin Screens
   'store-inventory': '/store/inventory',
   'store-edit-product': '/store/edit-product',
-  'store-transactions': '/store/transactions',
-  'store-validation-issues': '/store/validation-issues',
-  'store-campaigns': '/store/campaigns',
-  'store-reports': '/store/reports',
-  'store-ab-report': '/store/ab-report',
+  'store-categories': '/store/categories',
+  'store-batches': '/store/batches',
 
   // System Admin Screens
   'overview': '/admin/overview',

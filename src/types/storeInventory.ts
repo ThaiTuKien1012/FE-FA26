@@ -76,8 +76,7 @@ export interface CampaignActivationDetail {
 }
 
 export type StoreNavScreen = 
-  | 'store-inventory' 
-  | 'store-transactions' 
-  | 'store-validation-issues'
-  | 'store-campaigns' 
-  | 'store-reports';
+  | 'store-inventory'
+  | 'store-edit-product'
+  | 'store-categories'
+  | 'store-batches';

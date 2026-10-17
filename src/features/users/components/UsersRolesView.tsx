@@ -77,7 +77,7 @@ export const UsersRolesView: React.FC = () => {
           role: roleRevMap[u.roleCode] || 'End-Customer',
           storeId: u.storeId,
           status: u.status === 'ACTIVE' ? 'Active' : 'Inactive',
-          emailVerified: Boolean(u.emailVerified),
+          emailVerified: u.emailVerified === true,
           lastActive: u.emailVerified ? 'Email verified' : 'Waiting for OTP verification'
         }));
         setUsers(mappedUsers);
@@ -222,12 +222,12 @@ export const UsersRolesView: React.FC = () => {
         role: roleRevMap[detail.roleCode] || 'End-Customer',
         storeId: detail.storeId,
         status: detail.status === 'ACTIVE' ? 'Active' : 'Inactive',
-        emailVerified: Boolean(detail.emailVerified)
+        emailVerified: detail.emailVerified === true
       });
       setFormName(detail.name || '');
       setFormEmail(detail.email || '');
       setFormRole(roleRevMap[detail.roleCode] || 'End-Customer');
-      setFormStatus(detail.status === 'ACTIVE' ? 'Active' : 'Inactive');
+      setFormStatus(detail.emailVerified === true && detail.status === 'ACTIVE' ? 'Active' : 'Inactive');
       setFormStoreId(detail.storeId ? String(detail.storeId) : '');
     } catch {
       setApiError('Unable to load account details from the Backend.');
@@ -244,9 +244,14 @@ export const UsersRolesView: React.FC = () => {
     const needsStore = formRole === 'Store Admin' || formRole === 'Merchandiser';
     const storeId = formStoreId.trim() ? Number(formStoreId) : null;
 
-    if (formStatus === 'Active' && editingUser.emailVerified === false) {
+    if ((editingUser.emailVerified !== true || editingUser.status === 'Inactive') && formStatus === 'Active') {
       setApiError('This account must complete OTP activation before it can become Active.');
       return;
+    }
+
+    // An account without completed OTP verification can only remain Inactive.
+    if (editingUser.emailVerified !== true) {
+      setFormStatus('Inactive');
     }
 
     if (needsStore && (!storeId || !Number.isInteger(storeId) || storeId < 1)) {
@@ -277,7 +282,7 @@ export const UsersRolesView: React.FC = () => {
         });
 
         // 3. Update status only for accounts that completed OTP activation.
-        if (editingUser.emailVerified !== false) {
+        if (editingUser.emailVerified === true) {
           await fetch(`/api/users/${userIdNum}/status`, {
             method: 'PATCH',
             headers: {
@@ -751,15 +756,15 @@ export const UsersRolesView: React.FC = () => {
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as UserStatus)}
-                    disabled={editingUser.emailVerified === false}
+                    disabled={editingUser.emailVerified !== true || editingUser.status === 'Inactive'}
                     className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none disabled:bg-[#f6f3ef] disabled:text-[#89938f] disabled:cursor-not-allowed"
                   >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
-                  {editingUser.emailVerified === false && (
+                  {(editingUser.emailVerified !== true || editingUser.status === 'Inactive') && (
                     <p className="mt-1 text-[11px] text-[#89938f]">
-                      Status is locked until OTP activation is completed.
+                      Status is locked. The account must be activated through OTP before it can become Active.
                     </p>
                   )}
                 </div>

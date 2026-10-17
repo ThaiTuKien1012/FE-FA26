@@ -17,11 +17,8 @@ import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
 import { ProductInventoryView } from './features/store/components/ProductInventoryView';
 import { EditProductView } from './features/store/components/EditProductView';
-import { StoreTransactionsView } from './features/store/components/StoreTransactionsView';
-import { StoreValidationIssuesView } from './features/store/components/StoreValidationIssuesView';
-import { StoreCampaignsView } from './features/store/components/StoreCampaignsView';
-import { StoreReportsView } from './features/store/components/StoreReportsView';
-import { StoreABReportView } from './features/store/components/StoreABReportView';
+import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
+import { StoreBatchesView } from './features/store/components/StoreBatchesView';
 import { LoginView } from './features/auth/components/LoginView';
 import { RegisterView } from './features/auth/components/RegisterView';
 import { ActivateView } from './features/auth/components/ActivateView';
@@ -204,16 +201,10 @@ export default function App() {
         return [];
       case 'store-edit-product':
         return ['Products & Inventory', 'Edit Product'];
-      case 'store-transactions':
-        return [];
-      case 'store-validation-issues':
-        return ['Transaction Data Center', 'Validation Issues'];
-      case 'store-campaigns':
-        return [];
-      case 'store-reports':
-        return [];
-      case 'store-ab-report':
-        return ['Retail Performance Reports', 'A/B Test Report (O07)'];
+      case 'store-categories':
+        return ['Store Admin', 'Category Management'];
+      case 'store-batches':
+        return ['Store Admin', 'Inventory Batches'];
 
       // F01 System Admin screens
       case 'overview':
@@ -381,30 +372,11 @@ export default function App() {
             />
           )}
 
-          {/* F02: Store Admin - Transactions (Transaction Data Center) */}
-          {currentScreen === 'store-transactions' && (
-            <StoreTransactionsView onNavigate={handleNavigate} />
-          )}
+          {/* F02: Store Admin - Categories */}
+          {currentScreen === 'store-categories' && <StoreCategoriesView onNavigate={handleNavigate} />}
 
-          {/* F02: Store Admin - Validation Issues */}
-          {currentScreen === 'store-validation-issues' && (
-            <StoreValidationIssuesView onNavigate={handleNavigate} />
-          )}
-
-          {/* F02 / Merchandiser: Campaigns (Activation Review) */}
-          {currentScreen === 'store-campaigns' && (
-            <StoreCampaignsView onNavigate={handleNavigate} />
-          )}
-
-          {/* F02 / Merchandiser: Reports */}
-          {currentScreen === 'store-reports' && (
-            <StoreReportsView onNavigate={handleNavigate} />
-          )}
-
-          {/* F02 / Merchandiser: O07 A/B Test Report */}
-          {currentScreen === 'store-ab-report' && (
-            <StoreABReportView onNavigate={handleNavigate} />
-          )}
+          {/* F02: Store Admin - Inventory Batches */}
+          {currentScreen === 'store-batches' && <StoreBatchesView onNavigate={handleNavigate} />}
 
           {/* F01: Mining Overview */}
           {currentScreen === 'overview' && (

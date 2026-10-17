@@ -24,6 +24,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const storeApi = {
   listCategories: () => request<F02Category[]>('/api/categories'),
+  getCategory: (id: number) => request<F02Category>(`/api/categories/${id}`),
   listProducts: (params: Record<string, string | number | undefined> = {}) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== '') query.set(key, String(value)); });
@@ -34,8 +35,11 @@ export const storeApi = {
   updateProduct: (id: number, body: Omit<F02Product, 'id' | 'category' | 'stockQuantity'> & { categoryId?: number }) => request<F02Product>(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   updateProductStatus: (id: number, status: F02Status) => request<F02Product>(`/api/products/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   createCategory: (body: { name: string; status: F02Status }) => request<F02Category>('/api/categories', { method: 'POST', body: JSON.stringify(body) }),
+  updateCategory: (id: number, body: { name: string; status: F02Status }) => request<F02Category>(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  updateCategoryStatus: (id: number, status: F02Status) => request<F02Category>(`/api/categories/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   listBatches: (productId: number) => request<F02Batch[]>(`/api/products/${productId}/batches`),
   createBatch: (productId: number, body: { batchCode: string; receivedAt: string; expiryDate?: string; initialQuantity: number }) => request<F02Batch>(`/api/products/${productId}/batches`, { method: 'POST', body: JSON.stringify(body) }),
+  getBatch: (id: number) => request<F02Batch>(`/api/inventory-batches/${id}`),
   updateBatch: (id: number, body: { remainingQuantity?: number; status?: F02Status }) => request<F02Batch>(`/api/inventory-batches/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   getSummary: (productId: number) => request<F02InventorySummary>(`/api/products/${productId}/inventory-summary?expiringWithinDays=7`)
 };

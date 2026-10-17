@@ -41,11 +41,8 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     allowedScreens: [
       'store-inventory',
       'store-edit-product',
-      'store-campaigns',
-      'store-transactions',
-      'store-validation-issues',
-      'store-reports',
-      'store-ab-report',
+      'store-categories',
+      'store-batches',
       'profile'
     ]
   },
@@ -110,36 +107,16 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     title: 'Edit Product Details',
     allowedRoles: ['Store Admin']
   },
-  'store-transactions': {
+  'store-categories': {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
-    title: 'Transactions Data Center',
+    title: 'Category Management',
     allowedRoles: ['Store Admin']
   },
-  'store-validation-issues': {
+  'store-batches': {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
-    title: 'Validation Issues Log',
-    allowedRoles: ['Store Admin']
-  },
-  'store-reports': {
-    primaryRole: 'Store Admin',
-    roleKey: 'store-admin',
-    title: 'Retail Performance Reports',
-    allowedRoles: ['Store Admin']
-  },
-  'store-ab-report': {
-    primaryRole: 'Store Admin',
-    roleKey: 'store-admin',
-    title: 'A/B Test Report (O07)',
-    allowedRoles: ['Store Admin']
-  },
-
-  // Store Operations & Campaigns
-  'store-campaigns': {
-    primaryRole: 'Store Admin',
-    roleKey: 'store-admin',
-    title: 'Campaign Activation Review',
+    title: 'Inventory Batches',
     allowedRoles: ['Store Admin']
   },
 
@@ -371,7 +348,7 @@ class AuthService {
               role: 'Store Admin',
               department: 'Store Operations & Inventory',
               defaultScreen: 'store-inventory',
-              allowedScreens: ['store-inventory', 'store-edit-product', 'store-campaigns', 'store-transactions', 'store-validation-issues', 'store-reports', 'store-ab-report', 'profile']
+              allowedScreens: ['store-inventory', 'store-edit-product', 'store-categories', 'store-batches', 'profile']
             },
             'MERCHANDISER': {
               role: 'Merchandiser',
