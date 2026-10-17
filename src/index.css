@@ -63,3 +63,9 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Keep table headers and cells aligned consistently across management screens. */
+table th,
+table td {
+  vertical-align: middle;
+}
