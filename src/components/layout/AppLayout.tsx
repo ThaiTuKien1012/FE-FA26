@@ -221,19 +221,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <div>
                 <div className="px-3.5 mb-2"><span className="text-[11px] font-bold tracking-wider text-[#707973] uppercase">MERCHANDISER</span></div>
                 <ul className="space-y-1" role="list">
-                  {[
-                    ['f03-configuration', 'Utility Configuration'],
-                    ['f03-product-scores', 'Product Priority Scores'],
-                    ['f03-preview', 'Utility Preview'],
-                    ['f03-snapshot', 'Utility Snapshot'],
-                  ].map(([screen, label]) => (
-                    <li key={screen}>
-                      <button onClick={() => onNavigate(screen as ActiveNavScreen)} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === screen ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
-                        <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === screen ? 'text-white' : 'text-[#707973]'}`} />
-                        <span>{label}</span>
-                      </button>
-                    </li>
-                  ))}
+                  <li>
+                    <button onClick={() => onNavigate('f03-utility' as ActiveNavScreen)} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen.startsWith('f03-') ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
+                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen.startsWith('f03-') ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Utility Planner</span>
+                    </button>
+                  </li>
                 </ul>
               </div>
             )}
