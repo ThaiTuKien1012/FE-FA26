@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { 
   Sparkles, 
   Search, 
@@ -37,6 +37,8 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
   const [statusFilter, setStatusFilter] = useState<'All' | ProductGroupStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
+  const tableScrollY = useRef(0);
+  useEffect(() => { if (tableScrollY.current > 0) requestAnimationFrame(() => window.scrollTo({ top: tableScrollY.current, behavior: 'auto' })); }, [currentPage]);
 
   // Drawer & Modal State
   const [selectedGroup, setSelectedGroup] = useState<RecommendedProductGroup | null>(null);
@@ -414,7 +416,7 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              onClick={() => { tableScrollY.current = window.scrollY; setCurrentPage(p => Math.max(p - 1, 1)); }}
               disabled={currentPage === 1}
               className="p-1.5 rounded-lg border border-[#E7E2D8] hover:bg-[#FAF8F5] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               aria-label="Previous page"
@@ -425,7 +427,7 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
               {currentPage}
             </span>
             <button
-              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              onClick={() => { tableScrollY.current = window.scrollY; setCurrentPage(p => Math.min(p + 1, totalPages)); }}
               disabled={currentPage === totalPages}
               className="p-1.5 rounded-lg border border-[#E7E2D8] hover:bg-[#FAF8F5] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               aria-label="Next page"

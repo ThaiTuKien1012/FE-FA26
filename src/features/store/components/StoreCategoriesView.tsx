@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, RefreshCw, X } from 'lucide-react';
 import { ActiveNavScreen } from '../../../types/mining';
 import { F02Category, F02Status, storeApi } from '../store.api';
@@ -15,12 +15,15 @@ export const StoreCategoriesView: React.FC<{ onNavigate?: (screen: ActiveNavScre
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(restoredState.page ?? 0);
+  const tableScrollY = useRef(0);
   const pageSize = 10;
   const totalPages = Math.max(Math.ceil(categories.length / pageSize), 1);
   const visibleCategories = categories.slice(page * pageSize, (page + 1) * pageSize);
   const load = async () => { setLoading(true); try { setCategories(await storeApi.listCategories()); setError(''); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load categories.'); } finally { setLoading(false); } };
   useEffect(() => { void load(); }, []);
+  useEffect(() => { const saveScroll = () => { tableScrollY.current = window.scrollY; }; window.addEventListener('scroll', saveScroll, { passive: true }); return () => window.removeEventListener('scroll', saveScroll); }, []);
   useEffect(() => { sessionStorage.setItem(categoryViewStateKey, JSON.stringify({ page })); }, [page]);
+  useEffect(() => { if (tableScrollY.current > 0) requestAnimationFrame(() => window.scrollTo({ top: tableScrollY.current, behavior: 'auto' })); }, [page]);
   useEffect(() => { if (page >= totalPages) setPage(Math.max(totalPages - 1, 0)); }, [page, totalPages]);
   const create = async (e: React.FormEvent) => { e.preventDefault(); try { if (editing) { const updated = await storeApi.updateCategory(editing.id, form); setCategories(current => current.map(item => item.id === editing.id ? updated : item)); } else { await storeApi.createCategory(form); await load(); } setForm({ name: '', status: 'ACTIVE' }); setEditing(null); setOpen(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to save category.'); } };
   const toggleStatus = async (category: F02Category) => { try { const updated = await storeApi.updateCategoryStatus(category.id, category.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'); setCategories(current => current.map(item => item.id === category.id ? updated : item)); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to update category status.'); } };

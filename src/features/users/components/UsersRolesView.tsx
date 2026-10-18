@@ -16,6 +16,7 @@ export const UsersRolesView: React.FC = () => {
   const [page, setPage] = useState(restoredState.page ?? 0);
   const pageSize = 10;
   const restoredFilters = useRef(true);
+  const tableScrollY = useRef(0);
   const [isBackendLive, setIsBackendLive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
@@ -34,6 +35,7 @@ export const UsersRolesView: React.FC = () => {
   const [formStatus, setFormStatus] = useState<UserStatus>('Inactive');
   const [formStoreId, setFormStoreId] = useState('');
   useEffect(() => { sessionStorage.setItem(usersViewStateKey, JSON.stringify({ searchQuery, roleFilter, statusFilter, page })); }, [searchQuery, roleFilter, statusFilter, page]);
+  useEffect(() => { if (tableScrollY.current > 0) requestAnimationFrame(() => window.scrollTo({ top: tableScrollY.current, behavior: 'auto' })); }, [page]);
 
   const roleCodeMap: Record<SystemRole, string> = {
     'System Admin': 'SYSTEM_ADMIN',
@@ -579,9 +581,9 @@ export const UsersRolesView: React.FC = () => {
         <div className="flex items-center justify-between border-t border-[#E7E2D8] px-6 py-3.5 text-xs text-[#89938f]">
           <span>Showing page {page + 1} of {totalPages} · 10 accounts per page</span>
           <div className="flex items-center gap-1">
-            <button disabled={page === 0} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Previous</button>
-            {Array.from({ length: totalPages }, (_, index) => <button key={index} onClick={() => setPage(index)} className={`min-w-8 rounded-lg border px-2 py-1.5 ${page === index ? 'border-[#1e3a2f] bg-[#1e3a2f] text-white' : 'border-[#e7e2d8] text-[#6d7974] hover:bg-[#faf8f5]'}`}>{index + 1}</button>)}
-            <button disabled={page + 1 >= totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Next</button>
+            <button disabled={page === 0} onClick={() => { tableScrollY.current = window.scrollY; setPage((current) => current - 1); }} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Previous</button>
+            {Array.from({ length: totalPages }, (_, index) => <button key={index} onClick={() => { tableScrollY.current = window.scrollY; setPage(index); }} className={`min-w-8 rounded-lg border px-2 py-1.5 ${page === index ? 'border-[#1e3a2f] bg-[#1e3a2f] text-white' : 'border-[#e7e2d8] text-[#6d7974] hover:bg-[#faf8f5]'}`}>{index + 1}</button>)}
+            <button disabled={page + 1 >= totalPages} onClick={() => { tableScrollY.current = window.scrollY; setPage((current) => current + 1); }} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Next</button>
           </div>
         </div>
       </section>
