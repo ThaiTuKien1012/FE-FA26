@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen, MiningJob, MiningAlgorithm, ExecutionMode } from './types/mining';
 import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
@@ -54,6 +54,7 @@ export default function App() {
   const [jobs, setJobs] = useState<MiningJob[]>([]);
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
+  const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
 
   // Synchronize browser URL bar on load and handle back/forward browser buttons
   useEffect(() => {
@@ -76,9 +77,12 @@ export default function App() {
     if (runId) {
       setActiveRunId(runId);
     }
+    scrollPositions.current[currentScreen] = window.scrollY;
     syncBrowserUrl(screen);
     setCurrentScreen(screen);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollPositions.current[screen] ?? 0, behavior: 'auto' });
+    });
   };
 
   const handleEditProduct = (prod: ProductItem) => {
