@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search, ChevronDown, UserPlus, X, Shield } from 'lucide-react';
 import { UserAccount, SystemRole, UserStatus } from '../../../types/users';
 
 import { authService } from '../../../services/authService';
 
+const usersViewStateKey = 'system-users-view-state';
+const readUsersViewState = () => { try { return JSON.parse(sessionStorage.getItem(usersViewStateKey) || '{}') as { searchQuery?: string; roleFilter?: string; statusFilter?: string; page?: number }; } catch { return {}; } };
+
 export const UsersRolesView: React.FC = () => {
+  const restoredState = readUsersViewState();
   const [users, setUsers] = useState<UserAccount[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(restoredState.searchQuery ?? '');
+  const [roleFilter, setRoleFilter] = useState(restoredState.roleFilter ?? 'all');
+  const [statusFilter, setStatusFilter] = useState(restoredState.statusFilter ?? 'all');
+  const [page, setPage] = useState(restoredState.page ?? 0);
+  const pageSize = 10;
+  const restoredFilters = useRef(true);
   const [isBackendLive, setIsBackendLive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
@@ -26,6 +33,7 @@ export const UsersRolesView: React.FC = () => {
   const [formRole, setFormRole] = useState<SystemRole>('Merchandiser');
   const [formStatus, setFormStatus] = useState<UserStatus>('Inactive');
   const [formStoreId, setFormStoreId] = useState('');
+  useEffect(() => { sessionStorage.setItem(usersViewStateKey, JSON.stringify({ searchQuery, roleFilter, statusFilter, page })); }, [searchQuery, roleFilter, statusFilter, page]);
 
   const roleCodeMap: Record<SystemRole, string> = {
     'System Admin': 'SYSTEM_ADMIN',
@@ -130,6 +138,10 @@ export const UsersRolesView: React.FC = () => {
     }
     return true;
   });
+  const totalPages = Math.max(Math.ceil(filteredUsers.length / pageSize), 1);
+  const visibleUsers = filteredUsers.slice(page * pageSize, (page + 1) * pageSize);
+  useEffect(() => { if (restoredFilters.current) { restoredFilters.current = false; return; } setPage(0); }, [searchQuery, roleFilter, statusFilter]);
+  useEffect(() => { if (page >= totalPages) setPage(Math.max(totalPages - 1, 0)); }, [page, totalPages]);
 
   const handleOpenAddModal = () => {
     setFormName('');
@@ -519,7 +531,7 @@ export const UsersRolesView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E7E2D8]/60 text-[#191c1b]">
-              {filteredUsers.map((user) => (
+              {visibleUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-[#fbf2f0] transition-colors">
                   <td className="py-3.5 px-6 font-semibold text-[#191c1b] whitespace-nowrap">
                     {user.name}
@@ -554,13 +566,23 @@ export const UsersRolesView: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {Array.from({ length: Math.max(pageSize - visibleUsers.length, 0) }, (_, index) => (
+                <tr key={`empty-user-${index}`} className="h-[58px] !border-0">
+                  <td colSpan={5} className="!border-0" />
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* Table Footer Count */}
-        <div className="px-6 py-3.5 border-t border-[#E7E2D8] text-xs text-[#89938f]">
-          Showing {filteredUsers.length} of {users.length} accounts from Backend
+        {/* Table Footer Pagination */}
+        <div className="flex items-center justify-between border-t border-[#E7E2D8] px-6 py-3.5 text-xs text-[#89938f]">
+          <span>Showing page {page + 1} of {totalPages} · 10 accounts per page</span>
+          <div className="flex items-center gap-1">
+            <button disabled={page === 0} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Previous</button>
+            {Array.from({ length: totalPages }, (_, index) => <button key={index} onClick={() => setPage(index)} className={`min-w-8 rounded-lg border px-2 py-1.5 ${page === index ? 'border-[#1e3a2f] bg-[#1e3a2f] text-white' : 'border-[#e7e2d8] text-[#6d7974] hover:bg-[#faf8f5]'}`}>{index + 1}</button>)}
+            <button disabled={page + 1 >= totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Next</button>
+          </div>
         </div>
       </section>
 
