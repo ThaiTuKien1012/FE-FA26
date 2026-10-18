@@ -73,7 +73,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setSuccessNotice(null);
 
     if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Vui lòng nhập địa chỉ email hợp lệ.');
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
 
@@ -88,7 +88,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
         setErrorMessage(res.message);
       }
     } catch {
-      setErrorMessage('Không thể gửi yêu cầu xác minh. Vui lòng thử lại.');
+      setErrorMessage('Unable to send the verification request. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +101,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setSuccessNotice(null);
 
     if (otp.trim().length !== 6) {
-      setErrorMessage('Mã xác thực OTP gồm đúng 6 chữ số.');
+      setErrorMessage('The verification code must contain exactly 6 digits.');
       return;
     }
 
@@ -109,13 +109,13 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     try {
       const res = await authService.verifyOtp(email, otp);
       if (res.success) {
-        setSuccessNotice('Xác minh email thành công! Hãy tạo tên và mật khẩu để hoàn tất.');
+        setSuccessNotice('Email verified successfully! Create your name and password to finish.');
         setStep(3);
       } else {
         setErrorMessage(res.message);
       }
     } catch {
-      setErrorMessage('Không thể xác minh mã OTP.');
+      setErrorMessage('Unable to verify the code.');
     } finally {
       setIsLoading(false);
     }
@@ -129,13 +129,13 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     try {
       const res = await authService.resendOtp(email, 'SELF_REGISTER');
       if (res.success) {
-        setSuccessNotice('Mã OTP mới đã được gửi lại vào email của bạn.');
+        setSuccessNotice('A new verification code has been sent to your email.');
         setResendCooldown(60);
       } else {
         setErrorMessage(res.message);
       }
     } catch {
-      setErrorMessage('Không thể gửi lại mã OTP.');
+      setErrorMessage('Unable to resend the verification code.');
     } finally {
       setIsLoading(false);
     }
@@ -148,22 +148,22 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setSuccessNotice(null);
 
     if (!fullName.trim()) {
-      setErrorMessage('Vui lòng nhập họ và tên của bạn.');
+      setErrorMessage('Please enter your full name.');
       return;
     }
 
     if (!isPasswordValid) {
-      setErrorMessage('Mật khẩu phải từ 12 ký tự trở lên, gồm chữ in hoa, in thường và chữ số.');
+      setErrorMessage('Your password must be at least 12 characters and include uppercase, lowercase, and numbers.');
       return;
     }
 
     if (!isPasswordMatch) {
-      setErrorMessage('Xác nhận mật khẩu không khớp.');
+      setErrorMessage('Passwords do not match.');
       return;
     }
 
     if (!agreeTerms) {
-      setErrorMessage('Vui lòng đồng ý với Điều khoản dịch vụ.');
+      setErrorMessage('Please agree to the Terms of Service.');
       return;
     }
 
@@ -176,7 +176,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
       });
 
       if (res.success) {
-        setSuccessNotice('Đăng ký tài khoản thành công! Đang tự động đăng nhập...');
+        setSuccessNotice('Account created successfully! Signing you in...');
         // Automatically login with the new credentials
         const loginRes = await authService.login({ email, password });
         if (loginRes.success && loginRes.user) {
@@ -192,7 +192,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
         setErrorMessage(res.message);
       }
     } catch {
-      setErrorMessage('Không thể hoàn tất đăng ký.');
+      setErrorMessage('Unable to complete registration.');
     } finally {
       setIsLoading(false);
     }
@@ -229,7 +229,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           </div>
           <span className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-semibold tracking-wider uppercase text-white">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
-            Bảo mật 256-bit
+            256-bit security
           </span>
         </header>
 
@@ -301,14 +301,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
               {/* Title Header */}
               <div className="text-center mb-5">
                 <h1 className="text-2xl font-bold text-[#191C1B]">
-                  {step === 1 && 'Nhập email đăng ký'}
-                  {step === 2 && 'Nhập mã xác nhận'}
-                  {step === 3 && 'Tạo hồ sơ & Mật khẩu'}
+                  {step === 1 && 'Enter your registration email'}
+                  {step === 2 && 'Enter verification code'}
+                  {step === 3 && 'Create your profile & password'}
                 </h1>
                 <p className="mt-1 text-xs text-[#6D7974]">
-                  {step === 1 && 'Hệ thống sẽ gửi mã xác thực 6 số vào email của bạn.'}
-                  {step === 2 && `Mã xác nhận 6 số đã được gửi tới ${email}`}
-                  {step === 3 && 'Hoàn tất thông tin cá nhân và tạo mật khẩu an toàn.'}
+                  {step === 1 && 'We will send a 6-digit verification code to your email.'}
+                  {step === 2 && `A 6-digit verification code was sent to ${email}`}
+                  {step === 3 && 'Complete your profile and create a secure password.'}
                 </p>
               </div>
 
@@ -332,7 +332,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 <form onSubmit={handleRequestOtp} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="reg-email">
-                      Địa chỉ Email
+                      Email address
                     </label>
                     <div className="relative">
                       <Mail className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -347,7 +347,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       />
                     </div>
                     <p className="text-[11px] text-[#6D7974] mt-1.5">
-                      Hệ thống sẽ gửi mã xác thực gồm 6 chữ số đến hộp thư email của bạn.
+                      We will send a 6-digit verification code to your inbox.
                     </p>
                   </div>
 
@@ -360,7 +360,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>Tiếp tục nhận mã xác nhận</span>
+                        <span>Continue to verification</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -374,14 +374,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="block text-xs font-semibold text-[#191C1B]" htmlFor="reg-otp">
-                        Mã xác nhận (6 chữ số)
+                        Verification code (6 digits)
                       </label>
                       <button
                         type="button"
                         onClick={() => setStep(1)}
                         className="text-xs text-emerald-700 hover:underline font-semibold cursor-pointer"
                       >
-                        Đổi email
+                        Change email
                       </button>
                     </div>
                     <div className="relative">
@@ -398,7 +398,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       />
                     </div>
                     <div className="flex items-center justify-between mt-2 text-xs">
-                      <span className="text-slate-500">Chưa nhận được mã?</span>
+                        <span className="text-slate-500">Didn’t receive the code?</span>
                       <button
                         type="button"
                         onClick={handleResendOtp}
@@ -406,7 +406,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         className="font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
                       >
                         <RotateCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-                        <span>{resendCooldown > 0 ? `Gửi lại sau ${resendCooldown}s` : 'Gửi lại mã'}</span>
+                        <span>{resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}</span>
                       </button>
                     </div>
                   </div>
@@ -433,21 +433,21 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 <form onSubmit={handleComplete} className="space-y-3.5">
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1">
-                      Họ và tên
+                      Full name
                     </label>
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Nguyễn Văn A"
+                      placeholder="John Doe"
                       className="w-full h-10 px-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-1 focus:ring-[#1E3A2F] outline-hidden font-medium"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1">
-                      Mật khẩu (Tối thiểu 12 ký tự)
+                      Password (minimum 12 characters)
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -470,23 +470,23 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                     <div className="mt-1.5 grid grid-cols-2 gap-1 text-[10px]">
                       <span className={`flex items-center gap-1 ${hasMinLength ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
-                        <span>{hasMinLength ? '✓' : '•'}</span> Từ 12 ký tự trở lên
+                        <span>{hasMinLength ? '✓' : '•'}</span> At least 12 characters
                       </span>
                       <span className={`flex items-center gap-1 ${hasUpper ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
-                        <span>{hasUpper ? '✓' : '•'}</span> Chữ in hoa (A-Z)
+                        <span>{hasUpper ? '✓' : '•'}</span> Uppercase letter (A-Z)
                       </span>
                       <span className={`flex items-center gap-1 ${hasLower ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
-                        <span>{hasLower ? '✓' : '•'}</span> Chữ thường (a-z)
+                        <span>{hasLower ? '✓' : '•'}</span> Lowercase letter (a-z)
                       </span>
                       <span className={`flex items-center gap-1 ${hasNumber ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
-                        <span>{hasNumber ? '✓' : '•'}</span> Chữ số (0-9)
+                        <span>{hasNumber ? '✓' : '•'}</span> Number (0-9)
                       </span>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1">
-                      Xác nhận mật khẩu
+                      Confirm password
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -495,13 +495,13 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         required
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Nhập lại mật khẩu"
+                        placeholder="Re-enter your password"
                         className="w-full h-10 pl-9 pr-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-1 focus:ring-[#1E3A2F] outline-hidden font-medium"
                       />
                     </div>
                     {confirmPassword && (
                       <p className={`text-[10px] mt-1 ${isPasswordMatch ? 'text-emerald-600 font-semibold' : 'text-rose-600 font-semibold'}`}>
-                        {isPasswordMatch ? '✓ Mật khẩu khớp nhau' : '✕ Mật khẩu chưa khớp'}
+                        {isPasswordMatch ? '✓ Passwords match' : '✕ Passwords do not match'}
                       </p>
                     )}
                   </div>
@@ -515,7 +515,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         className="mt-0.5 rounded text-[#1E3A2F]"
                       />
                       <span className="text-[11px] text-slate-600">
-                        Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của hệ thống.
+                        I agree to the system’s Terms of Service and Privacy Policy.
                       </span>
                     </label>
                   </div>
@@ -540,13 +540,13 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
               {/* Bottom Login Link */}
               <div className="text-center pt-3 border-t border-[#E1D8D6]/70 mt-4">
                 <p className="text-xs text-[#6D7974]">
-                  Đã có tài khoản?{' '}
+                  Already have an account?{' '}
                   <button
                     type="button"
                     onClick={onNavigateLogin}
                     className="font-bold text-[#1E3A2F] hover:underline transition-colors cursor-pointer"
                   >
-                    Đăng nhập ngay
+                    Sign in now
                   </button>
                 </p>
               </div>
@@ -556,7 +556,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
         {/* Footer */}
         <footer className="w-full py-5 text-center text-xs text-white/60 z-20 border-t border-white/10 mt-auto">
-          <p>RetailSpace Operations Platform © 2026 | Nền tảng vận hành bán lẻ thông minh</p>
+          <p>RetailSpace Operations Platform © 2026 | Smart retail operations platform</p>
         </footer>
       </div>
 
@@ -577,7 +577,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
           className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/30 text-white text-xs font-semibold tracking-wide shadow-lg transition-all cursor-pointer"
         >
           <Play className="w-3.5 h-3.5 fill-current" />
-          {cinemaMode ? 'Quay lại biểu mẫu' : 'Xem toàn màn hình video'}
+          {cinemaMode ? 'Back to form' : 'View full-screen video'}
         </button>
       </div>
     </div>

@@ -78,6 +78,7 @@ export type ActiveNavScreen =
   | 'store-categories' // F02 Store Admin: Category Management
   | 'store-batches' // F02 Store Admin: Inventory Batch Management
   | 'login'           // Auth: Login Page
+  | 'forgot-password' // Auth: Password reset
   | 'register'        // Auth: Registration Page
   | 'activate'        // Auth: Staff Account Activation with OTP
   | 'profile'         // Auth: Current User Profile & Security Settings

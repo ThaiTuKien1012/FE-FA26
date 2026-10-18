@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string;
   role: SystemRole;
   avatarText: string;
+  avatarUrl?: string | null;
   department: string;
   defaultScreen: ActiveNavScreen;
   allowedScreens: ActiveNavScreen[];
@@ -534,6 +535,39 @@ class AuthService {
     } catch {
       return null;
     }
+  }
+
+  public async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/auth/password/change', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.getToken()}` }, body: JSON.stringify({ currentPassword, newPassword }) });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok, message: data.message || data.error || (res.ok ? 'Password changed.' : 'Unable to change password.') };
+  }
+
+  public async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/auth/password-reset/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok, message: data.message || data.error || 'If the account is eligible, a verification code will be sent.' };
+  }
+
+  public async confirmPasswordReset(email: string, otp: string, password: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/auth/password-reset/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, password }) });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok, message: data.message || data.error || (res.ok ? 'Password reset successfully.' : 'Unable to reset password.') };
+  }
+
+  public async uploadAvatar(file: File): Promise<any> {
+    const form = new FormData(); form.append('file', file);
+    const res = await fetch('/api/users/me/avatar', { method: 'PUT', headers: { Authorization: `Bearer ${this.getToken()}` }, body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Unable to upload avatar.');
+    return data;
+  }
+
+  public async deleteAvatar(): Promise<any> {
+    const res = await fetch('/api/users/me/avatar', { method: 'DELETE', headers: { Authorization: `Bearer ${this.getToken()}` } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Unable to remove avatar.');
+    return data;
   }
 
   /**

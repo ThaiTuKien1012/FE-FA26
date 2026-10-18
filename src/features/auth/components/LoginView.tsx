@@ -17,6 +17,7 @@ import { ActiveNavScreen } from '../../../types/mining';
 interface LoginViewProps {
   onLoginSuccess: (user: AuthUser, destinationScreen: ActiveNavScreen) => void;
   onNavigateRegister?: () => void;
+  onNavigateForgotPassword?: () => void;
   onNavigateActivate?: () => void;
 }
 
@@ -27,6 +28,7 @@ declare global {
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
   onNavigateRegister,
+  onNavigateForgotPassword,
   onNavigateActivate
 }) => {
   const [identifier, setIdentifier] = useState('');
@@ -38,6 +40,15 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [googlePending, setGooglePending] = useState<{ token: string; email: string } | null>(null);
   const [googleOtp, setGoogleOtp] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'email' | 'confirm'>('email');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotPassword, setForgotPassword] = useState('');
+  const [forgotConfirm, setForgotConfirm] = useState('');
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const googleInitialized = useRef(false);
 
   // Cinema mode: hide the UI to showcase the full-screen video
@@ -156,8 +167,26 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }
   };
 
+  const requestPasswordReset = async (event: React.FormEvent) => {
+    event.preventDefault(); setForgotLoading(true); setForgotError(null); setForgotMessage(null);
+    const result = await authService.requestPasswordReset(forgotEmail.trim());
+    setForgotLoading(false);
+    if (!result.success) { setForgotError(result.message); return; }
+    setForgotStep('confirm'); setForgotMessage(result.message || 'If eligible, a verification code was sent to your email.');
+  };
+
+  const confirmPasswordReset = async (event: React.FormEvent) => {
+    event.preventDefault(); setForgotLoading(true); setForgotError(null); setForgotMessage(null);
+    if (forgotPassword !== forgotConfirm) { setForgotLoading(false); setForgotError('Passwords do not match.'); return; }
+    const result = await authService.confirmPasswordReset(forgotEmail.trim(), forgotOtp.trim(), forgotPassword);
+    setForgotLoading(false);
+    if (!result.success) { setForgotError(result.message); return; }
+    setForgotMessage('Password reset successfully. You can sign in now.'); setForgotStep('email'); setForgotOtp(''); setForgotPassword(''); setForgotConfirm('');
+  };
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#102019] text-[#191C1B] selection:bg-[#1E3A2F] selection:text-white antialiased font-sans">
+      {forgotOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1E3A2F]/35 p-4"><div className="w-full max-w-lg rounded-3xl border border-[#E7E2D8] bg-[#FFFDFB] p-7 shadow-2xl"><div className="mb-6 flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#707973]">Account recovery</p><h2 className="mt-1 text-2xl font-bold text-[#191C1B]">Reset your password</h2><p className="mt-1 text-sm text-[#707973]">Recover access securely in three simple steps.</p></div><button type="button" onClick={() => setForgotOpen(false)} className="text-xl text-[#707973]">✕</button></div><div className="mb-7 grid grid-cols-3 gap-2">{['Email', 'Verification code', 'New password'].map((label, index) => { const active = (forgotStep === 'email' && index === 0) || (forgotStep === 'confirm' && index > 0); return <div key={label} className="text-center"><div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${active ? 'bg-[#1E3A2F] text-white' : 'bg-[#E6EDF6] text-[#68809F]'}`}>{index + 1}</div><p className={`mt-2 text-[11px] font-semibold ${active ? 'text-[#1E3A2F]' : 'text-[#89938F]'}`}>{label}</p></div>; })}</div>{forgotError && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{forgotError}</div>}{forgotMessage && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{forgotMessage}</div>}{forgotStep === 'email' ? <form onSubmit={requestPasswordReset} className="space-y-5"><p className="text-sm leading-6 text-[#707973]">Enter the email address linked to your account. If eligible, we will send a 6-digit verification code.</p><label className="block text-sm font-semibold">Email address<input required type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="yourname@example.com" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><button disabled={forgotLoading} className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60">{forgotLoading ? 'Sending…' : 'Send verification code →'}</button></form> : <form onSubmit={confirmPasswordReset} className="space-y-4"><p className="text-sm leading-6 text-[#707973]">Enter the code sent to <strong>{forgotEmail}</strong>, then create a new secure password.</p><label className="block text-sm font-semibold">Verification code<input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} placeholder="000000" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 tracking-[0.3em] outline-none focus:border-[#1E3A2F]" /></label><label className="block text-sm font-semibold">New password<input required minLength={12} type="password" value={forgotPassword} onChange={e => setForgotPassword(e.target.value)} placeholder="At least 12 characters" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><label className="block text-sm font-semibold">Confirm new password<input required minLength={12} type="password" value={forgotConfirm} onChange={e => setForgotConfirm(e.target.value)} placeholder="Re-enter your password" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><button disabled={forgotLoading} className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60">{forgotLoading ? 'Resetting…' : 'Reset password →'}</button><button type="button" onClick={() => setForgotStep('email')} className="w-full text-center text-sm font-semibold text-[#1E3A2F] hover:underline">Use a different email</button></form>}</div></div>}
       {/* BEGIN: FullScreenVideoBackground */}
       <video
         className="fixed inset-0 w-full h-full object-cover z-0"
@@ -320,9 +349,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     />
                     <span className="text-[11px] text-[#6D7974]">Remember me</span>
                   </label>
-                  <a href="#" className="text-[11px] font-medium text-[#6D7974] hover:text-[#1E3A2F] transition-colors">
+                  <button type="button" onClick={() => onNavigateForgotPassword ? onNavigateForgotPassword() : setForgotOpen(true)} className="text-[11px] font-medium text-[#6D7974] hover:text-[#1E3A2F] transition-colors">
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
 
                 {/* Primary Action Submit Button */}

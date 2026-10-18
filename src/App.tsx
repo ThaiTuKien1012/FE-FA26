@@ -20,6 +20,7 @@ import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
 import { LoginView } from './features/auth/components/LoginView';
+import { ForgotPasswordView } from './features/auth/components/ForgotPasswordView';
 import { RegisterView } from './features/auth/components/RegisterView';
 import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
@@ -55,6 +56,15 @@ export default function App() {
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
   const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
+
+  useEffect(() => {
+    const handleAvatarUpdated = (event: Event) => {
+      const avatarUrl = (event as CustomEvent<string>).detail;
+      setCurrentUser(previous => previous ? { ...previous, avatarUrl } : previous);
+    };
+    window.addEventListener('paspm-avatar-updated', handleAvatarUpdated);
+    return () => window.removeEventListener('paspm-avatar-updated', handleAvatarUpdated);
+  }, []);
 
   // Synchronize browser URL bar on load and handle back/forward browser buttons
   useEffect(() => {
@@ -249,12 +259,17 @@ export default function App() {
           syncBrowserUrl('register');
           setCurrentScreen('register');
         }}
+        onNavigateForgotPassword={() => { syncBrowserUrl('forgot-password'); setCurrentScreen('forgot-password'); }}
         onNavigateActivate={() => {
           syncBrowserUrl('activate');
           setCurrentScreen('activate');
         }}
       />
     );
+  }
+
+  if (currentScreen === 'forgot-password') {
+    return <ForgotPasswordView onNavigateLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }} />;
   }
 
   // 1b. If currently on Register screen, render RegisterView standalone full-screen

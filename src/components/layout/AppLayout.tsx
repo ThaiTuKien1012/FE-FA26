@@ -401,7 +401,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         <div className="p-4 border-t border-[#E7E2D8] bg-[#FAF8F5] flex items-center justify-between shrink-0" data-purpose="user-profile-badge">
           <div className="flex items-center space-x-3 min-w-0">
             <div className="w-9 h-9 rounded-lg bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-[0_1px_3px_rgba(41,37,36,0.08)]">
-              {currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU')}
+              {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Profile avatar" className="h-full w-full rounded-lg object-cover" /> : (currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU'))}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-[#191C1B] truncate leading-tight">
@@ -540,7 +540,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               className="w-8 h-8 rounded-full bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-[0_1px_3px_rgba(41,37,36,0.08)] cursor-pointer hover:bg-[#25473A] transition-colors"
               title="Click to switch role"
             >
-              {currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU')}
+              {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Profile avatar" className="h-full w-full rounded-full object-cover" /> : (currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU'))}
             </div>
           </div>
         </header>
