@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
   AlertCircle,
@@ -20,6 +20,10 @@ interface LoginViewProps {
   onNavigateActivate?: () => void;
 }
 
+declare global {
+  interface Window { google?: any; }
+}
+
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
   onNavigateRegister,
@@ -32,13 +36,90 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [googlePending, setGooglePending] = useState<{ token: string; email: string } | null>(null);
+  const [googleOtp, setGoogleOtp] = useState('');
+  const googleInitialized = useRef(false);
 
   // Cinema mode: hide the UI to showcase the full-screen video
   const [cinemaMode, setCinemaMode] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
 
+  useEffect(() => {
+    if (document.getElementById('google-identity-services')) return;
+    const script = document.createElement('script');
+    script.id = 'google-identity-services';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+    return () => { script.remove(); };
+  }, []);
+
   const handleGoogleLogin = () => {
-    setErrorMessage('Google sign-in is temporarily unavailable. Please sign in with email or create a new account.');
+    setErrorMessage(null);
+    setIsLoading(true);
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '190316473848-mv2i3hg2d7qv9v332t61o4ugfj9kfpt7.apps.googleusercontent.com';
+    const start = () => {
+      if (!window.google?.accounts?.id) {
+        setIsLoading(false);
+        setErrorMessage('Google sign-in could not be loaded. Check your internet connection and try again.');
+        return;
+      }
+      const callback = async (response: { credential?: string }) => {
+          if (!response.credential) { setIsLoading(false); setErrorMessage('Google did not return an ID token.'); return; }
+          try {
+            const tokenResponse = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: response.credential }) });
+            const tokenData = await tokenResponse.json().catch(() => ({}));
+            if (!tokenResponse.ok) {
+              if (tokenResponse.status === 401 && String(tokenData.error || '').toLowerCase().includes('not linked')) {
+                throw new Error('This Gmail already has a PASPM account but is not linked to Google. Sign in with your password first, then link Google from Profile.');
+              }
+              throw new Error(tokenData.error || 'Google sign-in failed.');
+            }
+            localStorage.setItem('retailspace_auth_token', tokenData.accessToken);
+            const meResponse = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${tokenData.accessToken}` } });
+            const me = await meResponse.json();
+            if (!meResponse.ok) throw new Error(me.error || 'Could not load your account.');
+            const roleMap: Record<string, { role: any; department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
+              SYSTEM_ADMIN: { role: 'System Admin', department: 'Platform Administration & System Engineering', defaultScreen: 'overview', allowedScreens: ['overview','setup','results','failure','benchmark','users','api-connections','profile'] },
+              STORE_ADMIN: { role: 'Store Admin', department: 'Store Operations & Inventory', defaultScreen: 'store-inventory', allowedScreens: ['store-inventory','store-edit-product','store-categories','store-batches','profile'] },
+              MERCHANDISER: { role: 'Merchandiser', department: 'Retail Merchandising Planner', defaultScreen: 'f03-utility', allowedScreens: ['f03-utility','f03-configuration','f03-product-scores','f03-preview','f03-snapshot','profile'] },
+              END_CUSTOMER: { role: 'End-Customer', department: 'Retail Loyalty Customer', defaultScreen: 'customer-storefront', allowedScreens: ['customer-storefront','profile'] }
+            };
+            const mapped = roleMap[me.roleCode] || roleMap.END_CUSTOMER;
+            const user: AuthUser = { id: `usr-${me.userId}`, name: me.name || me.email, email: me.email, avatarText: (me.name || me.email).slice(0, 2).toUpperCase(), ...mapped };
+            localStorage.setItem('retailspace_auth_user', JSON.stringify(user));
+            setSuccessNotice('Signed in with Google successfully.');
+            onLoginSuccess(user, user.defaultScreen);
+          } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.'); } finally { setIsLoading(false); }
+        };
+      if (!googleInitialized.current) {
+        window.google.accounts.id.initialize({ client_id: clientId, callback });
+        googleInitialized.current = true;
+      }
+      window.google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.() || notification.isDismissedMoment?.()) {
+          setIsLoading(false);
+        }
+      });
+    };
+    if (window.google?.accounts?.id) start(); else setTimeout(start, 500);
+  };
+
+  const verifyGoogleRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googlePending || !/^\d{6}$/.test(googleOtp)) { setErrorMessage('Enter the 6-digit verification code from your email.'); return; }
+    setIsLoading(true); setErrorMessage(null);
+    try {
+      const verify = await fetch('/api/auth/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: googlePending.email, otp: googleOtp }) });
+      const verifyData = await verify.json().catch(() => ({}));
+      if (!verify.ok) throw new Error(verifyData.error || 'The verification code is invalid or expired.');
+      const login = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: googlePending.token }) });
+      const loginData = await login.json().catch(() => ({}));
+      if (!login.ok) throw new Error(loginData.error || 'Google sign-in failed.');
+      localStorage.setItem('retailspace_auth_token', loginData.accessToken);
+      window.location.reload();
+    } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Google registration failed.'); } finally { setIsLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,6 +249,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-[#1E3A2F]" />
                   <span>{successNotice}</span>
                 </div>
+              )}
+
+              {googlePending && (
+                <form onSubmit={verifyGoogleRegistration} className="mb-4 rounded-xl border border-[#D8E8DF] bg-[#EEF5F1] p-4 space-y-3">
+                  <p className="text-xs text-[#1E3A2F]">Check your Gmail for the 6-digit verification code.</p>
+                  <input value={googleOtp} onChange={e => setGoogleOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="Verification code" className="w-full rounded-lg border border-[#E1D8D6] bg-white px-3 py-2 text-sm outline-none focus:border-[#1E3A2F]" />
+                  <button type="submit" disabled={isLoading} className="w-full rounded-lg bg-[#1E3A2F] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Verify and continue</button>
+                </form>
               )}
 
               {/* Form Element */}

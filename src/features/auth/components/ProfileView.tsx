@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   User, 
   Mail, 
@@ -14,6 +14,8 @@ import {
   LogOut
 } from 'lucide-react';
 import { authService, AuthUser } from '../../../services/authService';
+
+declare global { interface Window { google?: any; } }
 
 interface ProfileViewProps {
   currentUser: AuthUser | null;
@@ -35,6 +37,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
   const [me, setMe] = useState<MeData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [googleLinked, setGoogleLinked] = useState(false);
+  const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
+  const googleInitialized = useRef(false);
 
   const fetchProfile = async () => {
     setIsLoading(true);
@@ -65,7 +70,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
 
   useEffect(() => {
     fetchProfile();
+    if (!document.getElementById('google-identity-services')) {
+      const script = document.createElement('script');
+      script.id = 'google-identity-services'; script.src = 'https://accounts.google.com/gsi/client'; script.async = true; script.defer = true;
+      document.head.appendChild(script);
+    }
   }, []);
+
+  const linkGoogle = () => {
+    setErrorMessage(null); setIsLinkingGoogle(true);
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '190316473848-mv2i3hg2d7qv9v332t61o4ugfj9kfpt7.apps.googleusercontent.com';
+    const start = () => {
+      if (!window.google?.accounts?.id) { setIsLinkingGoogle(false); setErrorMessage('Google sign-in could not be loaded.'); return; }
+      const callback = async (response: { credential?: string }) => {
+        if (!response.credential) { setIsLinkingGoogle(false); return; }
+        try {
+          const res = await fetch('/api/auth/google/link', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authService.getToken()}` }, body: JSON.stringify({ idToken: response.credential }) });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Could not link Google account.');
+          setGoogleLinked(true);
+        } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Could not link Google account.'); } finally { setIsLinkingGoogle(false); }
+      };
+      if (!googleInitialized.current) { window.google.accounts.id.initialize({ client_id: clientId, callback }); googleInitialized.current = true; }
+      window.google.accounts.id.prompt((notification: any) => { if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.() || notification.isDismissedMoment?.()) setIsLinkingGoogle(false); });
+    };
+    if (window.google?.accounts?.id) start(); else setTimeout(start, 500);
+  };
 
   return (
     <div className="w-full space-y-6 animate-in fade-in">
@@ -194,9 +224,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onNavigat
                 </p>
               </div>
             </div>
-            <p className="text-xs text-[#8C857B]">
-              Google sign-in will be available after the system OAuth configuration is completed.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-[#8C857B]">{googleLinked ? 'Google account is linked to this PASPM account.' : 'Link Google to sign in faster next time.'}</p>
+              {!googleLinked && <button type="button" onClick={linkGoogle} disabled={isLinkingGoogle} className="rounded-lg bg-[#1E3A2F] px-4 py-2 text-xs font-semibold text-white disabled:opacity-60">{isLinkingGoogle ? 'Connecting…' : 'Link Google account'}</button>}
+              {googleLinked && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Linked</span>}
+            </div>
           </div>
         </div>
       </div>
