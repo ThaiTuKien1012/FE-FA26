@@ -45,7 +45,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'store-categories',
       'store-batches',
       'f03-utility',
-      'f03-expiry-window', 'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot',
+      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'profile'
     ]
   },
@@ -61,7 +61,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'users',
       'api-connections',
       'f03-utility',
-      'f03-expiry-window', 'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot',
+      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'profile'
     ]
   },
@@ -74,7 +74,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-preview',
       'f03-snapshot',
       'f03-utility',
-      'f03-expiry-window', 'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot',
+      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'profile'
     ]
   },
@@ -178,6 +178,16 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     allowedRoles: ['Merchandiser']
   },
 
+  // F03 Utility Profiling screens
+  'f03-utility': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Planner', allowedRoles: ['System Admin', 'Store Admin', 'Merchandiser'] },
+  'f03-expiry-window': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'Expiry Window', allowedRoles: ['Store Admin'] },
+  'f03-configuration': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Configuration', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'f03-product-scores': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Product Priority Scores', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'f03-preview': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Preview', allowedRoles: ['Merchandiser'] },
+  'f03-snapshot': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot History', allowedRoles: ['Merchandiser'] },
+  'f03-snapshot-detail': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Detail', allowedRoles: ['Merchandiser'] },
+  'f03-snapshot-matrix': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Matrix', allowedRoles: ['Merchandiser'] },
+
   // System Admin Core Modules
   'overview': {
     primaryRole: 'System Admin',
@@ -235,6 +245,12 @@ export const SCREEN_OWNER_MAP: Record<ActiveNavScreen, ScreenOwnerInfo> = {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
     title: 'User Authentication',
+    allowedRoles: ['Store Admin', 'System Admin', 'Merchandiser', 'End-Customer']
+  },
+  'forgot-password': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Password Recovery',
     allowedRoles: ['Store Admin', 'System Admin', 'Merchandiser', 'End-Customer']
   },
   'register': {
@@ -350,13 +366,13 @@ class AuthService {
               role: 'Store Admin',
               department: 'Store Operations & Inventory',
               defaultScreen: 'store-inventory',
-              allowedScreens: ['store-inventory', 'store-edit-product', 'store-categories', 'store-batches', 'profile']
+              allowedScreens: ['store-inventory', 'store-edit-product', 'store-categories', 'store-batches', 'f03-configuration', 'f03-product-scores', 'profile']
             },
             'MERCHANDISER': {
               role: 'Merchandiser',
               department: 'Retail Merchandising Planner',
               defaultScreen: 'f03-configuration',
-              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'profile']
+              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix', 'profile']
             },
             'END_CUSTOMER': {
               role: 'End-Customer',

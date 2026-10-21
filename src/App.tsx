@@ -217,6 +217,8 @@ export default function App() {
       case 'f03-product-scores': return ['F03', 'Product Priority Scores'];
       case 'f03-preview': return ['F03', 'Utility Preview'];
       case 'f03-snapshot': return ['F03', 'Utility Snapshot'];
+      case 'f03-snapshot-detail': return ['F03', 'Snapshot Detail'];
+      case 'f03-snapshot-matrix': return ['F03', 'Snapshot Matrix'];
 
       // Store Operations views (Store Admin)
       case 'store-inventory':

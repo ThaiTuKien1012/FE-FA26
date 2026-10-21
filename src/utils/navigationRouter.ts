@@ -24,6 +24,8 @@ export const SCREEN_TO_PATH: Record<ActiveNavScreen, string> = {
   'f03-product-scores': '/f03/product-scores',
   'f03-preview': '/f03/preview',
   'f03-snapshot': '/f03/snapshot',
+  'f03-snapshot-detail': '/f03/snapshot/detail',
+  'f03-snapshot-matrix': '/f03/snapshot/matrix',
 
   // Store Admin Screens
   'store-inventory': '/store/inventory',

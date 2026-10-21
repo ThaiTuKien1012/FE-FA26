@@ -5,8 +5,9 @@ export interface F02Category { id: number; name: string; status: F02Status; }
 export interface F02Product {
   id: number; sku: string; name: string; unit: string; requiresExpiry: boolean;
   category: F02Category | null; sellingPrice: number; costPrice: number;
-  status: F02Status; stockQuantity: number;
+  status: F02Status; stockQuantity: number; expiryPushDays: number;
 }
+export type F02ProductRequest = Omit<F02Product, 'id' | 'category' | 'stockQuantity' | 'expiryPushDays'> & { categoryId?: number; expiryPushDays?: number | null };
 export interface F02ProductPage { content: F02Product[]; page: number; pageSize: number; totalElements: number; totalPages: number; }
 export interface F02Batch { id: number; productId: number; batchCode: string; receivedAt: string; expiryDate?: string | null; initialQuantity: number; remainingQuantity: number; status: F02Status; }
 export interface F02InventorySummary { productId: number; totalQuantity: number; sellableQuantity: number; expiredQuantity: number; blockedQuantity: number; expiringSoonQuantity: number; }
@@ -31,8 +32,8 @@ export const storeApi = {
     return request<F02ProductPage>(`/api/products${query.toString() ? `?${query}` : ''}`);
   },
   getProduct: (id: number) => request<F02Product>(`/api/products/${id}`),
-  createProduct: (body: Omit<F02Product, 'id' | 'category' | 'stockQuantity'> & { categoryId?: number }) => request<F02Product>('/api/products', { method: 'POST', body: JSON.stringify(body) }),
-  updateProduct: (id: number, body: Omit<F02Product, 'id' | 'category' | 'stockQuantity'> & { categoryId?: number }) => request<F02Product>(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  createProduct: (body: F02ProductRequest) => request<F02Product>('/api/products', { method: 'POST', body: JSON.stringify(body) }),
+  updateProduct: (id: number, body: F02ProductRequest) => request<F02Product>(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   updateProductStatus: (id: number, status: F02Status) => request<F02Product>(`/api/products/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   createCategory: (body: { name: string; status: F02Status }) => request<F02Category>('/api/categories', { method: 'POST', body: JSON.stringify(body) }),
   updateCategory: (id: number, body: { name: string; status: F02Status }) => request<F02Category>(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),

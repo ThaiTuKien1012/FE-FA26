@@ -73,6 +73,8 @@ export type ActiveNavScreen =
   | 'f03-product-scores'
   | 'f03-preview'
   | 'f03-snapshot'
+  | 'f03-snapshot-detail'
+  | 'f03-snapshot-matrix'
   | 'store-inventory' // F02 Store Admin: Product & Inventory
   | 'store-edit-product' // F02 Store Admin: Edit Product Page
   | 'store-categories' // F02 Store Admin: Category Management
