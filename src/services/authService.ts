@@ -60,6 +60,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'benchmark',
       'users',
       'api-connections',
+      'f03-configuration',
       'profile'
     ]
   },
