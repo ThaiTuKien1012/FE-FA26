@@ -366,12 +366,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       <span>API Connections</span>
                     </button>
                   </li>
-                  <li>
-                    <button onClick={() => onNavigate('f03-utility')} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f03-utility' ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
-                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-utility' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Lambda Policy</span>
-                    </button>
-                  </li>
                 </ul>
               </div>
             )}

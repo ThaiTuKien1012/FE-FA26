@@ -60,8 +60,6 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'benchmark',
       'users',
       'api-connections',
-      'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'profile'
     ]
   },
@@ -178,7 +176,7 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   },
 
   // F03 Utility Profiling screens
-  'f03-utility': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Planner', allowedRoles: ['System Admin', 'Store Admin', 'Merchandiser'] },
+  'f03-utility': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Planner', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-expiry-window': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'Expiry Window', allowedRoles: ['Store Admin'] },
   'f03-configuration': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Configuration', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-product-scores': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Product Priority Scores', allowedRoles: ['Store Admin', 'Merchandiser'] },
