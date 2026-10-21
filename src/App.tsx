@@ -304,6 +304,7 @@ export default function App() {
         products={storeProducts}
         user={currentUser}
         onLogout={handleLogout}
+        onProfile={() => handleNavigate('profile')}
       />
     );
   }

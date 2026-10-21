@@ -14,17 +14,18 @@ import {
   Receipt, 
   X,
   CreditCard,
-  LogOut,
   ChevronRight
 } from 'lucide-react';
 import { ProductItem } from '../../../types/storeInventory';
 import { AuthUser } from '../../../services/authService';
 import { AppLogo } from '../../../components/common/AppLogo';
+import { AvatarDropdown } from '../../../components/common/AvatarDropdown';
 
 interface CustomerStorefrontViewProps {
   products: ProductItem[];
   user?: AuthUser | null;
   onLogout: () => void;
+  onProfile: () => void;
 }
 
 interface CartItem {
@@ -50,7 +51,8 @@ const PRODUCT_IMAGE_MAP: Record<string, string> = {
 export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
   products,
   user,
-  onLogout
+  onLogout,
+  onProfile
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -155,21 +157,21 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
       {/* Top Customer Header Bar */}
       <header className="bg-white border-b border-[#E7E2D8] sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 mr-3">
             <div className="shrink-0 flex items-center justify-center">
               <AppLogo className="w-10 h-10" />
             </div>
-            <div>
-              <div className="text-sm font-extrabold text-[#191c1b] leading-tight">
+            <div className="min-w-0">
+              <div className="text-sm font-extrabold text-[#191c1b] leading-tight truncate">
                 RetailSpace Kiosk
               </div>
-              <div className="text-[11px] text-[#6d7974] leading-tight">
+              <div className="text-[11px] text-[#6d7974] leading-tight truncate">
                 Self-Checkout &amp; Personalized Storefront
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             {/* Customer Profile Pill */}
             <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#f4f7f5] border border-[#E7E2D8] text-xs">
               <div className="w-6 h-6 rounded-full bg-[#1e3a2f] text-white flex items-center justify-center font-bold text-[10px]">
@@ -195,15 +197,7 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
               )}
             </button>
 
-            {/* Logout / Switch Role */}
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-xl text-[#6d7974] hover:text-[#191c1b] hover:bg-[#eaf0eb] transition-colors cursor-pointer text-xs font-semibold flex items-center gap-1.5"
-              title="Sign Out / Switch Role"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden md:inline">Switch Role</span>
-            </button>
+            <AvatarDropdown user={user} onProfile={onProfile} onLogout={onLogout} />
           </div>
         </div>
       </header>

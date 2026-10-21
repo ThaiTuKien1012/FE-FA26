@@ -16,7 +16,6 @@ import {
   Flag,
   SlidersHorizontal,
   LogOut,
-  ChevronDown,
   ShoppingBag,
   Sparkles,
   Layers,
@@ -32,6 +31,7 @@ import {
 import { ActiveNavScreen } from '../../types/mining';
 import { AuthUser } from '../../services/authService';
 import { AppLogo } from '../common/AppLogo';
+import { AvatarDropdown } from '../common/AvatarDropdown';
 
 interface AppLayoutProps {
   currentScreen: ActiveNavScreen;
@@ -53,7 +53,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onSwitchRole,
   children
 }) => {
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const role = currentUser?.role || 'Store Admin';
@@ -430,7 +429,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         {/* Top Header - Sticky at top */}
         <header className="h-16 px-6 md:px-8 border-b border-[#E7E2D8] bg-[#FAF8F5]/98 backdrop-blur-md flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-[0_1px_4px_rgba(41,37,36,0.04)] transition-all" data-purpose="top-navigation-bar">
           {/* Left: Dynamic Time Greeting + User Name + Role Title */}
-          <div className="flex flex-col justify-center min-w-0 shrink-0">
+          <div className="flex flex-col justify-center min-w-0">
             <h2 className="text-sm sm:text-base font-bold text-[#191C1B] tracking-tight leading-tight flex items-center gap-1.5 truncate">
               <span>{getGreeting()}, {firstName}!</span>
             </h2>
@@ -465,66 +464,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             </div>
           </div>
 
-          {/* Top Right Controls & Role Switcher */}
+          {/* Top Right Controls */}
           <div className="flex items-center space-x-3 shrink-0">
-            {/* Quick Role Switcher Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-[#E7E2D8] hover:border-[#1E3A2F] text-xs font-semibold text-[#191C1B] shadow-[0_1px_3px_rgba(41,37,36,0.04)] transition-colors cursor-pointer"
-              >
-                <span className="w-2 h-2 rounded-full bg-[#1E3A2F]" />
-                <span className="hidden sm:inline">Role:</span>
-                <span className="font-bold text-[#1E3A2F]">{currentUser?.role || role}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-[#707973]" />
-              </button>
-
-              {/* Dropdown Menu */}
-              {isRoleDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-[#E7E2D8] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 text-xs">
-                  <div className="px-3 py-2 border-b border-[#E7E2D8]/80">
-                    <p className="font-bold text-sm text-[#191C1B] truncate">
-                      {currentUser?.name || 'Administrator'}
-                    </p>
-                    <p className="text-[11px] text-[#707973] truncate">
-                      {currentUser?.email || 'admin@paspm.local'}
-                    </p>
-                    <div className="mt-1.5 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E5F3EB] text-[#1E3A2F]">
-                      {currentUser?.role || role}
-                    </div>
-                  </div>
-
-                  <div className="pt-1 mt-1 border-t border-[#E7E2D8]/80">
-                    <button
-                      onClick={() => {
-                        setIsRoleDropdownOpen(false);
-                        onNavigate('profile');
-                      }}
-                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-[#FAF8F5] cursor-pointer text-[#191C1B] font-semibold text-xs"
-                    >
-                      <Settings className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Hồ sơ cá nhân & Bảo mật</span>
-                    </button>
-                  </div>
-
-                  {onLogout && (
-                    <div className="pt-1 mt-1 border-t border-[#E7E2D8]/80">
-                      <button
-                        onClick={() => {
-                          setIsRoleDropdownOpen(false);
-                          onLogout();
-                        }}
-                        className="w-full px-3 py-2 text-left flex items-center gap-2 text-[#BA1A1A] hover:bg-[#FDF3F2] cursor-pointer font-semibold"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Sign Out to Login Page</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Notification bell */}
             <button 
               className="p-2 rounded-lg hover:bg-[#F5ECE8] text-[#707973] relative cursor-pointer"
@@ -534,14 +475,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#BA1A1A] rounded-full"></span>
             </button>
 
-            {/* User Avatar */}
-            <div 
-              onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-              className="w-8 h-8 rounded-full bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-[0_1px_3px_rgba(41,37,36,0.08)] cursor-pointer hover:bg-[#25473A] transition-colors"
-              title="Click to switch role"
-            >
-              {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Profile avatar" className="h-full w-full rounded-full object-cover" /> : (currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU'))}
-            </div>
+            <AvatarDropdown user={currentUser} onProfile={() => onNavigate('profile')} onLogout={onLogout} />
           </div>
         </header>
 
