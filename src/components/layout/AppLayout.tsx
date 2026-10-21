@@ -279,9 +279,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => onNavigate('f03-utility')} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f03-utility' ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
-                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-utility' ? 'text-white' : 'text-[#707973]'}`} />
-                      <span>Expiry Window</span>
+                    <button
+                      onClick={() => onNavigate('f03-product-scores')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f03-product-scores' ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}
+                    >
+                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-product-scores' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Product Scores</span>
                     </button>
                   </li>
                 </ul>
@@ -363,8 +366,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => onNavigate('f03-utility')} className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f03-utility' ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}>
-                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-utility' ? 'text-white' : 'text-[#707973]'}`} />
+                    <button
+                      onClick={() => onNavigate('f03-configuration')}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'f03-configuration'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <SlidersHorizontal className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f03-configuration' ? 'text-white' : 'text-[#707973]'}`} />
                       <span>Lambda Policy</span>
                     </button>
                   </li>
