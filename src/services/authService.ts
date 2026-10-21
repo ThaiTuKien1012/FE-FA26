@@ -45,7 +45,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'store-categories',
       'store-batches',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'profile'
     ]
   },
@@ -61,7 +61,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'users',
       'api-connections',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'profile'
     ]
   },
@@ -72,9 +72,8 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-configuration',
       'f03-product-scores',
       'f03-preview',
-      'f03-snapshot',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'profile'
     ]
   },
@@ -372,7 +371,7 @@ class AuthService {
               role: 'Merchandiser',
               department: 'Retail Merchandising Planner',
               defaultScreen: 'f03-configuration',
-              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot', 'f03-snapshot-detail', 'f03-snapshot-matrix', 'profile']
+              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix', 'profile']
             },
             'END_CUSTOMER': {
               role: 'End-Customer',
