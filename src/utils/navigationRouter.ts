@@ -1,6 +1,6 @@
 import { ActiveNavScreen } from '../types/mining';
 
-export const SCREEN_TO_PATH: Record<ActiveNavScreen, string> = {
+export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'login': '/login',
   'forgot-password': '/forgot-password',
   'register': '/register',
@@ -23,7 +23,6 @@ export const SCREEN_TO_PATH: Record<ActiveNavScreen, string> = {
   'f03-configuration': '/f03/configuration',
   'f03-product-scores': '/f03/product-scores',
   'f03-preview': '/f03/preview',
-  'f03-snapshot': '/f03/snapshot',
   'f03-snapshot-detail': '/f03/snapshot/detail',
   'f03-snapshot-matrix': '/f03/snapshot/matrix',
 

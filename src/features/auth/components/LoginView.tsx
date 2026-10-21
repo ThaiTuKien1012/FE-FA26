@@ -94,7 +94,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             const roleMap: Record<string, { role: any; department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
               SYSTEM_ADMIN: { role: 'System Admin', department: 'Platform Administration & System Engineering', defaultScreen: 'overview', allowedScreens: ['overview','setup','results','failure','benchmark','users','api-connections','profile'] },
               STORE_ADMIN: { role: 'Store Admin', department: 'Store Operations & Inventory', defaultScreen: 'store-inventory', allowedScreens: ['store-inventory','store-edit-product','store-categories','store-batches','profile'] },
-              MERCHANDISER: { role: 'Merchandiser', department: 'Retail Merchandising Planner', defaultScreen: 'f03-utility', allowedScreens: ['f03-utility','f03-configuration','f03-product-scores','f03-preview','f03-snapshot','profile'] },
+              MERCHANDISER: { role: 'Merchandiser', department: 'Retail Merchandising Planner', defaultScreen: 'f03-utility', allowedScreens: ['f03-utility','f03-configuration','f03-product-scores','f03-preview','profile'] },
               END_CUSTOMER: { role: 'End-Customer', department: 'Retail Loyalty Customer', defaultScreen: 'customer-storefront', allowedScreens: ['customer-storefront','profile'] }
             };
             const mapped = roleMap[me.roleCode] || roleMap.END_CUSTOMER;
