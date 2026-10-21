@@ -45,7 +45,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'store-categories',
       'store-batches',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f03-configuration', 'f03-product-scores',
       'profile'
     ]
   },
