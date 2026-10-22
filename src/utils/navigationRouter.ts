@@ -32,6 +32,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'store-categories': '/store/categories',
   'store-batches': '/store/batches',
   'f04-import-transactions': '/store/transactions/import',
+  'f04-import-history': '/store/transactions/history',
 
   // System Admin Screens
   'overview': '/admin/overview',

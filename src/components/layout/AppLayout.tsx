@@ -27,7 +27,8 @@ import {
   Settings,
   Filter,
   Search,
-  Upload
+  Upload,
+  History
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
 import { AuthUser } from '../../services/authService';
@@ -83,6 +84,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         : isMerchandiser 
           ? 'Senior Merchandiser' 
           : 'Customer Representative'
+  );
+
+  const importHistoryMenuItem = (
+    <li>
+      <button
+        onClick={() => onNavigate('f04-import-history')}
+        aria-current={currentScreen === 'f04-import-history' ? 'page' : undefined}
+        className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${currentScreen === 'f04-import-history' ? 'bg-[#1E3A2F] text-white font-medium' : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}
+      >
+        <History aria-hidden="true" className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f04-import-history' ? 'text-white' : 'text-[#707973]'}`} />
+        <span>Import History</span>
+      </button>
+    </li>
   );
 
   return (
@@ -227,6 +241,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       <span>Utility Planner</span>
                     </button>
                   </li>
+                  {importHistoryMenuItem}
                 </ul>
               </div>
             )}
@@ -293,6 +308,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       <span>Import Transactions</span>
                     </button>
                   </li>
+                  {importHistoryMenuItem}
                   <li>
                     <button
                       onClick={() => onNavigate('f03-product-scores')}

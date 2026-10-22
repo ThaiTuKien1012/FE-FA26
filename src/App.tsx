@@ -37,6 +37,7 @@ import { KeepLayoutAReviewView } from './features/merchandiser/components/KeepLa
 import { AccessRestrictedView } from './features/auth/components/AccessRestrictedView';
 import { F03WorkspaceView } from './features/f03/components/F03WorkspaceView';
 import { ImportTransactionsView } from './features/f04/components/ImportTransactionsView';
+import { ImportHistoryView } from './features/f04/components/ImportHistoryView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
@@ -231,6 +232,8 @@ export default function App() {
         return ['Store Admin', 'Inventory Batches'];
       case 'f04-import-transactions':
         return ['Store Admin', 'Import Transactions'];
+      case 'f04-import-history':
+        return [currentUser?.role === 'Merchandiser' ? 'Merchandiser' : 'Store Admin', 'Import History'];
 
       // F01 System Admin screens
       case 'overview':
@@ -414,6 +417,9 @@ export default function App() {
 
           {currentScreen === 'f04-import-transactions' && currentUser?.role === 'Store Admin' && (
             <ImportTransactionsView />
+          )}
+          {currentScreen === 'f04-import-history' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
+            <ImportHistoryView />
           )}
 
           {/* F01: Mining Overview */}
