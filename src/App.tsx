@@ -36,6 +36,7 @@ import { CompareABSimulationView } from './features/merchandiser/components/Comp
 import { KeepLayoutAReviewView } from './features/merchandiser/components/KeepLayoutAReviewView';
 import { AccessRestrictedView } from './features/auth/components/AccessRestrictedView';
 import { F03WorkspaceView } from './features/f03/components/F03WorkspaceView';
+import { ImportTransactionsView } from './features/f04/components/ImportTransactionsView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
@@ -228,6 +229,8 @@ export default function App() {
         return ['Store Admin', 'Category Management'];
       case 'store-batches':
         return ['Store Admin', 'Inventory Batches'];
+      case 'f04-import-transactions':
+        return ['Store Admin', 'Import Transactions'];
 
       // F01 System Admin screens
       case 'overview':
@@ -408,6 +411,10 @@ export default function App() {
 
           {/* F02: Store Admin - Inventory Batches */}
           {currentScreen === 'store-batches' && <StoreBatchesView onNavigate={handleNavigate} />}
+
+          {currentScreen === 'f04-import-transactions' && currentUser?.role === 'Store Admin' && (
+            <ImportTransactionsView />
+          )}
 
           {/* F01: Mining Overview */}
           {currentScreen === 'overview' && (

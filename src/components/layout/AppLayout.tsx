@@ -26,7 +26,8 @@ import {
   LayoutGrid,
   Settings,
   Filter,
-  Search
+  Search,
+  Upload
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
 import { AuthUser } from '../../services/authService';
@@ -276,6 +277,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     >
                       <ShoppingBag className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'store-batches' ? 'text-white' : 'text-[#707973]'}`} />
                       <span>Inventory Batches</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => onNavigate('f04-import-transactions')}
+                      aria-current={currentScreen === 'f04-import-transactions' ? 'page' : undefined}
+                      className={`w-full flex items-center px-3.5 py-2.5 text-sm rounded-xl transition-all text-left cursor-pointer ${
+                        currentScreen === 'f04-import-transactions'
+                          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
+                          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'
+                      }`}
+                    >
+                      <Upload className={`w-4 h-4 mr-3 shrink-0 ${currentScreen === 'f04-import-transactions' ? 'text-white' : 'text-[#707973]'}`} />
+                      <span>Import Transactions</span>
                     </button>
                   </li>
                   <li>

@@ -79,6 +79,7 @@ export type ActiveNavScreen =
   | 'store-edit-product' // F02 Store Admin: Edit Product Page
   | 'store-categories' // F02 Store Admin: Category Management
   | 'store-batches' // F02 Store Admin: Inventory Batch Management
+  | 'f04-import-transactions' // F04 Store Admin: CSV Transaction Import
   | 'login'           // Auth: Login Page
   | 'forgot-password' // Auth: Password reset
   | 'register'        // Auth: Registration Page
