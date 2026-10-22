@@ -46,6 +46,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'store-batches',
       'f04-import-transactions',
       'f04-import-history',
+      'f04-transactions',
       'f03-utility',
       'f03-configuration', 'f03-product-scores',
       'profile'
@@ -71,6 +72,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
       'f04-import-history',
+      'f04-transactions',
       'f03-configuration',
       'f03-product-scores',
       'f03-preview',
@@ -132,6 +134,12 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
     title: 'Import History',
+    allowedRoles: ['Store Admin', 'Merchandiser']
+  },
+  'f04-transactions': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Sales Transactions',
     allowedRoles: ['Store Admin', 'Merchandiser']
   },
 
@@ -378,13 +386,13 @@ class AuthService {
               role: 'Store Admin',
               department: 'Store Operations & Inventory',
               defaultScreen: 'store-inventory',
-              allowedScreens: ['store-inventory', 'store-edit-product', 'store-categories', 'store-batches', 'f04-import-transactions', 'f04-import-history', 'f03-configuration', 'f03-product-scores', 'profile']
+              allowedScreens: ['store-inventory', 'store-edit-product', 'store-categories', 'store-batches', 'f04-import-transactions', 'f04-import-history', 'f04-transactions', 'f03-configuration', 'f03-product-scores', 'profile']
             },
             'MERCHANDISER': {
               role: 'Merchandiser',
               department: 'Retail Merchandising Planner',
               defaultScreen: 'f03-configuration',
-              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix', 'f04-import-history', 'profile']
+              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix', 'f04-import-history', 'f04-transactions', 'profile']
             },
             'END_CUSTOMER': {
               role: 'End-Customer',

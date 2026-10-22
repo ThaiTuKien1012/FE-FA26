@@ -38,6 +38,7 @@ import { AccessRestrictedView } from './features/auth/components/AccessRestricte
 import { F03WorkspaceView } from './features/f03/components/F03WorkspaceView';
 import { ImportTransactionsView } from './features/f04/components/ImportTransactionsView';
 import { ImportHistoryView } from './features/f04/components/ImportHistoryView';
+import { SalesTransactionsView } from './features/f04/components/SalesTransactionsView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
@@ -234,6 +235,8 @@ export default function App() {
         return ['Store Admin', 'Import Transactions'];
       case 'f04-import-history':
         return [currentUser?.role === 'Merchandiser' ? 'Merchandiser' : 'Store Admin', 'Import History'];
+      case 'f04-transactions':
+        return [currentUser?.role === 'Merchandiser' ? 'Merchandiser' : 'Store Admin', 'Sales Transactions'];
 
       // F01 System Admin screens
       case 'overview':
@@ -258,7 +261,7 @@ export default function App() {
   };
 
   // 1. If currently on Login screen, render LoginView standalone full-screen
-  if (currentScreen === 'login') {
+  if (currentScreen === 'login' || (currentScreen === 'f04-transactions' && !currentUser)) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -420,6 +423,9 @@ export default function App() {
           )}
           {currentScreen === 'f04-import-history' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
             <ImportHistoryView />
+          )}
+          {currentScreen === 'f04-transactions' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
+            <SalesTransactionsView />
           )}
 
           {/* F01: Mining Overview */}
