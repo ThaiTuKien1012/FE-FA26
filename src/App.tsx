@@ -226,7 +226,7 @@ export default function App() {
       case 'store-inventory':
         return [];
       case 'store-edit-product':
-        return ['Products & Inventory', 'Edit Product'];
+        return ['Product Management', 'Edit Product'];
       case 'store-categories':
         return ['Store Admin', 'Category Management'];
       case 'store-batches':

@@ -103,7 +103,7 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   'store-inventory': {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
-    title: 'Products & Inventory',
+    title: 'Product Management',
     allowedRoles: ['Store Admin']
   },
   'store-edit-product': {
