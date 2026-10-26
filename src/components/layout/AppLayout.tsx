@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Package, BarChart3, Bell, SlidersHorizontal, LogOut, ShoppingBag, Users, Zap,
-  Layers, LayoutGrid, Settings, Search, Upload, History, ReceiptText,
+  Layers, LayoutGrid, Settings, Upload, History, ReceiptText,
   type LucideIcon
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
@@ -23,8 +23,8 @@ interface AppLayoutProps {
 function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section aria-label={title}>
-      <div className="mb-2 rounded-md border-l-[3px] border-l-[#66A48B] bg-[#ECF4EF] px-3 py-2">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] leading-4 text-[#315846]">{title}</h3>
+      <div className="mb-2 rounded-md border-0 bg-[#EDF5F0] px-3 py-2">
+        <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] leading-4 text-[#1E3A2F]">{title}</h3>
       </div>
       <ul className="space-y-1" role="list">{children}</ul>
     </section>
@@ -46,11 +46,11 @@ function SidebarItem({ screen, label, icon: Icon, active, onNavigate }: SidebarI
         type="button"
         onClick={() => onNavigate(screen)}
         aria-current={active ? 'page' : undefined}
-        className={`w-full min-w-0 h-11 flex items-center px-3.5 text-sm rounded-xl transition-all text-left cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1E3A2F] ${active
-          ? 'bg-[#1E3A2F] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)]'
-          : 'text-[#57534E] hover:bg-[#F5ECE8] hover:text-[#191C1B]'}`}
+        className={`w-full min-w-0 h-11 flex items-center px-3.5 text-sm rounded-xl border-0 transition-all text-left cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1E3A2F] ${active
+          ? 'bg-[#356B54] text-white font-medium shadow-[0_1px_3px_rgba(41,37,36,0.08)] hover:bg-[#2D604A]'
+          : 'bg-transparent text-[#57534E] hover:bg-[#F3F7F4] hover:text-[#1E3A2F]'}`}
       >
-        <Icon aria-hidden="true" className={`w-4 h-4 mr-3 shrink-0 ${active ? 'text-white' : 'text-[#707973]'}`} />
+        <Icon aria-hidden="true" className={`w-4 h-4 mr-3 shrink-0 ${active ? 'text-white' : 'text-[#7A827D]'}`} />
         <span className="min-w-0">{label}</span>
       </button>
     </li>
@@ -66,8 +66,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onSwitchRole,
   children
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-
   const role = currentUser?.role || 'Store Admin';
   const isSystemAdmin = role === 'System Admin';
   const isStoreAdmin = role === 'Store Admin';
@@ -103,7 +101,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       <aside className="w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]" data-purpose="sidebar">
         <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)]">
           {/* Brand Header: HUPM Synchronized 4-Tile Logo */}
-          <div className="p-5 border-b border-[#E7E2D8] flex items-center space-x-3.5" data-purpose="brand-logo">
+          <div className="p-5 md:h-20 md:py-0 border-b border-[#E7E2D8] flex items-center space-x-3.5" data-purpose="brand-logo">
             <div className="shrink-0 flex items-center justify-center">
               <AppLogo className="w-11 h-11" />
             </div>
@@ -221,41 +219,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top Header - Sticky at top */}
-        <header className="h-16 px-6 md:px-8 border-b border-[#E7E2D8] bg-[#FAF8F5]/98 backdrop-blur-md flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-[0_1px_4px_rgba(41,37,36,0.04)] transition-all" data-purpose="top-navigation-bar">
+        <header className="h-16 md:h-20 px-6 md:px-8 border-b border-[#E7E2D8] bg-[#FAF8F5]/98 backdrop-blur-md flex items-center justify-between gap-4 shrink-0 sticky top-0 z-20 shadow-[0_1px_4px_rgba(41,37,36,0.04)] transition-all" data-purpose="top-navigation-bar">
           {/* Left: Dynamic Time Greeting + User Name + Role Title */}
-          <div className="flex flex-col justify-center min-w-0">
+          <div className="flex flex-1 flex-col justify-center min-w-0">
             <h2 className="text-sm sm:text-base font-bold text-[#191C1B] tracking-tight leading-tight flex items-center gap-1.5 truncate">
               <span>{getGreeting()}, {firstName}!</span>
             </h2>
             <span className="text-[11px] font-medium text-[#707973] truncate leading-tight mt-0.5">
               {displayRole}
             </span>
-          </div>
-
-          {/* Center: Quick Search Bar */}
-          <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-3 sm:mx-6 hidden sm:block">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-9 pl-3.5 pr-9 text-xs bg-white text-[#191C1B] border border-[#E7E2D8] rounded-xl focus:outline-none focus:border-[#1E3A2F] focus:ring-1 focus:ring-[#1E3A2F]/20 transition-all placeholder:text-[#8C857B] shadow-2xs font-normal"
-              />
-              {searchQuery ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute inset-y-0 right-3 flex items-center text-[#8C857B] hover:text-[#191C1B] cursor-pointer text-xs"
-                >
-                  ✕
-                </button>
-              ) : (
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#8C857B]">
-                  <Search className="w-3.5 h-3.5" />
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Top Right Controls */}
