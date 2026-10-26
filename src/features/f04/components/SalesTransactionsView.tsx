@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, ListFilter, Loader2, ReceiptText, RefreshCw, Undo2, X, XCircle } from 'lucide-react';
+import { AlertCircle, ChevronLeft, ChevronRight, Eye, ListFilter, Loader2, ReceiptText, RefreshCw, X } from 'lucide-react';
 import { F04ApiError, f04Api } from '../f04.api';
 import type { F04Page, TransactionFilters, TransactionStatus, TransactionView } from '../f04.types';
 import './SalesTransactionsView.css';
@@ -10,10 +10,10 @@ const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const moneyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 2 });
 const dateFormatter = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: TIME_ZONE });
 const statusStyles = {
-  COMPLETED: { label: 'Completed', tone: 'success', Icon: CheckCircle2 },
-  CANCELLED: { label: 'Cancelled', tone: 'neutral', Icon: XCircle },
-  REFUNDED: { label: 'Refunded', tone: 'warning', Icon: Undo2 },
-  PARTIAL_REFUND: { label: 'Partial Refund', tone: 'info', Icon: CircleDashed }
+  COMPLETED: { label: 'Completed', tone: 'success' },
+  CANCELLED: { label: 'Cancelled', tone: 'neutral' },
+  REFUNDED: { label: 'Refunded', tone: 'warning' },
+  PARTIAL_REFUND: { label: 'Partial Refund', tone: 'info' }
 };
 
 interface FilterSelection {
@@ -74,13 +74,13 @@ function requestErrorMessage(error: unknown): string {
 }
 
 function StatusBadge({ status }: { status: TransactionStatus }) {
-  const { label, tone, Icon } = statusStyles[status];
-  return <span className={`f04s-badge f04s-tone--${tone}`} title={status}><Icon size={14} aria-hidden="true" />{label}</span>;
+  const { label, tone } = statusStyles[status];
+  return <span className={`f04s-badge f04s-tone--${tone}`} title={status}>{label}</span>;
 }
 
 function EligibilityBadge({ eligible }: { eligible: boolean }) {
   return <span className={`f04s-badge f04s-tone--${eligible ? 'success' : 'neutral'}`}>
-    {eligible && <CheckCircle2 size={14} aria-hidden="true" />}{eligible ? 'Eligible' : 'Not Eligible'}
+    {eligible ? 'Eligible' : 'Not Eligible'}
   </span>;
 }
 
@@ -173,14 +173,13 @@ function TransactionDetails({ transactionId, opener, onClose }: { transactionId:
     <div className="f04s-dialog-body">
       {!current ? <Loading label="Loading transaction details..." /> : current.error ? <RequestError message={current.error} retry={() => setRevision(value => value + 1)} /> : transaction && <>
         <section className="f04s-overview" aria-label="Transaction information">
-          <div className="f04s-overview-heading"><div><p className="f04s-field-label">Source order ID</p><h3>{transaction.sourceOrderId}</h3><StatusBadge status={transaction.status} /></div><div className="f04s-total"><p className="f04s-field-label">Total amount</p><p>{formatMoney(transaction.totalAmount)}</p></div></div>
+          <div className="f04s-overview-heading"><div><p className="f04s-field-label">Source order ID</p><div className="f04s-order-title"><h3>{transaction.sourceOrderId}</h3><StatusBadge status={transaction.status} /></div></div><div className="f04s-total"><p className="f04s-field-label">Total amount</p><p>{formatMoney(transaction.totalAmount)}</p></div></div>
           <dl className="f04s-metadata">
             <div><dt>Transaction ID</dt><dd>#{transaction.transactionId}</dd></div>
             <div><dt>Source system</dt><dd>{transaction.sourceSystem}</dd></div>
             <div><dt>Occurred at</dt><dd><time dateTime={transaction.occurredAt}>{formatDate(transaction.occurredAt)}</time><span className="f04s-timezone">{TIME_ZONE} (browser)</span></dd></div>
-            <div><dt>F03 Eligible</dt><dd><EligibilityBadge eligible={transaction.f03Eligible} /></dd></div>
+            <div><dt>F03 Eligible</dt><dd><EligibilityBadge eligible={transaction.f03Eligible} /><p className="f04s-eligibility-note">Eligible sales can source F03 utility processing.</p></dd></div>
           </dl>
-          <p className="f04s-eligibility-note">Eligible transactions can be used as a source for F03 utility processing.</p>
         </section>
         <section className="f04s-products" aria-labelledby="f04s-products-title"><div className="f04s-section-heading"><h3 id="f04s-products-title">Products</h3><p>Prices and costs reflect recorded transaction values.</p></div>
           {transaction.items.length === 0 ? <div className="f04s-empty" role="status"><ReceiptText size={26} aria-hidden="true" /><p>No product lines are available for this transaction.</p></div> : <div className="f04s-table-scroll" tabIndex={0} role="region" aria-label="Transaction product lines; scroll horizontally to see all columns">
@@ -241,7 +240,7 @@ export function SalesTransactionsView() {
       {loading ? <Loading label="Loading sales transactions..." /> : error ? <RequestError message={error} retry={refresh} /> : data && <>
         {data.content.length === 0 ? <div className="f04s-empty" role="status"><ReceiptText size={32} aria-hidden="true" /><h3>{hasFilters ? 'No matching transactions' : 'No transactions yet'}</h3><p>{hasFilters ? 'Try another status or date range, or clear your filters.' : "Recorded sales for your store will appear here."}</p>{hasFilters && <button type="button" className="f04s-button" onClick={clearFilters}>Clear Filters</button>}</div> : <div className="f04s-table-scroll" tabIndex={0} role="region" aria-label="Sales transactions; scroll horizontally to see all columns">
           <table className="f04s-table f04s-transactions-table"><thead><tr><th scope="col">Transaction ID</th><th scope="col">Source order ID</th><th scope="col">Occurred at</th><th scope="col">Source system</th><th scope="col">Transaction status</th><th scope="col" className="f04s-number">Total amount</th><th scope="col">F03 Eligible</th><th scope="col">Action</th></tr></thead>
-            <tbody>{data.content.map(transaction => <tr key={transaction.transactionId}><th scope="row">#{transaction.transactionId}</th><td className="f04s-order-id">{transaction.sourceOrderId}</td><td className="f04s-date"><time dateTime={transaction.occurredAt}>{formatDate(transaction.occurredAt)}</time></td><td className="f04s-source">{transaction.sourceSystem}</td><td><StatusBadge status={transaction.status} /></td><td className="f04s-number f04s-money">{formatMoney(transaction.totalAmount)}</td><td><EligibilityBadge eligible={transaction.f03Eligible} /></td><td><button type="button" className="f04s-text-button" aria-haspopup="dialog" aria-label={`View details for transaction ${transaction.transactionId}`} onClick={event => { openerRef.current = event.currentTarget; setSelectedId(transaction.transactionId); }}>View Details</button></td></tr>)}</tbody>
+            <tbody>{data.content.map(transaction => <tr key={transaction.transactionId}><th scope="row">#{transaction.transactionId}</th><td className="f04s-order-id">{transaction.sourceOrderId}</td><td className="f04s-date"><time dateTime={transaction.occurredAt}>{formatDate(transaction.occurredAt)}</time></td><td className="f04s-source">{transaction.sourceSystem}</td><td><StatusBadge status={transaction.status} /></td><td className="f04s-number f04s-money">{formatMoney(transaction.totalAmount)}</td><td><EligibilityBadge eligible={transaction.f03Eligible} /></td><td><button type="button" className="f04s-details-button" aria-haspopup="dialog" aria-label={`View details for transaction ${transaction.transactionId}`} onClick={event => { openerRef.current = event.currentTarget; setSelectedId(transaction.transactionId); }}><Eye size={14} aria-hidden="true" />View Details</button></td></tr>)}</tbody>
           </table>
         </div>}
         <Pagination data={data} onPage={page => { listHeadingRef.current?.focus({ preventScroll: true }); setPage(page); }} />

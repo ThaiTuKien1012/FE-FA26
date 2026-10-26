@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, FileClock, FileText, Loader2, RefreshCw, X, XCircle } from 'lucide-react';
+import { AlertCircle, ChevronLeft, ChevronRight, Eye, FileClock, FileText, Loader2, RefreshCw, X } from 'lucide-react';
 import { F04ApiError, f04Api } from '../f04.api';
 import type { F04Page, ImportStatus, ImportSummary } from '../f04.types';
 import './ImportHistoryView.css';
 
 const PAGE_SIZE = 20;
 const statusStyles = {
-  COMPLETED: { label: 'Completed', tone: 'success', Icon: CheckCircle2 },
-  COMPLETED_WITH_ERRORS: { label: 'Completed with errors', tone: 'warning', Icon: AlertTriangle },
-  FAILED: { label: 'Failed', tone: 'danger', Icon: XCircle },
-  PROCESSING: { label: 'Processing', tone: 'info', Icon: Loader2 }
+  COMPLETED: { label: 'Completed', tone: 'success' },
+  COMPLETED_WITH_ERRORS: { label: 'Completed with errors', tone: 'warning' },
+  FAILED: { label: 'Failed', tone: 'danger' },
+  PROCESSING: { label: 'Processing', tone: 'info' }
 };
 
 function StatusBadge({ status }: { status: ImportStatus }) {
-  const { label, tone, Icon } = statusStyles[status];
-  return <span className={`f04h-badge f04h-tone--${tone}`} title={status}><Icon size={14} aria-hidden="true" />{label}</span>;
+  const { label, tone } = statusStyles[status];
+  return <span className={`f04h-badge f04h-tone--${tone}`} title={status}>{label}</span>;
 }
 
 function skippedExisting(summary: ImportSummary) {
@@ -130,7 +130,7 @@ function ImportErrors({ batchId }: { batchId: number }) {
 function Metrics({ title, description, values }: { title: string; description: string; values: { label: string; value: number; tone?: string }[] }) {
   return <section className="f04h-detail-section" aria-label={title}>
     <div className="f04h-section-heading"><div><h3>{title}</h3><p>{description}</p></div></div>
-    <dl className="f04h-metrics">{values.map(metric => <div key={metric.label} className={`f04h-metric f04h-tone--${metric.tone || 'neutral'}`}>
+    <dl className="f04h-metrics">{values.map(metric => <div key={metric.label} className={`f04h-metric f04h-tone--${metric.value === 0 ? 'neutral' : metric.tone || 'neutral'}`}>
       <dt>{metric.label}</dt><dd>{metric.value.toLocaleString()}</dd>
     </div>)}</dl>
   </section>;
@@ -175,19 +175,19 @@ function ImportDetails({ batchId, onClose }: { batchId: number; onClose: () => v
     <div className="f04h-dialog-body">
       {!current ? <Loading label="Loading import details..." /> : current.error ? <RequestError message={current.error} retry={() => setRevision(value => value + 1)} /> : summary && <>
         <section className="f04h-batch-overview" aria-label="Batch information">
-          <div className="f04h-file-heading"><span className="f04h-file-icon"><FileText size={22} aria-hidden="true" /></span><div><h3>{summary.filename ?? 'Unnamed CSV file'}</h3><StatusBadge status={summary.status} />{skippedExisting(summary) && <p className="f04h-skipped">Existing orders skipped</p>}</div></div>
+          <div className="f04h-file-heading"><span className="f04h-file-icon"><FileText size={18} aria-hidden="true" /></span><div><div className="f04h-file-title"><h3>{summary.filename ?? 'Unnamed CSV file'}</h3><StatusBadge status={summary.status} /></div>{skippedExisting(summary) && <p className="f04h-skipped">Existing orders skipped</p>}</div></div>
           <dl className="f04h-metadata"><div><dt>Batch ID</dt><dd>#{summary.importBatchId}</dd></div><div><dt>Started at</dt><dd><time dateTime={summary.startedAt}>{formatDate(summary.startedAt)}</time></dd></div><div><dt>Finished at</dt><dd>{summary.finishedAt ? <time dateTime={summary.finishedAt}>{formatDate(summary.finishedAt)}</time> : '—'}</dd></div></dl>
           <p className="f04h-time-note">Times shown in your local time zone.</p>
           {summary.errorSummary && <div className={`f04h-summary-note f04h-tone--${summary.status === 'FAILED' ? 'danger' : 'warning'}`}><AlertCircle size={17} aria-hidden="true" /><div><h4>Error summary</h4><p>{summary.errorSummary}</p></div></div>}
         </section>
-        <Metrics title="Orders" description="Orders are grouped by source_order_id. Duplicates are existing orders skipped without changes." values={[
+        <Metrics title="Orders" description="Orders grouped by source_order_id; duplicates are skipped." values={[
           { label: 'Total orders', value: summary.totalOrderCount },
           { label: 'Accepted orders', value: summary.acceptedOrderCount, tone: 'success' },
           { label: 'Duplicate orders', value: summary.duplicateOrderCount, tone: 'info' },
           { label: 'Rejected orders', value: summary.rejectedOrderCount, tone: 'danger' },
           { label: 'Conflict orders', value: summary.conflictOrderCount, tone: 'warning' }
         ]} />
-        <Metrics title="CSV rows" description="Each row represents a product within an order. One order may include several rows." values={[
+        <Metrics title="CSV rows" description="Product rows; one order can contain several rows." values={[
           { label: 'Total rows', value: summary.totalCount },
           { label: 'Valid rows', value: summary.validCount, tone: 'success' },
           { label: 'Rejected rows', value: summary.rejectedCount, tone: 'danger' }
@@ -218,7 +218,7 @@ export function ImportHistoryView() {
               <th scope="row">#{batch.importBatchId}</th><td className="f04h-filename">{batch.filename ?? '—'}</td><td className="f04h-date"><time dateTime={batch.startedAt}>{formatDate(batch.startedAt)}</time></td>
               <td><StatusBadge status={batch.status} />{skippedExisting(batch) && <p className="f04h-skipped">Existing orders skipped</p>}</td>
               <td className="f04h-number">{batch.acceptedOrderCount.toLocaleString()}</td><td className="f04h-number">{batch.duplicateOrderCount.toLocaleString()}</td><td className="f04h-number">{batch.rejectedOrderCount.toLocaleString()}</td><td className="f04h-number">{batch.conflictOrderCount.toLocaleString()}</td>
-              <td><button type="button" className="f04h-text-button" aria-label={`View details for batch ${batch.importBatchId}`} aria-haspopup="dialog" onClick={() => setSelectedBatch(batch.importBatchId)}>View Details</button></td>
+              <td><button type="button" className="f04h-details-button" aria-label={`View details for batch ${batch.importBatchId}`} aria-haspopup="dialog" onClick={() => setSelectedBatch(batch.importBatchId)}><Eye size={14} aria-hidden="true" />View Details</button></td>
             </tr>)}</tbody></table>
           </div>
           <Pagination data={data} onPage={setPage} label="Import history" />
