@@ -121,6 +121,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <>
                 <SidebarSection title="PRODUCT ANALYTICS">
                   <SidebarItem screen="f03-utility" label="Utility Planner" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
+                  <SidebarItem screen="f05-mining" label="High Utility Mining" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                 </SidebarSection>
                 <SidebarSection title="TRANSACTION REVIEW">
                   <SidebarItem screen="f04-import-history" label="Import History" icon={History} active={currentScreen === 'f04-import-history'} onNavigate={onNavigate} />
@@ -143,6 +144,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 </SidebarSection>
                 <SidebarSection title="PRODUCT ANALYTICS">
                   <SidebarItem screen="f03-product-scores" label="Product Scores" icon={SlidersHorizontal} active={currentScreen === 'f03-product-scores'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f05-mining" label="Mining Results" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
             )}
@@ -247,6 +249,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Viewport Content Container */}
         <main className="flex-1 p-5 md:p-8 max-w-7xl w-full mx-auto pb-16">
+          {currentScreen === 'f05-mining' && (
+            <nav aria-label="Breadcrumb" className="mb-5 text-sm text-[#707973]">
+              <ol className="flex flex-wrap items-center gap-2">
+                {breadcrumbs.map((label, index) => (
+                  <li key={label} className="flex items-center gap-2">
+                    {index > 0 && <span aria-hidden="true">/</span>}
+                    <span aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}>{label}</span>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
           {children}
         </main>
       </div>
