@@ -1,6 +1,6 @@
 import { authService } from '../../services/authService';
 import { F05NumberError, parseMinUtilInput, parseSafeMiningJson } from './f05.numbers';
-import { isRequestView, isRunView } from './f05.read-contracts';
+import { isBenchmarkView, isPatternView, isRequestView, isRunView } from './f05.read-contracts';
 import type {
   BenchmarkView,
   CreateRequest,
@@ -165,9 +165,22 @@ export const f05Api = {
     return result;
   },
 
-  listPatterns: async (runId: number, page = 0, pageSize = 20): Promise<Page<PatternView>> =>
-    request<Page<PatternView>>(`/runs/${identifier(runId)}/patterns?${pagination(page, pageSize)}`),
+  listPatterns: async (runId: number, page = 0, pageSize = 20, signal?: AbortSignal): Promise<Page<PatternView>> => {
+    const result = await request<Page<PatternView>>(`/runs/${identifier(runId)}/patterns?${pagination(page, pageSize)}`, { signal });
+    if (!result || !Array.isArray(result.items) || result.page !== page || result.pageSize !== pageSize ||
+        !Number.isSafeInteger(result.totalElements) || result.totalElements < 0 || result.items.length > pageSize ||
+        !result.items.every(item => isPatternView(item) && item.runId === runId) ||
+        new Set(result.items.map(item => item.patternId)).size !== result.items.length) {
+      throw new F05ApiError(200, 'The server returned an invalid or mismatched pattern page. No patterns were displayed.');
+    }
+    return result;
+  },
 
-  getBenchmark: async (runId: number): Promise<BenchmarkView> =>
-    request<BenchmarkView>(`/runs/${identifier(runId)}/benchmark`)
+  getBenchmark: async (runId: number, signal?: AbortSignal): Promise<BenchmarkView> => {
+    const result = await request<BenchmarkView>(`/runs/${identifier(runId)}/benchmark`, { signal });
+    if (!isBenchmarkView(result) || result.run.runId !== runId) {
+      throw new F05ApiError(200, 'The server returned invalid or mismatched benchmark data. No measurements were displayed.');
+    }
+    return result;
+  }
 };

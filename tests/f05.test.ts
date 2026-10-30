@@ -8,10 +8,13 @@ import type { AuthUser } from '../src/services/authService';
 import { f05Api, F05ApiError } from '../src/features/f05/f05.api';
 import { F05NumberError, parseMiningId, parseMinUtilInput, parseSafeMiningJson } from '../src/features/f05/f05.numbers';
 import { clearPendingSubmission, readPendingSubmission, sendSubmission } from '../src/features/f05/f05.submission';
-import type { CreateRequest, RequestStatus, RequestView, RunView } from '../src/features/f05/f05.types';
+import type { BenchmarkView, CreateRequest, PatternView, RequestStatus, RequestView, RunView } from '../src/features/f05/f05.types';
 import { watchMiningRequest } from '../src/features/f05/f05.progress';
 import type { MiningProgress } from '../src/features/f05/f05.progress';
 import { F05WorkspaceView } from '../src/features/f05/components/F05WorkspaceView';
+import { MiningPatternsView } from '../src/features/f05/components/MiningPatternsView';
+import { MiningBenchmarkView } from '../src/features/f05/components/MiningBenchmarkView';
+import { assertBenchmarkContext, assessBenchmarkComparison, COLD_RUN_POLICY, HEAP_METHOD, WALL_TIME_METHOD } from '../src/features/f05/f05.results';
 
 // Test fixtures only. These responses are never imported by the application.
 class MemoryStorage implements Storage {
@@ -200,6 +203,160 @@ test('F05 numeric safety, HTTP boundary and idempotent submission', async t => {
     storage.setItem('paspm:f05:pending:f05-test', '{invalid');
     assert.throws(() => readPendingSubmission(user.id));
     assert.equal(storage.getItem('paspm:f05:pending:f05-test'), '{invalid');
+  });
+});
+
+function benchmarkFixture(algorithm: RunView['algorithm'] = 'HUI_MINER'): BenchmarkView {
+  const request = requestFixture(17, 'COMPLETED');
+  return {
+    run: { ...runFixture(), runId: algorithm === 'HUI_MINER' ? 42 : 43, algorithm, status: 'COMPLETED', runtimeMillis: 0, memoryMiB: 12.5, patternCount: 0, environment: 'test Java environment', memoryMethod: HEAP_METHOD, runtimeMethod: WALL_TIME_METHOD },
+    snapshotHash: request.snapshotHash, transactionCount: request.transactionCount, distinctItems: request.distinctItems,
+    inputBytes: request.inputBytes, divisor: request.divisor, utilityScale: request.utilityScale,
+    effectiveMinUtility: request.effectiveMinUtility, comparisonStatus: 'MATCH', repetitionPolicy: COLD_RUN_POLICY
+  };
+}
+
+const patternFixture = (patternId = 91): PatternView => ({ patternId, runId: 42, productIds: [7, 2], utility: 12.123456, utilitySpmf: 12, patternSize: 2, supportCount: null });
+
+test('F05 Step 5 patterns and measured benchmark', async t => {
+  t.mock.method(authService, 'getToken', () => 'step5-test-jwt');
+  const request = { ...requestFixture(17, 'COMPLETED'), comparisonStatus: 'MATCH' as const };
+
+  await t.test('patterns preserve product IDs, backend row order, nullable support and numeric utility across pages', async st => {
+    const urls: string[] = [];
+    st.mock.method(globalThis, 'fetch', async (url: RequestInfo | URL, init?: RequestInit) => {
+      urls.push(String(url));
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer step5-test-jwt');
+      assert.equal(new Headers(init?.headers).get('Content-Type'), null);
+      assert.equal(init?.method, undefined);
+      const query = new URL(String(url), 'http://test').searchParams;
+      assert.deepEqual([...query.keys()], ['page', 'pageSize']);
+      const page = Number(query.get('page')); const pageSize = Number(query.get('pageSize'));
+      return Response.json({ items: page === 0 ? [patternFixture(99), patternFixture(91)] : [patternFixture(80)], page, pageSize, totalElements: 21 });
+    });
+    const first = await f05Api.listPatterns(42);
+    assert.deepEqual(first.items.map(item => item.patternId), [99, 91]);
+    assert.deepEqual(first.items[0].productIds, [7, 2]);
+    assert.equal(first.items[0].utility, 12.123456); assert.equal(first.items[0].supportCount, null);
+    await f05Api.listPatterns(42, 1, 20); await f05Api.listPatterns(42, 0, 50);
+    assert.deepEqual(urls, ['/api/mining/runs/42/patterns?page=0&pageSize=20', '/api/mining/runs/42/patterns?page=1&pageSize=20', '/api/mining/runs/42/patterns?page=0&pageSize=50']);
+  });
+
+  await t.test('completed zero-pattern output is valid, not a failed run or invented result', async st => {
+    st.mock.method(globalThis, 'fetch', async () => Response.json({ items: [], page: 0, pageSize: 20, totalElements: 0 }));
+    const result = await f05Api.listPatterns(42);
+    assert.deepEqual(result.items, []); assert.equal(result.totalElements, 0);
+  });
+
+  await t.test('mismatched/invalid patterns and unsafe raw int64 or decimal values are rejected', async st => {
+    for (const item of [
+      { ...patternFixture(), runId: 43 }, { ...patternFixture(), patternId: 0 },
+      { ...patternFixture(), productIds: [2, 2] }, { ...patternFixture(), productIds: [0, 2] },
+      { ...patternFixture(), patternSize: 3 }, { ...patternFixture(), utility: -1 },
+      { ...patternFixture(), supportCount: -1 }, { ...patternFixture(), supportCount: undefined }
+    ]) {
+      const stub = st.mock.method(globalThis, 'fetch', async () => Response.json({ items: [item], page: 0, pageSize: 20, totalElements: 1 }));
+      await assert.rejects(f05Api.listPatterns(42), hasStatus(200)); stub.mock.restore();
+    }
+    for (const body of [
+      JSON.stringify({ items: [patternFixture()], page: 1, pageSize: 20, totalElements: 1 }),
+      JSON.stringify({ items: [patternFixture(), patternFixture()], page: 0, pageSize: 20, totalElements: 2 }),
+      JSON.stringify({ items: [patternFixture()], page: 0, pageSize: 20, totalElements: 1 }).replace('"patternId":91', '"patternId":9007199254740993'),
+      JSON.stringify({ items: [patternFixture()], page: 0, pageSize: 20, totalElements: 1 }).replace('12.123456', '1234567890123.123456')
+    ]) {
+      const stub = st.mock.method(globalThis, 'fetch', async () => new Response(body));
+      await assert.rejects(f05Api.listPatterns(42), hasStatus(200)); stub.mock.restore();
+    }
+  });
+
+  await t.test('benchmark reads actual run metrics/provenance and preserves null, zero and statuses', async st => {
+    let current = benchmarkFixture();
+    st.mock.method(globalThis, 'fetch', async (url: RequestInfo | URL) => { assert.equal(url, '/api/mining/runs/42/benchmark'); return Response.json(current); });
+    const result = await f05Api.getBenchmark(42);
+    assert.equal(result.run.runtimeMillis, 0); assert.equal(result.run.patternCount, 0); assert.equal(result.comparisonStatus, 'MATCH');
+    for (const comparisonStatus of ['NOT_REQUESTED', 'PENDING', 'MATCH', 'FAILED', 'BLOCKED'] as const) {
+      current = { ...benchmarkFixture(), comparisonStatus, run: { ...benchmarkFixture().run, runtimeMillis: null, memoryMiB: null, patternCount: null } };
+      const row = await f05Api.getBenchmark(42);
+      assert.equal(row.comparisonStatus, comparisonStatus);
+      assert.equal(row.run.runtimeMillis, null); assert.equal(row.run.memoryMiB, null); assert.equal(row.run.patternCount, null);
+    }
+  });
+
+  await t.test('only compatible MATCH benchmarks allow comparison; no ranking is invented', () => {
+    const rows = [benchmarkFixture(), benchmarkFixture('EFIM')];
+    rows.forEach(row => assertBenchmarkContext(row, request, row.run));
+    assert.equal(assessBenchmarkComparison(request, rows).comparable, true);
+    for (const comparisonStatus of ['NOT_REQUESTED', 'PENDING', 'FAILED', 'BLOCKED'] as const) {
+      assert.equal(assessBenchmarkComparison({ ...request, comparisonStatus }, rows).comparable, false);
+      assert.equal(assessBenchmarkComparison(request, [{ ...rows[0], comparisonStatus }, rows[1]]).comparable, false);
+    }
+    const single = assessBenchmarkComparison({ ...request, algorithms: ['HUI_MINER'], comparisonStatus: 'NOT_REQUESTED' }, [rows[0]]);
+    assert.equal(single.comparable, false); assert.match(single.message, /NOT_REQUESTED/);
+    assert.equal(assessBenchmarkComparison({ ...request, status: 'FAILED' }, rows).comparable, false);
+    assert.equal(assessBenchmarkComparison(request, [rows[0]]).comparable, false);
+    for (const patch of [
+      { environment: null }, { environment: 'other host' }, { inputHash: 'other input' }, { minUtilSpmf: 2 },
+      { conversionVersion: 'other conversion' }, { libraryVersion: 'other library' }, { attemptNo: 2 },
+      { memoryMethod: 'RSS' }, { runtimeMethod: 'other timer' }, { runtimeMillis: null }, { memoryMiB: null },
+      { patternCount: null }, { status: 'TIMED_OUT' as const }
+    ]) {
+      assert.equal(assessBenchmarkComparison(request, [rows[0], { ...rows[1], run: { ...rows[1].run, ...patch } }]).comparable, false, JSON.stringify(patch));
+    }
+    for (const patch of [ { snapshotHash: 'other snapshot' }, { divisor: 2 }, { utilityScale: 5 }, { effectiveMinUtility: 2 }, { repetitionPolicy: 'UNKNOWN' } ]) {
+      assert.equal(assessBenchmarkComparison(request, [rows[0], { ...rows[1], ...patch }]).comparable, false);
+    }
+  });
+
+  await t.test('benchmark schema/context reject wrong IDs, store, counts, methodology and unsafe data', async st => {
+    const valid = benchmarkFixture();
+    for (const bad of [
+      { ...valid, run: { ...valid.run, runId: 43 } }, { ...valid, run: { ...valid.run, runtimeMillis: -1 } },
+      { ...valid, run: { ...valid.run, memoryMiB: -1 } }, { ...valid, run: { ...valid.run, patternCount: -1 } },
+      { ...valid, comparisonStatus: 'COMPLETED' }, { ...valid, transactionCount: -1 }, { ...valid, divisor: 0 },
+      { ...valid, repetitionPolicy: null }
+    ]) {
+      const stub = st.mock.method(globalThis, 'fetch', async () => Response.json(bad));
+      await assert.rejects(f05Api.getBenchmark(42), hasStatus(200)); stub.mock.restore();
+    }
+    assert.throws(() => assertBenchmarkContext({ ...valid, run: { ...valid.run, storeId: 2 } }, request, valid.run), F05ApiError);
+    assert.throws(() => assertBenchmarkContext({ ...valid, inputBytes: 31 }, request, valid.run), F05ApiError);
+    assert.throws(() => assertBenchmarkContext({ ...valid, run: { ...valid.run, algorithm: 'EFIM' } }, request, valid.run), F05ApiError);
+    st.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(valid).replace('"divisor":1', '"divisor":9007199254740993')));
+    await assert.rejects(f05Api.getBenchmark(42), hasStatus(200));
+  });
+
+  await t.test('GET result errors retain HTTP status and no POST is used', async st => {
+    for (const status of [401, 403, 404, 500, 503]) {
+      const stub = st.mock.method(globalThis, 'fetch', async (_url: RequestInfo | URL, init?: RequestInit) => { assert.equal(init?.method, undefined); return new Response('', { status }); });
+      await assert.rejects(f05Api.listPatterns(42), hasStatus(status)); await assert.rejects(f05Api.getBenchmark(42), hasStatus(status));
+      stub.mock.restore();
+    }
+    st.mock.method(globalThis, 'fetch', async () => { throw new TypeError('offline'); });
+    await assert.rejects(f05Api.listPatterns(42), hasStatus(null)); await assert.rejects(f05Api.getBenchmark(42), hasStatus(null));
+  });
+
+  await t.test('result reads propagate abort signals for run/view changes and unmount', async st => {
+    const controller = new AbortController();
+    st.mock.method(globalThis, 'fetch', (_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      assert.equal(init?.signal, controller.signal);
+      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
+    }));
+    const patterns = f05Api.listPatterns(42, 0, 20, controller.signal);
+    const benchmark = f05Api.getBenchmark(42, controller.signal);
+    controller.abort();
+    await assert.rejects(patterns, error => error instanceof DOMException && error.name === 'AbortError');
+    await assert.rejects(benchmark, error => error instanceof DOMException && error.name === 'AbortError');
+  });
+
+  await t.test('patterns never render partial results for pending/failed/timed-out runs', () => {
+    for (const status of ['PENDING', 'RUNNING', 'FAILED', 'TIMED_OUT'] as const) {
+      const html = renderToStaticMarkup(createElement(MiningPatternsView, { run: { ...runFixture(), status }, onReadError: () => {} }));
+      assert.ok(html.includes('Patterns unavailable'));
+      assert.equal(html.includes('<table'), false); assert.equal(html.includes('Revenue'), false);
+    }
+    const html = renderToStaticMarkup(createElement(MiningBenchmarkView, { request, runs: [benchmarkFixture().run, benchmarkFixture('EFIM').run], selectedRun: benchmarkFixture().run, onReadError: () => {} }));
+    assert.ok(html.includes('startup and I/O')); assert.ok(html.includes('sampled Java heap'));
+    assert.equal(html.includes('always faster'), false);
   });
 });
 

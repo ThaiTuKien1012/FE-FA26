@@ -5,6 +5,7 @@ import { isRequestActive, watchMiningRequest } from '../f05.progress';
 import type { MiningProgress } from '../f05.progress';
 import type { RequestView, RunView } from '../f05.types';
 import { MiningStatusBadge } from './MiningStatusBadge';
+import { MiningRunResults } from './MiningRunResults';
 
 interface Props {
   requestId: number;
@@ -14,7 +15,7 @@ interface Props {
 
 function RunMeasurements({ run }: { run: RunView }) {
   return <>
-    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+    <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
       <div><dt className="text-xs text-[#6D7974]">Started</dt><dd className="mt-1">{miningDate(run.startedAt)}</dd></div>
       <div><dt className="text-xs text-[#6D7974]">Completed</dt><dd className="mt-1">{miningDate(run.completedAt)}</dd></div>
       {run.patternCount !== null && <div><dt className="text-xs text-[#6D7974]">Pattern count</dt><dd className="mt-1">{run.patternCount}</dd></div>}
@@ -88,13 +89,14 @@ export function RequestDetails({ requestId, onUpdated, onReadError }: Props) {
         {data.runDetail && <section aria-labelledby="f05-run-title" className="mt-5 rounded-xl border border-[#CADACF] bg-[#F3F8F4] p-4">
           <div className="flex flex-wrap items-center justify-between gap-3"><h3 id="f05-run-title" className="font-semibold">Run details #{data.runDetail.runId} · {algorithmName(data.runDetail.algorithm)}</h3><MiningStatusBadge kind="run" status={data.runDetail.status} /></div>
           <RunMeasurements run={data.runDetail} />
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
             <div><dt className="text-xs text-[#6D7974]">Library version / attempt</dt><dd>{data.runDetail.libraryVersion} · {data.runDetail.attemptNo}</dd></div>
             <div><dt className="text-xs text-[#6D7974]">Conversion version</dt><dd>{data.runDetail.conversionVersion}</dd></div>
             <div><dt className="text-xs text-[#6D7974]">Runtime measurement method</dt><dd className="break-words">{data.runDetail.runtimeMethod}</dd></div>
             <div><dt className="text-xs text-[#6D7974]">Memory measurement method</dt><dd className="break-words">{data.runDetail.memoryMethod}</dd></div>
             {data.runDetail.environment !== null && <div className="sm:col-span-2"><dt className="text-xs text-[#6D7974]">Environment</dt><dd className="break-words">{data.runDetail.environment}</dd></div>}
           </dl>
+          <MiningRunResults key={data.runDetail.runId} request={request} runs={data.runs} run={data.runDetail} onReadError={onReadError} />
         </section>}
       </>}
   </section>;
