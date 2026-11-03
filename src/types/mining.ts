@@ -52,6 +52,9 @@ export interface BenchmarkComparison {
 
 export type ActiveNavScreen = 
   | 'overview'        // S01: Overview
+  | 'admin-run-mining'
+  | 'admin-mining-history'
+  | 'lambda-policy'
   | 'setup'           // S02: Mining Setup
   | 'results'         // S05: Mining Run Results
   | 'failure'         // S07: Mining Failure & Retry

@@ -5,6 +5,7 @@ import {
   type LucideIcon
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
+import { SYSTEM_MINING_NAV } from '../../features/f05/f05.navigation';
 import { AuthUser } from '../../services/authService';
 import { AppLogo } from '../common/AppLogo';
 import { AvatarDropdown } from '../common/AvatarDropdown';
@@ -151,17 +152,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
             {isSystemAdmin && (
               <>
-                <SidebarSection title="PLATFORM OVERVIEW">
-                  <SidebarItem screen="overview" label="Overview" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
+                <SidebarSection title="OVERVIEW">
+                  <SidebarItem screen="overview" label="Dashboard" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
                 </SidebarSection>
-                <SidebarSection title="MINING & CONFIGURATION">
-                  <SidebarItem screen="setup" label="Mining Setup" icon={Settings} active={currentScreen === 'setup' || currentScreen === 'results' || currentScreen === 'failure'} onNavigate={onNavigate} />
-                  <SidebarItem screen="benchmark" label="Benchmark" icon={BarChart3} active={currentScreen === 'benchmark'} onNavigate={onNavigate} />
-                  <SidebarItem screen="f03-configuration" label="Lambda Policy" icon={SlidersHorizontal} active={currentScreen === 'f03-configuration'} onNavigate={onNavigate} />
+                <SidebarSection title="MINING ENGINE MANAGEMENT">
+                  {SYSTEM_MINING_NAV.filter(item=>item.screen!=='overview').map(item=><SidebarItem key={item.screen} screen={item.screen} label={item.label} icon={item.screen==='setup'?Settings:item.screen==='admin-mining-history'?History:BarChart3} active={currentScreen===item.screen} onNavigate={onNavigate}/>) }
                 </SidebarSection>
                 <SidebarSection title="SYSTEM MANAGEMENT">
                   <SidebarItem screen="users" label="Users & Roles" icon={Users} active={currentScreen === 'users'} onNavigate={onNavigate} />
-                  <SidebarItem screen="api-connections" label="API Connections" icon={Zap} active={currentScreen === 'api-connections'} onNavigate={onNavigate} />
+                  <SidebarItem screen="lambda-policy" label="Lambda Policy" icon={SlidersHorizontal} active={currentScreen === 'lambda-policy'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
             )}
@@ -249,7 +248,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Viewport Content Container */}
         <main className="flex-1 p-5 md:p-8 max-w-7xl w-full mx-auto pb-16">
-          {currentScreen === 'f05-mining' && (
+          {(currentScreen === 'f05-mining' || isSystemAdmin) && (
             <nav aria-label="Breadcrumb" className="mb-5 text-sm text-[#707973]">
               <ol className="flex flex-wrap items-center gap-2">
                 {breadcrumbs.map((label, index) => (

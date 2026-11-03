@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { miningButton } from '../f05.display';
-import type { RequestView, RunView } from '../f05.types';
-import { MiningBenchmarkView } from './MiningBenchmarkView';
+import type { Algorithm, RequestView, RunView } from '../f05.types';
 import { MiningPatternsView } from './MiningPatternsView';
-
-interface Props { request: RequestView; runs: RunView[]; run: RunView; onReadError: (error: unknown) => void; }
-
-export function MiningRunResults({ request, runs, run, onReadError }: Props) {
-  const [panel, setPanel] = useState<'patterns' | 'benchmark' | null>(null);
+import { storeMiningReader } from '../f05.reader';
+import type { MiningReader } from '../f05.reader';
+interface Props {
+  request:RequestView; runs:RunView[]; run:RunView; onReadError:(error:unknown)=>void;
+  reader?:MiningReader; onChooseAlgorithm?:(algorithm:Algorithm)=>void;
+  onOpenBenchmark?:(requestId:number,runId:number)=>void;
+}
+export function MiningRunResults({request,run,onReadError,reader=storeMiningReader,onOpenBenchmark}:Props){
+  const [showPatterns,setShowPatterns]=useState(false);
   return <div className="mt-5 border-t border-[#CADACF] pt-4">
-    <div className="flex flex-wrap gap-2">
-      <button type="button" aria-expanded={panel === 'patterns'} className={miningButton} onClick={() => setPanel(panel === 'patterns' ? null : 'patterns')}>{panel === 'patterns' ? 'Hide patterns' : 'Show patterns'}</button>
-      <button type="button" aria-expanded={panel === 'benchmark'} className={miningButton} onClick={() => setPanel(panel === 'benchmark' ? null : 'benchmark')}>{panel === 'benchmark' ? 'Hide benchmark' : 'Show benchmark'}</button>
-    </div>
-    {panel === 'patterns' && <MiningPatternsView key={run.runId} run={run} onReadError={onReadError} />}
-    {panel === 'benchmark' && <MiningBenchmarkView key={request.requestId} request={request} runs={runs} selectedRun={run} onReadError={onReadError} />}
+    {reader.kind==='store' ? <><button type="button" aria-expanded={showPatterns} className={miningButton} onClick={()=>setShowPatterns(v=>!v)}>{showPatterns?'Hide patterns':'Show patterns'}</button>
+      {showPatterns&&<MiningPatternsView key={run.runId} run={run} onReadError={onReadError}/>}</> :
+      onOpenBenchmark&&<button type="button" className={miningButton} onClick={()=>onOpenBenchmark(request.requestId,run.runId)}>Open algorithm benchmark</button>}
   </div>;
 }

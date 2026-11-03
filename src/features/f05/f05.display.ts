@@ -17,9 +17,9 @@ export function miningErrorMessage(error: unknown): string {
   const help: Record<number, string> = {
     400: 'Check the snapshot and mining settings.',
     401: 'Your session is missing or has expired. Please sign in again.',
-    403: 'Access denied. Use an authorized Store Admin or Merchandiser account for this store; only Merchandisers can submit.',
+    403: 'Access denied for this role or Store. Only System Admin can configure mining, submit requests and read benchmarks.',
     404: 'The snapshot or mining resource is missing or unavailable to your store.',
-    409: 'The request key conflicts with another payload, or the frozen snapshot is unavailable.',
+    409: 'The configuration version is stale, the request key conflicts with another payload, or the snapshot is unavailable. Refresh before another action.',
     503: 'The mining service is unavailable. It may require backend or mining runtime recovery.'
   };
   const advice = help[error.status] ?? (error.status >= 500 ? 'The mining service is unavailable. Check backend availability before retrying.' : '');

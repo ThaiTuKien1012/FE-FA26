@@ -1,5 +1,7 @@
 import { authService } from '../../services/authService';
-import { f05Api, F05ApiError } from './f05.api';
+import { F05ApiError } from './f05.api';
+import { storeMiningReader } from './f05.reader';
+import type { MiningReader } from './f05.reader';
 import type { RequestView, RunView } from './f05.types';
 
 export interface MiningProgress {
@@ -17,7 +19,8 @@ export function watchMiningRequest(
   requestId: number,
   onUpdate: (progress: MiningProgress) => void,
   onError: (error: unknown) => void,
-  runId: number | null = null
+  runId: number | null = null,
+  reader: MiningReader = storeMiningReader
 ): () => void {
   const controller = new AbortController();
   const token = authService.getToken();
@@ -34,10 +37,10 @@ export function watchMiningRequest(
   const cycle = async () => {
     try {
       checkSession();
-      const request = await f05Api.getRequest(requestId, controller.signal);
+      const request = await reader.getRequest(requestId, controller.signal);
       if (stopped) return;
       checkSession();
-      const runs = await f05Api.listRuns(requestId, controller.signal);
+      const runs = await reader.listRuns(requestId, controller.signal);
       if (stopped) return;
       checkSession();
       if (runs.some(run => run.storeId !== request.storeId || run.snapshotId !== request.snapshotId || !request.algorithms.includes(run.algorithm))) {
@@ -46,7 +49,7 @@ export function watchMiningRequest(
       let runDetail: RunView | null = null;
       if (runId !== null) {
         if (!runs.some(run => run.runId === runId)) throw new F05ApiError(404, 'This run is not part of the selected request.');
-        runDetail = await f05Api.getRun(runId, controller.signal);
+        runDetail = reader.getRun ? await reader.getRun(runId, controller.signal) : runs.find(run => run.runId===runId)!;
         if (stopped) return;
         checkSession();
         if (runDetail.requestId !== requestId || runDetail.storeId !== request.storeId || runDetail.snapshotId !== request.snapshotId) {

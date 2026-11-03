@@ -5,14 +5,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
-import { ActiveNavScreen, MiningJob, MiningAlgorithm, ExecutionMode } from './types/mining';
+import { ActiveNavScreen } from './types/mining';
 import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
-import { MiningOverviewView } from './features/mining/components/overview/MiningOverviewView';
-import { MiningSetupView } from './features/mining/components/setup/MiningSetupView';
-import { MiningResultsView } from './features/mining/components/results/MiningResultsView';
-import { MiningFailureView } from './features/mining/components/failure/MiningFailureView';
-import { MiningBenchmarkView } from './features/mining/components/benchmark/MiningBenchmarkView';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
 import { ProductInventoryView } from './features/store/components/ProductInventoryView';
@@ -39,6 +34,7 @@ import { F03WorkspaceView } from './features/f03/components/F03WorkspaceView';
 import { ImportTransactionsView } from './features/f04/components/ImportTransactionsView';
 import { ImportHistoryView } from './features/f04/components/ImportHistoryView';
 import { SalesTransactionsView } from './features/f04/components/SalesTransactionsView';
+import { isSystemMiningScreen, resolveSystemScreen, systemMiningView, systemScreenUrl } from './features/f05/f05.navigation';
 import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
@@ -55,10 +51,10 @@ export default function App() {
     return user ? user.defaultScreen : 'login';
   });
 
-  const [activeRunId, setActiveRunId] = useState<string>('#0024');
-  const [jobs, setJobs] = useState<MiningJob[]>([]);
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
+  const isMiningScreen = isSystemMiningScreen(currentScreen);
+  const needsAdminSession=isMiningScreen||['users','lambda-policy','api-connections'].includes(currentScreen);
   const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
 
   useEffect(() => {
@@ -85,23 +81,39 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const selectedJob = jobs.find((j) => j.runId === activeRunId) || jobs[0];
 
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
-    if (currentScreen === 'f05-mining' && !currentUser) {
+    if (needsAdminSession && !currentUser) {
       syncBrowserUrl('login', true);
       setCurrentScreen('login');
     }
-  }, [currentScreen, currentUser]);
+  }, [currentScreen, currentUser, needsAdminSession]);
 
-  const handleNavigate = (screen: ActiveNavScreen, runId?: string) => {
-    if (runId) {
-      setActiveRunId(runId);
+  useEffect(() => {
+    if (currentUser?.role!=='System Admin') return;
+    const target=resolveSystemScreen(currentScreen,window.location.search);
+    const managed=isSystemMiningScreen(currentScreen)||['api-connections','f03-configuration','lambda-policy','users'].includes(currentScreen);
+    if (!managed) return;
+    const url=systemScreenUrl(target,window.location.search);
+    if (window.location.pathname+window.location.search!==url) {
+      window.history.replaceState({screen:target},'',url);
+      setCurrentScreen(target);
+      window.dispatchEvent(new Event('popstate'));
     }
+  },[currentUser?.role,currentScreen]);
+
+  const handleNavigate = (screen: ActiveNavScreen) => {
     scrollPositions.current[currentScreen] = window.scrollY;
-    syncBrowserUrl(screen);
-    setCurrentScreen(screen);
+    if (currentUser?.role==='System Admin') {
+      const target=resolveSystemScreen(screen);
+      window.history.pushState({screen:target},'',systemScreenUrl(target,window.location.search));
+      setCurrentScreen(target);
+      window.dispatchEvent(new Event('popstate'));
+    } else {
+      syncBrowserUrl(screen);
+      setCurrentScreen(screen);
+    }
     requestAnimationFrame(() => {
       window.scrollTo({ top: scrollPositions.current[screen] ?? 0, behavior: 'auto' });
     });
@@ -140,59 +152,6 @@ export default function App() {
     syncBrowserUrl(dest);
     setCurrentScreen(dest);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleRunMining = (config: {
-    algorithm: MiningAlgorithm;
-    dataset: string;
-    minUtil: number;
-    mode: ExecutionMode;
-  }) => {
-    const nextRunNum = jobs.length + 22;
-    const newRunId = `#00${nextRunNum}`;
-    const newJob: MiningJob = {
-      id: `run-${nextRunNum}`,
-      runId: newRunId,
-      algorithm: config.algorithm,
-      dataset: config.dataset,
-      utilityMatrixVersion: 'v1',
-      minUtil: config.minUtil,
-      executionMode: config.mode,
-      startedAt: 'Just now',
-      duration: '7.9s',
-      peakMemoryMB: config.algorithm === 'EFIM' ? 124 : 260,
-      itemsetCount: config.algorithm === 'EFIM' ? 142 : 128,
-      status: 'Completed'
-    };
-
-    setJobs([newJob, ...jobs]);
-    setActiveRunId(newRunId);
-    syncBrowserUrl('results');
-    setCurrentScreen('results');
-  };
-
-  const handleRetryFailedJob = () => {
-    const nextRunNum = jobs.length + 22;
-    const newRunId = `#00${nextRunNum}`;
-    const retriedJob: MiningJob = {
-      id: `run-${nextRunNum}`,
-      runId: newRunId,
-      algorithm: 'EFIM',
-      dataset: 'retail_transactions_2024.parquet',
-      utilityMatrixVersion: 'v1.4',
-      minUtil: 0.05,
-      executionMode: 'manual',
-      startedAt: 'Just now',
-      duration: '4.2s',
-      peakMemoryMB: 182,
-      itemsetCount: 112,
-      status: 'Completed'
-    };
-
-    setJobs([retriedJob, ...jobs]);
-    setActiveRunId(newRunId);
-    syncBrowserUrl('results');
-    setCurrentScreen('results');
   };
 
   // Determine breadcrumbs according to current screen & active user role
@@ -249,20 +208,23 @@ export default function App() {
         return [currentUser?.role === 'Merchandiser' ? 'Merchandiser' : 'Store Admin', 'Sales Transactions'];
 
       // F01 System Admin screens
+      case 'admin-run-mining': return ['Mining Engine Management', 'Run Mining'];
+      case 'admin-mining-history': return ['Mining Engine Management', 'Mining History'];
+      case 'lambda-policy': return ['System Management', 'Lambda Policy'];
       case 'overview':
-        return ['System Administration', 'Mining Service Overview'];
+        return ['Overview', 'Dashboard'];
       case 'setup':
-        return ['System Administration', 'Mining Setup', 'Algorithm Configuration'];
+        return ['Mining Engine Management', 'Algorithm Configuration'];
       case 'results':
         return ['System Administration', 'Mining Setup', 'Run Results'];
       case 'failure':
         return ['System Administration', 'Mining Service Overview', 'Run Failure Diagnostic'];
       case 'benchmark':
-        return ['System Administration', 'Benchmark', 'HUI-Miner vs EFIM'];
+        return ['Mining Engine Management', 'Algorithm Benchmark'];
       case 'users':
         return ['System Administration', 'Accounts & Roles (RBAC)'];
       case 'api-connections':
-        return ['System Administration', 'External Integrations & API Connections'];
+        return ['Overview', 'Dashboard'];
       case 'profile':
         return ['Tài khoản', 'Hồ sơ & Cài đặt bảo mật'];
       default:
@@ -271,7 +233,7 @@ export default function App() {
   };
 
   // 1. If currently on Login screen, render LoginView standalone full-screen
-  if (currentScreen === 'login' || (!currentUser && (currentScreen === 'f04-transactions' || currentScreen === 'f05-mining'))) {
+  if (currentScreen === 'login' || (!currentUser && (currentScreen === 'f04-transactions' || needsAdminSession))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -335,7 +297,6 @@ export default function App() {
       currentScreen={currentScreen}
       onNavigate={handleNavigate}
       breadcrumbs={getBreadcrumbs()}
-      activeRunId={activeRunId}
       currentUser={currentUser}
       onLogout={handleLogout}
       onSwitchRole={handleSwitchRole}
@@ -400,7 +361,8 @@ export default function App() {
 
           {currentScreen.startsWith('f03-') && <F03WorkspaceView currentUser={currentUser} section={currentScreen} />}
 
-          {currentScreen === 'f05-mining' && currentUser && <F05WorkspaceView currentUser={currentUser} />}
+          {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
+          {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <div className="space-y-5"><p className="rounded-xl border border-[#E7E2D8] bg-white p-4 text-sm text-[#6D7974]">Lambda Policy defines the permitted F03 scoring range for Stores. It is separate from the mining algorithm and minimum utility configuration.</p><F03WorkspaceView currentUser={currentUser} section="f03-configuration" /></div>}
 
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (
@@ -440,56 +402,13 @@ export default function App() {
             <SalesTransactionsView />
           )}
 
-          {/* F01: Mining Overview */}
-          {currentScreen === 'overview' && (
-            <MiningOverviewView
-              jobs={jobs}
-              onNavigate={handleNavigate}
-              onQuickRun={() => handleNavigate('setup')}
-            />
-          )}
-
-          {/* F01: Mining Setup */}
-          {currentScreen === 'setup' && (
-            <MiningSetupView
-              onNavigate={handleNavigate}
-              onRunMining={handleRunMining}
-            />
-          )}
-
-          {/* F01: Mining Results */}
-          {currentScreen === 'results' && (
-            <MiningResultsView
-              job={selectedJob.status === 'Completed' ? selectedJob : (jobs.find(j => j.status === 'Completed') || jobs[1])}
-              onNavigate={handleNavigate}
-              onRerun={(j) => {
-                setActiveRunId(j.runId);
-                handleNavigate('setup');
-              }}
-            />
-          )}
-
-          {/* F01: Mining Failure */}
-          {currentScreen === 'failure' && (
-            <MiningFailureView
-              job={selectedJob.status === 'Failed' ? selectedJob : (jobs.find(j => j.status === 'Failed') || jobs[0])}
-              onNavigate={handleNavigate}
-              onRetry={handleRetryFailedJob}
-            />
-          )}
-
-          {/* F01: Benchmark */}
-          {currentScreen === 'benchmark' && (
-            <MiningBenchmarkView onNavigate={handleNavigate} />
-          )}
-
           {/* System Admin: Users & Roles */}
           {currentScreen === 'users' && (
             <UsersRolesView />
           )}
 
           {/* System Admin: API Connections */}
-          {currentScreen === 'api-connections' && (
+          {currentScreen === 'api-connections' && currentUser?.role!=='System Admin' && (
             <ApiConnectionsView />
           )}
 

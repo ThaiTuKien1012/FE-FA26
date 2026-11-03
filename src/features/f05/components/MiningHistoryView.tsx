@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import { History, Loader2, RefreshCw } from 'lucide-react';
 import { authService } from '../../../services/authService';
-import { f05Api, F05ApiError } from '../f05.api';
+import { F05ApiError } from '../f05.api';
+import { storeMiningReader } from '../f05.reader';
+import type { MiningReader } from '../f05.reader';
+import type { Algorithm } from '../f05.types';
 import { algorithmName, miningButton, miningDate, miningErrorMessage } from '../f05.display';
 import type { Page, RequestView } from '../f05.types';
 import { MiningStatusBadge } from './MiningStatusBadge';
 import { RequestDetails } from './RequestDetails';
 
 interface Props {
+  reader?: MiningReader;
+  onChooseAlgorithm?: (algorithm: Algorithm) => void;
+  onOpenBenchmark?: (requestId:number,runId:number)=>void;
+  benchmarkPicker?: boolean;
   requestId: number | null;
   selectionError: string;
   onSelect: (requestId: number | null) => void;
 }
 
-export function MiningHistoryView({ requestId, selectionError, onSelect }: Props) {
+export function MiningHistoryView({ requestId, selectionError, onSelect, reader=storeMiningReader, onChooseAlgorithm, onOpenBenchmark, benchmarkPicker=false }: Props) {
   const [page, setPage] = useState(0);
   const [revision, setRevision] = useState(0);
   const [accessError, setAccessError] = useState('');
@@ -23,7 +30,7 @@ export function MiningHistoryView({ requestId, selectionError, onSelect }: Props
 
   useEffect(() => {
     const controller = new AbortController();
-    void f05Api.listRequests(page, 20, controller.signal).then(data => {
+    void reader.listRequests(page, 20, controller.signal).then(data => {
       if (controller.signal.aborted) return;
       if (authService.getToken() !== token) throw new F05ApiError(401, 'The active session changed. Refresh history for the current session.');
       const lastPage = Math.max(0, Math.ceil(data.totalElements / data.pageSize) - 1);
@@ -33,7 +40,7 @@ export function MiningHistoryView({ requestId, selectionError, onSelect }: Props
       if (!controller.signal.aborted) setResult({ page, revision, token, error: miningErrorMessage(error) });
     });
     return () => controller.abort();
-  }, [page, revision, token]);
+  }, [page, revision, token, reader]);
 
   const onUpdated = useCallback((request: RequestView) => {
     // Update only the matching history row from a real details response. Do not poll the list.
@@ -51,7 +58,7 @@ export function MiningHistoryView({ requestId, selectionError, onSelect }: Props
   return <div className="space-y-5">
     <section aria-labelledby="f05-history-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />Mining request history</h2><p className="mt-2 text-sm text-[#6D7974]">Requests for your current store, newest first. Dates are shown in your local time.</p></div>
+        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{benchmarkPicker?'Choose a mining request':'Mining request history'}</h2><p className="mt-2 text-sm text-[#6D7974]">Requests for {reader.kind==='system'?'the selected Store':'your Store'}, newest first. Dates are shown in your local time.</p></div>
         <button type="button" disabled={loading} onClick={refresh} className={miningButton}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh history</button>
       </div>
       {loading ? <p role="status" className="mt-6 flex items-center gap-2 text-sm text-[#6D7974]"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />Loading mining history...</p> : error ?
@@ -64,7 +71,7 @@ export function MiningHistoryView({ requestId, selectionError, onSelect }: Props
                   <td className="p-3"><span className="block text-xs text-[#6D7974]">{item.minUtilMode}</span><span>{item.minUtilValue}{item.minUtilMode === 'PERCENTAGE' ? '%' : ''}</span></td>
                   <td className="p-3"><MiningStatusBadge kind="request" status={item.status} /></td><td className="p-3"><MiningStatusBadge kind="comparison" status={item.comparisonStatus} /></td>
                   <td className="whitespace-nowrap p-3"><time dateTime={item.createdAt}>{miningDate(item.createdAt)}</time></td>
-                  <td className="p-3"><button type="button" className={`${miningButton} whitespace-nowrap`} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>View request #{item.requestId}</button></td>
+                  <td className="p-3"><button type="button" className={`${miningButton} whitespace-nowrap`} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>{benchmarkPicker?'Select request':'View request'} #{item.requestId}</button></td>
                 </tr>)}</tbody>
               </table>
             </div>}
@@ -74,9 +81,9 @@ export function MiningHistoryView({ requestId, selectionError, onSelect }: Props
         </>}
     </section>
     {selectionError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{selectionError}</div>}
-    {requestId !== null && !error && <>
+    {!benchmarkPicker && requestId !== null && !error && <>
       <div className="flex justify-end"><button type="button" className={miningButton} onClick={() => onSelect(null)}>Close request details</button></div>
-      <RequestDetails key={requestId} requestId={requestId} onUpdated={onUpdated} onReadError={onReadError} />
+      <RequestDetails key={`${reader.scopeKey}:${requestId}`} reader={reader} requestId={requestId} onUpdated={onUpdated} onReadError={onReadError} onChooseAlgorithm={onChooseAlgorithm} onOpenBenchmark={onOpenBenchmark} />
     </>}
   </div>;
 }

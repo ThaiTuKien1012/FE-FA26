@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Database, Loader2, RefreshCw } from 'lucide-react';
 import { getPathForScreen } from '../../../utils/navigationRouter';
-import { f05Api } from '../f05.api';
+import { authService } from '../../../services/authService';
+import { storeMiningReader } from '../f05.reader';
+import type { MiningReader } from '../f05.reader';
 import type { Page, SnapshotView } from '../f05.types';
 
 const PAGE_SIZE = 10;
 const button = 'rounded-xl border border-[#E7E2D8] bg-white px-4 py-2 text-sm font-semibold text-[#1E3A2F] hover:bg-[#EDF5F0] disabled:cursor-not-allowed disabled:opacity-50';
 
 interface SnapshotPickerProps {
+  reader?: MiningReader;
+  canCreateSnapshot?: boolean;
   canSubmit: boolean;
   locked: boolean;
   selected: SnapshotView | null;
@@ -15,28 +19,29 @@ interface SnapshotPickerProps {
   errorMessage: (error: unknown) => string;
 }
 
-export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMessage }: SnapshotPickerProps) {
+export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMessage, reader=storeMiningReader, canCreateSnapshot=false }: SnapshotPickerProps) {
   const [page, setPage] = useState(0);
   const [revision, setRevision] = useState(0);
-  const [result, setResult] = useState<{ page: number; revision: number; data?: Page<SnapshotView>; error?: string } | null>(null);
-  const current = result?.page === page && result.revision === revision ? result : null;
+  const token=authService.getToken();
+  const [result, setResult] = useState<{ scope: string; token: string | null; page: number; revision: number; data?: Page<SnapshotView>; error?: string } | null>(null);
+  const current = result?.scope===reader.scopeKey && result.token===token && result.page === page && result.revision === revision ? result : null;
   const loading = !current;
 
   useEffect(() => {
-    let active = true;
-    void f05Api.listSnapshots(page, PAGE_SIZE).then(data => {
-      if (!active) return;
+    const controller=new AbortController();
+    void reader.listSnapshots(page, PAGE_SIZE, controller.signal).then(data => {
+      if (controller.signal.aborted || authService.getToken()!==token) return;
       const lastPage = Math.max(0, Math.ceil(data.totalElements / PAGE_SIZE) - 1);
       if (page > lastPage) {
         setPage(lastPage);
         return;
       }
-      setResult({ page, revision, data });
+      setResult({ scope:reader.scopeKey, token, page, revision, data });
     }).catch(error => {
-      if (active) setResult({ page, revision, error: errorMessage(error) });
+      if (!controller.signal.aborted) setResult({ scope:reader.scopeKey, token, page, revision, error: errorMessage(error) });
     });
-    return () => { active = false; };
-  }, [page, revision, errorMessage]);
+    return () => controller.abort();
+  }, [page, revision, token, reader, errorMessage]);
 
   const changePage = (nextPage: number) => {
     if (!locked) onSelect(null);
@@ -54,7 +59,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="f05-snapshot-title" className="flex items-center gap-2 text-xl font-semibold"><Database aria-hidden="true" className="h-5 w-5 text-[#356B54]" />READY snapshots</h2>
-          <p className="mt-2 text-sm text-[#6D7974]">Frozen F03 inputs for your store. The backend validates mining eligibility when a request is submitted.</p>
+          <p className="mt-2 text-sm text-[#6D7974]">Frozen F03 inputs for {reader.kind==='system' ? 'the selected Store' : 'your Store'}. The backend validates mining eligibility when a request is submitted.</p>
         </div>
         <button type="button" onClick={refresh} disabled={loading} className={button}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh snapshots</button>
       </div>
@@ -66,7 +71,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
       ) : data && data.items.length === 0 ? (
         <div className="mt-5 rounded-xl border border-dashed border-[#E7E2D8] bg-[#FAF8F5] p-6 text-sm text-[#6D7974]">
           <p className="font-semibold text-[#191C1B]">No READY snapshots found</p>
-          {canSubmit ? <><p className="mt-2">Open F03 Utility Preview, review the utility matrix and create a snapshot before mining.</p><a href={getPathForScreen('f03-preview')} className="mt-3 inline-block font-semibold text-[#1E3A2F] underline underline-offset-4">Open F03 Utility Preview</a></> : <p className="mt-2">Ask a Merchandiser to create a frozen snapshot in F03.</p>}
+          {canCreateSnapshot ? <><p className="mt-2">Open F03 Utility Preview, review the utility matrix and create a snapshot before mining.</p><a href={getPathForScreen('f03-preview')} className="mt-3 inline-block font-semibold text-[#1E3A2F] underline underline-offset-4">Open F03 Utility Preview</a></> : <p className="mt-2">Ask this Store's Merchandiser to create a frozen snapshot in F03.</p>}
         </div>
       ) : data && (
         <div role={canSubmit ? 'radiogroup' : 'region'} aria-label={canSubmit ? 'Snapshot selection' : 'Frozen snapshots'} tabIndex={canSubmit ? undefined : 0} className="mt-5 grid max-h-[36rem] gap-4 overflow-y-auto pr-1 lg:grid-cols-2">

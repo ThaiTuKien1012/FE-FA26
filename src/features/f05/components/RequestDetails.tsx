@@ -6,8 +6,15 @@ import type { MiningProgress } from '../f05.progress';
 import type { RequestView, RunView } from '../f05.types';
 import { MiningStatusBadge } from './MiningStatusBadge';
 import { MiningRunResults } from './MiningRunResults';
+import { authService } from '../../../services/authService';
+import { storeMiningReader } from '../f05.reader';
+import type { MiningReader } from '../f05.reader';
+import type { Algorithm } from '../f05.types';
 
 interface Props {
+  reader?: MiningReader;
+  onChooseAlgorithm?: (algorithm: Algorithm) => void;
+  onOpenBenchmark?: (requestId:number,runId:number)=>void;
   requestId: number;
   onUpdated: (request: RequestView) => void;
   onReadError: (error: unknown) => void;
@@ -29,23 +36,24 @@ function RunMeasurements({ run }: { run: RunView }) {
   </>;
 }
 
-export function RequestDetails({ requestId, onUpdated, onReadError }: Props) {
+export function RequestDetails({ requestId, onUpdated, onReadError, reader=storeMiningReader, onChooseAlgorithm, onOpenBenchmark }: Props) {
   const [runId, setRunId] = useState<number | null>(null);
   const [revision, setRevision] = useState(0);
-  const [result, setResult] = useState<{ key: string; data?: MiningProgress; error?: string } | null>(null);
-  const key = `${requestId}:${runId}:${revision}`;
-  const current = result?.key === key ? result : null;
+  const token=authService.getToken();
+  const [result, setResult] = useState<{ key: string; token: string | null; data?: MiningProgress; error?: string } | null>(null);
+  const key = `${reader.scopeKey}:${requestId}:${runId}:${revision}`;
+  const current = result?.key === key && result.token===token ? result : null;
 
   useEffect(() => {
     const stop = watchMiningRequest(requestId, data => {
-      setResult({ key, data });
+      setResult({ key, token, data });
       onUpdated(data.request);
     }, error => {
-      setResult({ key, error: miningErrorMessage(error) });
+      setResult({ key, token, error: miningErrorMessage(error) });
       onReadError(error);
-    }, runId);
+    }, runId, reader);
     return stop;
-  }, [requestId, runId, key, onUpdated, onReadError]);
+  }, [requestId, runId, key, token, reader, onUpdated, onReadError]);
 
   const data = current?.data;
   const request = data?.request;
@@ -96,7 +104,7 @@ export function RequestDetails({ requestId, onUpdated, onReadError }: Props) {
             <div><dt className="text-xs text-[#6D7974]">Memory measurement method</dt><dd className="break-words">{data.runDetail.memoryMethod}</dd></div>
             {data.runDetail.environment !== null && <div className="sm:col-span-2"><dt className="text-xs text-[#6D7974]">Environment</dt><dd className="break-words">{data.runDetail.environment}</dd></div>}
           </dl>
-          <MiningRunResults key={data.runDetail.runId} request={request} runs={data.runs} run={data.runDetail} onReadError={onReadError} />
+          <MiningRunResults key={data.runDetail.runId} reader={reader} request={request} runs={data.runs} run={data.runDetail} onReadError={onReadError} onChooseAlgorithm={onChooseAlgorithm} onOpenBenchmark={onOpenBenchmark} />
         </section>}
       </>}
   </section>;

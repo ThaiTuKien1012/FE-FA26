@@ -62,9 +62,11 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'results',
       'failure',
       'benchmark',
+      'f05-mining',
       'users',
-      'api-connections',
-      'f03-configuration',
+      'admin-run-mining',
+      'admin-mining-history',
+      'lambda-policy',
       'profile'
     ]
   },
@@ -210,25 +212,28 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   'f03-snapshot-detail': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Detail', allowedRoles: ['Merchandiser'] },
   'f03-snapshot-matrix': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Matrix', allowedRoles: ['Merchandiser'] },
 
-  // F05 frozen-snapshot mining is separate from the System Admin demo screens.
+  // F05 uses administrative writes and Store-scoped read-only access.
   'f05-mining': {
-    primaryRole: 'Merchandiser',
-    roleKey: 'merchandiser',
+    primaryRole: 'System Admin',
+    roleKey: 'system-admin',
     title: 'High Utility Mining',
-    allowedRoles: ['Merchandiser', 'Store Admin']
+    allowedRoles: ['System Admin', 'Merchandiser', 'Store Admin']
   },
 
   // System Admin Core Modules
+  'admin-run-mining': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Run Mining', allowedRoles: ['System Admin'] },
+  'admin-mining-history': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Mining History', allowedRoles: ['System Admin'] },
+  'lambda-policy': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Lambda Policy', allowedRoles: ['System Admin'] },
   'overview': {
     primaryRole: 'System Admin',
     roleKey: 'system-admin',
-    title: 'Mining Service Overview',
+    title: 'Dashboard',
     allowedRoles: ['System Admin']
   },
   'setup': {
     primaryRole: 'System Admin',
     roleKey: 'system-admin',
-    title: 'Mining Algorithm Setup',
+    title: 'Algorithm Configuration',
     allowedRoles: ['System Admin']
   },
   'results': {
@@ -253,12 +258,6 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
     primaryRole: 'System Admin',
     roleKey: 'system-admin',
     title: 'Accounts & Roles (RBAC)',
-    allowedRoles: ['System Admin']
-  },
-  'api-connections': {
-    primaryRole: 'System Admin',
-    roleKey: 'system-admin',
-    title: 'External API Connections',
     allowedRoles: ['System Admin']
   },
 
@@ -390,7 +389,7 @@ class AuthService {
               role: 'System Admin',
               department: 'Platform Administration & System Engineering',
               defaultScreen: 'overview',
-              allowedScreens: ['overview', 'setup', 'results', 'failure', 'benchmark', 'users', 'api-connections', 'profile']
+              allowedScreens: ROLE_PERMISSIONS['System Admin'].allowedScreens
             },
             'STORE_ADMIN': {
               role: 'Store Admin',

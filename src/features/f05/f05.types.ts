@@ -23,18 +23,28 @@ export interface SnapshotView extends Omit<F03Snapshot, 'configuration'> {
   configuration: F03FrozenConfiguration | null;
 }
 
-export interface CreateRequest {
+export interface ManualMiningRequest {
+  storeId: number;
   /** Caller-supplied UUID, stable for replays of the same intended submission. */
   requestKey: string;
   snapshotId: number;
-  /** One or two distinct algorithms. */
-  algorithms: Algorithm[];
+  compareAlgorithms: boolean;
+}
+
+export interface StoreView { storeId: number; name: string; }
+export interface MiningConfiguration {
+  version: number;
+  algorithm: Algorithm | null;
+  minUtilMode: MinUtilMode | null;
+  minUtilValue: number | null;
+  changedBy: number | null;
+  changedAt: string | null;
+}
+export interface MiningConfigurationUpdate {
+  algorithm: Algorithm;
   minUtilMode: MinUtilMode;
-  /** Positive JSON number, at most 24 integer and 6 fractional digits.
-   * PERCENTAGE is in (0,100]: 0.5 means 0.5%. ABSOLUTE uses frozen utility units.
-   * Pass the value directly; do not round it or calculate a threshold on the FE.
-   */
   minUtilValue: number;
+  expectedVersion: number;
 }
 
 export interface RequestView {

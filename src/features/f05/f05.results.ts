@@ -23,7 +23,7 @@ export function assertBenchmarkContext(benchmark: BenchmarkView, request: Reques
 /** No winner, speedup percentage or benchmark success is inferred from counts. */
 export function assessBenchmarkComparison(request: RequestView, benchmarks: BenchmarkView[]): { comparable: boolean; message: string } {
   const unavailable = (message: string) => ({ comparable: false, message });
-  if (request.algorithms.length === 1) return unavailable('One algorithm was requested. No two-algorithm comparison was requested (NOT_REQUESTED).');
+  if (request.algorithms.length === 1) return unavailable(`One algorithm was requested. No two-algorithm comparison is available. Backend comparison status: ${request.comparisonStatus}.`);
   if (benchmarks.length !== 2 || new Set(benchmarks.map(item => item.run.algorithm)).size !== 2) {
     return unavailable('Both algorithm benchmarks are required before making a comparison.');
   }

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { authService } from '../../../services/authService';
-import { f05Api, F05ApiError } from '../f05.api';
+import { F05ApiError } from '../f05.api';
+import type { MiningReader } from '../f05.reader';
+import type { Algorithm } from '../f05.types';
 import { algorithmName, miningButton, miningErrorMessage } from '../f05.display';
 import { assessBenchmarkComparison, assertBenchmarkContext } from '../f05.results';
 import type { BenchmarkView, RequestView, RunView } from '../f05.types';
 import { MiningStatusBadge } from './MiningStatusBadge';
 
-interface Props { request: RequestView; runs: RunView[]; selectedRun: RunView; onReadError: (error: unknown) => void; }
+interface Props { request: RequestView; runs: RunView[]; selectedRun: RunView; onReadError: (error: unknown) => void; reader: MiningReader; onChooseAlgorithm?: (algorithm: Algorithm) => void; }
 
-export function MiningBenchmarkView({ request, runs, selectedRun, onReadError }: Props) {
+export function MiningBenchmarkView({ request, runs, selectedRun, onReadError, reader, onChooseAlgorithm }: Props) {
   const [revision, setRevision] = useState(0);
   const token = authService.getToken();
   const targets = (['HUI_MINER', 'EFIM'] as const).flatMap(algorithm => {
@@ -17,14 +19,15 @@ export function MiningBenchmarkView({ request, runs, selectedRun, onReadError }:
     const matching = runs.filter(run => run.algorithm === algorithm && request.algorithms.includes(algorithm));
     return matching.length === 1 ? matching : [];
   });
-  const key = JSON.stringify([request.requestId, request.status, request.comparisonStatus, targets.map(run => [run.runId, run.status]), revision]);
+  const key = JSON.stringify([reader.scopeKey, request.requestId, request.status, request.comparisonStatus, targets.map(run => [run.runId, run.status]), revision]);
   const [result, setResult] = useState<{ key: string; token: string | null; rows?: BenchmarkView[]; error?: string } | null>(null);
   const current = result?.key === key && result.token === token ? result : null;
 
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all(targets.map(async run => {
-      const benchmark = await f05Api.getBenchmark(run.runId, controller.signal);
+      if (!reader.getBenchmark) throw new F05ApiError(403,'Benchmark access is System Admin only.');
+      const benchmark = await reader.getBenchmark(run.runId, controller.signal);
       assertBenchmarkContext(benchmark, request, run);
       return benchmark;
     })).then(rows => {
@@ -40,7 +43,7 @@ export function MiningBenchmarkView({ request, runs, selectedRun, onReadError }:
     return () => controller.abort();
     // Runs/request are immutable for these IDs, apart from the statuses in key.
     // A polling render with unchanged statuses must not fetch benchmark again.
-  }, [key, token, onReadError]);
+  }, [key, token, reader, onReadError]);
 
   const rows = current?.rows;
   const assessment = rows ? assessBenchmarkComparison(request, rows) : null;
@@ -65,6 +68,7 @@ export function MiningBenchmarkView({ request, runs, selectedRun, onReadError }:
               <div><dt className="text-xs text-[#6D7974]">Snapshot ID</dt><dd className="mt-1">#{benchmark.run.snapshotId}</dd></div>
             </dl>
             {(benchmark.run.failureCode !== null || benchmark.run.failureMessage !== null) && <p className="mt-3 break-words rounded-lg bg-red-50 p-3 text-sm text-red-800">{benchmark.run.failureCode} {benchmark.run.failureMessage}</p>}
+            {onChooseAlgorithm && <button type="button" className={`${miningButton} mt-4`} onClick={()=>onChooseAlgorithm(benchmark.run.algorithm)}>Review {algorithmName(benchmark.run.algorithm)} as active algorithm</button>}
             <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold text-[#1E3A2F]">Provenance and measurement methodology</summary><dl className="mt-3 space-y-3">
               <div><dt className="text-xs text-[#6D7974]">Snapshot hash</dt><dd className="break-all font-mono text-xs">{benchmark.snapshotHash}</dd></div>
               <div><dt className="text-xs text-[#6D7974]">Input hash</dt><dd className="break-all font-mono text-xs">{benchmark.run.inputHash}</dd></div>

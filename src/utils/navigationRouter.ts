@@ -38,6 +38,9 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
 
   // System Admin Screens
   'overview': '/admin/overview',
+  'admin-run-mining': '/admin/mining/run',
+  'admin-mining-history': '/admin/mining/history',
+  'lambda-policy': '/admin/lambda-policy',
   'setup': '/admin/setup',
   'results': '/admin/results',
   'failure': '/admin/failure',
