@@ -97,6 +97,8 @@
 .f04-sales .f04s-products-table { min-width: 810px; }
 .f04-sales .f04s-sku { min-width: 110px; max-width: 180px; overflow-wrap: anywhere; }
 .f04-sales .f04s-product-name { min-width: 180px; max-width: 280px; overflow-wrap: anywhere; }
+.f04-sales .f04s-products-table .f04s-below-cost > * { background: #fff9ed; }
+.f04-sales .f04s-product-warning { display: block; margin-top: 4px; color: #92400e; font-size: 11px; line-height: 1.4; }
 
 @media (max-width: 1200px) {
   .f04-sales .f04s-filter-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }

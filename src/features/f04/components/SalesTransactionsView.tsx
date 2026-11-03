@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom';
 import { AlertCircle, ChevronLeft, ChevronRight, Eye, ListFilter, Loader2, ReceiptText, RefreshCw, X } from 'lucide-react';
 import { F04ApiError, f04Api } from '../f04.api';
-import type { F04Page, TransactionFilters, TransactionStatus, TransactionView } from '../f04.types';
+import type { F04Page, TransactionFilters, TransactionLine, TransactionStatus, TransactionView } from '../f04.types';
 import './SalesTransactionsView.css';
 
 const PAGE_SIZE = 20;
@@ -60,6 +60,27 @@ function formatMoney(value: number) { return moneyFormatter.format(value); }
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
+}
+
+function formatImportSource(value: string): string {
+  return value === 'CSV_UPLOAD' ? 'CSV Upload' : value;
+}
+
+function hasBelowCostPrice(item: TransactionLine): boolean {
+  return Number.isFinite(item.unitPrice) && Number.isFinite(item.unitCost) && item.unitPrice < item.unitCost;
+}
+
+// Explain the server's decision without recalculating eligibility or guessing missing evidence.
+function eligibilityDescription(transaction: TransactionView): string {
+  if (transaction.f03Eligible) return 'Eligible for utility calculation and subsequent mining.';
+  switch (transaction.status) {
+    case 'CANCELLED': return 'Cancelled transactions are excluded from utility calculation and mining.';
+    case 'REFUNDED': return 'Refunded transactions are excluded from utility calculation and mining.';
+    case 'PARTIAL_REFUND': return 'Partially refunded transactions are excluded from utility calculation and mining.';
+    case 'COMPLETED':
+      if (transaction.items?.some(hasBelowCostPrice)) return 'One or more products have a selling price below their unit cost.';
+  }
+  return 'This transaction does not meet the requirements for utility calculation.';
 }
 
 function requestErrorMessage(error: unknown): string {
@@ -167,24 +188,28 @@ function TransactionDetails({ transactionId, opener, onClose }: { transactionId:
   }, [transactionId, revision]);
 
   return createPortal(<dialog ref={dialogRef} className="f04-sales f04s-dialog" aria-labelledby="f04s-details-title" aria-describedby="f04s-details-description" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <header className="f04s-dialog-header"><div><p className="f04s-eyebrow">TRANSACTION #{transactionId}</p><h2 id="f04s-details-title">Transaction details</h2><p id="f04s-details-description">Review the recorded sale and its product lines.</p></div>
+    <header className="f04s-dialog-header"><div><p className="f04s-eyebrow">TRANSACTION #{transactionId}</p><h2 id="f04s-details-title">Transaction details</h2><p id="f04s-details-description">Review transaction information, product details, and data eligibility.</p></div>
       <button ref={closeRef} type="button" className="f04s-icon-button" aria-label="Close transaction details" onClick={onClose}><X size={20} aria-hidden="true" /></button>
     </header>
     <div className="f04s-dialog-body">
       {!current ? <Loading label="Loading transaction details..." /> : current.error ? <RequestError message={current.error} retry={() => setRevision(value => value + 1)} /> : transaction && <>
         <section className="f04s-overview" aria-label="Transaction information">
-          <div className="f04s-overview-heading"><div><p className="f04s-field-label">Source order ID</p><div className="f04s-order-title"><h3>{transaction.sourceOrderId}</h3><StatusBadge status={transaction.status} /></div></div><div className="f04s-total"><p className="f04s-field-label">Total amount</p><p>{formatMoney(transaction.totalAmount)}</p></div></div>
+          <div className="f04s-overview-heading"><div><p className="f04s-field-label">Order ID</p><div className="f04s-order-title"><h3>{transaction.sourceOrderId}</h3><StatusBadge status={transaction.status} /></div></div><div className="f04s-total"><p className="f04s-field-label">Total Amount</p><p>{formatMoney(transaction.totalAmount)}</p></div></div>
           <dl className="f04s-metadata">
             <div><dt>Transaction ID</dt><dd>#{transaction.transactionId}</dd></div>
-            <div><dt>Source system</dt><dd>{transaction.sourceSystem}</dd></div>
-            <div><dt>Occurred at</dt><dd><time dateTime={transaction.occurredAt}>{formatDate(transaction.occurredAt)}</time><span className="f04s-timezone">{TIME_ZONE} (browser)</span></dd></div>
-            <div><dt>F03 Eligible</dt><dd><EligibilityBadge eligible={transaction.f03Eligible} /><p className="f04s-eligibility-note">Eligible sales can source F03 utility processing.</p></dd></div>
+            <div><dt>Import Source</dt><dd>{formatImportSource(transaction.sourceSystem)}</dd></div>
+            <div><dt>Transaction Date</dt><dd><time dateTime={transaction.occurredAt}>{formatDate(transaction.occurredAt)}</time><span className="f04s-timezone">{TIME_ZONE} (browser)</span></dd></div>
+            <div><dt>Data Eligibility</dt><dd><EligibilityBadge eligible={transaction.f03Eligible} /><p className="f04s-eligibility-note">{eligibilityDescription(transaction)}</p></dd></div>
           </dl>
+          {transaction.f03Eligible && <p className="f04s-eligibility-note">Mining also requires a valid utility snapshot and mining configuration; eligibility does not mean mining has run.</p>}
         </section>
         <section className="f04s-products" aria-labelledby="f04s-products-title"><div className="f04s-section-heading"><h3 id="f04s-products-title">Products</h3><p>Prices and costs reflect recorded transaction values.</p></div>
           {transaction.items.length === 0 ? <div className="f04s-empty" role="status"><ReceiptText size={26} aria-hidden="true" /><p>No product lines are available for this transaction.</p></div> : <div className="f04s-table-scroll" tabIndex={0} role="region" aria-label="Transaction product lines; scroll horizontally to see all columns">
             <table className="f04s-table f04s-products-table"><thead><tr><th scope="col">SKU</th><th scope="col">Product name</th><th scope="col" className="f04s-number">Quantity</th><th scope="col" className="f04s-number">Unit price</th><th scope="col" className="f04s-number">Unit cost</th><th scope="col" className="f04s-number">Line total</th></tr></thead>
-              <tbody>{transaction.items.map(item => <tr key={item.transactionItemId}><th scope="row" className="f04s-sku">{item.sku}</th><td className="f04s-product-name">{item.productName}</td><td className="f04s-number">{item.quantity.toLocaleString()}</td><td className="f04s-number f04s-money">{formatMoney(item.unitPrice)}</td><td className="f04s-number f04s-money">{formatMoney(item.unitCost)}</td><td className="f04s-number f04s-money">{formatMoney(item.quantity * item.unitPrice)}</td></tr>)}</tbody>
+              <tbody>{transaction.items.map(item => {
+                const belowCost = !transaction.f03Eligible && transaction.status === 'COMPLETED' && hasBelowCostPrice(item);
+                return <tr key={item.transactionItemId} className={belowCost ? 'f04s-below-cost' : undefined}><th scope="row" className="f04s-sku">{item.sku}</th><td className="f04s-product-name">{item.productName}{belowCost && <span className="f04s-product-warning">Selling price below unit cost</span>}</td><td className="f04s-number">{item.quantity.toLocaleString()}</td><td className="f04s-number f04s-money">{formatMoney(item.unitPrice)}</td><td className="f04s-number f04s-money">{formatMoney(item.unitCost)}</td><td className="f04s-number f04s-money">{formatMoney(item.quantity * item.unitPrice)}</td></tr>;
+              })}</tbody>
             </table>
           </div>}
         </section>
@@ -235,12 +260,12 @@ export function SalesTransactionsView() {
       {filterError && <p id="f04s-filter-error" className="f04s-validation-error" role="alert"><AlertCircle size={16} aria-hidden="true" />{filterError}</p>}
     </form>
     <section className="f04s-card" aria-labelledby="f04s-list-title">
-      <div className="f04s-card-heading"><span className="f04s-section-icon"><ReceiptText size={20} aria-hidden="true" /></span><div><h2 ref={listHeadingRef} tabIndex={-1} id="f04s-list-title">Recorded transactions</h2><p>{appliedStatus} · {hasFilters ? `${query.selection.fromDate || 'Any start date'} → ${query.selection.toDate || 'Any end date'}` : 'All dates'} · Newest first</p></div></div>
-      <p className="f04s-list-help">Eligible transactions can be used as a source for F03 utility processing.</p>
+      <div className="f04s-card-heading"><span className="f04s-section-icon"><ReceiptText size={20} aria-hidden="true" /></span><div><h2 ref={listHeadingRef} tabIndex={-1} id="f04s-list-title">Sales Records</h2><p>{appliedStatus} · {hasFilters ? `${query.selection.fromDate || 'Any start date'} → ${query.selection.toDate || 'Any end date'}` : 'All dates'} · Newest first</p></div></div>
+      <p className="f04s-list-help">Eligible transactions can be used for utility calculation and subsequent mining.</p>
       {loading ? <Loading label="Loading sales transactions..." /> : error ? <RequestError message={error} retry={refresh} /> : data && <>
         {data.content.length === 0 ? <div className="f04s-empty" role="status"><ReceiptText size={32} aria-hidden="true" /><h3>{hasFilters ? 'No matching transactions' : 'No transactions yet'}</h3><p>{hasFilters ? 'Try another status or date range, or clear your filters.' : "Recorded sales for your store will appear here."}</p>{hasFilters && <button type="button" className="f04s-button" onClick={clearFilters}>Clear Filters</button>}</div> : <div className="f04s-table-scroll" tabIndex={0} role="region" aria-label="Sales transactions; scroll horizontally to see all columns">
-          <table className="f04s-table f04s-transactions-table"><thead><tr><th scope="col">Transaction ID</th><th scope="col">Source order ID</th><th scope="col">Occurred at</th><th scope="col">Source system</th><th scope="col">Transaction status</th><th scope="col" className="f04s-number">Total amount</th><th scope="col">F03 Eligible</th><th scope="col">Action</th></tr></thead>
-            <tbody>{data.content.map(transaction => <tr key={transaction.transactionId}><th scope="row">#{transaction.transactionId}</th><td className="f04s-order-id">{transaction.sourceOrderId}</td><td className="f04s-date"><time dateTime={transaction.occurredAt}>{formatDate(transaction.occurredAt)}</time></td><td className="f04s-source">{transaction.sourceSystem}</td><td><StatusBadge status={transaction.status} /></td><td className="f04s-number f04s-money">{formatMoney(transaction.totalAmount)}</td><td><EligibilityBadge eligible={transaction.f03Eligible} /></td><td><button type="button" className="f04s-details-button" aria-haspopup="dialog" aria-label={`View details for transaction ${transaction.transactionId}`} onClick={event => { openerRef.current = event.currentTarget; setSelectedId(transaction.transactionId); }}><Eye size={14} aria-hidden="true" />View Details</button></td></tr>)}</tbody>
+          <table className="f04s-table f04s-transactions-table"><thead><tr><th scope="col">Transaction ID</th><th scope="col">Order ID</th><th scope="col">Transaction Date</th><th scope="col">Import Source</th><th scope="col">Transaction status</th><th scope="col" className="f04s-number">Total Amount</th><th scope="col">Data Eligibility</th><th scope="col">Actions</th></tr></thead>
+            <tbody>{data.content.map(transaction => <tr key={transaction.transactionId}><th scope="row">#{transaction.transactionId}</th><td className="f04s-order-id">{transaction.sourceOrderId}</td><td className="f04s-date"><time dateTime={transaction.occurredAt}>{formatDate(transaction.occurredAt)}</time></td><td className="f04s-source">{formatImportSource(transaction.sourceSystem)}</td><td><StatusBadge status={transaction.status} /></td><td className="f04s-number f04s-money">{formatMoney(transaction.totalAmount)}</td><td><EligibilityBadge eligible={transaction.f03Eligible} /></td><td><button type="button" className="f04s-details-button" aria-haspopup="dialog" aria-label={`View details for transaction ${transaction.transactionId}`} onClick={event => { openerRef.current = event.currentTarget; setSelectedId(transaction.transactionId); }}><Eye size={14} aria-hidden="true" />View Details</button></td></tr>)}</tbody>
           </table>
         </div>}
         <Pagination data={data} onPage={page => { listHeadingRef.current?.focus({ preventScroll: true }); setPage(page); }} />

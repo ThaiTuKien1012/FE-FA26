@@ -20,6 +20,13 @@ const resultStyles = {
   processing: { Icon: Loader2, className: 'f04-result--processing' }
 };
 
+const importStatusLabels: Record<ImportSummary['status'], string> = {
+  COMPLETED: 'Completed',
+  COMPLETED_WITH_ERRORS: 'Completed with issues',
+  FAILED: 'Failed',
+  PROCESSING: 'Processing'
+};
+
 const metricStyles = {
   neutral: 'f04-kpi--neutral',
   accepted: 'f04-kpi--accepted',
@@ -41,13 +48,13 @@ function getResultPresentation(summary: ImportSummary): ResultPresentation {
   }
   if (summary.acceptedOrderCount > 0) {
     const count = summary.acceptedOrderCount;
-    return { tone: 'success', message: `${count.toLocaleString()} new ${count === 1 ? 'order' : 'orders'} imported successfully.` };
+    return { tone: 'success', message: `Import completed. ${count.toLocaleString()} new ${count === 1 ? 'order' : 'orders'} saved.` };
   }
   if (summary.duplicateOrderCount > 0) {
     const count = summary.duplicateOrderCount;
-    return { tone: 'neutral', message: `No new transactions. ${count.toLocaleString()} existing ${count === 1 ? 'order was' : 'orders were'} skipped.` };
+    return { tone: 'neutral', message: `Import completed. No new transactions. ${count.toLocaleString()} existing ${count === 1 ? 'order was' : 'orders were'} skipped.` };
   }
-  return { tone: 'neutral', message: 'No new transactions were imported.' };
+  return { tone: 'neutral', message: 'Import completed. No new transactions were imported.' };
 }
 
 function describeError(error: unknown, context: 'upload' | 'errors' = 'upload'): Notice {
@@ -142,7 +149,7 @@ export function ImportTransactionsView() {
   const duplicateOnly = summary?.status === 'COMPLETED' && summary.acceptedOrderCount === 0 && summary.duplicateOrderCount > 0 && !showErrors;
   const quickMeaning = summary ? [
     { show: presentation?.tone === 'warning' && summary.acceptedOrderCount > 0, Icon: CheckCircle2, color: 'f04-quick--success', text: `${summary.acceptedOrderCount.toLocaleString()} new ${summary.acceptedOrderCount === 1 ? 'order' : 'orders'} saved` },
-    { show: presentation?.tone === 'success' && summary.duplicateOrderCount > 0, Icon: Files, color: 'f04-quick--info', text: `${summary.duplicateOrderCount.toLocaleString()} existing ${summary.duplicateOrderCount === 1 ? 'order' : 'orders'} skipped` },
+    { show: (presentation?.tone === 'success' || presentation?.tone === 'warning') && summary.duplicateOrderCount > 0, Icon: Files, color: 'f04-quick--info', text: `${summary.duplicateOrderCount.toLocaleString()} existing ${summary.duplicateOrderCount === 1 ? 'order' : 'orders'} skipped` },
     { show: presentation?.tone === 'warning' && summary.rejectedOrderCount > 0, Icon: AlertTriangle, color: 'f04-quick--danger', text: `${summary.rejectedOrderCount.toLocaleString()} ${summary.rejectedOrderCount === 1 ? 'order' : 'orders'} rejected` },
     { show: presentation?.tone === 'warning' && summary.conflictOrderCount > 0, Icon: ShieldAlert, color: 'f04-quick--warning', text: `${summary.conflictOrderCount.toLocaleString()} ${summary.conflictOrderCount === 1 ? 'order' : 'orders'} with conflicting data` }
   ].filter(item => item.show) : [];
@@ -313,7 +320,7 @@ export function ImportTransactionsView() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 ref={resultHeadingRef} id="import-result-heading" tabIndex={-1} aria-describedby={`import-result-message import-result-status import-result-meta${quickMeaning.length > 0 ? ' import-quick-meaning' : ''}`} className="f04-result-label rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1e3a2f]">Import Result</h2>
-                  <span id="import-result-status" title={summary.status} className="f04-status-badge">{summary.status.replaceAll('_', ' ')}</span>
+                  <span id="import-result-status" title={summary.status} className="f04-status-badge">{importStatusLabels[summary.status]}</span>
                 </div>
                 <p id="import-result-message" className="f04-result-message">{presentation.message}</p>
                 {quickMeaning.length > 0 && <ul id="import-quick-meaning" aria-label="Quick result summary" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium leading-5">
@@ -335,7 +342,7 @@ export function ImportTransactionsView() {
             </div>
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                { label: 'Accepted orders', value: summary.acceptedOrderCount, hint: 'Newly saved', Icon: CheckCircle2, appearance: summary.acceptedOrderCount > 0 ? metricStyles.accepted : metricStyles.neutral },
+                { label: 'New orders saved', value: summary.acceptedOrderCount, hint: 'Passed import validation', Icon: CheckCircle2, appearance: summary.acceptedOrderCount > 0 ? metricStyles.accepted : metricStyles.neutral },
                 { label: 'Duplicate orders', value: summary.duplicateOrderCount, hint: 'Already exists · skipped', Icon: Files, appearance: summary.duplicateOrderCount > 0 ? (duplicateOnly ? metricStyles.duplicatePrimary : metricStyles.duplicate) : metricStyles.neutral },
                 { label: 'Rejected orders', value: summary.rejectedOrderCount, hint: 'Did not pass validation', Icon: AlertTriangle, appearance: summary.rejectedOrderCount > 0 ? metricStyles.rejected : metricStyles.neutral },
                 { label: 'Conflict orders', value: summary.conflictOrderCount, hint: 'Existing ID, changed data', Icon: ShieldAlert, appearance: summary.conflictOrderCount > 0 ? metricStyles.warning : metricStyles.neutral }
@@ -352,6 +359,7 @@ export function ImportTransactionsView() {
                 </div>
               ))}
             </dl>
+            <p className="mt-4 text-xs leading-5 text-[#6d7974]">Conflicting orders have an existing Order ID with different contents; existing data is not overwritten. Saved transactions marked Not Eligible are not import errors.</p>
           </div>
 
           <div className="border-t border-[#e7e2d8] bg-[#fafaf7] px-5 py-5 sm:px-6">
@@ -392,7 +400,7 @@ export function ImportTransactionsView() {
                   <div className="overflow-x-auto">
                     <table aria-label={`CSV row errors for import batch ${summary.importBatchId}`} className="w-full min-w-[640px] text-left text-sm">
                       <thead className="border-y border-[#e7e2d8] bg-[#faf8f5] text-xs font-medium text-[#6d7974]">
-                        <tr><th scope="col" className="px-5 py-3 sm:pl-6">CSV row</th><th scope="col" className="px-4 py-3">Source order ID</th><th scope="col" className="px-4 py-3">Row status</th><th scope="col" className="px-4 py-3">Reason</th></tr>
+                        <tr><th scope="col" className="px-5 py-3 sm:pl-6">CSV row</th><th scope="col" className="px-4 py-3">Order ID</th><th scope="col" className="px-4 py-3">Row status</th><th scope="col" className="px-4 py-3">Reason</th></tr>
                       </thead>
                       <tbody>
                         {errorPage.content.map(row => (
