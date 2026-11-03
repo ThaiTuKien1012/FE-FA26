@@ -39,6 +39,7 @@ import { F03WorkspaceView } from './features/f03/components/F03WorkspaceView';
 import { ImportTransactionsView } from './features/f04/components/ImportTransactionsView';
 import { ImportHistoryView } from './features/f04/components/ImportHistoryView';
 import { SalesTransactionsView } from './features/f04/components/SalesTransactionsView';
+import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
@@ -85,6 +86,14 @@ export default function App() {
   }, []);
 
   const selectedJob = jobs.find((j) => j.runId === activeRunId) || jobs[0];
+
+  // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
+  useEffect(() => {
+    if (currentScreen === 'f05-mining' && !currentUser) {
+      syncBrowserUrl('login', true);
+      setCurrentScreen('login');
+    }
+  }, [currentScreen, currentUser]);
 
   const handleNavigate = (screen: ActiveNavScreen, runId?: string) => {
     if (runId) {
@@ -221,6 +230,7 @@ export default function App() {
       case 'f03-preview': return ['F03', 'Utility Preview'];
       case 'f03-snapshot-detail': return ['F03', 'Snapshot Detail'];
       case 'f03-snapshot-matrix': return ['F03', 'Snapshot Matrix'];
+      case 'f05-mining': return ['Product Analytics', 'High Utility Mining'];
 
       // Store Operations views (Store Admin)
       case 'store-inventory':
@@ -261,7 +271,7 @@ export default function App() {
   };
 
   // 1. If currently on Login screen, render LoginView standalone full-screen
-  if (currentScreen === 'login' || (currentScreen === 'f04-transactions' && !currentUser)) {
+  if (currentScreen === 'login' || (!currentUser && (currentScreen === 'f04-transactions' || currentScreen === 'f05-mining'))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -389,6 +399,8 @@ export default function App() {
           )}
 
           {currentScreen.startsWith('f03-') && <F03WorkspaceView currentUser={currentUser} section={currentScreen} />}
+
+          {currentScreen === 'f05-mining' && currentUser && <F05WorkspaceView currentUser={currentUser} />}
 
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (
