@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { algorithmName, miningButton, miningDate, miningErrorMessage } from '../f05.display';
+import { algorithmName, formatMiningNumber, formatThreshold, MATCH_DESCRIPTION, miningButton, miningDate, miningErrorMessage } from '../f05.display';
 import { isRequestActive, watchMiningRequest } from '../f05.progress';
 import type { MiningProgress } from '../f05.progress';
 import type { RequestView, RunView } from '../f05.types';
@@ -9,11 +9,9 @@ import { MiningRunResults } from './MiningRunResults';
 import { authService } from '../../../services/authService';
 import { storeMiningReader } from '../f05.reader';
 import type { MiningReader } from '../f05.reader';
-import type { Algorithm } from '../f05.types';
 
 interface Props {
   reader?: MiningReader;
-  onChooseAlgorithm?: (algorithm: Algorithm) => void;
   onOpenBenchmark?: (requestId:number,runId:number)=>void;
   requestId: number;
   onUpdated: (request: RequestView) => void;
@@ -36,7 +34,7 @@ function RunMeasurements({ run }: { run: RunView }) {
   </>;
 }
 
-export function RequestDetails({ requestId, onUpdated, onReadError, reader=storeMiningReader, onChooseAlgorithm, onOpenBenchmark }: Props) {
+export function RequestDetails({ requestId, onUpdated, onReadError, reader=storeMiningReader, onOpenBenchmark }: Props) {
   const [runId, setRunId] = useState<number | null>(null);
   const [revision, setRevision] = useState(0);
   const token=authService.getToken();
@@ -57,6 +55,41 @@ export function RequestDetails({ requestId, onUpdated, onReadError, reader=store
 
   const data = current?.data;
   const request = data?.request;
+  if(reader.kind==='system')return <section aria-labelledby="f05-details-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 sm:p-6">
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="f05-details-title" className="text-lg font-semibold">Request Details{request?' #'+request.requestId:''}</h2><button type="button" className={miningButton} disabled={!current} onClick={()=>setRevision(value=>value+1)}>Refresh details</button></div>
+    {!current?<p role="status" className="mt-5 text-sm text-[#6D7974]">Loading request and algorithm runs...</p>:current.error?<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{current.error} Updates have stopped. Use Refresh details to try again.</p>:request&&data&&<>
+      <div className="mt-4 flex flex-wrap items-center gap-4 text-sm"><span className="flex items-center gap-2">Request Status <MiningStatusBadge friendly kind="request" status={request.status}/></span>{request.algorithms.length===2&&<span className="flex items-center gap-2">Comparison Result <MiningStatusBadge friendly kind="comparison" status={request.comparisonStatus}/></span>}</div>
+      {request.comparisonStatus==='MATCH'&&<p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{MATCH_DESCRIPTION}</p>}
+      <dl className="mt-5 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <div><dt className="text-xs text-[#6D7974]">Snapshot</dt><dd className="mt-1 font-semibold">#{request.snapshotId}</dd></div>
+        <div><dt className="text-xs text-[#6D7974]">Sales Period</dt><dd className="mt-1">{request.snapshot.rangeStart} to {request.snapshot.rangeEnd}</dd></div>
+        <div><dt className="text-xs text-[#6D7974]">Algorithms</dt><dd className="mt-1">{request.algorithms.map(algorithmName).join(', ')}</dd></div>
+        <div><dt className="text-xs text-[#6D7974]">Minimum Utility</dt><dd className="mt-1 break-words">{formatThreshold(request.minUtilValue,request.minUtilMode)}</dd></div>
+        <div><dt className="text-xs text-[#6D7974]">Transactions / Distinct Items</dt><dd className="mt-1">{formatMiningNumber(request.transactionCount)} / {formatMiningNumber(request.distinctItems)}</dd></div>
+        <div><dt className="text-xs text-[#6D7974]">Created At</dt><dd className="mt-1">{miningDate(request.createdAt)}</dd></div>
+      </dl>
+      <p className="mt-4 text-xs text-[#6D7974]">{isRequestActive(request)?'Progress updates automatically while this request is running.':'This request has finished. Automatic updates have stopped.'}</p>
+      <details className="mt-4 border-t border-[#E7E2D8] pt-3 text-sm"><summary className="cursor-pointer font-medium">Technical Details</summary><dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2"><div><dt className="text-[#6D7974]">SPMF threshold</dt><dd className="mt-1">{formatMiningNumber(request.minUtilSpmf)}</dd></div><div><dt className="text-[#6D7974]">Effective Minimum Utility</dt><dd className="mt-1">{formatMiningNumber(request.effectiveMinUtility)} frozen utility units</dd></div><div><dt className="text-[#6D7974]">Snapshot / input hash</dt><dd className="mt-1 break-all font-mono">{request.snapshotHash}<br/>{request.inputHash}</dd></div><div><dt className="text-[#6D7974]">Conversion / utility scale / divisor</dt><dd className="mt-1 break-words">{request.conversionVersion} / {request.utilityScale} / {formatMiningNumber(request.divisor)}</dd></div></dl></details>
+      <h3 className="mt-5 border-t border-[#E7E2D8] pt-5 font-semibold">Algorithm Runs</h3>
+      {data.runs.length===0?<p className="mt-3 text-sm text-[#6D7974]">No algorithm runs are available yet.</p>:<div className="mt-3 grid gap-4 lg:grid-cols-2">{data.runs.map(run=><article key={run.runId} className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2"><div><h4 className="font-semibold">{algorithmName(run.algorithm)}</h4><p className="mt-1 text-xs text-[#6D7974]">Run #{run.runId}</p></div><MiningStatusBadge friendly kind="run" status={run.status}/></div>
+        <dl className="mt-4 grid grid-cols-3 gap-3 text-sm"><div><dt className="text-xs text-[#6D7974]">Runtime</dt><dd className="mt-1 font-semibold tabular-nums">{run.runtimeMillis===null?'Not measured':formatMiningNumber(run.runtimeMillis)+' ms'}</dd></div><div><dt className="text-xs text-[#6D7974]">Patterns</dt><dd className="mt-1 font-semibold tabular-nums">{formatMiningNumber(run.patternCount)}</dd></div><div><dt className="text-xs text-[#6D7974]">Java Heap</dt><dd className="mt-1 font-semibold tabular-nums">{run.memoryMiB===null?'Not measured':formatMiningNumber(run.memoryMiB,2)+' MiB'}</dd></div></dl>
+        {(run.failureCode!==null||run.failureMessage!==null)&&<p className="mt-4 break-words rounded-xl bg-red-50 p-3 text-sm text-red-800">{run.failureCode} {run.failureMessage}</p>}
+        <button type="button" aria-pressed={runId===run.runId} onClick={()=>setRunId(runId===run.runId?null:run.runId)} className={miningButton+' mt-4'}>{runId===run.runId?'Hide run details':'View run #'+run.runId}</button>
+      </article>)}</div>}
+      {data.runDetail&&<div className="mt-4 rounded-xl border border-[#CADACF] bg-[#F3F8F4] p-4">
+        <details className="text-sm"><summary className="cursor-pointer font-semibold">Run #{data.runDetail.runId} · Technical Details</summary><dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
+          <div><dt className="text-[#6D7974]">Started / Completed</dt><dd className="mt-1">{miningDate(data.runDetail.startedAt)} / {miningDate(data.runDetail.completedAt)}</dd></div>
+          <div><dt className="text-[#6D7974]">Library version / Attempt</dt><dd className="mt-1">{data.runDetail.libraryVersion} / {data.runDetail.attemptNo}</dd></div>
+          <div><dt className="text-[#6D7974]">Conversion version</dt><dd className="mt-1">{data.runDetail.conversionVersion}</dd></div>
+          <div><dt className="text-[#6D7974]">Runtime method</dt><dd className="mt-1 break-words">{data.runDetail.runtimeMethod}</dd></div>
+          <div><dt className="text-[#6D7974]">Memory method</dt><dd className="mt-1 break-words">{data.runDetail.memoryMethod}</dd></div>
+          <div><dt className="text-[#6D7974]">Environment</dt><dd className="mt-1 break-words">{data.runDetail.environment??'Not available'}</dd></div>
+        </dl></details>
+        <MiningRunResults key={data.runDetail.runId} reader={reader} request={request} runs={data.runs} run={data.runDetail} onReadError={onReadError} onOpenBenchmark={onOpenBenchmark}/>
+      </div>}
+    </>}
+  </section>;
   return <section aria-labelledby="f05-details-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 id="f05-details-title" className="text-xl font-semibold">Request details{request ? ` #${request.requestId}` : ''}</h2>
@@ -104,7 +137,7 @@ export function RequestDetails({ requestId, onUpdated, onReadError, reader=store
             <div><dt className="text-xs text-[#6D7974]">Memory measurement method</dt><dd className="break-words">{data.runDetail.memoryMethod}</dd></div>
             {data.runDetail.environment !== null && <div className="sm:col-span-2"><dt className="text-xs text-[#6D7974]">Environment</dt><dd className="break-words">{data.runDetail.environment}</dd></div>}
           </dl>
-          <MiningRunResults key={data.runDetail.runId} reader={reader} request={request} runs={data.runs} run={data.runDetail} onReadError={onReadError} onChooseAlgorithm={onChooseAlgorithm} onOpenBenchmark={onOpenBenchmark} />
+          <MiningRunResults key={data.runDetail.runId} reader={reader} request={request} runs={data.runs} run={data.runDetail} onReadError={onReadError} onOpenBenchmark={onOpenBenchmark} />
         </section>}
       </>}
   </section>;

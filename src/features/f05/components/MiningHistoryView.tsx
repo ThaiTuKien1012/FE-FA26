@@ -4,15 +4,13 @@ import { authService } from '../../../services/authService';
 import { F05ApiError } from '../f05.api';
 import { storeMiningReader } from '../f05.reader';
 import type { MiningReader } from '../f05.reader';
-import type { Algorithm } from '../f05.types';
-import { algorithmName, miningButton, miningDate, miningErrorMessage } from '../f05.display';
+import { algorithmName, formatThreshold, miningButton, miningDate, miningErrorMessage } from '../f05.display';
 import type { Page, RequestView } from '../f05.types';
 import { MiningStatusBadge } from './MiningStatusBadge';
 import { RequestDetails } from './RequestDetails';
 
 interface Props {
   reader?: MiningReader;
-  onChooseAlgorithm?: (algorithm: Algorithm) => void;
   onOpenBenchmark?: (requestId:number,runId:number)=>void;
   benchmarkPicker?: boolean;
   requestId: number | null;
@@ -20,7 +18,8 @@ interface Props {
   onSelect: (requestId: number | null) => void;
 }
 
-export function MiningHistoryView({ requestId, selectionError, onSelect, reader=storeMiningReader, onChooseAlgorithm, onOpenBenchmark, benchmarkPicker=false }: Props) {
+export function MiningHistoryView({ requestId, selectionError, onSelect, reader=storeMiningReader, onOpenBenchmark, benchmarkPicker=false }: Props) {
+  const system=reader.kind==='system';
   const [page, setPage] = useState(0);
   const [revision, setRevision] = useState(0);
   const [accessError, setAccessError] = useState('');
@@ -58,20 +57,20 @@ export function MiningHistoryView({ requestId, selectionError, onSelect, reader=
   return <div className="space-y-5">
     <section aria-labelledby="f05-history-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{benchmarkPicker?'Choose a mining request':'Mining request history'}</h2><p className="mt-2 text-sm text-[#6D7974]">Requests for {reader.kind==='system'?'the selected Store':'your Store'}, newest first. Dates are shown in your local time.</p></div>
+        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{system?(benchmarkPicker?'Select a Request':'Requests'):(benchmarkPicker?'Choose a mining request':'Mining request history')}</h2><p className="mt-2 text-sm text-[#6D7974]">Requests for {reader.kind==='system'?'the selected Store':'your Store'}, newest first. Dates are shown in your local time.</p></div>
         <button type="button" disabled={loading} onClick={refresh} className={miningButton}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh history</button>
       </div>
       {loading ? <p role="status" className="mt-6 flex items-center gap-2 text-sm text-[#6D7974]"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />Loading mining history...</p> : error ?
         <div role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p>{error}</p><p className="mt-2">Use Refresh history to try again manually.</p></div> : data && <>
           {data.items.length === 0 ? <p className="mt-5 rounded-xl bg-[#FAF8F5] p-5 text-sm text-[#6D7974]">No mining requests were returned for this store.</p> :
             <div className="mt-5 max-h-[28rem] overflow-auto rounded-xl border border-[#E7E2D8]">
-              <table className="w-full text-left text-sm"><caption className="sr-only">Store mining requests</caption><thead className="sticky top-0 bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{['Request ID', 'Snapshot ID', 'Algorithms', 'Minimum utility', 'Request status', 'Comparison status', 'Created', 'Details'].map(label => <th key={label} scope="col" className="whitespace-nowrap p-3 font-semibold">{label}</th>)}</tr></thead>
+              <table className="w-full text-left text-sm"><caption className="sr-only">Store mining requests</caption><thead className="sticky top-0 bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{(system?['Request','Snapshot','Algorithms','Minimum Utility','Status','Created At','Action']:['Request ID', 'Snapshot ID', 'Algorithms', 'Minimum utility', 'Request status', 'Comparison status', 'Created', 'Details']).map(label => <th key={label} scope="col" className="whitespace-nowrap p-3 font-semibold">{label}</th>)}</tr></thead>
                 <tbody>{data.items.map(item => <tr key={item.requestId} className={`border-t border-[#E7E2D8] ${requestId === item.requestId ? 'bg-[#F3F8F4]' : ''}`}>
                   <th scope="row" className="p-3 font-semibold">#{item.requestId}</th><td className="p-3">#{item.snapshotId}</td><td className="p-3">{item.algorithms.map(algorithmName).join(', ')}</td>
-                  <td className="p-3"><span className="block text-xs text-[#6D7974]">{item.minUtilMode}</span><span>{item.minUtilValue}{item.minUtilMode === 'PERCENTAGE' ? '%' : ''}</span></td>
-                  <td className="p-3"><MiningStatusBadge kind="request" status={item.status} /></td><td className="p-3"><MiningStatusBadge kind="comparison" status={item.comparisonStatus} /></td>
+                  <td className="p-3">{system?formatThreshold(item.minUtilValue,item.minUtilMode):<><span className="block text-xs text-[#6D7974]">{item.minUtilMode}</span><span>{item.minUtilValue}{item.minUtilMode==='PERCENTAGE'?'%':''}</span></>}</td>
+                  <td className="p-3"><MiningStatusBadge friendly={system} kind="request" status={item.status} /></td>{!system&&<td className="p-3"><MiningStatusBadge kind="comparison" status={item.comparisonStatus} /></td>}
                   <td className="whitespace-nowrap p-3"><time dateTime={item.createdAt}>{miningDate(item.createdAt)}</time></td>
-                  <td className="p-3"><button type="button" className={`${miningButton} whitespace-nowrap`} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>{benchmarkPicker?'Select request':'View request'} #{item.requestId}</button></td>
+                  <td className="p-3"><button type="button" className={`${miningButton} whitespace-nowrap`} aria-label={system?'View details for request #'+item.requestId:undefined} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>{system?(benchmarkPicker?'Select Request':'View Details'):(benchmarkPicker?'Select request':'View request')}{!system&&' #'+item.requestId}</button></td>
                 </tr>)}</tbody>
               </table>
             </div>}
@@ -83,7 +82,7 @@ export function MiningHistoryView({ requestId, selectionError, onSelect, reader=
     {selectionError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{selectionError}</div>}
     {!benchmarkPicker && requestId !== null && !error && <>
       <div className="flex justify-end"><button type="button" className={miningButton} onClick={() => onSelect(null)}>Close request details</button></div>
-      <RequestDetails key={`${reader.scopeKey}:${requestId}`} reader={reader} requestId={requestId} onUpdated={onUpdated} onReadError={onReadError} onChooseAlgorithm={onChooseAlgorithm} onOpenBenchmark={onOpenBenchmark} />
+      <RequestDetails key={`${reader.scopeKey}:${requestId}`} reader={reader} requestId={requestId} onUpdated={onUpdated} onReadError={onReadError} onOpenBenchmark={onOpenBenchmark} />
     </>}
   </div>;
 }

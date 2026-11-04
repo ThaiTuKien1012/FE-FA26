@@ -99,7 +99,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   return (
     <div className="min-h-screen w-full bg-[#FAF8F5] text-[#191C1B] flex flex-col md:flex-row font-sans selection:bg-[#1E3A2F] selection:text-white antialiased">
       {/* Structural Sidebar - Sticky top-0 and full viewport height */}
-      <aside className="w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]" data-purpose="sidebar">
+      <aside className={isSystemAdmin?"w-full md:w-[260px] h-auto max-h-[38dvh] md:max-h-none md:h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 relative md:sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]":"w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]"} data-purpose="sidebar">
         <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)]">
           {/* Brand Header: HUPM Synchronized 4-Tile Logo */}
           <div className="p-5 md:h-20 md:py-0 border-b border-[#E7E2D8] flex items-center space-x-3.5" data-purpose="brand-logo">
@@ -248,7 +248,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Viewport Content Container */}
         <main className="flex-1 p-5 md:p-8 max-w-7xl w-full mx-auto pb-16">
-          {(currentScreen === 'f05-mining' || isSystemAdmin) && (
+          {currentScreen === 'f05-mining' && !isSystemAdmin && (
             <nav aria-label="Breadcrumb" className="mb-5 text-sm text-[#707973]">
               <ol className="flex flex-wrap items-center gap-2">
                 {breadcrumbs.map((label, index) => (

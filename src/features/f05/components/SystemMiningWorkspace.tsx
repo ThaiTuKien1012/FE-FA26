@@ -1,21 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { authService } from '../../../services/authService';
 import type { AuthUser } from '../../../services/authService';
 import { F05ApiError } from '../f05.api';
 import { f05SystemApi } from '../f05.system.api';
 import { systemMiningReader } from '../f05.reader';
-import { systemScreenUrl, useMiningLocation } from '../f05.navigation';
+import { useMiningLocation } from '../f05.navigation';
 import type { MiningView } from '../f05.navigation';
 import { clearPendingSubmission, readPendingSubmission, sendSubmission } from '../f05.submission';
-import { miningButton, miningErrorMessage } from '../f05.display';
-import type { Algorithm, ManualMiningRequest, MiningConfiguration, MiningConfigurationUpdate, RequestView, SnapshotView, StoreView } from '../f05.types';
+import { algorithmName, formatThreshold, miningButton, miningErrorMessage, miningPrimaryButton } from '../f05.display';
+import type { ManualMiningRequest, MiningConfiguration, MiningConfigurationUpdate, RequestView, SnapshotView, StoreView } from '../f05.types';
 import { MiningConfigurationView } from './MiningConfigurationView';
 import { MiningStorePicker } from './MiningStorePicker';
 import { SnapshotPicker } from './SnapshotPicker';
 import { MiningHistoryView } from './MiningHistoryView';
 import { SystemMiningDashboard } from './SystemMiningDashboard';
 import { AlgorithmBenchmarkView } from './AlgorithmBenchmarkView';
+import { MiningStatusBadge } from './MiningStatusBadge';
 
 interface Props { currentUser:AuthUser; initialView:MiningView; }
 function restore(userId:string) {
@@ -39,7 +40,7 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
   const [configResult,setConfigResult]=useState<{token:string|null;data?:MiningConfiguration;error?:string}|null>(null);
   const [configRevision,setConfigRevision]=useState(0);
   const [saving,setSaving]=useState(false);
-  const [choice,setChoice]=useState<{algorithm:Algorithm;revision:number}|null>(null);
+  const [configNotice,setConfigNotice]=useState('');
   const token=authService.getToken();
   const currentConfig=configResult?.token===token?configResult:null;
   const config=currentConfig?.data??null;
@@ -50,7 +51,7 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   useEffect(()=>{
     const c=new AbortController();
-    setConfigResult(null);
+    setConfigResult(null);setConfigNotice('');
     void f05SystemApi.getConfiguration(c.signal).then(data=>{
       if(!c.signal.aborted && authService.getToken()===token)setConfigResult({token,data});
     }).catch(e=>{if(!c.signal.aborted)setConfigResult({token,error:miningErrorMessage(e)});});
@@ -59,10 +60,10 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
 
   const saveConfiguration=async(payload:MiningConfigurationUpdate)=>{
     if(configBusy.current||busy.current||pinned.current)return;
-    configBusy.current=true;setSaving(true);
+    configBusy.current=true;setSaving(true);setConfigNotice('');
     try {
       const data=await f05SystemApi.updateConfiguration(payload);
-      if(mounted.current)setConfigResult({token,data});
+      if(mounted.current){setConfigResult({token,data});setConfigNotice(`Configuration version ${data.version} saved. New mining requests will use these settings.`);}
     } catch(e) {
       // An uncertain PUT or 409 requires a fresh GET before any further write.
       if(mounted.current)setConfigResult({token,error:miningErrorMessage(e)});
@@ -101,46 +102,45 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
     setSelection(null);setReceipt(null);accepted.current=null;setSubmitError('');setConfirmedStore(store);
     navigate(location.view==='configuration'?'setup':location.view,store.storeId);
   };
-  const onChooseAlgorithm=useCallback((algorithm:Algorithm)=>{
-    setChoice(previous=>({algorithm,revision:(previous?.revision??0)+1}));
-    const query=new URLSearchParams(window.location.search);query.set('algorithm',algorithm);query.delete('requestId');query.delete('runId');
-    window.history.pushState({screen:'setup'},'',systemScreenUrl('setup',query.toString()));
-    window.dispatchEvent(new Event('popstate'));
-  },[]);
   const tab=location.view==='snapshots'?'setup':location.view;
   const onCompare=()=>{if(!pending)setCompare(true);navigate('setup',storeId);};
   const onOpenBenchmark=(requestId:number,runId:number)=>navigate('benchmark',storeId,requestId,runId);
   const titles={dashboard:'Dashboard',configuration:'Algorithm Configuration',setup:'Run Mining',history:'Mining History',benchmark:'Algorithm Benchmark',snapshots:'Snapshots'};
-  const descriptions={dashboard:'Review the active policy and recent mining activity for a selected Store.',configuration:'Manage the global algorithm and minimum utility policy.',setup:'Run mining on a frozen snapshot using the active global policy.',history:'Inspect requests, algorithm runs and their progress.',benchmark:'Evaluate measured runtime and memory before choosing an active algorithm.',snapshots:'Review frozen inputs.'};
+  const descriptions={dashboard:'Monitor system-wide mining settings and mining activity across stores.',configuration:'Manage the default algorithm and minimum utility threshold for all stores.',setup:'Select a store and snapshot, review the settings, then start mining.',history:'Review mining requests, follow their progress and inspect results.',benchmark:'Compare algorithm performance using measured results from the same mining request.',snapshots:'Review frozen inputs.'};
 
-  return <div className="mx-auto max-w-6xl space-y-6 text-[#191C1B]">
-    <header><h1 className="text-3xl font-semibold">{titles[tab]}</h1><p className="mt-2 text-[#6D7974]">{descriptions[tab]}</p></header>
+  const storeSelector=<MiningStorePicker storeId={storeId} locked={submitting||Boolean(pending)} onSelect={chooseStore}/>;
+  return <div className="mx-auto max-w-6xl space-y-5 text-[#191C1B]">
+    <header><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{titles[tab]}</h1><p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#6D7974]">{descriptions[tab]}</p></header>
     {pending&&tab!=='setup'&&<div role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">A saved mining attempt needs attention. <button type="button" className="font-semibold underline" onClick={()=>navigate('setup',pending.storeId)}>Review saved submission</button></div>}
-    {location.error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{location.error}</p>}
-    {tab==='configuration'&&<div>
-      <MiningConfigurationView config={config} loading={!currentConfig} saving={saving} locked={submitting||Boolean(pending)} error={currentConfig?.error??''} choice={choice}
-        onRefresh={()=>setConfigRevision(r=>r+1)} onSave={saveConfiguration}/>
-    </div>}
-    {tab!=='configuration' && <MiningStorePicker storeId={storeId} locked={submitting||Boolean(pending)} onSelect={chooseStore}/>}
-    {tab==='dashboard'&&<SystemMiningDashboard config={config} loading={!currentConfig} error={currentConfig?.error??''} reader={reader} onRefresh={()=>setConfigRevision(r=>r+1)} onConfigure={()=>navigate('configuration',storeId)} onRun={()=>navigate('setup',storeId)} onRequest={id=>navigate('history',storeId,id)}/>}
-    {tab==='benchmark'&&(reader?<AlgorithmBenchmarkView key={reader.scopeKey} reader={reader} requestId={location.requestId} runId={location.runId} onRequest={id=>navigate('benchmark',storeId,id)} onRun={onOpenBenchmark} onCompare={onCompare} onChooseAlgorithm={onChooseAlgorithm}/>:<section className="rounded-xl border border-dashed border-[#E7E2D8] p-6 text-sm text-[#6D7974]">Choose a Store to inspect its benchmark results, or run a comparison first.<button type="button" className={miningButton+' mt-4 block'} onClick={onCompare}>Run a comparison</button></section>)}
-    {tab==='history' && (reader ? <MiningHistoryView key={reader.scopeKey} reader={reader} requestId={location.requestId} selectionError="" onSelect={id=>navigate('history',storeId,id)} onOpenBenchmark={onOpenBenchmark}/> :
-      <p className="rounded-xl border border-dashed border-[#E7E2D8] p-6 text-sm text-[#6D7974]">Choose a Store to review its mining requests and algorithm runs.</p>)}
-
+    {location.error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{location.error}</p>}
+    {tab==='configuration'&&<MiningConfigurationView config={config} loading={!currentConfig} saving={saving} locked={submitting||Boolean(pending)} error={currentConfig?.error??''} notice={configNotice} onRefresh={()=>setConfigRevision(r=>r+1)} onSave={saveConfiguration}/>}
+    {tab!=='configuration'&&tab!=='dashboard'&&storeSelector}
+    {tab==='dashboard'&&<SystemMiningDashboard config={config} loading={!currentConfig} error={currentConfig?.error??''} reader={reader} storeSelector={storeSelector} onRefresh={()=>setConfigRevision(r=>r+1)} onConfigure={()=>navigate('configuration',storeId)} onRun={()=>navigate('setup',storeId)} onBenchmark={()=>navigate('benchmark',storeId)} onRequest={id=>navigate('history',storeId,id)}/>}
+    {tab==='benchmark'&&(reader?<AlgorithmBenchmarkView key={reader.scopeKey} reader={reader} requestId={location.requestId} runId={location.runId} onRequest={id=>navigate('benchmark',storeId,id)} onRun={onOpenBenchmark} onCompare={onCompare}/>:<section className="rounded-xl border border-dashed border-[#E7E2D8] p-5 text-sm text-[#6D7974]">Choose a Store to inspect its benchmark results, or run a comparison first.<button type="button" className={miningButton+' mt-4 block'} onClick={onCompare}>Run a comparison</button></section>)}
+    {tab==='history'&&(reader?<MiningHistoryView key={reader.scopeKey} reader={reader} requestId={location.requestId} selectionError="" onSelect={id=>navigate('history',storeId,id)} onOpenBenchmark={onOpenBenchmark}/>:<p className="rounded-xl border border-dashed border-[#E7E2D8] p-5 text-sm text-[#6D7974]">Choose a Store to review its mining requests and algorithm runs.</p>)}
     {/* Submission state stays in the workspace across route changes; no automatic retry. */}
     {tab==='setup'&&<div className="space-y-5">
-      {reader && <SnapshotPicker key={reader.scopeKey} reader={reader} canSubmit locked={locked} selected={selected} onSelect={setSelection} errorMessage={miningErrorMessage}/>}
-      <section aria-labelledby="mining-manual-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm sm:p-6">
-        <h2 id="mining-manual-title" className="text-xl font-semibold">Mining request</h2>
-        <p className="mt-2 text-sm text-[#6D7974]">New requests use the active global policy. Compare Algorithms runs both algorithms against the same frozen snapshot.</p>
-        {!config ? <p className="mt-3 text-sm text-amber-900">Load a valid configuration before submitting. Open Algorithm Configuration to refresh it.</p> :
-          config.version===0 ? <p className="mt-3 text-sm text-amber-900">Mining is not configured. Open Mining Configuration and save a policy.</p> :
-          <p className="mt-3 text-sm">Current policy version {config.version}: {config.algorithm}, {config.minUtilValue}{config.minUtilMode==='PERCENTAGE'?'%':' frozen utility units'}.</p>}
-        <form onSubmit={submit} className="mt-5 space-y-4">
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" aria-label="Compare both algorithms" checked={compare} disabled={locked} onChange={e=>setCompare(e.target.checked)}/>Compare both algorithms (HUI-Miner and EFIM)</label>
-          <p className="text-xs text-[#6D7974]">{compare?'Run both algorithms against the same frozen input.':'Run only the active algorithm.'}</p>
-          {storeId!==null && confirmedStore?.storeId!==storeId && !pending && <p className="text-sm text-amber-900">Select Store #{storeId} from the Store list to confirm the target for a new submission.</p>}
-          <button type="submit" disabled={locked||saving||!config||config.version===0||!selected||confirmedStore?.storeId!==storeId} className={miningButton}>{submitting?'Submitting...':'Run Mining'}</button>
+      {reader&&<SnapshotPicker key={reader.scopeKey} reader={reader} canSubmit locked={locked} selected={selected} onSelect={setSelection} errorMessage={miningErrorMessage}/>}
+      <section aria-labelledby="mining-manual-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 sm:p-6">
+        <h2 id="mining-manual-title" className="text-lg font-semibold">Run Mining</h2>
+        <p className="mt-1 text-sm text-[#6D7974]">Review your selected snapshot and mining settings before starting.</p>
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <div><h3 className="text-xs font-semibold uppercase tracking-wide text-[#6D7974]">Selected Snapshot</h3>
+            {selected?<dl className="mt-3 space-y-2 text-sm"><div><dt className="inline text-[#6D7974]">Snapshot </dt><dd className="inline font-semibold">#{selected.snapshotId}</dd></div><div><dt className="text-xs text-[#6D7974]">Sales Period</dt><dd>{selected.rangeStart} to {selected.rangeEnd}</dd></div><div><dt className="text-xs text-[#6D7974]">Analysis Date</dt><dd>{selected.configuration?.analysisDate??selected.asOfDate}</dd></div></dl>:<p className="mt-3 text-sm text-[#6D7974]">Select a snapshot to continue.</p>}
+          </div>
+          <div className="border-t border-[#E7E2D8] pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><h3 className="text-xs font-semibold uppercase tracking-wide text-[#6D7974]">Current System Configuration</h3>
+            {!config?<p className="mt-3 text-sm text-amber-900">Load a valid configuration before submitting. Open Algorithm Configuration to refresh it.</p>:config.version===0?<p className="mt-3 text-sm text-amber-900">Mining is not configured. Save a configuration before running mining.</p>:<dl className="mt-3 space-y-2 text-sm"><div><dt className="text-xs text-[#6D7974]">Default Algorithm</dt><dd className="font-semibold">{algorithmName(config.algorithm!)}</dd></div><div><dt className="text-xs text-[#6D7974]">Minimum Utility</dt><dd className="break-words font-semibold">{formatThreshold(config.minUtilValue!,config.minUtilMode!)}</dd></div><div className="text-xs text-[#6D7974]">Configuration Version {config.version} · Applies to all stores</div></dl>}
+          </div>
+        </div>
+        <form onSubmit={submit} className="mt-5 border-t border-[#E7E2D8] pt-4">
+          <h3 className="text-sm font-semibold">Execution Mode</h3>
+          <label className="mt-3 flex items-start gap-3 text-sm"><input type="checkbox" aria-label="Compare HUI-Miner and EFIM" checked={compare} disabled={locked} onChange={e=>setCompare(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#356B54]"/><span><span className="font-medium">Compare HUI-Miner and EFIM</span><span className="mt-1 block text-xs leading-relaxed text-[#6D7974]">Run both algorithms on the same snapshot to compare their results and performance. The default algorithm stays unchanged.</span></span></label>
+          {!compare&&<p className="mt-3 text-xs text-[#6D7974]">Comparison is off. This request will run the default algorithm.</p>}
+          {storeId!==null&&confirmedStore?.storeId!==storeId&&!pending&&<p className="mt-3 text-sm text-amber-900">Select Store #{storeId} from the Store list to confirm the target for a new submission.</p>}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#FAF8F5] p-4">
+            <p className="text-xs text-[#6D7974]">You can review progress and results in Mining History.</p>
+            <button type="submit" disabled={locked||saving||!config||config.version===0||!selected||confirmedStore?.storeId!==storeId} className={miningPrimaryButton}>{submitting?'Submitting...':'Run Mining'}</button>
+          </div>
         </form>
         {storageError && <p role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{storageError}</p>}
         {submitError && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{submitError}</p>}
@@ -152,7 +152,7 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
           <button type="button" disabled={submitting||!config||config.version===0||storeId!==pending.storeId} className={`${miningButton} mt-3`} onClick={()=>{const saved=pinned.current;if(saved)void transmit(saved);}}>Retry same submission</button>
         </div>}
         {receipt && <div role="status" className="mt-5 rounded-xl bg-[#EDF5F0] p-4 text-sm">
-          <h3 className="font-semibold">Submission acknowledged</h3><p className="mt-2">Store #{receipt.storeId} · Request #{receipt.requestId} · {receipt.status}</p>
+          <h3 className="font-semibold">Submission acknowledged</h3><p className="mt-2">Store #{receipt.storeId} · Request #{receipt.requestId} · <MiningStatusBadge friendly kind="request" status={receipt.status}/></p>
           <p className="mt-2">HTTP 202 acknowledges asynchronous work; it does not mean mining completed.</p>
           <button type="button" className={`${miningButton} mt-3`} onClick={()=>navigate('history',receipt.storeId,receipt.requestId)}>View request details</button>
         </div>}

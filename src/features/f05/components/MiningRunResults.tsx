@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { miningButton } from '../f05.display';
-import type { Algorithm, RequestView, RunView } from '../f05.types';
+import type { RequestView, RunView } from '../f05.types';
 import { MiningPatternsView } from './MiningPatternsView';
 import { storeMiningReader } from '../f05.reader';
 import type { MiningReader } from '../f05.reader';
 interface Props {
   request:RequestView; runs:RunView[]; run:RunView; onReadError:(error:unknown)=>void;
-  reader?:MiningReader; onChooseAlgorithm?:(algorithm:Algorithm)=>void;
+  reader?:MiningReader;
   onOpenBenchmark?:(requestId:number,runId:number)=>void;
 }
 export function MiningRunResults({request,run,onReadError,reader=storeMiningReader,onOpenBenchmark}:Props){

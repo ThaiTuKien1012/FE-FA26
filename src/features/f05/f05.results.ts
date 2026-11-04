@@ -5,6 +5,14 @@ export const COLD_RUN_POLICY = 'ONE_COLD_RUN_PER_ALGORITHM_NO_WARMUP_SEQUENTIAL_
 export const HEAP_METHOD = 'SPMF_SAMPLED_JAVA_HEAP_MIB_NOT_RSS';
 export const WALL_TIME_METHOD = 'CHILD_JVM_WALL_TIME_INCLUDING_STARTUP_AND_IO_EXCLUDING_INPUT_PREPARATION';
 
+/** A difference describes these compatible observations only, never a default choice. */
+export function benchmarkRuntimeDifference(request: RequestView, rows: BenchmarkView[]): { algorithm: RunView['algorithm'] | null; differenceMillis: number } | null {
+  if (!assessBenchmarkComparison(request, rows).comparable) return null;
+  const [first, second] = rows;
+  const difference = first.run.runtimeMillis! - second.run.runtimeMillis!;
+  return { algorithm: difference === 0 ? null : difference < 0 ? first.run.algorithm : second.run.algorithm, differenceMillis: Math.abs(difference) };
+}
+
 /** Verify immutable input provenance before displaying a run's benchmark. */
 export function assertBenchmarkContext(benchmark: BenchmarkView, request: RequestView, expectedRun: RunView): void {
   const run = benchmark.run;

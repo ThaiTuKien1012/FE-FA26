@@ -362,7 +362,7 @@ export default function App() {
           {currentScreen.startsWith('f03-') && <F03WorkspaceView currentUser={currentUser} section={currentScreen} />}
 
           {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
-          {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <div className="space-y-5"><p className="rounded-xl border border-[#E7E2D8] bg-white p-4 text-sm text-[#6D7974]">Lambda Policy defines the permitted F03 scoring range for Stores. It is separate from the mining algorithm and minimum utility configuration.</p><F03WorkspaceView currentUser={currentUser} section="f03-configuration" /></div>}
+          {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <F03WorkspaceView currentUser={currentUser} section="f03-configuration" />}
 
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (

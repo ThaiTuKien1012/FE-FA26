@@ -21,21 +21,21 @@ export function MiningStorePicker({storeId,locked,onSelect}:Props) {
     return ()=>c.abort();
   },[page,key,token]);
   const data=current?.data;
-  return <section aria-labelledby="mining-stores-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="mining-stores-title" className="text-lg font-semibold">Choose a Store</h2>
+  const multiplePages=Boolean(data&&data.totalElements>data.pageSize);
+  return <section aria-labelledby="mining-stores-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><h2 id="mining-stores-title" className="text-base font-semibold">Select Store</h2><p className="mt-1 text-sm text-[#6D7974]">Select a store to view its mining activity and results.</p></div>
       <button type="button" className={miningButton} disabled={!current} onClick={()=>setRevision(r=>r+1)}>Refresh Stores</button>
     </div>
-    <p className="mt-2 text-sm text-[#6D7974]">{storeId===null?'Select a Store to load its snapshots and mining history.':`Target Store #${storeId}. Store data is scoped to this selection.`}</p>
-    {!current ? <p role="status" className="mt-4 text-sm">Loading Stores...</p> : current.error ? <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{current.error}</p> :
-      data && <><div role="group" aria-label="Store selection" className="mt-4 grid max-h-72 gap-2 overflow-auto sm:grid-cols-2">
-        {data.items.length===0 && <p className="text-sm text-[#6D7974]">No Stores were returned.</p>}
-        {data.items.map(store=><button type="button" key={store.storeId} disabled={locked} aria-pressed={store.storeId===storeId} onClick={()=>onSelect(store)} className={`${miningButton} text-left ${storeId===store.storeId?'border-[#356B54] bg-[#EDF5F0]':''}`}>{store.name} <span className="text-xs">#{store.storeId}</span></button>)}
+    {!current?<p role="status" className="mt-4 text-sm text-[#6D7974]">Loading Stores...</p>:current.error?<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{current.error}</p>:data&&<>
+      <div role="group" aria-label="Store selection" className="mt-4 flex max-h-52 flex-wrap gap-2 overflow-auto">
+        {data.items.length===0&&<p className="text-sm text-[#6D7974]">No Stores were returned.</p>}
+        {data.items.map(store=><button type="button" key={store.storeId} disabled={locked} aria-pressed={store.storeId===storeId} onClick={()=>onSelect(store)} className={miningButton+' inline-flex items-center gap-2 '+(storeId===store.storeId?'border-[#356B54] bg-[#EDF5F0] ring-1 ring-[#356B54]/20':'')}><span>{store.name}</span>{' '}<span className="text-xs font-normal text-[#6D7974]">#{store.storeId}</span></button>)}
       </div>
-      <nav aria-label="Store pages" className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span>Page {page+1} · {data.totalElements} Stores</span>
-        <div className="flex gap-2"><button type="button" className={miningButton} disabled={page===0} onClick={()=>setPage(p=>p-1)}>Previous Stores</button><button type="button" className={miningButton} disabled={(page+1)*data.pageSize>=data.totalElements} onClick={()=>setPage(p=>p+1)}>Next Stores</button></div>
-      </nav></>}
-    {locked && <p className="mt-3 text-xs text-amber-900">Store selection is locked while a submission is pending. Resolve or explicitly discard that attempt first.</p>}
+      {multiplePages&&<nav aria-label="Store pages" className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#E7E2D8] pt-3 text-xs text-[#6D7974]">
+        <span>Page {page+1} · {data.totalElements} Stores</span><div className="flex gap-2"><button type="button" className={miningButton} disabled={page===0} onClick={()=>setPage(p=>p-1)}>Previous Stores</button><button type="button" className={miningButton} disabled={(page+1)*data.pageSize>=data.totalElements} onClick={()=>setPage(p=>p+1)}>Next Stores</button></div>
+      </nav>}
+    </>}
+    {locked&&<p className="mt-3 text-xs text-amber-900">Store selection is locked while a submission is pending. Resolve or explicitly discard that attempt first.</p>}
   </section>;
 }

@@ -78,10 +78,10 @@ test('Dashboard has real policy values or explicit no-data state and never inclu
 
 test('configuration exposes backend audit metadata and explains Compare Algorithms semantics',()=>{
   const html=renderToStaticMarkup(createElement(MiningConfigurationView,{
-    config:{...configuration,changedBy:27},loading:false,saving:false,locked:false,error:'',choice:null,onRefresh:()=>{},onSave:async()=>{}
+    config:{...configuration,changedBy:27},loading:false,saving:false,locked:false,error:'',onRefresh:()=>{},onSave:async()=>{}
   }));
-  assert.ok(html.includes('Changed by'));assert.ok(html.includes('User #27'));assert.ok(html.includes('Changed at'));
-  assert.ok(html.includes('without Compare Algorithms'));assert.ok(html.includes('Existing')||html.includes('existing'));
+  assert.ok(html.includes('Updated by'));assert.ok(html.includes('Administrator #27'));assert.ok(html.includes('Last updated'));
+  assert.ok(html.includes('when comparison is off'));assert.ok(html.includes('Existing')||html.includes('existing'));
 });
 
 test('Store F05 URL and permissions remain separate from System Admin routes',t=>{
