@@ -15,10 +15,10 @@ const processChrome=spawn(chrome,['--headless=new','--no-first-run','--no-defaul
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let cdp, initId, postBodies=[], unexpected=[], browserErrors=[];
 const sampleUsers=[
- {userId:1,name:'Administrator Fixture',email:'admin@example.invalid',roleCode:'SYSTEM_ADMIN',status:'ACTIVE',emailVerified:true,storeId:null},
- {userId:5,name:'Merchandiser Fixture',email:'merch@example.invalid',roleCode:'MERCHANDISER',status:'INACTIVE',emailVerified:true,storeId:1},
- {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1},
- {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null}
+ {userId:1,name:'Administrator Fixture',email:'admin@example.invalid',roleCode:'SYSTEM_ADMIN',status:'ACTIVE',emailVerified:true,storeId:null,avatarUrl:'/api/users/1/avatar'},
+ {userId:5,name:'Merchandiser Fixture',email:'merch@example.invalid',roleCode:'MERCHANDISER',status:'INACTIVE',emailVerified:true,storeId:1,avatarUrl:'/api/users/5/avatar'},
+ {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
+ {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
 const state={users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,policy:{lambdaMin:0,lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
@@ -223,11 +223,21 @@ try{
   checks.push('Lambda global range, helper text, warning and existing GET/PUT contract preserved');
 
   state.usersError=true;await click('Users & Roles');await textIncludes('Accounts could not be loaded');
-  assert.equal(await evaluate("document.getElementById('account-overview-title').parentElement.innerText.includes('Account data unavailable')"),true);
+  assert.equal(await evaluate("document.querySelector('[data-account-statistics]').innerText.includes('Account data unavailable')"),true);
   state.usersError=false;state.users=[];await click('Retry accounts');await textIncludes('No accounts were returned');
-  state.users=sampleUsers.map(x=>({...x}));await click('Refresh accounts');await textIncludes('Store Staff Accounts');
-  assert.deepEqual(await evaluate("[...document.querySelectorAll('[aria-labelledby=account-overview-title] article > p:first-of-type')].map(e=>e.innerText)"),['4','2','1','2']);
+  state.users=sampleUsers.filter(x=>x.status!=='PENDING_VERIFICATION').map(x=>({...x}));await click('Refresh accounts');
+  await until("document.querySelector('[data-account-value]')?.innerText==='3'",'Accounts without pending loaded');
+  assert.equal(await evaluate("Boolean(document.querySelector('[data-account-pending]'))"),false,'No pending badge when count is zero');
+  state.users=sampleUsers.map(x=>({...x}));await click('Refresh accounts');
+  await until("document.querySelector('[data-account-value]')?.innerText==='4'",'Mixed account states loaded');
+  await textIncludes('Store Staff Accounts');
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-account-statistics] [data-account-value]')].map(e=>e.innerText)"),['4','2','1','2']);
   await textIncludes('Pending Activation');
+  assert.equal(await evaluate("!document.querySelector('[data-account-statistics]').innerText.toLowerCase().includes('pending')"),true);
+  assert.equal(await evaluate("document.querySelector('[data-account-statistics]').innerText.includes('awaiting activation')||document.querySelector('[data-account-statistics]').innerText.includes('Account Overview')"),false);
+  assert.equal(await evaluate("document.querySelectorAll('tbody img').length"),0,'Owner-only avatars keep initials in account management');
+  assert.equal(state.calls.some(x=>/\/users\/\d+\/avatar/.test(x.path)),false,'Never request another account avatar');
+  assert.equal(await evaluate("[...document.querySelectorAll('tbody tr')].every(row=>!row.querySelector('button svg')&&row.querySelectorAll('button').length===1&&row.querySelector('button').innerText==='Edit')"),true);
   await input('Search accounts','missing-account');await textIncludes('No accounts match');await input('Search accounts','');
   await select('Filter by role','store');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);
   await select('Filter by role','all');await select('Filter by status','inactive');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);
@@ -318,11 +328,33 @@ try{
   assert.equal(state.users.find(x=>x.userId===1).roleCode,'SYSTEM_ADMIN');
   checks.push('current System Admin keeps active access; focus trap, Escape and focus restoration work');
 
-  await click('Add Account');await input('Full Name','Invited Fixture');await input('Email Address','invited@example.invalid');await chooseStore('1');
+  await click('Add Account');await chooseStore('1');
+  const invalidStart=userWrites().length;
+  await click('Create & Send Invitation');
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"Full Name\"]').validity.valueMissing"),true);
+  assert.equal(userWrites().length,invalidStart,'Blank invitation must not POST');
+  await input('Full Name','Invited Fixture');await input('Email Address','invalid-email');
+  await click('Create & Send Invitation');
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"Email Address\"]').validity.typeMismatch"),true);
+  assert.equal(userWrites().length,invalidStart,'Invalid email must not POST');
+  await input('Email Address','invited@example.invalid');await chooseStore('1');
   await select('Account Role','System Admin');await textIncludes('does not require a Store assignment');
   assert.equal(await evaluate("Boolean(document.querySelector('select[aria-label=\"Assigned Store\"]'))"),false);
   await select('Account Role','Merchandiser');await chooseStore('1');
   assert.equal(await evaluate("document.querySelector('[role=dialog]').getBoundingClientRect().width>=540&&document.querySelector('[role=dialog]').getBoundingClientRect().width<=600"),true);
+  assert.equal(await evaluate("[...document.querySelectorAll('[role=dialog] select')].every(s=>getComputedStyle(s).appearance==='none'&&s.parentElement.querySelectorAll('svg.lucide-chevron-down').length===1&&s.getBoundingClientRect().height>=44)"),true,'One custom chevron per native select');
+  await textIncludes('Invitation email');
+  assert.equal(await evaluate("document.querySelector('[role=dialog]').innerText.includes('Email activation required')"),false);
+  await evaluate("document.querySelector('select[aria-label=\"Account Role\"]').focus()");
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+  assert.equal(await evaluate("document.activeElement.getAttribute('aria-label')"),'Assigned Store','Native role to Store keyboard traversal');
+  for(const key of ['ArrowDown','ArrowUp']){
+    await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:key==='ArrowDown'?40:38});
+    await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,windowsVirtualKeyCode:key==='ArrowDown'?40:38});
+    await sleep(50);
+    assert.equal(await evaluate("document.querySelector('select[aria-label=\"Assigned Store\"]').value"),key==='ArrowDown'?'2':'1','Native Store keyboard selection');
+  }
   await capture('add-account-desktop');
   const inviteStart=userWrites().length;state.holdAccountWrites=true;
   await evaluate("(()=>{const b=document.querySelector('[role=dialog] button[type=submit]');b.click();b.click();})()");
@@ -331,10 +363,11 @@ try{
   await textIncludes('Account created. An activation invitation was sent');
   assert.equal(state.users.at(-1).status,'PENDING_VERIFICATION');assert.equal(state.users.at(-1).emailVerified,false);
   assert.deepEqual(JSON.parse(userWrites().at(-1).body),{name:'Invited Fixture',email:'invited@example.invalid',roleCode:'MERCHANDISER',storeId:1});
-  for(const width of [820,390]){
+  for(const width of [1024,820,390]){
     await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
     await click('Add Account');await input('Full Name','Mobile Draft');await input('Email Address','mobile@example.invalid');await chooseStore('1');
     assert.equal(await evaluate("(()=>{const r=document.querySelector('[role=dialog]').getBoundingClientRect();return r.width<=innerWidth-23&&r.height<=innerHeight-23&&r.top>=0;})()"),true);
+    assert.equal(await evaluate("[...document.querySelectorAll('[role=dialog] select')].every(s=>{const r=s.getBoundingClientRect(),i=s.parentElement.querySelector('svg').getBoundingClientRect();return getComputedStyle(s).appearance==='none'&&i.right<r.right&&i.right>r.right-40&&Math.abs(i.top+i.height/2-r.top-r.height/2)<1;})"),true,'Mobile/tablet chevrons stay inside and centered');
     await capture('add-account-'+width);await click('Cancel');
     await openAccount('Merchandiser Updated');
     assert.equal(await evaluate("(()=>{const r=document.querySelector('[role=dialog]').getBoundingClientRect();return r.width<=innerWidth-23&&r.height<=innerHeight-23&&r.top>=0;})()"),true);
@@ -350,7 +383,7 @@ try{
     ['/admin/mining/run?storeId=1','Available Snapshots','run'],
     ['/admin/mining/history?storeId=1&requestId=17','Algorithm Runs','history'],
     ['/admin/benchmark?storeId=1&requestId=17&runId=42','47 ms faster','benchmark'],
-    ['/admin/users','Account Overview','users'],
+    ['/admin/users','User Management','users'],
     ['/admin/lambda-policy','Current Lambda Range','lambda']
   ];
   for(const width of [1440,1024,820,390]){
@@ -360,6 +393,12 @@ try{
       assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),true,'No page overflow '+name+' '+width);
       assert.equal(await evaluate("document.querySelectorAll('main h1').length"),1,'One page heading '+name);
       assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),false);
+      if(name==='users')assert.equal(await evaluate("(()=>{const heights=[...document.querySelectorAll('[data-account-statistics] article')].map(e=>e.getBoundingClientRect().height);return heights.length===4&&Math.max(...heights)-Math.min(...heights)<1;})()"),true,'Four equally tall KPI cards');
+      if(name==='users'){
+        assert.equal(await evaluate("document.querySelector('[data-account-statistics]').innerText.toLowerCase().includes('pending')"),false,'KPI cards never show pending information');
+        assert.equal(await evaluate("[...document.querySelectorAll('[data-account-statistics] article')].every(e=>!e.innerText.includes('Loaded list only'))"),true);
+        assert.equal(await evaluate("document.querySelector('[data-account-statistics]').lastElementChild.innerText.includes('not system-wide totals')"),true);
+      }
       if(width===390||width===1440)await capture(name+'-'+width);
       if(width<768)assert.equal(await evaluate("document.querySelector('aside').getBoundingClientRect().height<innerHeight/2"),true,'Mobile navigation must leave content accessible');
     }

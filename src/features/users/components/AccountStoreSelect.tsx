@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { accountRequest } from '../account-management';
+import { AccountSelect } from './AccountSelect';
 
 interface StoreOption {storeId:number;name:string;}
 interface StorePage {items:StoreOption[];page:number;pageSize:number;totalElements:number;}
@@ -25,11 +26,11 @@ export function AccountStoreSelect({value,disabled,required=true,onChange,classN
   const selectedOutsidePage=Boolean(value&&!current?.data?.items.some(s=>String(s.storeId)===value));
   return <div>
     <label htmlFor="account-assigned-store" className="text-sm font-medium text-[#405447]">Assigned Store</label>
-    <select id="account-assigned-store" aria-label="Assigned Store" required={required} value={value} disabled={disabled||!current?.data} onChange={e=>onChange(e.target.value)} className={className}>
+    <AccountSelect id="account-assigned-store" aria-label="Assigned Store" required={required} value={value} disabled={disabled||!current?.data} onChange={e=>onChange(e.target.value)} className={className}>
       <option value="">{!current?'Loading stores...':'Select a store'}</option>
       {selectedOutsidePage&&<option value={value}>{names[value]??`Current Store #${value}`}</option>}
       {current?.data?.items.map(store=><option key={store.storeId} value={String(store.storeId)}>{store.name} · #{store.storeId}</option>)}
-    </select>
+    </AccountSelect>
     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[#6D7974]">
       <p>{!current?<span role="status">Loading available stores...</span>:current.error?<span role="alert">{current.error}</span>:current.data?.items.length===0?'No stores are available. A Store Admin or Merchandiser needs a valid Store assignment.':'Required for Store Admin and Merchandiser accounts.'}</p>
       <button type="button" disabled={disabled||!current} onClick={()=>setRevision(n=>n+1)} className="rounded font-medium text-[#356B54] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-[#356B54] disabled:opacity-50">{current?.error?'Retry stores':'Refresh stores'}</button>

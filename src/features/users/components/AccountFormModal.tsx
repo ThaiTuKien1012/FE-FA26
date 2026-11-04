@@ -6,6 +6,7 @@ import { accountChanges, canChangeAccountStatus, needsAccountStore } from '../ac
 import type { AccountDraft } from '../account-management';
 import { AccountStatusBadge } from './AccountStatusBadge';
 import { AccountStoreSelect } from './AccountStoreSelect';
+import { AccountSelect } from './AccountSelect';
 
 export interface AccountRoleOption {code:string;display_name:string;role:SystemRole;}
 interface Props {
@@ -75,10 +76,10 @@ export function AccountFormModal({mode,current,actorId,draft,loading,submitting,
             <fieldset disabled={submitting} className="space-y-4 border-t border-[#E7EADF] pt-4">
               <legend className="mb-2 pr-2 text-sm font-semibold text-[#2E4733]">{editing?'Access Settings':'Role & Store Assignment'}</legend>
               <div><label htmlFor={titleId+'-role'} className="text-sm font-medium text-[#405447]">Account Role</label>
-                <select id={titleId+'-role'} aria-label="Account Role" value={draft.role} disabled={submitting||rolesLoading||roles.length===0||(editing&&self)} onChange={event=>{const role=event.target.value as SystemRole;onChange({role,...(!needsAccountStore(role)?{storeId:''}:{})});}} className={field}>
+                <AccountSelect id={titleId+'-role'} aria-label="Account Role" value={draft.role} disabled={submitting||rolesLoading||roles.length===0||(editing&&self)} onChange={event=>{const role=event.target.value as SystemRole;onChange({role,...(!needsAccountStore(role)?{storeId:''}:{})});}} className={field}>
                   {!roles.some(role=>role.role===draft.role)&&<option value={draft.role}>{editing?draft.role:'Loading roles...'}</option>}
                   {roles.map(role=><option key={role.code} value={role.role}>{role.display_name}</option>)}
-                </select>
+                </AccountSelect>
                 {rolesError&&<p className="mt-2 text-xs text-red-800">{rolesError} <button type="button" disabled={submitting||rolesLoading} onClick={onRefreshRoles} className="font-semibold underline">Retry roles</button></p>}
               </div>
               {needsAccountStore(draft.role)?<AccountStoreSelect value={draft.storeId} disabled={submitting} required={storeRequired} onChange={storeId=>onChange({storeId})} className={field}/>:<p className="flex items-start gap-2 text-sm leading-5 text-[#6D7974]"><StoreHint/>This role does not require a Store assignment.</p>}
@@ -86,14 +87,14 @@ export function AccountFormModal({mode,current,actorId,draft,loading,submitting,
             {editing&&current?<section aria-labelledby={titleId+'-status'} className="space-y-4 border-t border-[#E7EADF] pt-5">
               <h3 id={titleId+'-status'} className="text-sm font-semibold text-[#2E4733]">Account Status</h3>
               <dl className="grid gap-4 sm:grid-cols-2"><div><dt className="mb-2 text-xs text-[#6D7974]">Current Status</dt><dd><AccountStatusBadge status={current.status}/></dd></div><div><dt className="mb-2 text-xs text-[#6D7974]">OTP Verification</dt><dd className={'inline-flex items-center gap-1.5 text-sm font-medium '+(current.emailVerified?'text-[#386E45]':'text-[#8A6D2D]')}>{current.emailVerified?<CheckCircle2 aria-hidden="true" className="h-4 w-4"/>:<Mail aria-hidden="true" className="h-4 w-4"/>}{current.emailVerified?'Email verified':'Not verified'}</dd></div></dl>
-              <div><label htmlFor={titleId+'-access'} className="text-sm font-medium text-[#405447]">Account Access</label><select id={titleId+'-access'} aria-label="Account Status" value={draft.status} disabled={submitting||!statusEditable} onChange={event=>onChange({status:event.target.value as UserStatus})} className={field}>
+              <div><label htmlFor={titleId+'-access'} className="text-sm font-medium text-[#405447]">Account Access</label><AccountSelect id={titleId+'-access'} aria-label="Account Status" value={draft.status} disabled={submitting||!statusEditable} onChange={event=>onChange({status:event.target.value as UserStatus})} className={field}>
                 {current.status==='Pending Activation'&&<option value="Pending Activation">Pending Activation</option>}<option value="Active">Active</option><option value="Inactive" disabled={self}>Inactive</option>
-              </select>
+              </AccountSelect>
                 <p className="mt-2 text-xs leading-5 text-[#6D7974]">{self?'Your own administrator role and active access are protected. You can still update your name.':statusEditable?'A verified account can be re-enabled once activation and password setup are complete. The server confirms eligibility when you save.':'Direct activation is unavailable. The user must complete OTP verification and account activation first.'}</p>
               </div>
               {current.status==='Pending Activation'&&<div className="rounded-xl bg-[#FFF8E7] p-3 text-sm leading-5 text-[#866624]"><p className="font-semibold">Complete activation first</p><p className="mt-1">For invited users: choose “Activate account” on the sign-in page. They can resend their code there and set their password. Self-registered users should finish the registration flow.</p></div>}
               {current.status==='Inactive'&&!current.emailVerified&&<p className="rounded-xl bg-[#FFF8E7] p-3 text-sm leading-5 text-[#866624]">OTP activation has not been completed. If the original activation flow is no longer available, ask support to review this account.</p>}
-            </section>:<div className="flex items-start gap-3 rounded-xl bg-[#F0F6ED] p-3.5 text-sm leading-5 text-[#496741]"><Mail aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0"/><div><p className="font-semibold">Email activation required</p><p className="mt-1">The user will receive an invitation to activate their account using a one-time code.</p></div></div>}
+            </section>:<div className="flex items-start gap-2.5 border-t border-[#E7EADF] pt-4 text-sm leading-5 text-[#61705F]"><Mail aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0"/><div><p className="font-semibold">Invitation email</p><p className="mt-1">An activation code will be sent to the user's email after account creation.</p></div></div>}
             {accessWarning&&<p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900"><AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0"/>Changing role, Store assignment or access status signs this account out of existing sessions.</p>}
           </>}
         </div>

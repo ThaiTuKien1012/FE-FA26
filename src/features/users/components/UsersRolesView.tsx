@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, ChevronDown, ChevronLeft, ChevronRight, Shield, ShieldCheck, Store, BriefcaseBusiness, UserRound, UsersRound, UserCheck, UserMinus, RefreshCw, PencilLine } from 'lucide-react';
+import { Search, ChevronDown, ChevronLeft, ChevronRight, Shield, ShieldCheck, Store, BriefcaseBusiness, UserRound, UsersRound, UserCheck, UserMinus, RefreshCw } from 'lucide-react';
 import { UserAccount, SystemRole } from '../../../types/users';
 
 import { authService } from '../../../services/authService';
@@ -14,7 +14,7 @@ const readUsersViewState = () => { try { return JSON.parse(sessionStorage.getIte
 
 const roleAppearance: Record<SystemRole, { icon: typeof Shield; className: string }> = {
   'System Admin': { icon: ShieldCheck, className: 'border-[#CDDDD3] bg-[#EAF1EC] text-[#294E3C]' },
-  'Store Admin': { icon: Store, className: 'border-[#D8E3E7] bg-[#EFF4F5] text-[#496570]' },
+  'Store Admin': { icon: Store, className: 'border-[#D3DFEC] bg-[#EDF3FA] text-[#45648A]' },
   'Merchandiser': { icon: BriefcaseBusiness, className: 'border-[#E0E5D3] bg-[#F2F4EB] text-[#627343]' },
   'End-Customer': { icon: UserRound, className: 'border-[#E2E3DE] bg-[#F4F4F1] text-[#666E64]' }
 };
@@ -27,30 +27,27 @@ function AccountRoleBadge({ role }: { role: SystemRole }) {
 }
 
 export function AccountOverview({users,loading,error}:{users:UserAccount[];loading:boolean;error:string|null}){
-  const pendingCount=users.filter(user=>user.status==='Pending Activation').length;
   const metrics=[
     {label:'Total Accounts',value:users.length,description:'All registered user accounts',icon:UsersRound,accent:'#748F80',iconStyle:'bg-[#EDF2EF] text-[#456653]'},
     {label:'Active Accounts',value:users.filter(user=>user.status==='Active').length,description:'Accounts currently enabled',icon:UserCheck,accent:'#6D9B7A',iconStyle:'bg-[#EAF5ED] text-[#3D7750]'},
-    {label:'Inactive Accounts',value:users.filter(user=>user.status==='Inactive').length,description:'Accounts currently disabled or inactive',icon:UserMinus,accent:'#A0A99A',iconStyle:'bg-[#F1F3EE] text-[#727D66]'},
+    {label:'Inactive Accounts',value:users.filter(user=>user.status==='Inactive').length,description:'Accounts currently disabled',icon:UserMinus,accent:'#A0A99A',iconStyle:'bg-[#F1F3EE] text-[#727D66]'},
     {label:'Store Staff Accounts',value:users.filter(user=>user.role==='Store Admin'||user.role==='Merchandiser').length,description:'Store Admin and Merchandiser accounts',icon:Store,accent:'#879775',iconStyle:'bg-[#F0F3EA] text-[#677A52]'}
   ];
-  return <section aria-labelledby="account-overview-title">
-    <h2 id="account-overview-title" className="text-lg font-semibold">Account Overview</h2>
-    <p className="mt-1 text-xs text-[#6D7974]">Counts cover the accounts returned in this management list.</p>
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  return <section aria-label="Account statistics" data-account-statistics>
+    <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {metrics.map(metric=>{
         const Icon=metric.icon;
-        return <article key={metric.label} className="rounded-2xl border border-t-2 border-[#E7E2D8] bg-white p-5 shadow-[0_1px_2px_rgba(30,58,47,0.03)]" style={{borderTopColor:metric.accent}}>
+        return <article key={metric.label} aria-label={`${metric.label}: loaded account list only`} title="Based on the loaded account list, not a system-wide total." className="flex h-full flex-col rounded-2xl border border-t-2 border-[#E7E2D8] bg-white p-5 shadow-[0_1px_2px_rgba(30,58,47,0.03)]" style={{borderTopColor:metric.accent}}>
           <div className="flex items-start justify-between gap-3">
             <h3 className="pt-1 text-sm font-medium leading-5 text-[#59685F]">{metric.label}</h3>
             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${metric.iconStyle}`}><Icon aria-hidden="true" className="h-5 w-5" strokeWidth={1.7}/></span>
           </div>
-          <p className="mt-3 text-3xl font-semibold tracking-tight tabular-nums text-[#1E3A2F]">{loading?'…':error?'—':metric.value.toLocaleString('en-GB')}</p>
+          <p data-account-value className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-[#1E3A2F]">{loading?'…':error?'—':metric.value.toLocaleString('en-GB')}</p>
           <p className="mt-2 text-xs leading-5 text-[#6D7974]">{loading?'Loading accounts...':error?'Account data unavailable':metric.description}</p>
         </article>;
       })}
     </div>
-    {!loading&&!error&&pendingCount>0&&<p className="mt-3 text-xs leading-5 text-[#89651C]">{pendingCount} {pendingCount===1?'account is':'accounts are'} awaiting activation. Pending Activation accounts are separate from Inactive Accounts.</p>}
+    <p className="mt-2.5 text-xs leading-5 text-[#788479]">Statistics reflect the loaded account list, not system-wide totals.</p>
   </section>;
 }
 
@@ -301,12 +298,12 @@ export const UsersRolesView: React.FC = () => {
                       <span className="font-semibold text-[#263C2E]">{user.name||'(Unnamed)'}</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-5 py-4 text-[#6D7974] sm:px-6">{user.email}</td>
+                  <td className="max-w-[280px] px-5 py-4 text-[#6D7974] sm:px-6"><span className="block truncate" title={user.email}>{user.email}</span></td>
                   <td className="px-5 py-4 sm:px-6"><AccountRoleBadge role={user.role}/></td>
                   <td className="px-5 py-4 sm:px-6"><AccountStatusBadge status={user.status}/></td>
                   <td className="px-5 py-4 text-right sm:px-6">
-                    <button type="button" aria-label={`Edit ${user.name}`} onClick={()=>handleOpenEditModal(user)} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D5E0D3] bg-white px-3 text-xs font-semibold text-[#365D3E] transition-colors hover:border-[#AFC5AE] hover:bg-[#EDF5E9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54]">
-                      <PencilLine aria-hidden="true" className="h-3.5 w-3.5"/>Edit
+                    <button type="button" aria-label={`Edit ${user.name}`} onClick={()=>handleOpenEditModal(user)} className="inline-flex h-9 min-w-[60px] items-center justify-center rounded-lg border border-[#D5E0D3] bg-white px-3.5 text-sm font-semibold text-[#365D3E] transition-colors hover:border-[#AFC5AE] hover:bg-[#EDF5E9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54]">
+                      Edit
                     </button>
                   </td>
                 </tr>

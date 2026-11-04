@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AccountOverview } from '../src/features/users/components/UsersRolesView';
+import { AccountSelect } from '../src/features/users/components/AccountSelect';
+import { AccountStatusBadge } from '../src/features/users/components/AccountStatusBadge';
 import { SystemMiningDashboard } from '../src/features/f05/components/SystemMiningDashboard';
 import { MiningStatusBadge } from '../src/features/f05/components/MiningStatusBadge';
 import { formatMiningNumber, formatThreshold } from '../src/features/f05/f05.display';
@@ -43,12 +45,27 @@ const accounts:UserAccount[]=[
   {id:'4',name:'Customer',email:'customer@example.invalid',role:'End-Customer',status:'Inactive'},
   {id:'5',name:'Merch 2',email:'merch2@example.invalid',role:'Merchandiser',status:'Active'}
 ];
+test('account selects keep native controls with a single decorative chevron and status badges use exact labels',()=>{
+  const select=renderToStaticMarkup(createElement(AccountSelect,{className:'mt-2 h-11 px-3.5',disabled:true,'aria-label':'Account Role'},createElement('option',{value:'System Admin'},'System Admin')));
+  assert.equal((select.match(/<select\b/g)??[]).length,1);
+  assert.equal((select.match(/<svg\b/g)??[]).length,1);
+  assert.ok(select.includes('appearance-none'));assert.ok(select.includes('pr-11'));
+  assert.ok(select.includes('disabled=""'));assert.ok(select.includes('aria-hidden="true"'));
+  for(const status of ['Active','Inactive','Pending Activation'] as const){
+    const html=renderToStaticMarkup(createElement(AccountStatusBadge,{status}));
+    assert.ok(html.includes(status));assert.ok(html.includes('whitespace-nowrap'));
+  }
+});
 test('account overview counts only loaded API accounts and distinguishes Store staff from System Admin',()=>{
   const html=renderToStaticMarkup(createElement(AccountOverview,{users:accounts,loading:false,error:null}));
   const numbers=[...html.matchAll(/tabular-nums[^>]*>(\d+)<\/p>/g)].map(match=>Number(match[1]));
   assert.deepEqual(numbers,[5,3,2,3]);
   for(const old of ['Active Directory','Role Profiles','Admin Privileges','Verified','RBAC matrix tiers'])assert.equal(html.includes(old),false);
-  assert.ok(html.includes('Counts cover the accounts returned'));
+  assert.ok(html.includes('loaded account list only'));
+  assert.ok(html.includes('Statistics reflect the loaded account list, not system-wide totals.'));
+  assert.equal(html.includes('>Loaded list only<'),false);
+  assert.equal(html.includes('Account Overview'),false);
+  assert.equal(html.includes('Counts cover the accounts returned'),false);
 });
 test('account failures and loading never masquerade as successful zero counts',()=>{
   for(const [loading,error] of [[true,null],[false,'offline']] as const){
@@ -64,7 +81,12 @@ test('pending accounts remain separate from inactive KPI counts',()=>{
   const pending:UserAccount={id:'6',name:'Pending',email:'pending@example.invalid',role:'Merchandiser',storeId:1,status:'Pending Activation',emailVerified:false};
   const html=renderToStaticMarkup(createElement(AccountOverview,{users:[...accounts,pending],loading:false,error:null}));
   assert.deepEqual([...html.matchAll(/tabular-nums[^>]*>(\d+)<\/p>/g)].map(match=>Number(match[1])),[6,3,2,4]);
-  assert.ok(html.includes('1 account is'));assert.ok(html.includes('separate from Inactive Accounts'));
+  const cards=html.match(/<article\b[\s\S]*?<\/article>/g)??[];
+  assert.equal(cards.length,4);
+  assert.equal(html.toLowerCase().includes('pending'),false);
+  assert.equal(html.includes('awaiting activation'),false);
+  const noPending=renderToStaticMarkup(createElement(AccountOverview,{users:accounts,loading:false,error:null}));
+  assert.equal(noPending.includes('pending activation'),false);
 });
 test('Dashboard separates global settings from the Store selector and activity, with no configuration form',()=>{
   const html=renderToStaticMarkup(createElement(SystemMiningDashboard,{config:configuration,loading:false,error:'',reader:null,storeSelector:createElement('div',{'data-test-store':'true'},'Store selector'),onRefresh:()=>{},onConfigure:()=>{},onRun:()=>{},onRequest:()=>{}}));
