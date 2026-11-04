@@ -1,23 +1,56 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, ChevronDown, UserPlus, X, Shield } from 'lucide-react';
-import { UserAccount, SystemRole, UserStatus } from '../../../types/users';
+import { Search, ChevronDown, ChevronLeft, ChevronRight, Shield, ShieldCheck, Store, BriefcaseBusiness, UserRound, UsersRound, UserCheck, UserMinus, RefreshCw, PencilLine } from 'lucide-react';
+import { UserAccount, SystemRole } from '../../../types/users';
 
 import { authService } from '../../../services/authService';
+import { accountChanges, accountDraft, accountRequest, accountRoleCodes, createAccountPayload, mapAccount, planAccountUpdate, saveAccountUpdate } from '../account-management';
+import type { AccountDraft } from '../account-management';
+import { AccountFormModal } from './AccountFormModal';
+import type { AccountRoleOption } from './AccountFormModal';
+import { AccountStatusBadge } from './AccountStatusBadge';
 
 const usersViewStateKey = 'system-users-view-state';
 const readUsersViewState = () => { try { return JSON.parse(sessionStorage.getItem(usersViewStateKey) || '{}') as { searchQuery?: string; roleFilter?: string; statusFilter?: string; page?: number }; } catch { return {}; } };
 
+const roleAppearance: Record<SystemRole, { icon: typeof Shield; className: string }> = {
+  'System Admin': { icon: ShieldCheck, className: 'border-[#CDDDD3] bg-[#EAF1EC] text-[#294E3C]' },
+  'Store Admin': { icon: Store, className: 'border-[#D8E3E7] bg-[#EFF4F5] text-[#496570]' },
+  'Merchandiser': { icon: BriefcaseBusiness, className: 'border-[#E0E5D3] bg-[#F2F4EB] text-[#627343]' },
+  'End-Customer': { icon: UserRound, className: 'border-[#E2E3DE] bg-[#F4F4F1] text-[#666E64]' }
+};
+
+function AccountRoleBadge({ role }: { role: SystemRole }) {
+  const { icon: Icon, className } = roleAppearance[role];
+  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-medium ${className}`}>
+    <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />{role}
+  </span>;
+}
+
 export function AccountOverview({users,loading,error}:{users:UserAccount[];loading:boolean;error:string|null}){
+  const pendingCount=users.filter(user=>user.status==='Pending Activation').length;
   const metrics=[
-    {label:'Total Accounts',value:users.length,description:'All registered accounts'},
-    {label:'Active Accounts',value:users.filter(user=>user.status==='Active').length,description:'Accounts currently enabled'},
-    {label:'Inactive Accounts',value:users.filter(user=>user.status!=='Active').length,description:'Accounts not active'},
-    {label:'Store Staff Accounts',value:users.filter(user=>user.role==='Store Admin'||user.role==='Merchandiser').length,description:'Store Admins and Merchandisers'}
+    {label:'Total Accounts',value:users.length,description:'All registered user accounts',icon:UsersRound,accent:'#748F80',iconStyle:'bg-[#EDF2EF] text-[#456653]'},
+    {label:'Active Accounts',value:users.filter(user=>user.status==='Active').length,description:'Accounts currently enabled',icon:UserCheck,accent:'#6D9B7A',iconStyle:'bg-[#EAF5ED] text-[#3D7750]'},
+    {label:'Inactive Accounts',value:users.filter(user=>user.status==='Inactive').length,description:'Accounts currently disabled or inactive',icon:UserMinus,accent:'#A0A99A',iconStyle:'bg-[#F1F3EE] text-[#727D66]'},
+    {label:'Store Staff Accounts',value:users.filter(user=>user.role==='Store Admin'||user.role==='Merchandiser').length,description:'Store Admin and Merchandiser accounts',icon:Store,accent:'#879775',iconStyle:'bg-[#F0F3EA] text-[#677A52]'}
   ];
-  return <section aria-labelledby="account-overview-title"><h2 id="account-overview-title" className="text-lg font-semibold">Account Overview</h2><p className="mt-1 text-xs text-[#6D7974]">Counts cover the accounts returned in this management list.</p>
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{metrics.map(metric=><article key={metric.label} className="rounded-xl border border-[#E7E2D8] bg-white p-5">
-      <h3 className="text-sm font-medium text-[#6D7974]">{metric.label}</h3><p className="mt-3 text-3xl font-semibold tabular-nums text-[#191C1B]">{loading?'…':error?'—':metric.value.toLocaleString('en-GB')}</p><p className="mt-2 text-xs text-[#6D7974]">{loading?'Loading accounts...':error?'Account data unavailable':metric.description}</p>
-    </article>)}</div>
+  return <section aria-labelledby="account-overview-title">
+    <h2 id="account-overview-title" className="text-lg font-semibold">Account Overview</h2>
+    <p className="mt-1 text-xs text-[#6D7974]">Counts cover the accounts returned in this management list.</p>
+    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {metrics.map(metric=>{
+        const Icon=metric.icon;
+        return <article key={metric.label} className="rounded-2xl border border-t-2 border-[#E7E2D8] bg-white p-5 shadow-[0_1px_2px_rgba(30,58,47,0.03)]" style={{borderTopColor:metric.accent}}>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="pt-1 text-sm font-medium leading-5 text-[#59685F]">{metric.label}</h3>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${metric.iconStyle}`}><Icon aria-hidden="true" className="h-5 w-5" strokeWidth={1.7}/></span>
+          </div>
+          <p className="mt-3 text-3xl font-semibold tracking-tight tabular-nums text-[#1E3A2F]">{loading?'…':error?'—':metric.value.toLocaleString('en-GB')}</p>
+          <p className="mt-2 text-xs leading-5 text-[#6D7974]">{loading?'Loading accounts...':error?'Account data unavailable':metric.description}</p>
+        </article>;
+      })}
+    </div>
+    {!loading&&!error&&pendingCount>0&&<p className="mt-3 text-xs leading-5 text-[#89651C]">{pendingCount} {pendingCount===1?'account is':'accounts are'} awaiting activation. Pending Activation accounts are separate from Inactive Accounts.</p>}
   </section>;
 }
 
@@ -31,105 +64,50 @@ export const UsersRolesView: React.FC = () => {
   const pageSize = 10;
   const restoredFilters = useRef(true);
   const tableScrollY = useRef(0);
-  const [isBackendLive, setIsBackendLive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [accountsError,setAccountsError]=useState<string|null>(null);
   const [isUpdatingUser,setIsUpdatingUser]=useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [backendRoles, setBackendRoles] = useState<Array<{ code: string; display_name: string }>>([]);
+  const [backendRoles,setBackendRoles]=useState<AccountRoleOption[]>([]);
+  const [rolesLoading,setRolesLoading]=useState(false),[rolesError,setRolesError]=useState('');
 
-  // Modal states
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
-
-  // Form states for Add/Edit
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formRole, setFormRole] = useState<SystemRole>('Merchandiser');
-  const [formStatus, setFormStatus] = useState<UserStatus>('Inactive');
-  const [formStoreId, setFormStoreId] = useState('');
+  const [modalMode,setModalMode]=useState<'add'|'edit'|null>(null);
+  const [editingUser,setEditingUser]=useState<UserAccount|null>(null);
+  const [draft,setDraft]=useState<AccountDraft>(()=>accountDraft());
+  const [loadingAccount,setLoadingAccount]=useState(false);
+  const mutationBusy=useRef(false);
+  const detailController=useRef<AbortController|null>(null);
+  const detailTarget=useRef<UserAccount|null>(null);
+  useEffect(()=>()=>detailController.current?.abort(),[]);
   useEffect(() => { sessionStorage.setItem(usersViewStateKey, JSON.stringify({ searchQuery, roleFilter, statusFilter, page })); }, [searchQuery, roleFilter, statusFilter, page]);
   useEffect(() => { if (tableScrollY.current > 0) requestAnimationFrame(() => window.scrollTo({ top: tableScrollY.current, behavior: 'auto' })); }, [page]);
 
-  const roleCodeMap: Record<SystemRole, string> = {
-    'System Admin': 'SYSTEM_ADMIN',
-    'Store Admin': 'STORE_ADMIN',
-    'Merchandiser': 'MERCHANDISER',
-    'End-Customer': 'END_CUSTOMER'
-  };
-
-  const roleRevMap: Record<string, SystemRole> = {
-    'SYSTEM_ADMIN': 'System Admin',
-    'STORE_ADMIN': 'Store Admin',
-    'MERCHANDISER': 'Merchandiser',
-    'END_CUSTOMER': 'End-Customer'
-  };
-
-  const getUserFriendlyApiError = (message?: string) => {
-    const normalized = (message || '').toLowerCase();
-
-    if (normalized.includes('already exists') || normalized.includes('duplicate') || normalized.includes('unique')) {
-      return 'This email is already registered. Use a different email address.';
-    }
-
-    if (normalized.includes('store') && (normalized.includes('exist') || normalized.includes('constraint') || normalized.includes('invalid'))) {
-      return 'The Store does not exist or is not valid for this role.';
-    }
-
-    if (normalized.includes('role') && (normalized.includes('invalid') || normalized.includes('constraint'))) {
-      return 'This role is not valid. Choose an available account role.';
-    }
-
-    return 'Unable to create the account. Review the details and try again.';
-  };
-
-  const fetchBackendUsers = async () => {
-    const token = authService.getToken();
-    if (!token) {setAccountsError('Please sign in again to load accounts.');setIsLoading(false);return;}
-    setIsLoading(true);
-    setAccountsError(null);
+  const fetchBackendUsers=async()=>{
+    setIsLoading(true);setAccountsError(null);
     try {
-      const res = await fetch('/api/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Accounts could not be loaded (HTTP '+res.status+').');
-      if (res.ok) {
-        const data = await res.json();
-        if(!Array.isArray(data))throw new Error('The server returned an invalid account list.');
-        const mappedUsers: UserAccount[] = data.map((u: any) => ({
-          id: String(u.userId),
-          name: u.name || '(Unnamed)',
-          email: u.email,
-          role: roleRevMap[u.roleCode] || 'End-Customer',
-          storeId: u.storeId,
-          status: u.status === 'ACTIVE' ? 'Active' : 'Inactive',
-          emailVerified: u.emailVerified === true,
-          lastActive: u.emailVerified ? 'Email verified' : 'Waiting for OTP verification'
-        }));
-        setUsers(mappedUsers);
-        setIsBackendLive(true);
-      }
-    } catch(e) {
-      setAccountsError(e instanceof Error?e.message:'Could not connect to the account service.');setIsBackendLive(false);
-    } finally {
-      setIsLoading(false);
-    }
+      const data=await accountRequest('/api/users');
+      if(!Array.isArray(data))throw new Error('The server returned an invalid account list.');
+      setUsers(data.map(mapAccount));
+    } catch(e){setAccountsError(e instanceof Error?e.message:'Could not load accounts.');}
+    finally{setIsLoading(false);}
   };
-
-  const fetchBackendRoles = async () => {
-    const token = authService.getToken();
-    if (!token) return;
+  const fetchBackendRoles=async()=>{
+    setRolesLoading(true);setRolesError('');
     try {
-      const res = await fetch('/api/roles', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const data=await accountRequest('/api/roles');
+      if(!Array.isArray(data))throw new Error('The server returned an invalid role list.');
+      const mapped:AccountRoleOption[]=data.map((value:unknown)=>{
+        const role=value as {code?:unknown;display_name?:unknown}|null;
+        const label=Object.entries(accountRoleCodes).find(([,code])=>code===role?.code)?.[0] as SystemRole|undefined;
+        if(!role||!label||typeof role.display_name!=='string')throw new Error('The server returned an unsupported account role.');
+        return {code:role.code as string,display_name:role.display_name,role:label};
       });
-      if (!res.ok) throw new Error('Unable to load roles');
-      setBackendRoles(await res.json());
-    } catch {
-      setApiError('Unable to load roles from the Backend.');
-    }
+      setBackendRoles(mapped);
+      if(mapped.length===0)setRolesError('No account roles are available.');
+    } catch(e){setRolesError(e instanceof Error?e.message:'Unable to load account roles.');}
+    finally{setRolesLoading(false);}
   };
 
   React.useEffect(() => {
@@ -148,7 +126,8 @@ export const UsersRolesView: React.FC = () => {
       if (roleMap[roleFilter] && u.role !== roleMap[roleFilter]) return false;
     }
     if (statusFilter !== 'all') {
-      if (u.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
+      const selectedStatus=statusFilter==='pending_verification'?'Pending Activation':statusFilter==='active'?'Active':'Inactive';
+      if(u.status!==selectedStatus)return false;
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -163,190 +142,69 @@ export const UsersRolesView: React.FC = () => {
   useEffect(() => { if (restoredFilters.current) { restoredFilters.current = false; return; } setPage(0); }, [searchQuery, roleFilter, statusFilter]);
   useEffect(() => { if (page >= totalPages) setPage(Math.max(totalPages - 1, 0)); }, [page, totalPages]);
 
-  const handleOpenAddModal = () => {
-    setFormName('');
-    setFormEmail('');
-    setFormRole('Merchandiser');
-    setFormStatus('Inactive');
-    setFormStoreId('');
-    setApiError(null);
-    setSuccessMessage(null);
-    setIsAddModalOpen(true);
+  const closeModal=()=>{
+    if(mutationBusy.current)return;
+    detailController.current?.abort();setModalMode(null);setEditingUser(null);setApiError(null);
   };
-
-  const handleSaveAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isCreatingUser || !formName.trim() || !formEmail.trim()) return;
-    setApiError(null);
-    setSuccessMessage(null);
-
-    const token = authService.getToken();
-    const needsStore = formRole === 'Store Admin' || formRole === 'Merchandiser';
-    const storeId = formStoreId.trim() ? Number(formStoreId) : null;
-    if (needsStore && (!storeId || !Number.isInteger(storeId) || storeId < 1)) {
-      setApiError('This role requires a valid Store ID.');
-      return;
-    }
-    if (!token) {
-      setApiError('Your session has expired. Please sign in again as System Admin.');
-      return;
-    }
-    setIsCreatingUser(true);
-    {
-      try {
-        const res = await fetch('/api/users', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: formName.trim(),
-            email: formEmail.trim(),
-            roleCode: roleCodeMap[formRole],
-            storeId
-          })
-        });
-
-        if (res.ok) {
-          await fetchBackendUsers();
-          setIsAddModalOpen(false);
-          setSuccessMessage(`Account created. An activation invitation was sent to ${formEmail.trim()}.`);
-          return;
-        } else {
-          const errData = await res.json().catch(() => null);
-          const backendMessage = errData?.error || errData?.message;
-          console.error('Create user failed:', backendMessage || res.statusText);
-          setApiError(getUserFriendlyApiError(backendMessage));
-          return;
-        }
-      } catch {
-        setApiError('Could not connect to the account service. Please try again.');
-        return;
-      } finally {
-        setIsCreatingUser(false);
-      }
-    }
-
+  const handleOpenAddModal=()=>{
+    if(mutationBusy.current)return;
+    detailController.current?.abort();setDraft(accountDraft());setEditingUser(null);setLoadingAccount(false);
+    setApiError(null);setSuccessMessage(null);setModalMode('add');
   };
-
-  const handleOpenEditModal = async (user: UserAccount) => {
-    const token = authService.getToken();
-    const userId = Number(user.id);
-    setApiError(null);
-
-    if (!token || !Number.isInteger(userId)) {
-      setApiError('Unable to load account information.');
-      return;
-    }
-
+  const handleOpenEditModal=async(user:UserAccount)=>{
+    if(mutationBusy.current)return;
+    detailController.current?.abort();
+    const controller=new AbortController();detailController.current=controller;detailTarget.current=user;
+    setModalMode('edit');setLoadingAccount(true);setEditingUser(null);setApiError(null);setSuccessMessage(null);
     try {
-      const res = await fetch(`/api/users/${userId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Unable to load user');
-      const detail = await res.json();
-      setEditingUser({
-        ...user,
-        id: String(detail.userId),
-        name: detail.name || '(Unnamed)',
-        email: detail.email,
-        role: roleRevMap[detail.roleCode] || 'End-Customer',
-        storeId: detail.storeId,
-        status: detail.status === 'ACTIVE' ? 'Active' : 'Inactive',
-        emailVerified: detail.emailVerified === true
-      });
-      setFormName(detail.name || '');
-      setFormEmail(detail.email || '');
-      setFormRole(roleRevMap[detail.roleCode] || 'End-Customer');
-      setFormStatus(detail.emailVerified === true && detail.status === 'ACTIVE' ? 'Active' : 'Inactive');
-      setFormStoreId(detail.storeId ? String(detail.storeId) : '');
-    } catch {
-      setApiError('Unable to load account details from the Backend.');
-    }
+      const account=mapAccount(await accountRequest('/api/users/'+user.id,{signal:controller.signal}));
+      if(controller.signal.aborted)return;
+      if(account.id!==user.id)throw new Error('The account details do not match the selected account.');
+      setEditingUser(account);setDraft(accountDraft(account));
+      setUsers(previous=>previous.map(value=>value.id===account.id?account:value));
+    } catch(e){if(!controller.signal.aborted)setApiError(e instanceof Error?e.message:'Unable to load account details.');}
+    finally{if(!controller.signal.aborted)setLoadingAccount(false);}
   };
-
-  const handleSaveEditUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser || isUpdatingUser) return;
-    setApiError(null);
-
-    const token = authService.getToken();
-    const userIdNum = parseInt(editingUser.id.replace(/\D/g, ''), 10);
-    const needsStore = formRole === 'Store Admin' || formRole === 'Merchandiser';
-    const storeId = formStoreId.trim() ? Number(formStoreId) : null;
-
-    if ((editingUser.emailVerified !== true || editingUser.status === 'Inactive') && formStatus === 'Active') {
-      setApiError('This account must complete OTP activation before it can become Active.');
-      return;
-    }
-
-    // An account without completed OTP verification can only remain Inactive.
-    if (editingUser.emailVerified !== true) {
-      setFormStatus('Inactive');
-    }
-
-    if (needsStore && (!storeId || !Number.isInteger(storeId) || storeId < 1)) {
-      setApiError('Enter a valid Store ID for this role.');
-      return;
-    }
-
-    if (isBackendLive && token && !isNaN(userIdNum)) {
-      setIsUpdatingUser(true);
-      try {
-        // 1. Update name
-        const nameResponse = await fetch(`/api/users/${userIdNum}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ name: formName.trim() })
-        });
-        if (!nameResponse.ok) {
-          const data = await nameResponse.json().catch(() => ({}));
-          throw new Error(data?.error || 'Unable to update account name.');
-        }
-
-        // 2. Update role and Store
-        const roleResponse = await fetch(`/api/users/${userIdNum}/role`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ roleCode: roleCodeMap[formRole], storeId })
-        });
-        if (!roleResponse.ok) {
-          const data = await roleResponse.json().catch(() => ({}));
-          throw new Error(data?.error || 'Unable to update account role.');
-        }
-
-        // 3. Update status only for accounts that completed OTP activation.
-        if (editingUser.emailVerified === true) {
-          const statusResponse = await fetch(`/api/users/${userIdNum}/status`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ status: formStatus === 'Active' ? 'ACTIVE' : 'INACTIVE' })
-          });
-          if (!statusResponse.ok) {
-            const data = await statusResponse.json().catch(() => ({}));
-            throw new Error(data?.error || 'Unable to update account status.');
-          }
-        }
-
-        await fetchBackendUsers();
-        setEditingUser(null);
-        setSuccessMessage('Account changes saved. Role or status changes may require the user to sign in again.');
-        return;
-      } catch(e) {
-        setApiError(e instanceof Error?e.message:'Unable to update the account. Review the role and Store ID, then try again.');return;
-      } finally {setIsUpdatingUser(false);}
-    }
-    setApiError('The account service or your session is unavailable. Refresh accounts before trying again.');
+  const handleSaveAddUser=async(event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();
+    if(mutationBusy.current)return;
+    setApiError(null);setSuccessMessage(null);
+    let payload:ReturnType<typeof createAccountPayload>;
+    try {payload=createAccountPayload(draft);}catch(e){setApiError(e instanceof Error?e.message:'Review the account details.');return;}
+    mutationBusy.current=true;setIsCreatingUser(true);
+    try {
+      const created=mapAccount(await accountRequest('/api/users',{method:'POST',body:JSON.stringify(payload)}));
+      if(created.status!=='Pending Activation'||created.emailVerified!==false||created.email.toLowerCase()!==payload.email.toLowerCase()||
+         accountRoleCodes[created.role]!==payload.roleCode||(created.storeId??null)!==payload.storeId)throw new Error('The invitation response could not be verified. Refresh accounts before creating another invitation.');
+      await fetchBackendUsers();setModalMode(null);
+      setSuccessMessage('Account created. An activation invitation was sent to '+payload.email+'.');
+    } catch(e){setApiError(e instanceof Error?e.message:'Unable to create the account. Please try again.');}
+    finally{mutationBusy.current=false;setIsCreatingUser(false);}
+  };
+  const handleSaveEditUser=async(event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();
+    if(mutationBusy.current||!editingUser||loadingAccount)return;
+    const actor=authService.getCurrentUser();
+    if(!actor||actor.role!=='System Admin'){setApiError('Please sign in as System Admin.');return;}
+    let operations:ReturnType<typeof planAccountUpdate>;
+    try{operations=planAccountUpdate(editingUser,draft,actor.id);}catch(e){setApiError(e instanceof Error?e.message:'Review the account details.');return;}
+    if(operations.length===0)return;
+    const changes=accountChanges(editingUser,draft);
+    let confirmedCount=0;
+    mutationBusy.current=true;setIsUpdatingUser(true);setApiError(null);setSuccessMessage(null);
+    try {
+      await saveAccountUpdate(editingUser,draft,actor.id,confirmed=>{
+        confirmedCount++;
+        // Keep confirmed partial writes as the retry baseline, while preserving the draft.
+        setEditingUser(confirmed);
+        setUsers(previous=>previous.map(user=>user.id===confirmed.id?confirmed:user));
+        setDraft(previous=>({...previous,...(!changes.status?{status:confirmed.status}:{}),
+          ...(!changes.access?{role:confirmed.role,storeId:confirmed.storeId==null?'':String(confirmed.storeId)}:{})}));
+      });
+      await fetchBackendUsers();setModalMode(null);setEditingUser(null);
+      setSuccessMessage('Account changes saved.'+(changes.access||changes.status?' Existing sessions for this account have been revoked.':''));
+    } catch(e){setApiError((confirmedCount?'Some changes have been saved. Review the remaining draft before retrying. ':'')+(e instanceof Error?e.message:'Unable to save account changes. Your draft has been kept.'));}
+    finally{mutationBusy.current=false;setIsUpdatingUser(false);}
   };
 
   return (
@@ -360,7 +218,7 @@ export const UsersRolesView: React.FC = () => {
           <p className="mt-1 text-sm text-[#6d7974]">
             Manage accounts, store assignments and access roles.
           </p>
-          {apiError && (
+          {apiError && !modalMode && (
             <div role="alert" className="mt-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
               {apiError}
             </div>
@@ -373,6 +231,7 @@ export const UsersRolesView: React.FC = () => {
         </div>
         <div>
           <button
+            data-account-add
             onClick={handleOpenAddModal}
             className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#1e3a2f] hover:bg-[#294d3f] rounded-lg shadow-xs transition-all cursor-pointer"
             type="button"
@@ -384,170 +243,98 @@ export const UsersRolesView: React.FC = () => {
 
       <AccountOverview users={users} loading={isLoading} error={accountsError}/>
       {accountsError&&<div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-800"><p>{accountsError}</p><button type="button" disabled={isLoading} className="font-semibold underline" onClick={()=>void fetchBackendUsers()}>Retry accounts</button></div>}
-      {/* User Management Card */}
-      <section className="bg-white rounded-xl border border-[#E7E2D8] shadow-xs overflow-hidden">
-        {/* Card Header & Filter Controls */}
-        <div className="p-6 border-b border-[#E7E2D8] space-y-4">
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold text-[#191c1b]">User Management</h2><button type="button" disabled={isLoading} className="rounded-xl border border-[#E7E2D8] px-3 py-2 text-xs font-semibold disabled:opacity-50" onClick={()=>{setApiError(null);void fetchBackendUsers();void fetchBackendRoles();}}>Refresh accounts</button></div>
-            <p className="text-xs text-[#6d7974] mt-0.5">
-              Search, review and update the accounts in this list.
-            </p>
+      <section aria-labelledby="user-management-title" className="overflow-hidden rounded-2xl border border-[#E7E2D8] bg-white shadow-[0_1px_3px_rgba(30,58,47,0.04)]">
+        <div className="space-y-5 border-b border-[#E7E2D8] p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div><h2 id="user-management-title" className="text-lg font-semibold text-[#191C1B]">User Management</h2><p className="mt-1 text-sm text-[#6D7974]">Find accounts and manage their access.</p></div>
+            <button type="button" disabled={isLoading} onClick={()=>{setApiError(null);void fetchBackendUsers();void fetchBackendRoles();}} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#DDE4DC] bg-white px-3 text-sm font-medium text-[#365543] transition-colors hover:border-[#BDCEC1] hover:bg-[#F3F7F3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54] disabled:cursor-not-allowed disabled:opacity-50">
+              <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${isLoading?'animate-spin motion-reduce:animate-none':''}`}/>Refresh accounts
+            </button>
           </div>
-
-          {/* Filter & Search Bar Row */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1">
-            {/* Search Input */}
-            <div className="md:col-span-6 relative">
-              <input
-                className="w-full text-sm bg-white border border-[#E7E2D8] rounded-lg px-3.5 py-2 text-[#191c1b] placeholder-[#89938f] focus:border-[#1e3a2f] outline-none transition"
-                aria-label="Search accounts" placeholder="Search name or email..."
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            {/* Role Selector */}
-            <div className="md:col-span-3 relative">
-              <select
-                className="w-full text-sm bg-white border border-[#E7E2D8] rounded-lg px-3 py-2 text-[#6d7974] appearance-none pr-8 focus:border-[#1e3a2f] outline-none cursor-pointer"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                aria-label="Filter by role"
-              >
-                <option value="all">All roles</option>
-                <option value="admin">System Admin</option>
-                <option value="store">Store Admin</option>
-                <option value="merchandiser">Merchandiser</option>
-                <option value="customer">End-Customer</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#89938f]">
-                <ChevronDown className="w-4 h-4" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
+            <div className="sm:col-span-2 lg:col-span-6">
+              <label htmlFor="accounts-search" className="text-xs font-semibold text-[#59685F]">Search accounts</label>
+              <div className="relative mt-2">
+                <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#87958B]"/>
+                <input id="accounts-search" aria-label="Search accounts" placeholder="Search by name or email" type="search" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="h-11 w-full rounded-xl border border-[#DDE4DC] bg-[#FCFDFB] pl-10 pr-3.5 text-sm text-[#191C1B] outline-none transition placeholder:text-[#8A968E] focus:border-[#689477] focus:bg-white focus:ring-2 focus:ring-[#356B54]/10"/>
               </div>
             </div>
-
-            {/* Status Selector */}
-            <div className="md:col-span-3 relative">
-              <select
-                className="w-full text-sm bg-white border border-[#E7E2D8] rounded-lg px-3 py-2 text-[#6d7974] appearance-none pr-8 focus:border-[#1e3a2f] outline-none cursor-pointer"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter by status"
-              >
-                <option value="all">All statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-[#89938f]">
-                <ChevronDown className="w-4 h-4" />
+            <div className="lg:col-span-3">
+              <label htmlFor="accounts-role" className="text-xs font-semibold text-[#59685F]">Role</label>
+              <div className="relative mt-2">
+                <select id="accounts-role" aria-label="Filter by role" value={roleFilter} onChange={e=>setRoleFilter(e.target.value)} className="h-11 w-full appearance-none rounded-xl border border-[#DDE4DC] bg-[#FCFDFB] pl-3.5 pr-10 text-sm text-[#405247] outline-none transition focus:border-[#689477] focus:bg-white focus:ring-2 focus:ring-[#356B54]/10">
+                  <option value="all">All roles</option><option value="admin">System Admin</option><option value="store">Store Admin</option><option value="merchandiser">Merchandiser</option><option value="customer">End-Customer</option>
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#87958B]"/>
+              </div>
+            </div>
+            <div className="lg:col-span-3">
+              <label htmlFor="accounts-status" className="text-xs font-semibold text-[#59685F]">Status</label>
+              <div className="relative mt-2">
+                <select id="accounts-status" aria-label="Filter by status" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="h-11 w-full appearance-none rounded-xl border border-[#DDE4DC] bg-[#FCFDFB] pl-3.5 pr-10 text-sm text-[#405247] outline-none transition focus:border-[#689477] focus:bg-white focus:ring-2 focus:ring-[#356B54]/10">
+                  <option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="pending_verification">Pending Activation</option>
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#87958B]"/>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Data Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-[11px] font-semibold text-[#89938f] uppercase tracking-wider border-b border-[#E7E2D8] bg-[#FAF8F5]">
-                <th className="py-3 px-6" scope="col">NAME</th>
-                <th className="py-3 px-6" scope="col">EMAIL</th>
-                <th className="py-3 px-6" scope="col">ROLE</th>
-                <th className="py-3 px-6" scope="col">STATUS</th>
-                <th className="py-3 px-6 text-right" scope="col">ACTIONS</th>
+            <caption className="sr-only">User accounts with roles, status and editing actions</caption>
+            <thead className="border-b border-[#E2E7DE] bg-[#F5F7F2] text-xs text-[#64745F]">
+              <tr>
+                <th className="whitespace-nowrap px-5 py-3.5 font-semibold sm:px-6" scope="col">Name</th>
+                <th className="whitespace-nowrap px-5 py-3.5 font-semibold sm:px-6" scope="col">Email</th>
+                <th className="whitespace-nowrap px-5 py-3.5 font-semibold sm:px-6" scope="col">Role</th>
+                <th className="whitespace-nowrap px-5 py-3.5 font-semibold sm:px-6" scope="col">Status</th>
+                <th className="whitespace-nowrap px-5 py-3.5 text-right font-semibold sm:px-6" scope="col">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E7E2D8]/60 text-[#191c1b]">
-              {!isLoading&&!accountsError&&visibleUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-[#FAF8F5] transition-colors">
-                  <td className="py-3.5 px-6 font-semibold text-[#191c1b] whitespace-nowrap">
-                    {user.name}
+            <tbody className="divide-y divide-[#EBEEE7] text-[#191C1B]">
+              {!isLoading&&!accountsError&&visibleUsers.map(user=>(
+                <tr key={user.id} className="transition-colors hover:bg-[#F5F9F4] focus-within:bg-[#F5F9F4]">
+                  <td className="whitespace-nowrap px-5 py-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                      <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#DFE7DC] bg-[#F0F5ED] text-xs font-semibold text-[#607557]">{user.name.trim().split(/\s+/).slice(0,2).map(part=>part.charAt(0)).join('').toUpperCase()||'–'}</span>
+                      <span className="font-semibold text-[#263C2E]">{user.name||'(Unnamed)'}</span>
+                    </div>
                   </td>
-                  <td className="py-3.5 px-6 text-[#6d7974] whitespace-nowrap">
-                    {user.email}
-                  </td>
-                  <td className="py-3.5 px-6 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#F3F7F4] text-[#1e3a2f]">
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-6 whitespace-nowrap">
-                    {user.status === 'Active' ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#e7ede9] text-[#1e3a2f]">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#fcedea] text-[#b3261e]">
-                        Inactive
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-6 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => handleOpenEditModal(user)}
-                      className="text-xs font-semibold text-[#1e3a2f] hover:underline transition-colors cursor-pointer"
-                      type="button"
-                    >
-                      Edit ›
+                  <td className="whitespace-nowrap px-5 py-4 text-[#6D7974] sm:px-6">{user.email}</td>
+                  <td className="px-5 py-4 sm:px-6"><AccountRoleBadge role={user.role}/></td>
+                  <td className="px-5 py-4 sm:px-6"><AccountStatusBadge status={user.status}/></td>
+                  <td className="px-5 py-4 text-right sm:px-6">
+                    <button type="button" aria-label={`Edit ${user.name}`} onClick={()=>handleOpenEditModal(user)} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D5E0D3] bg-white px-3 text-xs font-semibold text-[#365D3E] transition-colors hover:border-[#AFC5AE] hover:bg-[#EDF5E9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54]">
+                      <PencilLine aria-hidden="true" className="h-3.5 w-3.5"/>Edit
                     </button>
                   </td>
                 </tr>
               ))}
-              {(isLoading||accountsError||visibleUsers.length===0)&&<tr><td colSpan={5} className="px-6 py-8 text-sm text-[#6D7974]">{isLoading?<span role="status">Loading accounts...</span>:accountsError?'Accounts could not be loaded. Use Retry accounts to try again.':users.length===0?'No accounts were returned.':'No accounts match your search and filters.'}</td></tr>}
+              {(isLoading||accountsError||visibleUsers.length===0)&&<tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-[#6D7974]">
+                <div className="flex flex-col items-center gap-3">{isLoading?<RefreshCw aria-hidden="true" className="h-5 w-5 animate-spin text-[#6C8B70] motion-reduce:animate-none"/>:<UsersRound aria-hidden="true" className="h-6 w-6 text-[#9BA997]"/>}
+                  <p role={isLoading?'status':undefined}>{isLoading?'Loading accounts...':accountsError?'Accounts could not be loaded. Use Retry accounts to try again.':users.length===0?'No accounts were returned.':'No accounts match your search and filters.'}</p>
+                </div>
+              </td></tr>}
             </tbody>
           </table>
         </div>
 
-        {/* Table Footer Pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E7E2D8] px-6 py-3.5 text-xs text-[#89938f]">
-          <span>Showing page {page + 1} of {totalPages} · 10 accounts per page</span>
-          <div className="flex items-center gap-1">
-            <button disabled={page === 0} onClick={() => { tableScrollY.current = window.scrollY; setPage((current) => current - 1); }} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Previous</button>
-            {Array.from({ length: totalPages }, (_, index) => <button key={index} onClick={() => { tableScrollY.current = window.scrollY; setPage(index); }} className={`min-w-8 rounded-lg border px-2 py-1.5 ${page === index ? 'border-[#1e3a2f] bg-[#1e3a2f] text-white' : 'border-[#e7e2d8] text-[#6d7974] hover:bg-[#faf8f5]'}`}>{index + 1}</button>)}
-            <button disabled={page + 1 >= totalPages} onClick={() => { tableScrollY.current = window.scrollY; setPage((current) => current + 1); }} className="rounded-lg border border-[#e7e2d8] px-3 py-1.5 disabled:opacity-40">Next</button>
-          </div>
-        </div>
-      </section>
-
-      {/* Role Permission Summary Card */}
-      <section className="bg-white rounded-xl border border-[#E7E2D8] shadow-xs p-6">
-        <h3 className="text-base font-semibold text-[#191c1b] mb-4">
-          Role Permission Summary
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {/* System Admin */}
+        <footer className="flex flex-col gap-4 border-t border-[#E7E2D8] bg-[#FDFEFB] px-5 py-4 text-xs text-[#6D7974] sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-[#1e3a2f]">System Admin</h4>
-            <p className="text-xs text-[#6d7974] leading-relaxed">
-              Global mining settings, mining runs, benchmarks and account management.
-            </p>
+            <p>{isLoading?'Loading accounts...':accountsError?'Account list unavailable':<>Showing <span className="font-medium tabular-nums text-[#3D5640]">{visibleUsers.length===0?0:page*pageSize+1}–{Math.min((page+1)*pageSize,filteredUsers.length)}</span> of <span className="font-medium tabular-nums text-[#3D5640]">{filteredUsers.length}</span> accounts</>}</p>
+            <p className="text-[#8A9689]">Page {page+1} of {totalPages} · {pageSize} accounts per page</p>
           </div>
-
-          {/* Store Admin */}
-          <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-[#1e3a2f]">Store Admin</h4>
-            <p className="text-xs text-[#6d7974] leading-relaxed">
-              Products, inventory and transaction imports for the assigned Store.
-            </p>
-          </div>
-
-          {/* Merchandiser */}
-          <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-[#1e3a2f]">Merchandiser</h4>
-            <p className="text-xs text-[#6d7974] leading-relaxed">
-              Utility configuration, snapshots and read-only mining results for the assigned Store.
-            </p>
-          </div>
-
-          {/* End-Customer */}
-          <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-[#1e3a2f]">End-Customer</h4>
-            <p className="text-xs text-[#6d7974] leading-relaxed">
-              Storefront kiosk and basket recommendations
-            </p>
-          </div>
-        </div>
+          <nav aria-label="Account pages" className="flex flex-wrap items-center gap-1.5">
+            <button type="button" disabled={isLoading||Boolean(accountsError)||page===0} onClick={()=>{tableScrollY.current=window.scrollY;setPage(current=>current-1);}} className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-[#DFE5D9] bg-white pl-2.5 pr-3 font-medium text-[#536A4C] transition-colors hover:bg-[#F0F5EB] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54] disabled:cursor-not-allowed disabled:text-[#B3BCAE]">
+              <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5"/>Previous
+            </button>
+            {Array.from({length:totalPages},(_,index)=><button type="button" key={index} aria-label={`Go to page ${index+1}`} aria-current={page===index?'page':undefined} disabled={isLoading||Boolean(accountsError)} onClick={()=>{tableScrollY.current=window.scrollY;setPage(index);}} className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 font-semibold tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54] disabled:cursor-not-allowed disabled:opacity-50 ${page===index?'border-[#356B54] bg-[#356B54] text-white':'border-[#DFE5D9] bg-white text-[#536A4C] hover:bg-[#F0F5EB]'}`}>{index+1}</button>)}
+            <button type="button" disabled={isLoading||Boolean(accountsError)||page+1>=totalPages} onClick={()=>{tableScrollY.current=window.scrollY;setPage(current=>current+1);}} className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-[#DFE5D9] bg-white pl-3 pr-2.5 font-medium text-[#536A4C] transition-colors hover:bg-[#F0F5EB] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54] disabled:cursor-not-allowed disabled:text-[#B3BCAE]">
+              Next<ChevronRight aria-hidden="true" className="h-3.5 w-3.5"/>
+            </button>
+          </nav>
+        </footer>
       </section>
 
       {/* Footer Note */}
@@ -555,234 +342,11 @@ export const UsersRolesView: React.FC = () => {
         <p>Role and status changes are saved through the backend and can revoke existing sessions. Activation still requires OTP verification.</p>
       </footer>
 
-      {/* Add User Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#191c1b]/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-label="Account details" className="bg-white rounded-xl border border-[#E7E2D8] shadow-xl max-w-md w-full max-h-[90dvh] overflow-y-auto p-6 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E7E2D8]">
-              <div className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-[#1e3a2f]" />
-                <h3 className="text-sm font-bold text-[#191c1b]">Add New Account</h3>
-              </div>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1 rounded-lg text-[#89938f] hover:bg-[#FAF8F5] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveAddUser} className="mt-4 space-y-4"><p className="text-xs leading-relaxed text-[#6D7974]">An activation invitation is sent by email. New accounts remain inactive until OTP activation is complete.</p>{apiError&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{apiError}</p>}
-              <div>
-                <label className="text-xs font-semibold text-[#191c1b] block mb-1">Full Name</label>
-                <input
-                  type="text"
-                  aria-label="Full Name"
-                  required
-                  placeholder="e.g. Hoang Duc"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[#191c1b] block mb-1">Email Address</label>
-                <input
-                  type="email"
-                  aria-label="Email Address"
-                  required
-                  placeholder="e.g. hoang.duc@example.com"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#191c1b] block mb-1">Role Assignment</label>
-                  <select
-                    aria-label="Account Role"
-                    value={formRole}
-                    onChange={(e) => {
-                      const nextRole = e.target.value as SystemRole;
-                      setFormRole(nextRole);
-                      if (nextRole === 'System Admin' || nextRole === 'End-Customer') {
-                        setFormStoreId('');
-                      }
-                    }}
-                    className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
-                  >
-                    {backendRoles.map((role) => (
-                      <option key={role.code} value={roleRevMap[role.code]}>
-                        {role.display_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-          <div>
-            <label className="text-xs font-semibold text-[#191c1b] block mb-1">Store ID</label>
-            <input
-              type="number"
-              aria-label="Store ID"
-              min="1"
-              required={formRole === 'Store Admin' || formRole === 'Merchandiser'}
-              value={formStoreId}
-              onChange={(e) => setFormStoreId(e.target.value)}
-              placeholder={formRole === 'System Admin' || formRole === 'End-Customer' ? 'Not applicable' : 'e.g. 1'}
-              disabled={formRole === 'System Admin' || formRole === 'End-Customer'}
-              className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none disabled:bg-[#f6f3ef] disabled:text-[#89938f]"
-            />
-          </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-[#E7E2D8] flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-3 py-1.5 border border-[#E7E2D8] text-xs font-medium text-[#6d7974] rounded-lg hover:bg-[#FAF8F5] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreatingUser||backendRoles.length===0}
-                  className="px-4 py-1.5 bg-[#1e3a2f] text-white text-xs font-semibold rounded-lg hover:bg-[#294d3f] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isCreatingUser ? 'Creating...' : 'Create Account'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 z-50 bg-[#191c1b]/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-label="Account details" className="bg-white rounded-xl border border-[#E7E2D8] shadow-xl max-w-md w-full max-h-[90dvh] overflow-y-auto p-6 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E7E2D8]">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-[#1e3a2f]" />
-                <h3 className="text-sm font-bold text-[#191c1b]">Edit User &amp; Permissions</h3>
-              </div>
-              <button
-                disabled={isUpdatingUser} onClick={() => setEditingUser(null)}
-                className="p-1 rounded-lg text-[#89938f] hover:bg-[#FAF8F5] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditUser} className="mt-4 space-y-4">{apiError&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{apiError}</p>}
-              <div>
-                <label className="text-xs font-semibold text-[#191c1b] block mb-1">Full Name</label>
-                <input
-                  type="text"
-                  aria-label="Full Name" disabled={isUpdatingUser}
-                  required
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[#191c1b] block mb-1">Email</label>
-                <input
-                  type="email"
-                  aria-label="Email Address"
-                  required
-                  readOnly
-                  aria-readonly="true"
-                  value={formEmail}
-                  className="w-full text-xs bg-[#f6f3ef] border border-[#E7E2D8] rounded-lg p-2 text-[#6d7974] cursor-not-allowed outline-none"
-                />
-                <p className="mt-1 text-[11px] text-[#89938f]">
-                  Email cannot be changed after account creation.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#191c1b] block mb-1">Role Assignment</label>
-                  <select
-                    aria-label="Account Role" disabled={isUpdatingUser}
-                    value={formRole}
-                    onChange={(e) => {
-                      const nextRole = e.target.value as SystemRole;
-                      setFormRole(nextRole);
-                      if (nextRole === 'System Admin' || nextRole === 'End-Customer') {
-                        setFormStoreId('');
-                      }
-                    }}
-                    className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none"
-                  >
-                    {backendRoles.map((role) => (
-                      <option key={role.code} value={roleRevMap[role.code]}>
-                        {role.display_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-[#191c1b] block mb-1">Account Status</label>
-                  <select
-                    aria-label="Account Status"
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as UserStatus)}
-                    disabled={isUpdatingUser || editingUser.emailVerified !== true || editingUser.status === 'Inactive'}
-                    className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none disabled:bg-[#f6f3ef] disabled:text-[#89938f] disabled:cursor-not-allowed"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                  {(editingUser.emailVerified !== true || editingUser.status === 'Inactive') && (
-                    <p className="mt-1 text-[11px] text-[#89938f]">
-                      Status is locked. The account must be activated through OTP before it can become Active.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[#191c1b] block mb-1">Store ID</label>
-                <input
-                  type="number"
-                  aria-label="Store ID"
-                  min="1"
-                  required={formRole === 'Store Admin' || formRole === 'Merchandiser'}
-                  value={formStoreId}
-                  onChange={(e) => setFormStoreId(e.target.value)}
-                  placeholder={formRole === 'System Admin' || formRole === 'End-Customer' ? 'Not applicable' : 'e.g. 1'}
-                  disabled={isUpdatingUser || formRole === 'System Admin' || formRole === 'End-Customer'}
-                  className="w-full text-xs bg-white border border-[#E7E2D8] rounded-lg p-2 text-[#191c1b] focus:border-[#1e3a2f] outline-none disabled:bg-[#f6f3ef] disabled:text-[#89938f]"
-                />
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-[#E7E2D8] flex justify-end gap-2">
-                <button
-                  type="button"
-                  disabled={isUpdatingUser} onClick={() => setEditingUser(null)}
-                  className="px-3 py-1.5 border border-[#E7E2D8] text-xs font-medium text-[#6d7974] rounded-lg hover:bg-[#FAF8F5] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdatingUser}
-                  className="px-4 py-1.5 bg-[#1e3a2f] text-white text-xs font-semibold rounded-lg hover:bg-[#294d3f] cursor-pointer"
-                >
-                  {isUpdatingUser?'Saving...':'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {modalMode&&<AccountFormModal mode={modalMode} current={editingUser} actorId={authService.getCurrentUser()?.id??''} draft={draft}
+        loading={loadingAccount} submitting={isCreatingUser||isUpdatingUser} error={apiError} roles={backendRoles} rolesLoading={rolesLoading} rolesError={rolesError}
+        onRefreshRoles={()=>void fetchBackendRoles()} onReload={()=>{if(detailTarget.current)void handleOpenEditModal(detailTarget.current);}}
+        onChange={patch=>{setDraft(previous=>({...previous,...patch}));setApiError(null);}} onClose={closeModal}
+        onSubmit={modalMode==='add'?handleSaveAddUser:handleSaveEditUser}/>}
     </div>
   );
 };

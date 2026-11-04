@@ -1,6 +1,6 @@
 export type SystemRole = 'System Admin' | 'Store Admin' | 'Merchandiser' | 'End-Customer';
 
-export type UserStatus = 'Active' | 'Inactive';
+export type UserStatus = 'Active' | 'Inactive' | 'Pending Activation';
 
 export interface UserAccount {
   id: string;

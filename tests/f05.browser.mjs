@@ -16,11 +16,11 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let cdp, initId, postBodies=[], unexpected=[], browserErrors=[];
 const sampleUsers=[
  {userId:1,name:'Administrator Fixture',email:'admin@example.invalid',roleCode:'SYSTEM_ADMIN',status:'ACTIVE',emailVerified:true,storeId:null},
- {userId:5,name:'Merchandiser Fixture',email:'merch@example.invalid',roleCode:'MERCHANDISER',status:'INACTIVE',emailVerified:false,storeId:1},
+ {userId:5,name:'Merchandiser Fixture',email:'merch@example.invalid',roleCode:'MERCHANDISER',status:'INACTIVE',emailVerified:true,storeId:1},
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1},
- {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'INACTIVE',emailVerified:false,storeId:null}
+ {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null}
 ];
-const state={users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,missingRuntime:false,policy:{lambdaMin:0,lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
+const state={users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,policy:{lambdaMin:0,lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
   constructor(ws){this.ws=ws;ws.addEventListener('message',event=>{
@@ -57,7 +57,7 @@ async function input(label,value){
 }
 async function session(role,url='/mining',legacy=false){
   if(initId)await cdp.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});
-  const actor=role?{...user,role}:null;
+  const actor=role?{...user,role,id:role==='System Admin'?'1':user.id}:null;
   const code="localStorage.clear();sessionStorage.clear();"+(actor?
     "localStorage.setItem('retailspace_auth_user',"+JSON.stringify(JSON.stringify(actor))+");localStorage.setItem('retailspace_auth_token','browser-test-only-token');":"")+
     (legacy?"sessionStorage.setItem('paspm:f05:pending:"+encodeURIComponent(user.id)+"',"+JSON.stringify(JSON.stringify({requestKey:payload.requestKey,snapshotId:2,algorithms:['EFIM'],minUtilValue:30}))+");":"");
@@ -67,16 +67,19 @@ async function session(role,url='/mining',legacy=false){
 function responsePage(items,query){return {items,page:Number(query.get('page')||0),pageSize:Number(query.get('pageSize')||20),totalElements:items.length};}
 async function paused({requestId,request}){
   const url=new URL(request.url),path=url.pathname,method=request.method;
-  state.calls.push({method,path,search:url.search});
+  state.calls.push({method,path,search:url.search,body:request.postData??null});
   let body,code=200;
   try {
     if(path==='/api/users'){
-      if(method==='POST'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['email','name','roleCode','storeId']);const created={...sent,userId:8,status:'INACTIVE',emailVerified:false};state.users.push(created);body=created;code=201;}
+      if(method==='POST'){while(state.holdAccountWrites)await sleep(20);const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['email','name','roleCode','storeId']);const created={...sent,userId:8,status:'PENDING_VERIFICATION',emailVerified:false};state.users.push(created);body=created;code=201;}
       else if(state.usersError){code=503;body={error:'Accounts unavailable'};}else body=state.users;
     }
     else if(/^\/api\/users\/\d+(\/role|\/status)?$/.test(path)){
-      if(method!=='GET'&&state.userSaveError){code=500;body={error:'Test account update failed'};}
+      if(method!=='GET')while(state.holdAccountWrites)await sleep(20);
+      if(method!=='GET'&&(state.userSaveError||(state.userRoleError&&path.endsWith('/role')))){code=500;body={error:'Test account update failed'};}
+      else if(method==='PATCH'&&path.endsWith('/status')&&state.activationBlocked&&JSON.parse(request.postData).status==='ACTIVE'){code=400;body={error:'Account must complete OTP activation first'};}
       else {body=state.users.find(x=>x.userId===Number(path.split('/')[3]));if(method!=='GET')Object.assign(body,JSON.parse(request.postData));}
+
     }
     else if(path==='/api/roles')body=[{code:'SYSTEM_ADMIN',display_name:'System Admin'},{code:'STORE_ADMIN',display_name:'Store Admin'},{code:'MERCHANDISER',display_name:'Merchandiser'},{code:'END_CUSTOMER',display_name:'End-Customer'}];
     else if(path==='/api/system/utility/lambda-policy'){
@@ -122,7 +125,7 @@ async function paused({requestId,request}){
   }
 }
 const artifactDirectory=mkdtempSync(join(base,'paspm-f05-redesign-preview-'));
-async function capture(name){const shot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});writeFileSync(join(artifactDirectory,name+'.png'),Buffer.from(shot.data,'base64'));}
+async function capture(name){await sleep(100);const shot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:!(/^(add-account|edit-)/.test(name))});writeFileSync(join(artifactDirectory,name+'.png'),Buffer.from(shot.data,'base64'));}
 async function select(label,value){assert.equal(await evaluate("(()=>{const e=document.querySelector('select[aria-label="+JSON.stringify(label)+"]');if(!e||e.disabled)return false;e.value="+JSON.stringify(value)+";e.dispatchEvent(new Event('change',{bubbles:true}));return true;})()"),true,'Select '+label);}
 const checks=[];
 try{
@@ -223,22 +226,122 @@ try{
   assert.equal(await evaluate("document.getElementById('account-overview-title').parentElement.innerText.includes('Account data unavailable')"),true);
   state.usersError=false;state.users=[];await click('Retry accounts');await textIncludes('No accounts were returned');
   state.users=sampleUsers.map(x=>({...x}));await click('Refresh accounts');await textIncludes('Store Staff Accounts');
-  assert.deepEqual(await evaluate("[...document.querySelectorAll('[aria-labelledby=account-overview-title] article > p:first-of-type')].map(e=>e.innerText)"),['4','2','2','2']);
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('[aria-labelledby=account-overview-title] article > p:first-of-type')].map(e=>e.innerText)"),['4','2','1','2']);
+  await textIncludes('Pending Activation');
   await input('Search accounts','missing-account');await textIncludes('No accounts match');await input('Search accounts','');
-  await select('Filter by role','store');await textIncludes('Store Staff');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);
-  await select('Filter by role','all');await select('Filter by status','inactive');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),2);await select('Filter by status','all');
-  await capture('users-desktop');
-  await evaluate("[...document.querySelectorAll('tbody tr')].find(tr=>tr.innerText.includes('Store Staff')).querySelector('button').click()");
-  state.userSaveError=true;await click('Save Changes');await textIncludes('Test account update failed');
+  await select('Filter by role','store');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);
+  await select('Filter by role','all');await select('Filter by status','inactive');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);
+  await select('Filter by status','pending_verification');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);await select('Filter by status','all');
+  const userWrites=()=>state.calls.filter(x=>x.method!=='GET'&&x.path.startsWith('/api/users'));
+  const openAccount=async name=>{
+    await evaluate("(()=>{const b=[...document.querySelectorAll('tbody tr')].find(tr=>tr.innerText.includes("+JSON.stringify(name)+"))?.querySelector('button');if(!b)throw Error('Missing account row');b.focus();b.click();})()");
+    await until("Boolean(document.querySelector('[role=dialog] input[aria-label=\"Full Name\"]'))",'Account details loaded');
+    await until("document.activeElement===document.querySelector('[role=dialog] input[aria-label=\"Full Name\"]')",'Initial account focus');
+  };
+  const chooseStore=async value=>{
+    await until("Boolean(document.querySelector('select[aria-label=\"Assigned Store\"]'))&&!document.querySelector('select[aria-label=\"Assigned Store\"]').disabled",'Assigned Store list ready');
+    await select('Assigned Store',value);
+  };
+  const currentStatus="document.querySelector('[role=dialog] section dd')?.innerText.trim()";
+  await openAccount('Store Staff');assert.equal(await evaluate(currentStatus),'Active');
+  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Account Status\"]').disabled"),false);
+  const activeStart=userWrites().length;await select('Account Status','Inactive');await textIncludes('signs this account out');
+  state.holdAccountWrites=true;
+  await evaluate("(()=>{const b=document.querySelector('[role=dialog] button[type=submit]');b.click();b.click();})()");
+  await until("document.querySelector('[role=dialog] button[type=submit]').disabled",'Save in flight');
+  assert.equal(userWrites().length,activeStart+1);assert.equal(await evaluate(currentStatus),'Active');
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+  assert.equal(await evaluate("document.activeElement===document.querySelector('[role=dialog]')"),true);
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   assert.equal(await evaluate("Boolean(document.querySelector('[role=dialog]'))"),true);
-  state.userSaveError=false;await click('Save Changes');await textIncludes('Account changes saved');
-  assert.equal(state.users.find(x=>x.userId===6).roleCode,'STORE_ADMIN');assert.equal(state.users.find(x=>x.userId===6).storeId,1);
-  await evaluate("[...document.querySelectorAll('tbody tr')].find(tr=>tr.innerText.includes('Merchandiser Fixture')).querySelector('button').click()");
-  await until("Boolean(document.querySelector('select[aria-label=\"Account Status\"]'))",'OTP account details loaded');
-  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Account Status\"]').disabled"),true);await click('Cancel');await click('Add Account');await input('Full Name','Invited Fixture');await input('Email Address','invited@example.invalid');await input('Store ID','1');await click('Create Account');
+  state.holdAccountWrites=false;await textIncludes('Account changes saved');
+  assert.equal(state.users.find(x=>x.userId===6).status,'INACTIVE');
+  assert.deepEqual(userWrites().slice(activeStart).map(x=>[x.method,x.path,JSON.parse(x.body)]),[['PATCH','/api/users/6/status',{status:'INACTIVE'}]]);
+  checks.push('ACTIVE disable waits for backend; duplicate Save and Escape while writing are blocked');
+
+  await openAccount('Merchandiser Fixture');assert.equal(await evaluate(currentStatus),'Inactive');
+  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Account Status\"]').disabled"),false);
+  await capture('edit-inactive-verified-desktop');
+  const reactivateStart=userWrites().length;await select('Account Status','Active');await click('Save Changes');await textIncludes('Account changes saved');
+  assert.deepEqual(userWrites().slice(reactivateStart).map(x=>[x.method,x.path,JSON.parse(x.body)]),[['PATCH','/api/users/5/status',{status:'ACTIVE'}]]);
+  assert.equal(state.users.find(x=>x.userId===5).status,'ACTIVE');
+
+  state.users.find(x=>x.userId===5).status='INACTIVE';state.activationBlocked=true;
+  await openAccount('Merchandiser Fixture');await select('Account Status','Active');await click('Save Changes');await textIncludes('Account must complete OTP activation first');
+  assert.equal(await evaluate(currentStatus),'Inactive');
+  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Account Status\"]').value"),'Active');
+  assert.equal(await evaluate("Boolean(document.querySelector('[role=dialog]'))"),true);
+  state.activationBlocked=false;await click('Cancel');
+  checks.push('verified INACTIVE reactivates with PATCH ACTIVE; backend password eligibility refusal keeps draft and actual status');
+
+  await openAccount('Customer Fixture');assert.equal(await evaluate(currentStatus),'Pending Activation');
+  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Account Status\"]').disabled"),true);
+  await textIncludes('Activate account');await capture('edit-pending-desktop');
+  const pendingStart=userWrites().length;await input('Full Name','Pending Customer');await click('Save Changes');await textIncludes('Account changes saved');
+  assert.deepEqual(userWrites().slice(pendingStart).map(x=>[x.method,x.path]),[['PUT','/api/users/7']]);
+  assert.equal(state.users.find(x=>x.userId===7).status,'PENDING_VERIFICATION');
+  await openAccount('Merchandiser Fixture');
+  const nameStart=userWrites().length;await input('Full Name','Merchandiser Updated');await click('Save Changes');await textIncludes('Account changes saved');
+  assert.deepEqual(userWrites().slice(nameStart).map(x=>[x.method,x.path]),[['PUT','/api/users/5']]);
+  assert.equal(state.users.find(x=>x.userId===5).status,'INACTIVE');
+  checks.push('pending status and verification stay distinct; name-only edits never PATCH status or PUT role');
+
+  await openAccount('Store Staff');await select('Account Role','Merchandiser');await chooseStore('2');
+  const accessStart=userWrites().length;await click('Save Changes');await textIncludes('Account changes saved');
+  assert.deepEqual(userWrites().slice(accessStart).map(x=>[x.method,x.path,JSON.parse(x.body)]),[['PUT','/api/users/6/role',{roleCode:'MERCHANDISER',storeId:2}]]);
+  assert.equal(state.users.find(x=>x.userId===6).status,'INACTIVE');
+  await openAccount('Store Staff');await input('Full Name','Edited Store Staff');await chooseStore('1');state.userRoleError=true;
+  const partialStart=userWrites().length;await click('Save Changes');await textIncludes('Test account update failed');
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"Full Name\"]').value"),'Edited Store Staff');
+  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Assigned Store\"]').value"),'1');
+  assert.equal(state.users.find(x=>x.userId===6).storeId,2);
+  const retryStart=userWrites().length;state.userRoleError=false;await click('Save Changes');await textIncludes('Account changes saved');
+  assert.deepEqual(userWrites().slice(partialStart,retryStart).map(x=>x.path),['/api/users/6','/api/users/6/role']);
+  assert.deepEqual(userWrites().slice(retryStart).map(x=>x.path),['/api/users/6/role']);
+  checks.push('Role/Store updates leave status unchanged; partial failure preserves draft and retries only unconfirmed changes');
+
+  await openAccount('Administrator Fixture');
+  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Account Role\"]').disabled"),true);
+  assert.equal(await evaluate("document.querySelector('select[aria-label=\"Account Status\"] option[value=Inactive]').disabled"),true);
+  assert.equal(await evaluate("document.querySelector('[role=dialog] button[type=submit]').disabled"),true);
+  await evaluate("document.querySelector('button[aria-label=\"Close account dialog\"]').focus()");
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8});
+  assert.equal(await evaluate("document.activeElement.innerText"),'Cancel');
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+  assert.equal(await evaluate("document.activeElement.getAttribute('aria-label')"),'Close account dialog');
+  await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await until("!document.querySelector('[role=dialog]')",'Escape closes idle modal');
+  await until("document.activeElement.getAttribute('aria-label')==='Edit Administrator Fixture'",'Focus restored');
+  await openAccount('Administrator Fixture');const selfStart=userWrites().length;
+  await input('Full Name','Administrator Updated');await click('Save Changes');await textIncludes('Account changes saved');
+  assert.deepEqual(userWrites().slice(selfStart).map(x=>[x.method,x.path]),[['PUT','/api/users/1']]);
+  assert.equal(state.users.find(x=>x.userId===1).roleCode,'SYSTEM_ADMIN');
+  checks.push('current System Admin keeps active access; focus trap, Escape and focus restoration work');
+
+  await click('Add Account');await input('Full Name','Invited Fixture');await input('Email Address','invited@example.invalid');await chooseStore('1');
+  await select('Account Role','System Admin');await textIncludes('does not require a Store assignment');
+  assert.equal(await evaluate("Boolean(document.querySelector('select[aria-label=\"Assigned Store\"]'))"),false);
+  await select('Account Role','Merchandiser');await chooseStore('1');
+  assert.equal(await evaluate("document.querySelector('[role=dialog]').getBoundingClientRect().width>=540&&document.querySelector('[role=dialog]').getBoundingClientRect().width<=600"),true);
+  await capture('add-account-desktop');
+  const inviteStart=userWrites().length;state.holdAccountWrites=true;
+  await evaluate("(()=>{const b=document.querySelector('[role=dialog] button[type=submit]');b.click();b.click();})()");
+  await until("document.querySelector('[role=dialog] button[type=submit]').disabled",'Invitation in flight');
+  assert.equal(userWrites().length,inviteStart+1);state.holdAccountWrites=false;
   await textIncludes('Account created. An activation invitation was sent');
-  assert.equal(state.users.at(-1).status,'INACTIVE');assert.equal(state.users.at(-1).emailVerified,false);
-  checks.push('Users API error is not zero; KPI counts, empty/filter states, edit failure and OTP invitation preserved');
+  assert.equal(state.users.at(-1).status,'PENDING_VERIFICATION');assert.equal(state.users.at(-1).emailVerified,false);
+  assert.deepEqual(JSON.parse(userWrites().at(-1).body),{name:'Invited Fixture',email:'invited@example.invalid',roleCode:'MERCHANDISER',storeId:1});
+  for(const width of [820,390]){
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
+    await click('Add Account');await input('Full Name','Mobile Draft');await input('Email Address','mobile@example.invalid');await chooseStore('1');
+    assert.equal(await evaluate("(()=>{const r=document.querySelector('[role=dialog]').getBoundingClientRect();return r.width<=innerWidth-23&&r.height<=innerHeight-23&&r.top>=0;})()"),true);
+    await capture('add-account-'+width);await click('Cancel');
+    await openAccount('Merchandiser Updated');
+    assert.equal(await evaluate("(()=>{const r=document.querySelector('[role=dialog]').getBoundingClientRect();return r.width<=innerWidth-23&&r.height<=innerHeight-23&&r.top>=0;})()"),true);
+    await capture('edit-account-'+width);await click('Cancel');
+  }
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  checks.push('invitation uses Store names and exact IDs, remains pending; duplicate create blocked; Add/Edit responsive');
 
   state.compare=true;state.requestReads=5;
   const pages=[

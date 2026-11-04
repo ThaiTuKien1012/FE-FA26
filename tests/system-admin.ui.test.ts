@@ -59,6 +59,13 @@ test('account failures and loading never masquerade as successful zero counts',(
   const empty=renderToStaticMarkup(createElement(AccountOverview,{users:[],loading:false,error:null}));
   assert.equal([...empty.matchAll(/tabular-nums[^>]*>0<\/p>/g)].length,4);
 });
+
+test('pending accounts remain separate from inactive KPI counts',()=>{
+  const pending:UserAccount={id:'6',name:'Pending',email:'pending@example.invalid',role:'Merchandiser',storeId:1,status:'Pending Activation',emailVerified:false};
+  const html=renderToStaticMarkup(createElement(AccountOverview,{users:[...accounts,pending],loading:false,error:null}));
+  assert.deepEqual([...html.matchAll(/tabular-nums[^>]*>(\d+)<\/p>/g)].map(match=>Number(match[1])),[6,3,2,4]);
+  assert.ok(html.includes('1 account is'));assert.ok(html.includes('separate from Inactive Accounts'));
+});
 test('Dashboard separates global settings from the Store selector and activity, with no configuration form',()=>{
   const html=renderToStaticMarkup(createElement(SystemMiningDashboard,{config:configuration,loading:false,error:'',reader:null,storeSelector:createElement('div',{'data-test-store':'true'},'Store selector'),onRefresh:()=>{},onConfigure:()=>{},onRun:()=>{},onRequest:()=>{}}));
   assert.ok(html.indexOf('Global Mining Configuration')<html.indexOf('data-test-store'));
