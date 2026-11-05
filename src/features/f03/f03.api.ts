@@ -122,6 +122,13 @@ export interface F03Snapshot {
   warnings: string[];
 }
 
+export interface F03SnapshotPage {
+  items: F03Snapshot[];
+  page: number;
+  pageSize: number;
+  totalElements: number;
+}
+
 export class F03ApiError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);
@@ -155,5 +162,6 @@ export const f03Api = {
   preview: (body: { rangeStart: string; rangeEnd: string; asOfDate: string; page?: number; pageSize?: number }) => request<F03MatrixPage>('/api/utility/preview', { method: 'POST', body: JSON.stringify(body) }),
   createSnapshot: (body: { rangeStart: string; rangeEnd: string; asOfDate: string }) => request<F03Snapshot>('/api/utility/snapshots', { method: 'POST', body: JSON.stringify(body) }),
   getSnapshot: (id: number) => request<F03Snapshot>(`/api/utility/snapshots/${id}`),
+  listSnapshots: (page = 0, pageSize = 20) => request<F03SnapshotPage>(`/api/mining/snapshots?page=${page}&pageSize=${pageSize}`),
   getMatrix: (id: number, page = 0, pageSize = 20) => request<F03MatrixPage>(`/api/utility/snapshots/${id}/matrix?page=${page}&pageSize=${pageSize}`)
 };

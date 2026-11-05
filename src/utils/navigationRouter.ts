@@ -24,6 +24,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'f03-configuration': '/f03/configuration',
   'f03-product-scores': '/f03/product-scores',
   'f03-preview': '/f03/preview',
+  'f03-snapshots': '/f03/snapshots',
   'f03-snapshot-detail': '/f03/snapshot/detail',
   'f03-snapshot-matrix': '/f03/snapshot/matrix',
 
@@ -61,6 +62,11 @@ const PATH_TO_SCREEN: Record<string, ActiveNavScreen> = Object.entries(SCREEN_TO
   },
   {} as Record<string, ActiveNavScreen>
 );
+
+// Legacy F03 links remain valid; the singular action now opens the snapshot tab.
+PATH_TO_SCREEN['/f03/snapshot'] = 'f03-snapshots';
+PATH_TO_SCREEN['/f03/snapshot/'] = 'f03-snapshots';
+PATH_TO_SCREEN['/f03-snapshot'] = 'f03-snapshots';
 
 /**
  * Returns the URL path for a given screen ID

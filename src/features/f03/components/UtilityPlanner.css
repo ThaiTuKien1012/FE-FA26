@@ -1,0 +1,12 @@
+.f03-planner [hidden] { display: none !important; }
+.f03-table { width: 100%; text-align: left; font-size: .875rem; border-collapse: collapse; }
+.f03-table th { background: #faf8f5; color: #6d7974; font-size: .75rem; font-weight: 600; }
+.f03-table th, .f03-table td { padding: .8rem; vertical-align: top; white-space: nowrap; }
+.f03-table td { border-top: 1px solid #eee7df; font-variant-numeric: tabular-nums; }
+.f03-table tbody tr:hover { background: #fcfbf8; }
+.f03-planner input:focus-visible, .f03-planner select:focus-visible, .f03-planner summary:focus-visible { outline: 2px solid #356b54; outline-offset: 2px; }
+@media (max-width: 420px) {
+  .f03-planner { overflow-wrap: anywhere; }
+  .f03-planner h1 { font-size: 1.5rem; }
+  .f03-table th, .f03-table td { padding: .65rem; }
+}

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Package, BarChart3, Bell, SlidersHorizontal, LogOut, ShoppingBag, Users, Zap,
-  Layers, LayoutGrid, Settings, Upload, History, ReceiptText,
+  Layers, LayoutGrid, Settings, Upload, History, ReceiptText, Menu, X,
   type LucideIcon
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
@@ -72,6 +72,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isStoreAdmin = role === 'Store Admin';
   const isMerchandiser = role === 'Merchandiser';
   const isCustomer = role === 'End-Customer';
+  const compactPlanner = currentScreen.startsWith('f03-') && !isSystemAdmin;
+  const [plannerNavOpen, setPlannerNavOpen] = useState(false);
+  useEffect(() => { setPlannerNavOpen(false); }, [currentScreen]);
 
   // Dynamic time-based greeting (Chào đúng giờ)
   const getGreeting = () => {
@@ -99,7 +102,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   return (
     <div className="min-h-screen w-full bg-[#FAF8F5] text-[#191C1B] flex flex-col md:flex-row font-sans selection:bg-[#1E3A2F] selection:text-white antialiased">
       {/* Structural Sidebar - Sticky top-0 and full viewport height */}
-      <aside className={isSystemAdmin?"w-full md:w-[260px] h-auto max-h-[38dvh] md:max-h-none md:h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 relative md:sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]":"w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]"} data-purpose="sidebar">
+      <aside className={isSystemAdmin || compactPlanner?"w-full md:w-[260px] h-auto max-h-[38dvh] md:max-h-none md:h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 relative md:sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]":"w-full md:w-[260px] h-screen bg-[#FAF8F5] border-r border-[#E7E2D8] flex flex-col justify-between shrink-0 sticky top-0 z-30 shadow-[1px_0_4px_rgba(41,37,36,0.02)]"} data-purpose="sidebar">
         <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)]">
           {/* Brand Header: HUPM Synchronized 4-Tile Logo */}
           <div className="p-5 md:h-20 md:py-0 border-b border-[#E7E2D8] flex items-center space-x-3.5" data-purpose="brand-logo">
@@ -114,10 +117,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 Analytics Platform
               </span>
             </div>
+            {compactPlanner && <button type="button" aria-label="Toggle planner navigation" aria-expanded={plannerNavOpen} aria-controls="planner-main-navigation" onClick={() => setPlannerNavOpen(open => !open)} className="ml-auto rounded-lg p-2 text-[#1e3a2f] focus-visible:outline-2 md:hidden">{plannerNavOpen ? <X size={20} /> : <Menu size={20} />}</button>}
           </div>
 
           {/* Navigation groups organize the existing screens without changing role permissions. */}
-          <nav className="min-h-0 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-5" aria-label="Main Navigation">
+          <nav id={compactPlanner ? 'planner-main-navigation' : undefined} className={`min-h-0 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-5 ${compactPlanner && !plannerNavOpen ? 'hidden md:block' : ''}`} aria-label="Main Navigation">
             {isMerchandiser && (
               <>
                 <SidebarSection title="PRODUCT ANALYTICS">
@@ -190,7 +194,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         </div>
 
         {/* User Account Footer with Logout / Switch Role */}
-        <div className="p-4 border-t border-[#E7E2D8] bg-[#FAF8F5] flex items-center justify-between shrink-0" data-purpose="user-profile-badge">
+        <div className={`p-4 border-t border-[#E7E2D8] bg-[#FAF8F5] items-center justify-between shrink-0 ${compactPlanner && !plannerNavOpen ? 'hidden md:flex' : 'flex'}`} data-purpose="user-profile-badge">
           <div className="flex items-center space-x-3 min-w-0">
             <div className="w-9 h-9 rounded-lg bg-[#1E3A2F] text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-[0_1px_3px_rgba(41,37,36,0.08)]">
               {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Profile avatar" className="h-full w-full rounded-lg object-cover" /> : (currentUser?.avatarText || (isStoreAdmin ? 'SA' : isSystemAdmin ? 'KT' : isMerchandiser ? 'ME' : 'CU'))}

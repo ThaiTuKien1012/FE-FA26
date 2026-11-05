@@ -54,7 +54,7 @@ export default function App() {
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
   const isMiningScreen = isSystemMiningScreen(currentScreen);
-  const needsAdminSession=isMiningScreen||['users','lambda-policy','api-connections'].includes(currentScreen);
+  const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
   const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
 
   useEffect(() => {
@@ -182,13 +182,13 @@ export default function App() {
       case 'merchandiser-keep-layout-a':
         return ['Merchandiser', 'Campaign Draft', 'Keep Layout A – Review'];
       case 'f03-utility':
-        return ['F03', 'Utility & Retail Planner'];
-      case 'f03-expiry-window': return ['F03', 'Expiry Window'];
-      case 'f03-configuration': return ['F03', 'Utility Configuration'];
-      case 'f03-product-scores': return ['F03', 'Product Priority Scores'];
-      case 'f03-preview': return ['F03', 'Utility Preview'];
-      case 'f03-snapshot-detail': return ['F03', 'Snapshot Detail'];
-      case 'f03-snapshot-matrix': return ['F03', 'Snapshot Matrix'];
+      case 'f03-expiry-window':
+      case 'f03-configuration':
+      case 'f03-product-scores':
+      case 'f03-preview':
+      case 'f03-snapshots':
+      case 'f03-snapshot-detail':
+      case 'f03-snapshot-matrix': return [];
       case 'f05-mining': return ['Product Analytics', 'High Utility Mining'];
 
       // Store Operations views (Store Admin)

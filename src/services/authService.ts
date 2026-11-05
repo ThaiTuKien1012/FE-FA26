@@ -48,7 +48,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f04-import-history',
       'f04-transactions',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores',
+      'f03-configuration', 'f03-product-scores', 'f03-snapshots',
       'f05-mining',
       'profile'
     ]
@@ -80,7 +80,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-product-scores',
       'f03-preview',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshots', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'f05-mining',
       'profile'
     ]
@@ -209,6 +209,7 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   'f03-configuration': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Configuration', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-product-scores': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Product Priority Scores', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-preview': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Preview', allowedRoles: ['Merchandiser'] },
+  'f03-snapshots': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Snapshots', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-snapshot-detail': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Detail', allowedRoles: ['Merchandiser'] },
   'f03-snapshot-matrix': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Matrix', allowedRoles: ['Merchandiser'] },
 

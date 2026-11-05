@@ -85,7 +85,7 @@ async function paused({requestId,request}){
     else if(path==='/api/system/utility/lambda-policy'){
       if(method==='PUT'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['lambdaMax','lambdaMin']);state.policy={...sent,version:state.policy.version+1};}body=state.policy;
     }
-    else if(path==='/api/utility/config')body={config:snapshot().configuration.config,lambdaPolicy:state.policy,lambdaValid:true};
+    else if(path==='/api/utility/config')body={config:{...snapshot().configuration.config,alpha:0.5,beta:0.2,gamma:0.3},lambdaPolicy:state.policy,lambdaValid:true};
     else if(path==='/api/system/stores')body=responsePage([{storeId:1,name:'Store A'},{storeId:2,name:'Store B'}],url.searchParams);
     else if(path==='/api/system/mining/config'){
       if(method==='PUT'){
@@ -413,8 +413,8 @@ try{
     assert.ok(state.calls.slice(before).every(x=>x.method==='GET'&&x.path.startsWith('/api/mining/')));
     assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),true);
   }
-  await session('Merchandiser','/f03/configuration');await textIncludes('Save weight configuration');
-  assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save weight configuration')).disabled"),false);
+  await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
+  assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
   const beforeCustomer=state.calls.length;await session('End-Customer');await textIncludes('Access Restricted');assert.equal(state.calls.length,beforeCustomer);
   await session('Store Admin','/admin/setup');await textIncludes('Access Restricted');
   await session('System Admin','/admin/api-connections');await expectRoute('/admin/overview','Dashboard');
