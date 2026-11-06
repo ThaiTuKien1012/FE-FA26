@@ -55,7 +55,7 @@ export function planAccountUpdate(current:UserAccount,draft:AccountDraft,actorId
   const name=changed.name?accountName(draft):current.name;
   const access=changed.access?assignment(draft):{roleCode:accountRoleCodes[current.role],storeId:current.storeId??null};
   if(draft.email!==current.email)throw new Error('The account email cannot be changed here.');
-  if(current.id===actorId) {
+  if(current.id===actorId.replace(/^usr-/,'')) {
     if(draft.status!=='Active')throw new Error('You cannot disable your own administrator account.');
     if(draft.role!=='System Admin')throw new Error('You cannot remove your own administrator access.');
   }
@@ -72,15 +72,16 @@ export function planAccountUpdate(current:UserAccount,draft:AccountDraft,actorId
 
 export async function accountRequest(path:string,init:RequestInit={}):Promise<unknown> {
   const token=authService.getToken();
+  const sessionId=authService.getSessionId() || token;
   if(!token||authService.getCurrentUser()?.role!=='System Admin')throw new Error('Please sign in as System Admin to manage accounts.');
   const headers=new Headers(init.headers);headers.set('Accept','application/json');headers.set('Authorization',`Bearer ${token}`);
   if(init.body!==undefined&&init.body!==null)headers.set('Content-Type','application/json');
   init.signal?.throwIfAborted();
   let response:Response,body:string;
-  try {response=await fetch(path,{...init,headers});body=await response.text();}
+  try {response=await authService.request(path,{...init,headers});body=await response.text();}
   catch {init.signal?.throwIfAborted();throw new Error('Could not connect to the account service. The outcome may be unknown; refresh account details before retrying.');}
   init.signal?.throwIfAborted();
-  if(authService.getToken()!==token)throw new Error('Your session changed. Reload account details before continuing.');
+  if((authService.getSessionId() || authService.getToken())!==sessionId)throw new Error('Your session changed. Reload account details before continuing.');
   let data:unknown;try {data=JSON.parse(body);}catch { /* Empty error responses use the HTTP fallback. */ }
   if(!response.ok) {
     const envelope=data as {error?:unknown;message?:unknown}|null;

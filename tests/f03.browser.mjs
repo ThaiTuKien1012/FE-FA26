@@ -7,13 +7,13 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { configView, scores, matrix, snapshot } from './f03.fixtures.ts';
 
-const origin = 'http://127.0.0.1:3000';
+const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const root = resolve(tmpdir());
 const profile = mkdtempSync(join(root, 'paspm-f03-browser-'));
 const artifacts = mkdtempSync(join(root, 'paspm-f03-preview-'));
 const chrome = spawn(process.env.F03_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let cdp, initId;
+let fixtureRole, cdp, initId;
 const calls = [], unexpected = [], errors = [], checks = [];
 const state = { config: structuredClone(configView), historyError: false, empty: false, ready: true, warnings: [], snapshotError: false, scoreError: false, configError: false, forbiddenMatrix: false, delayCreate: false, delayPreview: false, delayScore: false, delayConfig: false, created: false };
 class CDP {
@@ -35,9 +35,9 @@ async function toggle(label) { await evaluate('document.querySelector(' + JSON.s
 async function select(value) { await until("(()=>{const e=document.querySelector('select[aria-label=Product]');return e&&!e.disabled&&[...e.options].some(o=>o.value===" + JSON.stringify(String(value)) + ");})()", 'Loaded product option ' + value); await evaluate("(()=>{const e=document.querySelector('select[aria-label=Product]');e.value=" + JSON.stringify(String(value)) + ";e.dispatchEvent(new Event('change',{bubbles:true}));})()"); }
 async function pageNext(label) { const selector = "[...document.querySelectorAll('nav[aria-label=" + JSON.stringify(label + ' pagination') + "] button')].find(b=>b.innerText==='Next'&&b.getClientRects().length&&!b.disabled)"; await until('Boolean(' + selector + ')', 'Next ' + label); await evaluate(selector + '.click()'); }
 async function session(role, path = '/f03/configuration') {
+  fixtureRole = role;
   if (initId) await cdp.call('Page.removeScriptToEvaluateOnNewDocument', { identifier: initId });
-  const user = { id: 'f03-test', name: 'Fixture Merchandiser', email: 'fixture@example.invalid', role, department: 'Test Store', avatarText: 'FM', defaultScreen: 'f03-configuration', allowedScreens: [] };
-  const source = 'localStorage.clear();sessionStorage.clear();' + (role ? "localStorage.setItem('retailspace_auth_user'," + JSON.stringify(JSON.stringify(user)) + ");localStorage.setItem('retailspace_auth_token','fixture-only-token');" : '');
+  const source = "localStorage.clear();sessionStorage.clear();document.cookie='PASPM-CSRF=" + (role ? 'fixture-csrf; path=/' : '; Max-Age=0; path=/') + "';";
   initId = (await cdp.call('Page.addScriptToEvaluateOnNewDocument', { source })).identifier;
   await cdp.call('Page.navigate', { url: origin + path });
 }
@@ -48,7 +48,11 @@ async function paused({ requestId, request }) {
   const page = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
   let body, code = 200;
   try {
-    if (path === '/api/utility/config') {
+    if (path === '/api/auth/refresh') {
+      body = { accessToken: 'browser-test-only-token', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-csrf' };
+    } else if (path === '/api/auth/me') {
+      body = { userId: fixtureRole === 'System Admin' ? 1 : 12, name: 'Fixture User', email: 'fixture@example.invalid', roleCode: ({ 'System Admin': 'SYSTEM_ADMIN', 'Store Admin': 'STORE_ADMIN', Merchandiser: 'MERCHANDISER', 'End-Customer': 'END_CUSTOMER' })[fixtureRole], storeId: fixtureRole === 'System Admin' ? null : 1, status: 'ACTIVE', emailVerified: true };
+    } else if (path === '/api/utility/config') {
       if (method === 'PUT') { while (state.delayConfig) await sleep(20); if (state.configError) { code = 409; body = { error: 'Fixture configuration conflict' }; } else { state.config.config = { ...state.config.config, ...JSON.parse(request.postData), version: state.config.config.version + 1 }; body = state.config; } }
       else body = state.config;
     } else if (path === '/api/products') {
@@ -194,15 +198,15 @@ try {
     assert.equal(await evaluate(buttons + ".some(b=>b.innerText.trim()==='Run Mining')"), false);
   }
   await session('Store Admin', '/f03/snapshots'); await has('Details require Merchandiser access'); assert.equal(await enabled('Create Snapshot'), false);
-  const beforeDenied = calls.length;
+  const featureCalls = () => calls.filter(c => !c.path.startsWith('/api/auth/')).length; const beforeDenied = featureCalls();
   for (const [role, path] of [['Store Admin', '/f03/snapshot/detail?id=21'], ['Store Admin', '/f03/preview'], ['System Admin', '/f03/snapshots'], ['End-Customer', '/f03/snapshots']]) { await session(role, path); await has('Access Restricted'); }
-  assert.equal(calls.length, beforeDenied);
+  assert.equal(featureCalls(), beforeDenied);
   await session('Store Admin', '/f03/product-scores'); await has('Read-only scores'); await select(1); await has('Utility Weight'); assert.equal(await enabled('Save Product Scores'), false);
   await session('System Admin', '/admin/lambda-policy'); await has('Global Lambda Policy'); assert.equal(await evaluate(buttons + ".some(b=>b.innerText.trim()==='Save Configuration')"), false);
   checks.push('direct Snapshots starts without Preview; legacy links; matrix 403; F03 READY snapshots readable by F05; Store Admin read-only; Customer/System Admin isolation; Lambda Policy preserved');
 
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);
-  assert.ok(calls.filter(c => c.method !== 'GET').every(c => ['/api/utility/config', '/api/utility/preview', '/api/utility/snapshots'].includes(c.path) || /^\/api\/utility\/products\/\d+\/scores$/.test(c.path)));
+  assert.ok(calls.filter(c => c.method !== 'GET').every(c => ['/api/auth/refresh', '/api/utility/config', '/api/utility/preview', '/api/utility/snapshots'].includes(c.path) || /^\/api\/utility\/products\/\d+\/scores$/.test(c.path)));
   console.log(JSON.stringify({ result: 'PASS (HTTP fixtures only)', checks, interceptedApiCalls: calls.length, realBackendWrites: 0, artifacts }, null, 2));
 } catch (error) { try { await capture('failure'); } catch {} console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, errors, unexpected, artifacts }, null, 2)); process.exitCode = 1; }
 finally {

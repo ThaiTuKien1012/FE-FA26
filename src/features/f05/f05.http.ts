@@ -18,6 +18,7 @@ export function requireMiningRole(system: boolean): void {
 
 export async function miningRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = authService.getToken();
+  const sessionId = authService.getSessionId() || token;
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -25,14 +26,14 @@ export async function miningRequest<T>(path: string, init: RequestInit = {}): Pr
   let response: Response;
   let body: string;
   try {
-    response = await fetch(path, { ...init, headers });
+    response = await authService.request(path, { ...init, headers });
     body = await response.text();
   } catch {
     init.signal?.throwIfAborted();
     throw new F05ApiError(null, 'Unable to connect to the mining service or read its response.');
   }
   init.signal?.throwIfAborted();
-  if (authService.getToken() !== token) throw new F05ApiError(401, 'The active session changed. Reload data for the current session.');
+  if ((authService.getSessionId() || authService.getToken()) !== sessionId) throw new F05ApiError(401, 'The active session changed. Reload data for the current session.');
   let data: unknown;
   try { data = response.ok ? parseSafeMiningJson(body) : JSON.parse(body); }
   catch (error) {

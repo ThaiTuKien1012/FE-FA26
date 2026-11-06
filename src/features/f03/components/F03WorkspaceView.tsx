@@ -57,7 +57,12 @@ function Planner({ user, section }: { user: AuthUser; section: string }) {
   }, []);
   useEffect(() => {
     alive.current = true;
-    const storageChanged = () => invalidate('Session or saved inputs may have changed in another tab. Calculate Preview again.');
+    const storageChanged = (event: StorageEvent) => {
+      // Session identity is handled by the parent key. Refresh cooldown metadata is
+      // unrelated to Preview inputs and must not discard work in another tab.
+      if (event.key === 'paspm_session_coordination') return;
+      invalidate('Session or saved inputs may have changed in another tab. Calculate Preview again.');
+    };
     window.addEventListener('storage', storageChanged);
     return () => { alive.current = false; request.current++; window.removeEventListener('storage', storageChanged); };
   }, [invalidate]);
@@ -102,6 +107,6 @@ export function F03WorkspaceView({ currentUser, section = 'f03-configuration' }:
   if (currentUser.role === 'System Admin') return section === 'f03-configuration' ? <GlobalLambdaPolicy /> : null;
   if (currentUser.role !== 'Merchandiser' && currentUser.role !== 'Store Admin') return null;
   if (currentUser.role === 'Store Admin' && !['f03-utility', 'f03-configuration', 'f03-product-scores', 'f03-snapshots'].includes(section)) return null;
-  // A changed identity, token or Store context starts a fresh flow, with no READY Preview.
-  return <Planner key={`${currentUser.id}:${currentUser.role}:${(currentUser as AuthUser & { storeId?: number }).storeId ?? ''}:${authService.getToken() ?? ''}`} user={currentUser} section={section} />;
+  // Rotation preserves drafts; another login, role or Store starts a fresh flow.
+  return <Planner key={`${currentUser.id}:${currentUser.role}:${currentUser.storeId ?? ''}:${authService.getSessionId()}`} user={currentUser} section={section} />;
 }

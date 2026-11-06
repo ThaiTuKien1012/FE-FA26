@@ -8,12 +8,12 @@ import { tmpdir } from 'node:os';
 import { resolve, join, dirname, basename } from 'node:path';
 import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture } from './f05.fixtures.ts';
 
-const origin='http://127.0.0.1:3000';
+const origin=process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const chrome=process.env.F05_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const base=resolve(tmpdir()), profile=mkdtempSync(join(base,'paspm-f05-sync-test-'));
 const processChrome=spawn(chrome,['--headless=new','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-sync','--disable-extensions','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{windowsHide:true,stdio:'ignore'});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let cdp, initId, postBodies=[], unexpected=[], browserErrors=[];
+let fixtureRole, cdp, initId, postBodies=[], unexpected=[], browserErrors=[];
 const sampleUsers=[
  {userId:1,name:'Administrator Fixture',email:'admin@example.invalid',roleCode:'SYSTEM_ADMIN',status:'ACTIVE',emailVerified:true,storeId:null,avatarUrl:'/api/users/1/avatar'},
  {userId:5,name:'Merchandiser Fixture',email:'merch@example.invalid',roleCode:'MERCHANDISER',status:'INACTIVE',emailVerified:true,storeId:1,avatarUrl:'/api/users/5/avatar'},
@@ -56,12 +56,11 @@ async function input(label,value){
   assert.equal(await evaluate("(()=>{const e=document.querySelector('input[aria-label="+JSON.stringify(label)+"]');if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,"+JSON.stringify(value)+");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"),true,'Input '+label);
 }
 async function session(role,url='/mining',legacy=false){
+  fixtureRole=role;
   if(initId)await cdp.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});
-  const actor=role?{...user,role,id:role==='System Admin'?'1':user.id}:null;
-  const code="localStorage.clear();sessionStorage.clear();"+(actor?
-    "localStorage.setItem('retailspace_auth_user',"+JSON.stringify(JSON.stringify(actor))+");localStorage.setItem('retailspace_auth_token','browser-test-only-token');":"")+
-    (legacy?"sessionStorage.setItem('paspm:f05:pending:"+encodeURIComponent(user.id)+"',"+JSON.stringify(JSON.stringify({requestKey:payload.requestKey,snapshotId:2,algorithms:['EFIM'],minUtilValue:30}))+");":"");
-  initId=(await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:"try{"+code+"}catch{}"})).identifier;
+  const code="localStorage.clear();sessionStorage.clear();document.cookie='PASPM-CSRF="+(role?'fixture-csrf; path=/':'; Max-Age=0; path=/')+"';"+
+    (legacy?"sessionStorage.setItem('paspm:f05:pending:"+encodeURIComponent(user.id)+"',"+JSON.stringify(JSON.stringify({requestKey:payload.requestKey,snapshotId:2,algorithms:['EFIM'],minUtilValue:30}))+ ");":"");
+  initId=(await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:code})).identifier;
   await cdp.call('Page.navigate',{url:origin+url});
 }
 function responsePage(items,query){return {items,page:Number(query.get('page')||0),pageSize:Number(query.get('pageSize')||20),totalElements:items.length};}
@@ -70,7 +69,13 @@ async function paused({requestId,request}){
   state.calls.push({method,path,search:url.search,body:request.postData??null});
   let body,code=200;
   try {
-    if(path==='/api/users'){
+    if (path === '/api/auth/refresh') {
+      body = { accessToken: 'browser-test-only-token', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-csrf' };
+    } else if (path === '/api/auth/logout') {
+      body = { message: 'Logged out' };
+    } else if (path === '/api/auth/me') {
+      body = { userId: fixtureRole === 'System Admin' ? 1 : 12, name: 'Fixture User', email: 'fixture@example.invalid', roleCode: ({ 'System Admin': 'SYSTEM_ADMIN', 'Store Admin': 'STORE_ADMIN', Merchandiser: 'MERCHANDISER', 'End-Customer': 'END_CUSTOMER' })[fixtureRole], storeId: fixtureRole === 'System Admin' ? null : 1, status: 'ACTIVE', emailVerified: true };
+    } else if(path==='/api/users'){
       if(method==='POST'){while(state.holdAccountWrites)await sleep(20);const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['email','name','roleCode','storeId']);const created={...sent,userId:8,status:'PENDING_VERIFICATION',emailVerified:false};state.users.push(created);body=created;code=201;}
       else if(state.usersError){code=503;body={error:'Accounts unavailable'};}else body=state.users;
     }
@@ -410,12 +415,12 @@ try{
     state.requestReads=5;const before=state.calls.length;
     await session(role,'/mining?view=history',true);await textIncludes('Read-only access');
     await click('View request #17');await textIncludes('Algorithm runs');await click('View run #42');await click('Show patterns');await textIncludes('Not measured');
-    assert.ok(state.calls.slice(before).every(x=>x.method==='GET'&&x.path.startsWith('/api/mining/')));
+    assert.ok(state.calls.slice(before).filter(x=>!x.path.startsWith('/api/auth/')).every(x=>x.method==='GET'&&x.path.startsWith('/api/mining/')));
     assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),true);
   }
   await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
-  const beforeCustomer=state.calls.length;await session('End-Customer');await textIncludes('Access Restricted');assert.equal(state.calls.length,beforeCustomer);
+  const featureCalls=()=>state.calls.filter(c=>!c.path.startsWith('/api/auth/')).length;const beforeCustomer=featureCalls();await session('End-Customer');await textIncludes('Access Restricted');assert.equal(featureCalls(),beforeCustomer);
   await session('Store Admin','/admin/setup');await textIncludes('Access Restricted');
   await session('System Admin','/admin/api-connections');await expectRoute('/admin/overview','Dashboard');
   assert.equal(state.calls.some(x=>/connection/i.test(x.path)),false);
@@ -424,11 +429,11 @@ try{
   checks.push('Store/Merch read-only F05, Merch F03 permissions, Customer/admin isolation, back/forward and Logout preserved');
 
   assert.deepEqual(unexpected,[]);assert.deepEqual(browserErrors,[]);
-  assert.ok(state.calls.filter(x=>x.method!=='GET').every(x=>x.path==='/api/system/mining/config'||x.path==='/api/system/mining/requests'||x.path==='/api/system/utility/lambda-policy'||/^\/api\/users(?:\/\d+(?:\/role|\/status)?)?$/.test(x.path)));
+  assert.ok(state.calls.filter(x=>x.method!=='GET').every(x=>x.path==='/api/auth/refresh'||x.path==='/api/auth/logout'||x.path==='/api/system/mining/config'||x.path==='/api/system/mining/requests'||x.path==='/api/system/utility/lambda-policy'||/^\/api\/users(?:\/\d+(?:\/role|\/status)?)?$/.test(x.path)));
   console.log(JSON.stringify({result:'PASS (test-only HTTP fixtures)',checks,interceptedApiCalls:state.calls.length,manualPosts:postBodies.length,realBackendWrites:0,artifactDirectory},null,2));
 }catch(e){
   try{await capture('failure');}catch{}
-  console.log(JSON.stringify({result:'FAIL',error:e.message,browserErrors,unexpected,checks,artifactDirectory},null,2));
+  console.log(JSON.stringify({result:'FAIL',error:e.stack,browserErrors,unexpected,checks,artifactDirectory},null,2));
   process.exitCode=1;
 }finally{
   if(cdp){try{await cdp.call('Browser.close');}catch{}cdp.ws.close();}

@@ -14,7 +14,7 @@ export interface F02InventorySummary { productId: number; totalQuantity: number;
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = authService.getToken();
-  const response = await fetch(path, {
+  const response = await authService.request(path, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers || {}) }
   });

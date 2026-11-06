@@ -24,14 +24,14 @@ export function MiningHistoryView({ requestId, selectionError, onSelect, reader=
   const [revision, setRevision] = useState(0);
   const [accessError, setAccessError] = useState('');
   const [result, setResult] = useState<{ page: number; revision: number; token: string | null; data?: Page<RequestView>; error?: string } | null>(null);
-  const token = authService.getToken();
+  const token = (authService.getSessionId() || authService.getToken());
   const current = result?.page === page && result.revision === revision && result.token === token ? result : null;
 
   useEffect(() => {
     const controller = new AbortController();
     void reader.listRequests(page, 20, controller.signal).then(data => {
       if (controller.signal.aborted) return;
-      if (authService.getToken() !== token) throw new F05ApiError(401, 'The active session changed. Refresh history for the current session.');
+      if ((authService.getSessionId() || authService.getToken()) !== token) throw new F05ApiError(401, 'The active session changed. Refresh history for the current session.');
       const lastPage = Math.max(0, Math.ceil(data.totalElements / data.pageSize) - 1);
       if (page > lastPage) { setPage(lastPage); return; }
       setResult({ page, revision, token, data });

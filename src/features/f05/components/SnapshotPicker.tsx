@@ -24,7 +24,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
   const system=reader.kind==='system';
   const [page, setPage] = useState(0);
   const [revision, setRevision] = useState(0);
-  const token=authService.getToken();
+  const token=(authService.getSessionId() || authService.getToken());
   const [result, setResult] = useState<{ scope: string; token: string | null; page: number; revision: number; data?: Page<SnapshotView>; error?: string } | null>(null);
   const current = result?.scope===reader.scopeKey && result.token===token && result.page === page && result.revision === revision ? result : null;
   const loading = !current;
@@ -32,7 +32,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
   useEffect(() => {
     const controller=new AbortController();
     void reader.listSnapshots(page, PAGE_SIZE, controller.signal).then(data => {
-      if (controller.signal.aborted || authService.getToken()!==token) return;
+      if (controller.signal.aborted || (authService.getSessionId() || authService.getToken())!==token) return;
       const lastPage = Math.max(0, Math.ceil(data.totalElements / PAGE_SIZE) - 1);
       if (page > lastPage) {
         setPage(lastPage);

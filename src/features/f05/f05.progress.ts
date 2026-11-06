@@ -23,7 +23,7 @@ export function watchMiningRequest(
   reader: MiningReader = storeMiningReader
 ): () => void {
   const controller = new AbortController();
-  const token = authService.getToken();
+  const token = (authService.getSessionId() || authService.getToken());
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const stop = () => {
@@ -32,7 +32,7 @@ export function watchMiningRequest(
     controller.abort();
   };
   const checkSession = () => {
-    if (authService.getToken() !== token) throw new F05ApiError(401, 'The active session changed. Refresh to load data for the current session.');
+    if ((authService.getSessionId() || authService.getToken()) !== token) throw new F05ApiError(401, 'The active session changed. Refresh to load data for the current session.');
   };
   const cycle = async () => {
     try {

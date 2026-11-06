@@ -9,7 +9,7 @@ import { MiningStatusBadge } from './MiningStatusBadge';
 
 interface Props { request:RequestView; runs:RunView[]; selectedRun:RunView; onReadError:(error:unknown)=>void; reader:MiningReader; }
 export function MiningBenchmarkView({request,runs,selectedRun,onReadError,reader}:Props){
-  const token=authService.getToken();
+  const token=(authService.getSessionId() || authService.getToken());
   const targets=(['HUI_MINER','EFIM'] as const).flatMap(algorithm=>{
     if(algorithm===selectedRun.algorithm)return [selectedRun];
     const matching=runs.filter(run=>run.algorithm===algorithm&&request.algorithms.includes(algorithm));
@@ -26,7 +26,7 @@ export function MiningBenchmarkView({request,runs,selectedRun,onReadError,reader
       assertBenchmarkContext(benchmark,request,run);return benchmark;
     })).then(rows=>{
       if(controller.signal.aborted)return;
-      if(authService.getToken()!==token)throw new F05ApiError(401,'The active session changed. Refresh benchmark for the current session.');
+      if((authService.getSessionId() || authService.getToken())!==token)throw new F05ApiError(401,'The active session changed. Refresh benchmark for the current session.');
       setResult({key,token,rows});
     }).catch(error=>{
       if(controller.signal.aborted)return;

@@ -10,7 +10,7 @@ interface Props {
   onRefresh:()=>void; onConfigure:()=>void; onRun:()=>void; onBenchmark?:()=>void; onRequest:(id:number)=>void;
 }
 export function SystemMiningDashboard({config,loading,error,reader,storeSelector,onRefresh,onConfigure,onRun,onBenchmark,onRequest}:Props){
-  const [revision,setRevision]=useState(0);const token=authService.getToken();
+  const [revision,setRevision]=useState(0);const token=(authService.getSessionId() || authService.getToken());
   const scope=reader?.scopeKey??'none';
   const [result,setResult]=useState<{scope:string;revision:number;token:string|null;data?:Page<RequestView>;error?:string}|null>(null);
   const current=result?.scope===scope&&result.revision===revision&&result.token===token?result:null;
@@ -18,7 +18,7 @@ export function SystemMiningDashboard({config,loading,error,reader,storeSelector
     if(!reader)return;
     const c=new AbortController();
     void reader.listRequests(0,5,c.signal).then(data=>{
-      if(!c.signal.aborted&&authService.getToken()===token)setResult({scope,revision,token,data});
+      if(!c.signal.aborted&&(authService.getSessionId() || authService.getToken())===token)setResult({scope,revision,token,data});
     }).catch(e=>{if(!c.signal.aborted)setResult({scope,revision,token,error:miningErrorMessage(e)});});
     return()=>c.abort();
   },[reader,scope,revision,token]);

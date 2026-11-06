@@ -41,7 +41,7 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
   const [configRevision,setConfigRevision]=useState(0);
   const [saving,setSaving]=useState(false);
   const [configNotice,setConfigNotice]=useState('');
-  const token=authService.getToken();
+  const token=(authService.getSessionId() || authService.getToken());
   const currentConfig=configResult?.token===token?configResult:null;
   const config=currentConfig?.data??null;
   const busy=useRef(false); const configBusy=useRef(false); const mounted=useRef(true);
@@ -53,7 +53,7 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
     const c=new AbortController();
     setConfigResult(null);setConfigNotice('');
     void f05SystemApi.getConfiguration(c.signal).then(data=>{
-      if(!c.signal.aborted && authService.getToken()===token)setConfigResult({token,data});
+      if(!c.signal.aborted && (authService.getSessionId() || authService.getToken())===token)setConfigResult({token,data});
     }).catch(e=>{if(!c.signal.aborted)setConfigResult({token,error:miningErrorMessage(e)});});
     return ()=>c.abort();
   },[token,configRevision]);

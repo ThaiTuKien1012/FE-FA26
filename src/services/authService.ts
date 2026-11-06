@@ -1,3 +1,4 @@
+import { AuthSession, SessionError } from './authSession';
 import { SystemRole } from '../types/users';
 import { ActiveNavScreen } from '../types/mining';
 
@@ -7,6 +8,7 @@ export interface AuthUser {
   email: string;
   role: SystemRole;
   avatarText: string;
+  storeId?: number | null;
   avatarUrl?: string | null;
   department: string;
   defaultScreen: ActiveNavScreen;
@@ -303,151 +305,33 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   }
 };
 
-const STORAGE_KEY_USER = 'retailspace_auth_user';
-const STORAGE_KEY_TOKEN = 'retailspace_auth_token';
-
-class AuthService {
-  private currentUser: AuthUser | null = null;
-
-  constructor() {
-    this.restoreSession();
+export function mapAuthUser(me: any): AuthUser {
+  const roles: Record<string, SystemRole> = { SYSTEM_ADMIN: 'System Admin', STORE_ADMIN: 'Store Admin', MERCHANDISER: 'Merchandiser', END_CUSTOMER: 'End-Customer' };
+  const role = roles[me?.roleCode];
+  if (!role || me.status !== 'ACTIVE' || !me.emailVerified || !Number.isInteger(me.userId) || typeof me.email !== 'string') {
+    throw new SessionError(401, 'Your account is unavailable or its role is unsupported. Please sign in again.');
   }
+  const permissions = ROLE_PERMISSIONS[role];
+  return { id: `usr-${me.userId}`, name: me.name || me.email, email: me.email, role,
+    avatarText: (me.name || me.email).trim().split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2).toUpperCase(),
+    avatarUrl: me.avatarUrl, storeId: me.storeId, ...permissions,
+    defaultScreen: role === 'Merchandiser' ? 'f03-configuration' : permissions.defaultScreen };
+}
 
-  private restoreSession() {
-    try {
-      const savedUser = localStorage.getItem(STORAGE_KEY_USER);
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        const permissions = ROLE_PERMISSIONS[parsed.role as SystemRole];
-        if (permissions) {
-          parsed.allowedScreens = permissions.allowedScreens;
-          parsed.defaultScreen = permissions.defaultScreen;
-          parsed.department = parsed.department || permissions.department;
-        }
-        this.currentUser = parsed;
-      }
-    } catch {
-      this.currentUser = null;
-    }
-  }
-
-  public getCurrentUser(): AuthUser | null {
-    if (this.currentUser) {
-      const permissions = ROLE_PERMISSIONS[this.currentUser.role];
-      if (permissions) {
-        this.currentUser.allowedScreens = permissions.allowedScreens;
-      }
-    }
-    return this.currentUser;
-  }
-
-  public isAuthenticated(): boolean {
-    return this.currentUser !== null;
-  }
-
+class AuthService extends AuthSession<AuthUser> {
+  constructor() { super(mapAuthUser); }
+  public isAuthenticated(): boolean { return this.getSnapshot().status === 'authenticated' && this.getCurrentUser() !== null; }
   public isScreenAllowed(user: AuthUser | null, screen: ActiveNavScreen): boolean {
-    if (!user) return false;
-    const permissions = ROLE_PERMISSIONS[user.role];
-    const allowed = permissions ? permissions.allowedScreens : user.allowedScreens;
-    return allowed.includes(screen);
+    return !!user && !!ROLE_PERMISSIONS[user.role]?.allowedScreens.includes(screen);
   }
-
-  public getToken(): string | null {
-    try {
-      return localStorage.getItem(STORAGE_KEY_TOKEN);
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Real backend login: POST /api/auth/login -> GET /api/auth/me
-   */
   public async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const emailInput = credentials.email.trim();
-    const passwordInput = credentials.password || '';
-
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput, password: passwordInput })
-      });
-
-      if (res.ok) {
-        const tokenData = await res.json();
-        const token = tokenData.accessToken;
-
-        // Fetch /api/auth/me using the token
-        const meRes = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          const roleMapping: Record<string, { role: SystemRole; department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
-            'SYSTEM_ADMIN': {
-              role: 'System Admin',
-              department: 'Platform Administration & System Engineering',
-              defaultScreen: 'overview',
-              allowedScreens: ROLE_PERMISSIONS['System Admin'].allowedScreens
-            },
-            'STORE_ADMIN': {
-              role: 'Store Admin',
-              department: 'Store Operations & Inventory',
-              defaultScreen: 'store-inventory',
-              allowedScreens: ['store-inventory', 'store-edit-product', 'store-categories', 'store-batches', 'f04-import-transactions', 'f04-import-history', 'f04-transactions', 'f03-configuration', 'f03-product-scores', 'f05-mining', 'profile']
-            },
-            'MERCHANDISER': {
-              role: 'Merchandiser',
-              department: 'Retail Merchandising Planner',
-              defaultScreen: 'f03-configuration',
-              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix', 'f04-import-history', 'f04-transactions', 'f05-mining', 'profile']
-            },
-            'END_CUSTOMER': {
-              role: 'End-Customer',
-              department: 'Retail Loyalty Customer',
-              defaultScreen: 'customer-storefront',
-              allowedScreens: ['customer-storefront', 'profile']
-            }
-          };
-
-          const matched = roleMapping[meData.roleCode] || roleMapping['SYSTEM_ADMIN'];
-          const initials = meData.name 
-            ? meData.name.trim().split(/\s+/).map((s: string) => s[0]).join('').slice(0, 2).toUpperCase() 
-            : 'AD';
-
-          const authUser: AuthUser = {
-            id: `usr-${meData.userId}`,
-            name: meData.name || meData.email,
-            email: meData.email,
-            role: matched.role,
-            avatarText: initials,
-            department: matched.department,
-            defaultScreen: matched.defaultScreen,
-            allowedScreens: matched.allowedScreens
-          };
-
-          this.currentUser = authUser;
-          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(authUser));
-          localStorage.setItem(STORAGE_KEY_TOKEN, token);
-
-          return {
-            success: true,
-            token,
-            user: authUser,
-            redirectScreen: authUser.defaultScreen
-          };
-        }
-      }
-    } catch {
-      // Backend unavailable or fetch failed
-    }
-
-    return {
-      success: false,
-      error: 'Unable to sign in. Please check your email, password, or server connection.'
-    };
+      const user = await this.authenticate('/api/auth/login', { email: credentials.email.trim(), password: credentials.password || '' });
+      return { success: true, user, redirectScreen: user.defaultScreen };
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'Unable to sign in.' }; }
+  }
+  public async loginGoogle(idToken: string): Promise<AuthUser> {
+    return this.authenticate('/api/auth/google', { idToken });
   }
 
   /**
@@ -571,7 +455,7 @@ class AuthService {
     const token = this.getToken();
     if (!token) return null;
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await this.request('/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -584,7 +468,7 @@ class AuthService {
   }
 
   public async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/auth/password/change', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.getToken()}` }, body: JSON.stringify({ currentPassword, newPassword }) });
+    const res = await this.request('/api/auth/password/change', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.getToken()}` }, body: JSON.stringify({ currentPassword, newPassword }) });
     const data = await res.json().catch(() => ({}));
     return { success: res.ok, message: data.message || data.error || (res.ok ? 'Password changed.' : 'Unable to change password.') };
   }
@@ -603,31 +487,19 @@ class AuthService {
 
   public async uploadAvatar(file: File): Promise<any> {
     const form = new FormData(); form.append('file', file);
-    const res = await fetch('/api/users/me/avatar', { method: 'PUT', headers: { Authorization: `Bearer ${this.getToken()}` }, body: form });
+    const res = await this.request('/api/users/me/avatar', { method: 'PUT', headers: { Authorization: `Bearer ${this.getToken()}` }, body: form });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Unable to upload avatar.');
     return data;
   }
 
   public async deleteAvatar(): Promise<any> {
-    const res = await fetch('/api/users/me/avatar', { method: 'DELETE', headers: { Authorization: `Bearer ${this.getToken()}` } });
+    const res = await this.request('/api/users/me/avatar', { method: 'DELETE', headers: { Authorization: `Bearer ${this.getToken()}` } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Unable to remove avatar.');
     return data;
   }
 
-  /**
-   * Logout user and clear tokens
-   */
-  public logout(): void {
-    this.currentUser = null;
-    try {
-      localStorage.removeItem(STORAGE_KEY_USER);
-      localStorage.removeItem(STORAGE_KEY_TOKEN);
-    } catch {
-      // Ignore
-    }
-  }
 }
 
 export const authService = new AuthService();

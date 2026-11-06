@@ -63,6 +63,8 @@ test('the current administrator cannot disable or demote their own account',asyn
   actor(t);const account=mapAccount({...dto(),userId:1,roleCode:'SYSTEM_ADMIN',storeId:null});
   assert.throws(()=>planAccountUpdate(account,{...accountDraft(account),status:'Inactive'},'1'),/own administrator account/);
   assert.throws(()=>planAccountUpdate(account,{...accountDraft(account),role:'Store Admin',storeId:'1'},'1'),/own administrator access/);
+  assert.throws(()=>planAccountUpdate(account,{...accountDraft(account),status:'Inactive'},'usr-1'),/own administrator account/);
+  assert.throws(()=>planAccountUpdate(account,{...accountDraft(account),role:'Store Admin',storeId:'1'},'usr-1'),/own administrator access/);
   await assert.rejects(saveAccountUpdate(account,{...accountDraft(account),name:'Admin Changed',status:'Inactive'},'1',()=>assert.fail('No confirmation allowed')),/own administrator account/);
   assert.deepEqual(planAccountUpdate(account,{...accountDraft(account),name:'Admin Changed'},'1'),[{field:'name',method:'PUT',path:'/api/users/1',body:{name:'Admin Changed'}}]);
 });

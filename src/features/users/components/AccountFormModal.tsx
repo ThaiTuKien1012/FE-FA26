@@ -47,7 +47,7 @@ export function AccountFormModal({mode,current,actorId,draft,loading,submitting,
   },[]);
   useEffect(()=>{if(loading)close.current?.focus();else if(!panel.current?.contains(document.activeElement)||document.activeElement===close.current)name.current?.focus();},[loading]);
   useEffect(()=>{if(error)alert.current?.focus();},[error]);
-  const editing=mode==='edit',self=current?.id===actorId;
+  const editing=mode==='edit',self=current?.id===actorId.replace(/^usr-/,'');
   const ready=!loading&&(!editing||current!==null);
   const changes=current?accountChanges(current,draft):null;
   const changed=Boolean(changes&&(changes.name||changes.access||changes.status));

@@ -80,15 +80,16 @@ test('all four actors are gated before fetching; retired endpoints are absent',a
   await assert.rejects(f05SystemApi.listStores(),hasStatus(401));
 });
 
-test('restoreSession and real-login mapping agree on F05 for every role',async t=>{
+test('cached users never authenticate; real-login mapping preserves F05 for every role',async t=>{
   const storage=new MemoryStorage();globals(t,'localStorage',storage);
+  globals(t,'navigator',{locks:{request:(_name:string,work:()=>Promise<unknown>)=>work()}});
   const Constructor=authService.constructor as {new():typeof authService};
   for(const [role,code] of [['System Admin','SYSTEM_ADMIN'],['Store Admin','STORE_ADMIN'],['Merchandiser','MERCHANDISER'],['End-Customer','END_CUSTOMER']] as const){
     storage.setItem('retailspace_auth_user',JSON.stringify({...user,role,allowedScreens:[]}));
-    const service=new Constructor();assert.equal(service.isScreenAllowed(service.getCurrentUser(),'f05-mining'),role!=='End-Customer');
-    t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>String(url).endsWith('/login')?Response.json({accessToken:'test-only-token'}):Response.json({userId:7,name:'Test',email:user.email,roleCode:code}));
+    const service=new Constructor();assert.equal(service.getCurrentUser(),null);
+    t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>String(url).endsWith('/login')?Response.json({accessToken:'test-only-token',expiresIn:3600,tokenType:'Bearer',csrfToken:'fixture-csrf'}):Response.json({userId:7,name:'Test',email:user.email,roleCode:code,status:'ACTIVE',emailVerified:true,storeId:1}));
     const result=await service.login({email:user.email,password:'fixture-only'});
-    assert.equal(result.success,true);assert.equal(service.isScreenAllowed(service.getCurrentUser(),'f05-mining'),role!=='End-Customer');
+    assert.equal(result.success,true);assert.equal(service.isScreenAllowed(service.getCurrentUser(),'f05-mining'),role!=='End-Customer');service.dispose();
   }
 });
 

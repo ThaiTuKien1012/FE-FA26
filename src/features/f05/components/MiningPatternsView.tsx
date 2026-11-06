@@ -11,7 +11,7 @@ export function MiningPatternsView({ run, onReadError }: Props) {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [revision, setRevision] = useState(0);
-  const token = authService.getToken();
+  const token = (authService.getSessionId() || authService.getToken());
   const key = `${run.runId}:${run.status}:${page}:${pageSize}:${revision}`;
   const [result, setResult] = useState<{ key: string; token: string | null; data?: Page<PatternView>; error?: string } | null>(null);
   const current = result?.key === key && result.token === token ? result : null;
@@ -21,7 +21,7 @@ export function MiningPatternsView({ run, onReadError }: Props) {
     const controller = new AbortController();
     void f05Api.listPatterns(run.runId, page, pageSize, controller.signal).then(data => {
       if (controller.signal.aborted) return;
-      if (authService.getToken() !== token) throw new F05ApiError(401, 'The active session changed. Refresh results for the current session.');
+      if ((authService.getSessionId() || authService.getToken()) !== token) throw new F05ApiError(401, 'The active session changed. Refresh results for the current session.');
       const lastPage = Math.max(0, Math.ceil(data.totalElements / pageSize) - 1);
       if (page > lastPage) { setPage(lastPage); return; }
       setResult({ key, token, data });

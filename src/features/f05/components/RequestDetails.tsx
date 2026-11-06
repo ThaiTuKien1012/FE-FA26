@@ -37,7 +37,7 @@ function RunMeasurements({ run }: { run: RunView }) {
 export function RequestDetails({ requestId, onUpdated, onReadError, reader=storeMiningReader, onOpenBenchmark }: Props) {
   const [runId, setRunId] = useState<number | null>(null);
   const [revision, setRevision] = useState(0);
-  const token=authService.getToken();
+  const token=(authService.getSessionId() || authService.getToken());
   const [result, setResult] = useState<{ key: string; token: string | null; data?: MiningProgress; error?: string } | null>(null);
   const key = `${reader.scopeKey}:${requestId}:${runId}:${revision}`;
   const current = result?.key === key && result.token===token ? result : null;

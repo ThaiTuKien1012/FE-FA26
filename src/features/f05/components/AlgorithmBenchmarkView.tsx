@@ -11,7 +11,7 @@ interface Props {
   onRequest:(id:number|null)=>void; onRun:(requestId:number,runId:number)=>void; onCompare:()=>void;
 }
 export function AlgorithmBenchmarkView({reader,requestId,runId,onRequest,onRun,onCompare}:Props){
-  const [revision,setRevision]=useState(0);const token=authService.getToken();
+  const [revision,setRevision]=useState(0);const token=(authService.getSessionId() || authService.getToken());
   const key=reader.scopeKey+':'+requestId+':'+revision;
   const [result,setResult]=useState<{key:string;token:string|null;data?:MiningProgress;error?:string}|null>(null);
   const current=result?.key===key&&result.token===token?result:null;

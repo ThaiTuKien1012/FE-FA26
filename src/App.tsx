@@ -43,6 +43,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
     const screenFromUrl = typeof window !== 'undefined' ? getScreenFromPathname(window.location.pathname) : null;
+    if (screenFromUrl === 'login' && authService.getCurrentUser()) return authService.getCurrentUser()!.defaultScreen;
     if (screenFromUrl) {
       return screenFromUrl;
     }
@@ -56,11 +57,20 @@ export default function App() {
   const isMiningScreen = isSystemMiningScreen(currentScreen);
   const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
   const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
+  const previousScreen = useRef(currentScreen);
+
+  useEffect(() => {
+    // Let the logout redirect reach Login before displaying its confirmation.
+    if (previousScreen.current !== currentScreen && currentScreen !== 'login') authService.dismissSuccessNotice();
+    previousScreen.current = currentScreen;
+  }, [currentScreen]);
+
+  useEffect(() => authService.subscribe(() => setCurrentUser(authService.getCurrentUser())), []);
 
   useEffect(() => {
     const handleAvatarUpdated = (event: Event) => {
       const avatarUrl = (event as CustomEvent<string>).detail;
-      setCurrentUser(previous => previous ? { ...previous, avatarUrl } : previous);
+      authService.updateAvatar(avatarUrl);
     };
     window.addEventListener('paspm-avatar-updated', handleAvatarUpdated);
     return () => window.removeEventListener('paspm-avatar-updated', handleAvatarUpdated);
@@ -84,7 +94,7 @@ export default function App() {
 
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
-    if (needsAdminSession && !currentUser) {
+    if (!currentUser && !['login', 'register', 'activate', 'forgot-password'].includes(currentScreen)) {
       syncBrowserUrl('login', true);
       setCurrentScreen('login');
     }
@@ -134,7 +144,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    authService.logout();
+    void authService.logout();
     setCurrentUser(null);
     syncBrowserUrl('login');
     setCurrentScreen('login');
@@ -233,7 +243,7 @@ export default function App() {
   };
 
   // 1. If currently on Login screen, render LoginView standalone full-screen
-  if (currentScreen === 'login' || (!currentUser && (currentScreen === 'f04-transactions' || needsAdminSession))) {
+  if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password'].includes(currentScreen))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -280,7 +290,7 @@ export default function App() {
   }
 
   // 2. If Customer role on customer-storefront, render full-screen Kiosk
-  if (currentScreen === 'customer-storefront') {
+  if (currentScreen === 'customer-storefront' && currentUser?.role === 'End-Customer') {
     return (
       <CustomerStorefrontView
         products={storeProducts}

@@ -138,7 +138,7 @@ export class F03ApiError extends Error {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = authService.getToken();
-  const response = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers || {}) } });
+  const response = await authService.request(path, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers || {}) } });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new F03ApiError(response.status, data?.error || data?.message || `Request failed (${response.status})`);
   return data as T;

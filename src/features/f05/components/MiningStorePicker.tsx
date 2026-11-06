@@ -6,14 +6,14 @@ import type { Page, StoreView } from '../f05.types';
 interface Props { storeId:number|null; locked:boolean; onSelect:(store:StoreView)=>void; }
 export function MiningStorePicker({storeId,locked,onSelect}:Props) {
   const [page,setPage]=useState(0); const [revision,setRevision]=useState(0);
-  const token=authService.getToken();
+  const token=(authService.getSessionId() || authService.getToken());
   const key=`${page}:${revision}`;
   const [result,setResult]=useState<{key:string;token:string|null;data?:Page<StoreView>;error?:string}|null>(null);
   const current=result?.key===key && result.token===token ? result:null;
   useEffect(()=>{
     const c=new AbortController();
     void f05SystemApi.listStores(page,20,c.signal).then(data=>{
-      if(c.signal.aborted||authService.getToken()!==token)return;
+      if(c.signal.aborted||(authService.getSessionId() || authService.getToken())!==token)return;
       const last=Math.max(0,Math.ceil(data.totalElements/data.pageSize)-1);
       if(page>last){setPage(last);return;}
       setResult({key,token,data});

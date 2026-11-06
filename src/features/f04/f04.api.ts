@@ -24,7 +24,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   let body: string;
   try {
-    response = await fetch(path, { ...init, headers });
+    response = await authService.request(path, { ...init, headers });
     body = await response.text();
   } catch {
     throw new F04ApiError(null, 'Unable to connect to the server or read its response. Please check your connection and try again.');
