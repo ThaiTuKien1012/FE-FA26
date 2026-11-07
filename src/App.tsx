@@ -36,6 +36,7 @@ import { ImportHistoryView } from './features/f04/components/ImportHistoryView';
 import { SalesTransactionsView } from './features/f04/components/SalesTransactionsView';
 import { isSystemMiningScreen, resolveSystemScreen, systemMiningView, systemScreenUrl } from './features/f05/f05.navigation';
 import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
+import { F06WorkspaceView } from './features/f06/components/F06WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
@@ -200,6 +201,7 @@ export default function App() {
       case 'f03-snapshot-detail':
       case 'f03-snapshot-matrix': return [];
       case 'f05-mining': return ['Product Analytics', 'High Utility Mining'];
+      case 'f06-recommendations': return ['Product Analytics', 'Recommendations'];
 
       // Store Operations views (Store Admin)
       case 'store-inventory':
@@ -372,6 +374,7 @@ export default function App() {
           {currentScreen.startsWith('f03-') && <F03WorkspaceView currentUser={currentUser} section={currentScreen} />}
 
           {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
+          {currentScreen === 'f06-recommendations' && <F06WorkspaceView />}
           {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <F03WorkspaceView currentUser={currentUser} section="f03-configuration" />}
 
           {/* F02: Store Admin - Product & Inventory */}

@@ -7,6 +7,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'activate': '/activate',
   'profile': '/profile',
   'f05-mining': '/mining',
+  'f06-recommendations': '/recommendations',
   'customer-storefront': '/storefront',
 
   // Merchandiser Screens

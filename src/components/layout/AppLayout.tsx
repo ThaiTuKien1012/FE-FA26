@@ -127,6 +127,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 <SidebarSection title="PRODUCT ANALYTICS">
                   <SidebarItem screen="f03-utility" label="Utility Planner" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
                   <SidebarItem screen="f05-mining" label="High Utility Mining" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
                 </SidebarSection>
                 <SidebarSection title="TRANSACTION REVIEW">
                   <SidebarItem screen="f04-import-history" label="Import History" icon={History} active={currentScreen === 'f04-import-history'} onNavigate={onNavigate} />
@@ -150,6 +151,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 <SidebarSection title="PRODUCT ANALYTICS">
                   <SidebarItem screen="f03-product-scores" label="Product Scores" icon={SlidersHorizontal} active={currentScreen === 'f03-product-scores'} onNavigate={onNavigate} />
                   <SidebarItem screen="f05-mining" label="Mining Results" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
             )}

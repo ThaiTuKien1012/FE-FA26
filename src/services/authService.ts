@@ -52,6 +52,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-utility',
       'f03-configuration', 'f03-product-scores', 'f03-snapshots',
       'f05-mining',
+      'f06-recommendations',
       'profile'
     ]
   },
@@ -84,6 +85,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-utility',
       'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshots', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'f05-mining',
+      'f06-recommendations',
       'profile'
     ]
   },
@@ -105,6 +107,12 @@ export interface ScreenOwnerInfo {
 }
 
 export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>> = {
+  'f06-recommendations': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Recommendations',
+    allowedRoles: ['Merchandiser', 'Store Admin']
+  },
   // Store Admin Core Modules
   'store-inventory': {
     primaryRole: 'Store Admin',
