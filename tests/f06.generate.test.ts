@@ -63,7 +63,7 @@ test('F06 gets a separate route and only Store roles get navigation access; lega
     const allowed = role === 'Merchandiser' || role === 'Store Admin';
     assert.equal(ROLE_PERMISSIONS[role].allowedScreens.includes('f06-recommendations'), allowed);
     assert.equal(authService.isScreenAllowed({ ...user, role }, 'f06-recommendations'), allowed);
-    const html = renderToStaticMarkup(createElement(AppLayout, { currentScreen: 'f06-recommendations', currentUser: { ...user, role }, breadcrumbs: [], onNavigate: () => {}, children: null }));
+    const html = renderToStaticMarkup(createElement(AppLayout, { currentScreen: 'f06-recommendations', currentUser: { ...user, role }, onNavigate: () => {}, children: null }));
     assert.equal(html.includes('>Recommendations<'), allowed);
   }
 });

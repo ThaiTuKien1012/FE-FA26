@@ -85,7 +85,7 @@ function Planner({ user, section }: { user: AuthUser; section: string }) {
   const snapshotId = Number(new URLSearchParams(search).get('id'));
   const [title, subtitle] = details ? [`Snapshot #${Number.isSafeInteger(snapshotId) && snapshotId > 0 ? snapshotId : '—'}`, 'Review the saved utility dataset and its frozen settings.'] : headings[active] ?? headings['f03-configuration'];
   return <div className="f03-planner mx-auto max-w-6xl space-y-5 text-[#191c1b]">
-    <header><p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#356b54]">Utility Planner</p><h1 className="text-2xl font-semibold sm:text-3xl">{title}</h1><p className="mt-2 text-sm text-[#6d7974] sm:text-base">{subtitle}</p></header>
+    <header><h1 className="text-2xl font-semibold sm:text-3xl">{title}</h1><p className="mt-2 text-sm text-[#6d7974] sm:text-base">{subtitle}</p></header>
     <nav aria-label="Utility Planner tabs" className="grid grid-cols-2 gap-1 rounded-xl border border-[#e7e2d8] bg-white p-1.5 shadow-sm sm:grid-cols-4">{allowed.map(([id, label], index) => <button type="button" key={id} aria-current={active === id ? 'page' : undefined} className={`rounded-lg px-3 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356b54] ${active === id ? 'bg-[#1e3a2f] text-white' : 'text-[#6d7974] hover:bg-[#faf8f5]'}`} onClick={() => navigate(id)} onKeyDown={event => {
       let next = index;
       if (event.key === 'ArrowRight') next = (index + 1) % allowed.length;

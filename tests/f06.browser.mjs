@@ -133,6 +133,8 @@ try {
   await page.call('Page.navigate', { url: origin + '/login' });
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module');
   await login(); await selectCompleted();
+  assert.equal(await page.evaluate("document.querySelector('main h1').parentElement.firstElementChild.tagName"), 'H1', 'Recommendations header starts with the page title');
+  assert.equal(await page.evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"), false);
   await has('Comparison result'); await has('Failed'); await capture('merchant-source');
   assert.equal(await page.evaluate("document.querySelector('form[aria-label=\"Generate recommendations\"] button[type=submit]').disabled"), false);
   await page.evaluate("document.querySelector('input[type=checkbox][value=BUNDLE]').click()");

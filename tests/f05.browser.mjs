@@ -416,7 +416,7 @@ try{
     await session(role,'/mining?view=history',true);await textIncludes('Read-only access');
     await click('View request #17');await textIncludes('Algorithm runs');await click('View run #42');await click('Show patterns');await textIncludes('Not measured');
     assert.ok(state.calls.slice(before).filter(x=>!x.path.startsWith('/api/auth/')).every(x=>x.method==='GET'&&x.path.startsWith('/api/mining/')));
-    assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),true);
+    assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),false);
   }
   await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);

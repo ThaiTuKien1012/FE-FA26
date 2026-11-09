@@ -179,6 +179,8 @@ try {
     for (const label of ['Configuration', 'Product Scores', 'Preview', 'Snapshots']) {
       await tab(label); await sleep(100);
       assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'), true, `${label} at ${width}px`);
+      assert.equal(await evaluate("document.querySelector('.f03-planner > header').firstElementChild.tagName"), 'H1', 'Planner header starts with the page title');
+      assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"), false);
       await capture(`${width}-${label.replaceAll(' ', '-').toLowerCase()}`);
     }
   }

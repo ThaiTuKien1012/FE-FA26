@@ -165,85 +165,6 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Determine breadcrumbs according to current screen & active user role
-  const getBreadcrumbs = () => {
-    switch (currentScreen) {
-      case 'login':
-        return ['Authentication', 'Sign In'];
-      case 'customer-storefront':
-        return ['Storefront Kiosk', 'Catalog & Basket'];
-
-      // Merchandiser screen (Recommendations Dashboard - Single Page)
-      case 'merchandiser-recommendations':
-        return ['Merchandiser', 'Operations'];
-      case 'merchandiser-approve':
-        return ['Merchandiser', 'Operations', 'Product Group Review'];
-      case 'merchandiser-campaign-draft':
-        return ['Merchandiser', 'Operations', 'Campaign Draft & Publish'];
-      case 'merchandiser-campaign-status':
-        return ['Merchandiser', 'Operations', 'Published / Waiting Campaign Status'];
-      case 'merchandiser-utility-profile':
-        return ['Merchandiser', 'Operations', 'Utility Profile & Priority Weights'];
-      case 'merchandiser-refine-criteria':
-        return ['Merchandiser', 'Operations', 'Rework / Refine Criteria'];
-      case 'merchandiser-ab-simulation':
-        return ['Merchandiser', 'Campaign Draft', 'A/B Simulation'];
-      case 'merchandiser-compare-simulation':
-        return ['Merchandiser', 'Campaign Draft', 'Compare A/B Simulation'];
-      case 'merchandiser-keep-layout-a':
-        return ['Merchandiser', 'Campaign Draft', 'Keep Layout A – Review'];
-      case 'f03-utility':
-      case 'f03-expiry-window':
-      case 'f03-configuration':
-      case 'f03-product-scores':
-      case 'f03-preview':
-      case 'f03-snapshots':
-      case 'f03-snapshot-detail':
-      case 'f03-snapshot-matrix': return [];
-      case 'f05-mining': return ['Product Analytics', 'High Utility Mining'];
-      case 'f06-recommendations': return ['Product Analytics', 'Recommendations'];
-
-      // Store Operations views (Store Admin)
-      case 'store-inventory':
-        return [];
-      case 'store-edit-product':
-        return ['Product Management', 'Edit Product'];
-      case 'store-categories':
-        return ['Store Admin', 'Category Management'];
-      case 'store-batches':
-        return ['Store Admin', 'Inventory Batches'];
-      case 'f04-import-transactions':
-        return ['Store Admin', 'Import Transactions'];
-      case 'f04-import-history':
-        return [currentUser?.role === 'Merchandiser' ? 'Merchandiser' : 'Store Admin', 'Import History'];
-      case 'f04-transactions':
-        return [currentUser?.role === 'Merchandiser' ? 'Merchandiser' : 'Store Admin', 'Sales Transactions'];
-
-      // F01 System Admin screens
-      case 'admin-run-mining': return ['Mining Engine Management', 'Run Mining'];
-      case 'admin-mining-history': return ['Mining Engine Management', 'Mining History'];
-      case 'lambda-policy': return ['System Management', 'Lambda Policy'];
-      case 'overview':
-        return ['Overview', 'Dashboard'];
-      case 'setup':
-        return ['Mining Engine Management', 'Algorithm Configuration'];
-      case 'results':
-        return ['System Administration', 'Mining Setup', 'Run Results'];
-      case 'failure':
-        return ['System Administration', 'Mining Service Overview', 'Run Failure Diagnostic'];
-      case 'benchmark':
-        return ['Mining Engine Management', 'Algorithm Benchmark'];
-      case 'users':
-        return ['System Administration', 'Accounts & Roles (RBAC)'];
-      case 'api-connections':
-        return ['Overview', 'Dashboard'];
-      case 'profile':
-        return ['Tài khoản', 'Hồ sơ & Cài đặt bảo mật'];
-      default:
-        return ['Platform', 'Workspace'];
-    }
-  };
-
   // 1. If currently on Login screen, render LoginView standalone full-screen
   if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password'].includes(currentScreen))) {
     return (
@@ -308,7 +229,6 @@ export default function App() {
     <AppLayout
       currentScreen={currentScreen}
       onNavigate={handleNavigate}
-      breadcrumbs={getBreadcrumbs()}
       currentUser={currentUser}
       onLogout={handleLogout}
       onSwitchRole={handleSwitchRole}

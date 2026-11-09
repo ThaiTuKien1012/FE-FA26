@@ -35,7 +35,6 @@ export function F06WorkspaceView() {
   const selectedRun = state.runs.find(run => run.runId === state.selectedRunId && run.status === 'COMPLETED');
   return <div className="mx-auto max-w-6xl space-y-6 text-[#191C1B]">
     <header>
-      <p className="mb-2 text-xs font-semibold text-[#356B54]">Retail analytics</p>
       <h1 className="text-3xl font-semibold tracking-tight">Product Recommendations</h1>
       <p className="mt-2 max-w-3xl leading-7 text-[#6D7974]">Turn mining results into product suggestions you can review and use.</p>
       <p className="mt-3 text-sm font-semibold text-[#356B54]">{state.role}{!canGenerate && ' · Read-only access'}</p>

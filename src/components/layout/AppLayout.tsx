@@ -14,7 +14,6 @@ interface AppLayoutProps {
   currentScreen: ActiveNavScreen;
   onNavigate: (screen: ActiveNavScreen, runId?: string) => void;
   activeRunId?: string;
-  breadcrumbs: string[];
   currentUser?: AuthUser | null;
   onLogout?: () => void;
   onSwitchRole?: (roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer') => void;
@@ -61,7 +60,6 @@ function SidebarItem({ screen, label, icon: Icon, active, onNavigate }: SidebarI
 export const AppLayout: React.FC<AppLayoutProps> = ({
   currentScreen,
   onNavigate,
-  breadcrumbs,
   currentUser,
   onLogout,
   onSwitchRole,
@@ -254,18 +252,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Viewport Content Container */}
         <main className="flex-1 p-5 md:p-8 max-w-7xl w-full mx-auto pb-16">
-          {currentScreen === 'f05-mining' && !isSystemAdmin && (
-            <nav aria-label="Breadcrumb" className="mb-5 text-sm text-[#707973]">
-              <ol className="flex flex-wrap items-center gap-2">
-                {breadcrumbs.map((label, index) => (
-                  <li key={label} className="flex items-center gap-2">
-                    {index > 0 && <span aria-hidden="true">/</span>}
-                    <span aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}>{label}</span>
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          )}
           {children}
         </main>
       </div>
