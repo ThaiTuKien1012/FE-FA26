@@ -63,7 +63,8 @@ async function click(label) {
 async function login(role = 'MERCHANDISER', storeId = 1) {
   state.role = role; state.storeId = storeId;
   await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});history.pushState({},'','/recommendations');dispatchEvent(new PopStateEvent('popstate'));})()`);
-  if (role === 'MERCHANDISER' || role === 'STORE_ADMIN') {
+  if (role === 'STORE_ADMIN') await until("!!document.querySelector('#f06-dashboard-title')", 'Store Admin opens recommendations directly');
+  if (role === 'MERCHANDISER') {
     await until("!!document.querySelector('#f06-source-title')", 'F06 workspace mounted');
     if (!state.holdHistory) await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Refresh requests'&&!b.disabled)", 'source history loaded');
   }
@@ -84,6 +85,8 @@ async function capture(name) {
 }
 async function fixture({ requestId, request }) {
   const url = new URL(request.url);
+  // Background Login video is unrelated to these fixture-only UI checks.
+  if (url.pathname.startsWith('/videos/')) return page.call('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
   if (!url.pathname.startsWith('/api/')) return page.call(url.origin === origin ? 'Fetch.continueRequest' : 'Fetch.failRequest', {
     requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' })
   });
@@ -99,6 +102,7 @@ async function fixture({ requestId, request }) {
   } else if (url.pathname === '/api/mining/requests/17') body = source;
   else if (url.pathname === '/api/mining/requests/17/runs') body = [run];
   else if (url.pathname === '/api/mining/runs/42') body = run;
+  else if (/^\/api\/products\/\d+$/.test(url.pathname)) body = { id: Number(url.pathname.split('/').at(-1)), name: url.pathname.endsWith('/31') ? 'Fixture milk' : 'Fixture bread' };
   else if (url.pathname === '/api/recommendations/config') body = policy;
   else if (url.pathname === '/api/recommendations') body = { items: [recommendation()], page: 0, pageSize: 20, totalElements: 1, ordering: 'CREATED_DESC' };
   else if (url.pathname === '/api/recommendations/generate') {
@@ -174,7 +178,10 @@ try {
   state.noRequests = true; await click('Refresh requests'); await has('No mining requests are available');
   checks.push('unfinished source is disabled; empty Store history');
   state.noRequests = false; state.runStatus = 'COMPLETED';
-  await login('STORE_ADMIN'); await has('Read-only access'); await has('Store Rules');
+  const beforeStore = calls.length;
+  await login('STORE_ADMIN'); await has('Monitor product suggestions and their current status.');
+  assert.equal(await page.evaluate("!!document.querySelector('#f06-generate-tab')"), false);
+  assert.equal(calls.slice(beforeStore).some(c => c.path.startsWith('/api/mining/') || c.path === '/api/recommendations/config'), false, 'Store Admin does not load generation sources or Store Rules');
   assert.equal(await page.evaluate("!!document.querySelector('form[aria-label=\"Generate recommendations\"]')"), false);
   await capture('store-admin'); checks.push('Store Admin reads without Generate');
   for (const role of ['SYSTEM_ADMIN', 'END_CUSTOMER']) {

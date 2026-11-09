@@ -10,7 +10,7 @@ import { GlobalLambdaPolicy } from './GlobalLambdaPolicy';
 import { UtilityConfiguration } from './UtilityConfiguration';
 import { ProductScores } from './ProductScores';
 import { UtilityPreview, type PreviewFlow } from './UtilityPreview';
-import { SnapshotDetails, UtilitySnapshots } from './UtilitySnapshots';
+import { SnapshotDetails, SnapshotHistory, UtilitySnapshots } from './UtilitySnapshots';
 import './UtilityPlanner.css';
 
 type Props = { currentUser: AuthUser | null; section?: string };
@@ -102,11 +102,37 @@ function Planner({ user, section }: { user: AuthUser; section: string }) {
     {details && !readOnly && <SnapshotDetails key={snapshotId} id={snapshotId} names={names} />}
   </div>;
 }
+const ignoreChange = () => {};
+function StoreScoresWorkspace({ section }: { section: string }) {
+  const [additionalOpen, setAdditionalOpen] = useState(section !== 'f03-product-scores' && section !== 'f03-utility');
+  const [detail, setDetail] = useState(section === 'f03-snapshots' ? 'snapshots' : 'configuration');
+  useEffect(() => {
+    if (section === 'f03-configuration' || section === 'f03-snapshots') {
+      setDetail(section === 'f03-snapshots' ? 'snapshots' : 'configuration'); setAdditionalOpen(true);
+    } else setAdditionalOpen(false);
+  }, [section]);
+  return <div className="f03-planner mx-auto max-w-6xl space-y-5 text-[#191c1b]">
+    <header><h1 className="text-2xl font-semibold sm:text-3xl">Product Priority Scores</h1><p className="mt-2 text-sm text-[#6d7974] sm:text-base">Monitor product priorities and scores across your store.</p></header>
+    <ProductScores readOnly invalidate={ignoreChange} remember={ignoreChange} />
+    <details open={additionalOpen} onToggle={event => setAdditionalOpen(event.currentTarget.open)} className="rounded-2xl border border-[#e7e2d8] bg-white p-4 sm:p-6">
+      <summary className="cursor-pointer text-sm font-semibold text-[#356b54]">Additional details</summary>
+      {additionalOpen && <div className="mt-5 space-y-5">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Supporting utility information">
+          <button type="button" className="rounded-lg border border-[#e7e2d8] px-4 py-2 text-sm" aria-pressed={detail === 'configuration'} onClick={() => setDetail('configuration')}>Store configuration</button>
+          <button type="button" className="rounded-lg border border-[#e7e2d8] px-4 py-2 text-sm" aria-pressed={detail === 'snapshots'} onClick={() => setDetail('snapshots')}>Saved snapshots</button>
+        </div>
+        {detail === 'configuration' ? <UtilityConfiguration readOnly invalidate={ignoreChange} /> : <SnapshotHistory readOnly refresh={0} />}
+      </div>}
+    </details>
+  </div>;
+}
+
 export function F03WorkspaceView({ currentUser, section = 'f03-configuration' }: Props) {
   if (!currentUser) return null;
   if (currentUser.role === 'System Admin') return section === 'f03-configuration' ? <GlobalLambdaPolicy /> : null;
   if (currentUser.role !== 'Merchandiser' && currentUser.role !== 'Store Admin') return null;
   if (currentUser.role === 'Store Admin' && !['f03-utility', 'f03-configuration', 'f03-product-scores', 'f03-snapshots'].includes(section)) return null;
+  if (currentUser.role === 'Store Admin') return <StoreScoresWorkspace key={currentUser.id + ':' + (currentUser.storeId ?? '') + ':' + authService.getSessionId()} section={section} />;
   // Rotation preserves drafts; another login, role or Store starts a fresh flow.
   return <Planner key={`${currentUser.id}:${currentUser.role}:${currentUser.storeId ?? ''}:${authService.getSessionId()}`} user={currentUser} section={section} />;
 }

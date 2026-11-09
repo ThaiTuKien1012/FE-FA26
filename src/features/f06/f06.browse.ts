@@ -20,6 +20,7 @@ export interface RecommendationBrowseState {
   detailLoading: boolean;
   detailError: string;
   names: Record<number, string>;
+  listNames: Record<number, string>;
   namesLoading: boolean;
   namesUnavailable: boolean;
   requests: Page<RequestView> | null;
@@ -38,7 +39,7 @@ const scopeKey = () => {
 const initial = (): RecommendationBrowseState => ({
   role: authService.getCurrentUser()?.role ?? null, mode: 'history', filters: { pageSize: 20 }, page: 0,
   miningRunId: null, list: null, loading: false, error: '', detailId: null, detail: null, detailLoading: false, detailError: '',
-  names: {}, namesLoading: false, namesUnavailable: false, requests: null, requestPage: 0, requestsLoading: false,
+  names: {}, listNames: {}, namesLoading: false, namesUnavailable: false, requests: null, requestPage: 0, requestsLoading: false,
   requestsError: '', request: null, runs: [], runsLoading: false, runsError: ''
 });
 export function recommendationReadError(error: unknown, ranked = false): string {
@@ -51,23 +52,29 @@ export function recommendationReadError(error: unknown, ranked = false): string 
   return `${error.message} ${error.status === null ? 'Check your connection and refresh manually.' : `(HTTP ${error.status}) ${advice[error.status] || ''}`}`.trim();
 }
 
-/** Existing F02 GET, used only for optional names in an open detail. Its current
+/** Existing own-Store F02 GET, used for optional names in details and the Store Admin list. Its current
  * storeApi wrapper has no AbortSignal, so use the same authenticated transport
  * with cancellation here. IDs remain visible when names cannot be resolved.
  */
-export async function readRecommendationProductNames(ids: number[], signal: AbortSignal): Promise<Record<number, string>> {
+export async function readRecommendationProductNames(ids: number[], signal: AbortSignal, cache?: Map<number, string | null>): Promise<Record<number, string>> {
   const names: Record<number, string> = {};
   const unique = [...new Set(ids)];
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(4, unique.length) }, async () => {
     while (next < unique.length && !signal.aborted) {
       const id = unique[next++];
+      if (cache?.has(id)) { const name = cache.get(id); if (name) names[id] = name; continue; }
       try {
         const response = await authService.request(`/api/products/${id}`, { signal, headers: { Accept: 'application/json' } });
         const product: unknown = response.ok ? await response.json() : null;
         signal.throwIfAborted();
         if (product && typeof product === 'object' && 'id' in product && product.id === id &&
-            'name' in product && typeof product.name === 'string' && product.name.trim()) names[id] = product.name;
+            'name' in product && typeof product.name === 'string' && product.name.trim()) {
+          names[id] = product.name;
+          cache?.set(id, product.name);
+        } else if (response.status === 404) cache?.set(id, null);
+        // Bound this mounted, Store/session-scoped presentation cache.
+        if (cache && cache.size > 500) cache.delete(cache.keys().next().value!);
       } catch { signal.throwIfAborted(); }
     }
   }));
@@ -75,7 +82,7 @@ export async function readRecommendationProductNames(ids: number[], signal: Abor
   return names;
 }
 
-type ReadKind = 'list' | 'detail' | 'names' | 'requests' | 'runs';
+type ReadKind = 'list' | 'detail' | 'names' | 'listNames' | 'requests' | 'runs';
 /** Read-only state for one mounted dashboard. No mutation, polling, client
  * ranking or cached cross-Store data. Every late result is context-fenced.
  */
@@ -86,6 +93,7 @@ export class RecommendationBrowser {
   private unsubscribeAuth: (() => void) | null = null;
   private reads = new Map<ReadKind, AbortController>();
   private listeners = new Set<() => void>();
+  private productNames = new Map<number, string | null>();
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private update(patch: Partial<RecommendationBrowseState>) {
@@ -110,7 +118,8 @@ export class RecommendationBrowser {
   }
   private syncContext = () => {
     if (scopeKey() === this.scope) return;
-    this.abort('list', 'detail', 'names', 'requests', 'runs');
+    this.abort('list', 'detail', 'names', 'listNames', 'requests', 'runs');
+    this.productNames.clear();
     this.scope = scopeKey();
     this.state = initial(); this.update({});
     if (this.allowed()) void this.refresh();
@@ -118,12 +127,14 @@ export class RecommendationBrowser {
   start = () => {
     if (this.active) return;
     this.active = true; this.scope = scopeKey();
+    this.productNames.clear();
     this.state = initial(); this.update({});
     this.unsubscribeAuth = authService.subscribe(this.syncContext);
     if (this.allowed()) void this.refresh();
   };
   stop = () => {
-    this.active = false; this.abort('list', 'detail', 'names', 'requests', 'runs');
+    this.active = false; this.abort('list', 'detail', 'names', 'listNames', 'requests', 'runs');
+    this.productNames.clear();
     this.unsubscribeAuth?.(); this.unsubscribeAuth = null;
   };
   setMode = (mode: RecommendationBrowseState['mode']) => {
@@ -149,8 +160,14 @@ export class RecommendationBrowser {
     if (!this.allowed() || !Number.isInteger(page) || page < 0 || page > INT32_MAX) return;
     this.closeDetail(); this.update({ page }); await this.refresh();
   };
-  refresh = async () => {
+  refresh = async (refreshNames = false) => {
     if (!this.allowed()) return;
+    // Explicit Store Admin refresh can pick up catalog renames; paging/filtering
+    // reuses labels and does not repeat one F02 request for each row.
+    if (refreshNames && this.state.role === 'Store Admin') {
+      this.productNames.clear(); this.update({ listNames: {} });
+    }
+    this.abort('listNames');
     this.closeDetail();
     const job = this.begin('list');
     if (this.state.mode === 'ranked' && this.state.miningRunId === null) { this.update({ list: null, loading: false, error: '' }); return; }
@@ -164,7 +181,15 @@ export class RecommendationBrowser {
       const lastPage = Math.max(0, Math.ceil(list.totalElements / list.pageSize) - 1);
       if (list.page > lastPage) { this.update({ page: lastPage }); await this.refresh(); return; }
       this.update({ list, loading: false });
+      if (this.state.role === 'Store Admin') void this.loadListNames(list);
     } catch (error) { if (job.current()) this.update({ loading: false, error: recommendationReadError(error, this.state.mode === 'ranked') }); }
+  };
+  private loadListNames = async (list: RecPage) => {
+    const job = this.begin('listNames');
+    try {
+      const names = await readRecommendationProductNames(list.items.flatMap(item => item.productIds), job.signal, this.productNames);
+      if (job.current() && this.state.list === list) this.update({ listNames: names });
+    } catch { /* Optional labels never block results or replace IDs with invented names. */ }
   };
   loadRequests = async (page = this.state.requestPage) => {
     if (!this.allowed() || this.state.mode !== 'ranked') return;
@@ -201,6 +226,7 @@ export class RecommendationBrowser {
   };
   openDetail = async (id: number) => {
     if (!this.allowed()) return;
+    if (this.state.role === 'Store Admin') this.abort('listNames');
     this.abort('names'); const job = this.begin('detail');
     this.update({ detailId: id, detail: null, detailLoading: true, detailError: '', names: {}, namesLoading: false, namesUnavailable: false });
     try {
@@ -210,8 +236,8 @@ export class RecommendationBrowser {
       this.update({ detail, detailLoading: false });
       const namesJob = this.begin('names');
       this.update({ namesLoading: true });
-      const names = await readRecommendationProductNames(detail.productIds, namesJob.signal);
-      if (namesJob.current()) this.update({ names, namesLoading: false, namesUnavailable: detail.productIds.some(productId => !names[productId]) });
+      const names = await readRecommendationProductNames(detail.productIds, namesJob.signal, this.state.role === 'Store Admin' ? this.productNames : undefined);
+      if (namesJob.current()) this.update({ names, ...(this.state.role === 'Store Admin' ? { listNames: { ...this.state.listNames, ...names } } : {}), namesLoading: false, namesUnavailable: detail.productIds.some(productId => !names[productId]) });
     } catch (error) { if (job.current()) this.update({ detailLoading: false, detailError: recommendationReadError(error) }); }
   };
   closeDetail = () => {

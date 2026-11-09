@@ -11,7 +11,7 @@ import type { RecListParams, RecPage, RecView } from '../src/features/f06/f06.ty
 import { F06RecommendationTable } from '../src/features/f06/components/F06RecommendationTable';
 import { F06RecommendationDetailContent } from '../src/features/f06/components/F06RecommendationDetails';
 import { F06DashboardContent } from '../src/features/f06/components/F06DashboardView';
-import { RecommendationBadge, RecommendationProduct, recommendationPercent, recommendationValue, recommendationReadiness } from '../src/features/f06/components/F06ReadShared';
+import { RecommendationBadge, RecommendationProduct, recommendationPercent, recommendationValue, recommendationReadiness, recommendationNumber } from '../src/features/f06/components/F06ReadShared';
 import { eligibility, recommendation } from './f06.fixtures';
 import { user, requestFixture, runFixture } from './f05.fixtures';
 
@@ -253,4 +253,58 @@ test('mobile cards preserve important data and confidence is only shown when app
   for (const text of ['Product #31', 'Utility Score', 'Bought together in 2 orders', '33.3333%', 'Pending review', 'Awaiting approval', 'View Details']) assert.ok(html.includes(text));
   assert.equal(content(bundle).includes('>Confidence</dt>'), false);
   assert.ok(content(recommendation({ type: 'CROSS_SELL' })).includes('>Confidence</dt>'));
+});
+
+test('Store Admin list stays focused on business status and preserves backend evidence', t => {
+  const f = setup(t, 'Store Admin');
+  const item = recommendation({ reviewStatus: 'APPROVED', currentEligibility: eligibility('INELIGIBLE'), readyForConsumption: false });
+  const original = JSON.stringify(item);
+  const html = renderToStaticMarkup(createElement(F06RecommendationTable, { data: resultPage({}, [item]), compact: true, onOpen: () => {} }));
+  for (const text of ['Utility Score', 'Approved', 'Not eligible', 'Not ready', 'Bought together', '2 orders']) assert.ok(html.includes(text));
+  assert.equal(html.includes('Snapshot #'), false);
+  const dashboard = renderToStaticMarkup(createElement(F06DashboardContent, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
+  for (const id of ['f06-filter-snapshot', 'f06-filter-size', 'Recommendation ordering', 'Ranked by Mining Run']) assert.equal(dashboard.includes(id), false);
+  assert.ok(dashboard.includes('f06-filter-type')); assert.ok(dashboard.includes('f06-filter-review'));
+  assert.equal(JSON.stringify(item), original);
+});
+
+test('Store Admin drawer retains provenance inside closed Technical details and visible review history', () => {
+  const item = recommendation();
+  const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item, compact: true }));
+  assert.match(html, /<details[^>]*><summary[^>]*>Technical details<\/summary>/);
+  assert.ok(html.includes('Utility Score')); assert.ok(html.includes('Review History'));
+  for (const text of ['Rules Applied', 'Input hash', 'Matrix hash', 'Availability when created']) assert.ok(html.includes(text));
+});
+
+test('Store Admin list names are deduplicated, cached across pages/details and never block results', async t => {
+  const f = setup(t, 'Store Admin'); f.workflow.start(); await flush(); await flush();
+  assert.equal(f.workflow.getSnapshot().list?.items.length, 1);
+  assert.deepEqual(f.workflow.getSnapshot().listNames, { 31: 'Product 31', 32: 'Product 32' });
+  assert.equal(f.products.mock.callCount(), 2);
+  await f.workflow.setPage(0); await flush(); await f.workflow.openDetail(62); await flush();
+  assert.equal(f.products.mock.callCount(), 2, 'same Store product names are reused across rows, reads and details');
+  f.workflow.closeDetail(); assert.equal(f.workflow.getSnapshot().listNames[31], 'Product 31');
+  await f.workflow.refresh(true); await flush(); assert.equal(f.products.mock.callCount(), 4, 'explicit Refresh reloads names after catalog changes');
+  f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, [recommendation({ storeId: 2 })]));
+  f.change({ ...user, role: 'Store Admin', storeId: 2 }, 'another-session'); await flush(); await flush();
+  assert.ok(f.products.mock.callCount() >= 6, 'a new Store/session never reuses the previous cache');
+});
+
+test('Store Admin optional-name failures keep IDs and late reads cannot populate another Store', async t => {
+  const f = setup(t, 'Store Admin'); const gate = deferred<Response>();
+  f.products.mock.mockImplementation(async (path: RequestInfo | URL) => f.products.mock.callCount() <= 2 ? gate.promise : Response.json({ id: Number(String(path).split('/').at(-1)), name: 'New Store name' })); f.workflow.start(); await flush();
+  assert.equal(f.workflow.getSnapshot().loading, false, 'results render before optional product names');
+  f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, [recommendation({ storeId: 2 })]));
+  f.change({ ...user, role: 'Store Admin', storeId: 2 }, 'new-session');
+  gate.resolve(Response.json({ id: 31, name: 'Old Store name' })); await flush(); await flush();
+  assert.equal(Object.values(f.workflow.getSnapshot().listNames).includes('Old Store name'), false);
+});
+
+test('missing product names are cached for this scope and number formatting preserves decimal evidence', async () => {
+  assert.equal(recommendationNumber(47000), '47,000'); assert.equal(recommendationNumber(40.123456), '40.123456'); assert.equal(recommendationNumber(0), '0');
+  const cache = new Map<number, string | null>(); const old = authService.request;
+  let reads = 0;
+  authService.request = async () => { reads++; return new Response(null, { status: 404 }); };
+  try { await readRecommendationProductNames([31, 31], new AbortController().signal, cache); await readRecommendationProductNames([31], new AbortController().signal, cache); assert.equal(reads, 1); }
+  finally { authService.request = old; }
 });

@@ -61,10 +61,11 @@ async function select(id, value) {
 async function login(role = 'MERCHANDISER', storeId = 1) {
   state.role = role; state.storeId = storeId;
   await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});history.pushState({},'','/recommendations');dispatchEvent(new PopStateEvent('popstate'));})()`);
-  if (['MERCHANDISER', 'STORE_ADMIN'].includes(role)) await until("!!document.querySelector('#f06-browse-tab')", 'workspace mounted');
+  if (role === 'MERCHANDISER') await until("!!document.querySelector('#f06-browse-tab')", 'workspace mounted');
+  if (role === 'STORE_ADMIN') await until("!!document.querySelector('#f06-dashboard-title')", 'Store Admin list mounted');
 }
 async function dashboard() {
-  await page.evaluate("document.querySelector('#f06-browse-tab').click()");
+  await page.evaluate("document.querySelector('#f06-browse-tab')?.click()");
   await until("!!document.querySelector('#f06-dashboard-title')", 'dashboard mounted');
 }
 async function openDetails(id) {
@@ -84,6 +85,8 @@ function item(id, storeId) {
 }
 async function fixture({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname;
+  // Background Login video is unrelated to these fixture-only UI checks.
+  if (path.startsWith('/videos/')) return page.call('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
   if (!path.startsWith('/api/')) return page.call(url.origin === origin ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' }) });
   calls.push({ path, query: url.search, method: request.method });
   let body, responseCode = 200;
@@ -195,12 +198,57 @@ try {
   checks.push('empty, network, loading, session/Store change discards stale list');
 
   state.empty = false; state.detailStatus = 200;
+  const beforeStore = calls.length;
   await login('STORE_ADMIN'); await dashboard(); await has('45 matching recommendations');
+  assert.equal(await page.evaluate("!!document.querySelector('[role=tablist],#f06-filter-snapshot,#f06-filter-size,[aria-label=\"Recommendation ordering\"]')"), false);
+  assert.equal(calls.slice(beforeStore).some(c => c.path.startsWith('/api/mining/') || c.path === '/api/recommendations/config'), false);
+  await has('Fixture milk'); await has('Fixture bread');
+  const nameReads = calls.filter(c=>/^\/api\/products\/\d+$/.test(c.path)).length;
+  await click('Next recommendations');await has('Page 2 of 3');await has('Fixture milk');
+  assert.equal(calls.filter(c=>/^\/api\/products\/\d+$/.test(c.path)).length,nameReads,'Names are reused across rows and pages');
+  await click('Previous recommendations');await has('Page 1 of 3');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('strong')].some(e=>e.textContent==='Ready to use means approved and currently eligible.')"),false,'No definition banner');
+  for(const [review,availability,ready] of [['PENDING_REVIEW','INELIGIBLE',false],['APPROVED','ELIGIBLE',true],['REJECTED','NEEDS_RECHECK',false]]){
+    state.reviewStatus=review;state.availability=availability;state.ready=ready;await click('Refresh');await has('45 matching recommendations');
+    assert.equal(await page.evaluate('!!document.querySelector('+JSON.stringify('[data-status="'+review+'"]')+')'),true);
+    assert.equal(await page.evaluate('!!document.querySelector('+JSON.stringify('[data-status="'+availability+'"]')+')'),true);
+  }
+  state.reviewStatus='APPROVED';state.availability='ELIGIBLE';state.ready=true;
+  await click('Refresh');await has('45 matching recommendations');
+  for(const width of [1440,768,390]){
+    await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
+    assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
+    assert.equal(await page.evaluate("[...document.querySelectorAll('[data-status]')].filter(e=>e.getClientRects().length).every(e=>getComputedStyle(e).whiteSpace==='nowrap')"),true,'Store status labels never wrap');
+    await capture('store-admin-list-'+width);
+  }
+  await capture('store-admin-desktop');
+  await page.call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true);
+  await capture('store-admin-mobile');
   await openDetails(62); await has('Fixture bread');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('dialog summary')].find(e=>e.textContent==='Technical details').parentElement.open"), false);
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].some(b=>/^(approve|reject)/i.test(b.textContent.trim()))"), false);
+  assert.equal(await page.evaluate('document.querySelector("dialog").scrollWidth <= innerWidth + 1'), true);
+  await capture('store-admin-detail-mobile');
+  await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false });
   await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').click()");
   assert.equal(await page.evaluate("!!document.querySelector('form[aria-label=\"Generate recommendations\"]')"), false);
   await capture('store-admin-dashboard');
+  state.empty = true; await click('Refresh'); await has('No recommendations match these filters.');
+  state.empty = false; state.network = true; await click('Refresh'); await has('Check your connection');
+  state.network = false; state.holdList = true; await click('Refresh'); await has('Loading recommendations...');
+  state.empty = true; await login('STORE_ADMIN', 2); state.holdList = false; await has('No recommendations match these filters.');
+  assert.equal(await page.evaluate("!!document.querySelector('[aria-label=\"Product recommendation cards\"]')"), false, 'Old Store recommendations are discarded');
+  state.empty = false; await login('STORE_ADMIN'); await has('45 matching recommendations');
+  await select('f06-filter-type', 'BUNDLE'); await select('f06-filter-review', 'APPROVED'); await click('Apply Filters');
+  await has('45 matching recommendations');
+  assert.ok(calls.filter(c=>c.path==='/api/recommendations').at(-1).query.includes('reviewStatus=APPROVED'));
+  assert.equal(await page.evaluate("!!document.querySelector('#f06-ranked-request')"), false);
+  state.namesUnavailable = true; await login('STORE_ADMIN'); await has('45 matching recommendations');
+  await openDetails(62); await has('Some product names are unavailable.'); await has('Product #31');
+  await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').click()");
+  state.namesUnavailable = false;
+
   for (const role of ['SYSTEM_ADMIN', 'END_CUSTOMER']) {
     await login(role); await until("!document.querySelector('#f06-browse-tab')", role + ' denied');
   }

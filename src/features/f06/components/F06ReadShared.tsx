@@ -3,6 +3,7 @@ import type { EligibilityStatus, RecPolicy, RecView } from '../f06.types';
 
 export const recommendationValue = (value: string | number | null | undefined) => value == null ? 'N/A' : String(value);
 export const recommendationYesNo = (value: boolean) => value ? 'Yes' : 'No';
+export const recommendationNumber = (value: number | null | undefined) => value == null ? 'N/A' : value.toLocaleString('en-US', { maximumSignificantDigits: 21 });
 const labels: Record<string, string> = {
   BUNDLE: 'Bundle', CROSS_SELL: 'Cross-sell', FBT: 'Frequently bought together', BANNER: 'Banner',
   APPROVED: 'Approved', REJECTED: 'Rejected', PENDING_REVIEW: 'Pending review',

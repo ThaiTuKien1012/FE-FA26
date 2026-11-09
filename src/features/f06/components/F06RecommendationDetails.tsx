@@ -3,7 +3,7 @@ import { CheckCircle2, Clock3, RefreshCw, X, XCircle } from 'lucide-react';
 import { miningButton, miningDate } from '../../f05/f05.display';
 import type { RecEligibility, RecView } from '../f06.types';
 import type { RecommendationBrowseState, RecommendationBrowser } from '../f06.browse';
-import { RecommendationBadge, RecommendationFields, RecommendationProduct, RecommendationRuleSummary, recommendationLabel as label, recommendationPercent as percent, recommendationValue as value, recommendationYesNo as yesNo, recommendationReadiness, recommendationAvailability } from './F06ReadShared';
+import { RecommendationBadge, RecommendationFields, RecommendationProduct, RecommendationRuleSummary, recommendationLabel as label, recommendationPercent as percent, recommendationValue as value, recommendationYesNo as yesNo, recommendationReadiness, recommendationAvailability, recommendationNumber } from './F06ReadShared';
 
 export function F06EligibilityCheck({ title, check, names = {} }: { title: string; check: RecEligibility; names?: Record<number, string> }) {
   return <section className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
@@ -22,9 +22,13 @@ export function F06EligibilityCheck({ title, check, names = {} }: { title: strin
   </section>;
 }
 
-export function F06RecommendationDetailContent({ item, names = {} }: { item: RecView; names?: Record<number, string> }) {
+function TechnicalEvidence({ compact, children }: { compact: boolean; children: ReactNode }) {
+  return compact ? <details className="rounded-xl border border-[#E7E2D8] p-4"><summary className="cursor-pointer text-sm font-semibold text-[#356B54]">Technical details</summary><div className="mt-5 space-y-7">{children}</div></details> : <>{children}</>;
+}
+
+export function F06RecommendationDetailContent({ item, names = {}, compact = false }: { compact?: boolean; item: RecView; names?: Record<number, string> }) {
   const confidenceApplies = item.type === 'CROSS_SELL' || item.evidence.confidence !== null;
-  const shoppingFields: [string, ReactNode][] = [['Utility Score', value(item.utility)], ['Shopping evidence', label(item.evidence.status)], ['Historical transactions', value(item.evidence.totalTransactions)], ['Bought together (orders)', value(item.evidence.supportCount)], ['Frequency', percent(item.evidence.supportRatio)]];
+  const shoppingFields: [string, ReactNode][] = [['Utility Score', compact ? recommendationNumber(item.utility) : value(item.utility)], ['Shopping evidence', label(item.evidence.status)], ['Historical transactions', value(item.evidence.totalTransactions)], ['Bought together (orders)', value(item.evidence.supportCount)], ['Frequency', percent(item.evidence.supportRatio)]];
   if (confidenceApplies) shoppingFields.push(['Starting-product transactions', value(item.evidence.anchorSupportCount)], ['Confidence', percent(item.evidence.confidence)]);
   return <div className="space-y-7">
     <section aria-label="Recommendation summary" className="rounded-xl bg-[#FAF8F5] p-4 sm:p-5">
@@ -50,6 +54,7 @@ export function F06RecommendationDetailContent({ item, names = {} }: { item: Rec
       <div className="my-4"><RecommendationFields fields={[["Inventory changed", yesNo(item.inventoryChanged)]]} /></div>
       <p className="text-xs leading-5 text-[#6D7974]">The check can change with stock, product information or the store date. No inventory is reserved.</p>
     </section>
+    <TechnicalEvidence compact={compact}>
     <section><h3 className="mb-4 text-lg font-semibold">Rules Applied</h3><RecommendationRuleSummary policy={item.policy} />
       <p className="mt-3 text-xs leading-5 text-[#6D7974]">These are the saved rules for this suggestion. Later store rule changes do not rewrite it.</p>
       <details className="mt-4 text-sm"><summary className="cursor-pointer font-medium">Rule and record references</summary><div className="mt-3"><RecommendationFields fields={[
@@ -67,6 +72,7 @@ export function F06RecommendationDetailContent({ item, names = {} }: { item: Rec
           ['Input hash', source.inputHash], ['Source hash', source.sourceHash], ['Matrix hash', source.matrixHash]
         ]} /></div></details></div></details>)}</div>{!item.sources.length && <p className="mt-2 text-sm text-[#6D7974]">No source records returned.</p>}
     </section>
+    </TechnicalEvidence>
     <section><h3 className="mb-4 text-lg font-semibold">Review History</h3><RecommendationFields fields={[
       ['Last reviewed by', item.reviewedBy === null ? 'N/A' : `User #${item.reviewedBy}`], ['Last reviewed at', item.reviewedAt === null ? 'N/A' : miningDate(item.reviewedAt)], ['Review reason', value(item.reviewReason)]
     ]} />{!item.reviewHistory.length ? <p className="mt-4 rounded-xl bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">No review decision has been recorded yet.</p> : <ol className="ml-2 mt-5 border-l border-[#E7E2D8]">{item.reviewHistory.map((review, index) => {
@@ -94,7 +100,7 @@ export function F06RecommendationDetails({ state, workflow }: { state: Recommend
       {state.detailLoading ? <p role="status" className="text-sm text-[#6D7974]">Loading recommendation details...</p> : state.detailError ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.detailError}</p> : state.detail && <>
         {state.namesLoading && <p role="status" className="text-xs text-[#6D7974]">Loading product names...</p>}
         {state.namesUnavailable && <p className="text-xs text-[#6D7974]">Some product names are unavailable. Product references are shown instead.</p>}
-        <F06RecommendationDetailContent item={state.detail} names={state.names} />
+        <F06RecommendationDetailContent compact={state.role === 'Store Admin'} item={state.detail} names={state.names} />
       </>}
     </div>
   </dialog>;

@@ -1,3 +1,7 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { StoreExpiryTable } from '../src/features/f03/components/ProductScores';
+import type { F03PushPage } from '../src/features/f03/f03.api';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { configErrors, draftFromConfig, enabledTotal, millionths, periodError, previewEligible, validScore } from '../src/features/f03/f03.validation';
@@ -61,4 +65,16 @@ test('API uses real paginated mining history and unchanged three-field creation 
     assert.equal(calls.length, 2);
     assert.deepEqual(Object.keys(JSON.parse(calls[1].init?.body as string)).sort(), ['asOfDate', 'rangeEnd', 'rangeStart']);
   } finally { globalThis.fetch = original; authService.getToken = originalToken; }
+});
+
+test('Store expiry UI keeps backend priority separate from sellability and uses inventory wording', () => {
+ const page: F03PushPage = { items: [{ productId: 1, batchId: 9, expiryDate: '2026-11-12', remainingQuantity: 50, expiryPushDays: 10, daysRemaining: 3, pushRequired: true, pushRequiredQuantity: 50, asOfDate: '2026-11-09' }], page: 0, pageSize: 20, totalElements: 1, asOfDate: '2026-11-09', timeZone: 'Asia/Ho_Chi_Minh', warnings: [] };
+ const before = JSON.stringify(page);
+ const html = renderToStaticMarkup(createElement(StoreExpiryTable, { result: page, names: new Map([[1, 'Fresh milk']]) }));
+ for(const label of ['Fresh milk', 'Batch #9', '3 days left', 'Needs attention', '12 Nov 2026', 'Remaining']) assert.ok(html.includes(label));
+ for(const label of ['Priority push (', 'High priority', 'Unsellable', 'Expired']) assert.equal(html.includes(label), false);
+ assert.equal(JSON.stringify(page), before);
+ page.items[0].pushRequired = false;
+ const fallback = renderToStaticMarkup(createElement(StoreExpiryTable, { result: page, names: new Map() }));
+ assert.ok(fallback.includes('Product #1')); assert.ok(fallback.includes('No action needed'));
 });

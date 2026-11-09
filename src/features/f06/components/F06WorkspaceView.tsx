@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { authService } from '../../../services/authService';
 import { ArrowLeftRight, Loader2, Megaphone, Package, RefreshCw, ShoppingBasket, Sparkles, type LucideIcon } from 'lucide-react';
 import { miningButton, miningPrimaryButton } from '../../f05/f05.display';
 import { RecommendationGeneration, type GenerationState } from '../f06.generate';
@@ -25,7 +26,7 @@ function StoreRules({ state, workflow }: { state: GenerationState; workflow: Rec
   </section>;
 }
 
-export function F06WorkspaceView() {
+function GenerationWorkspace() {
   const [tab, setTab] = useState<'generate' | 'recommendations'>('generate');
   const [workflow] = useState(() => new RecommendationGeneration());
   const state = useSyncExternalStore(workflow.subscribe, workflow.getSnapshot, workflow.getSnapshot);
@@ -77,4 +78,13 @@ export function F06WorkspaceView() {
     </div>
     {tab === 'recommendations' && <div id="f06-browse-panel" role="tabpanel" aria-labelledby="f06-browse-tab"><F06DashboardView /></div>}
   </div>;
+}
+
+export function F06WorkspaceView() {
+  const user = useSyncExternalStore(authService.subscribe, authService.getCurrentUser, authService.getCurrentUser);
+  if (user?.role === 'Store Admin') return <div className="mx-auto max-w-6xl space-y-6 text-[#191C1B]">
+    <header><h1 className="text-3xl font-semibold tracking-tight">Product Recommendations</h1><p className="mt-2 text-[#6D7974]">Monitor product suggestions and their current status.</p></header>
+    <F06DashboardView key={`${user.id}:${user.storeId ?? ''}:${authService.getSessionId()}`} />
+  </div>;
+  return <GenerationWorkspace />;
 }

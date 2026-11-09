@@ -20,7 +20,7 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
-const state={users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,policy:{lambdaMin:0,lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
+const state={storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,policy:{lambdaMin:0,lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
   constructor(ws){this.ws=ws;ws.addEventListener('message',event=>{
@@ -109,8 +109,11 @@ async function paused({requestId,request}){
       const storeId=Number(path.match(/\/stores\/(\d+)\//)?.[1]||1);
       if(path.endsWith('/snapshots'))body=responsePage(storeId===1?[{...snapshot(),totalWeightedUtility:898000}]:[],url.searchParams);
       else if(/\/requests$/.test(path)){
+        if(path==='/api/mining/requests')while(state.storeHistory==='hold')await sleep(20);
         if(state.slowHistory&&storeId===1)await sleep(500);
         body=responsePage((storeId===1||state.mismatchStore2)&&state.hasRequest?[requestFixture('COMPLETED')]:[],url.searchParams);
+        if(path==='/api/mining/requests'&&state.storeHistory==='empty')body=responsePage([],url.searchParams);
+        if(path==='/api/mining/requests'&&state.storeHistory==='error'){code=503;body={error:'Fixture analysis history unavailable'};}
       }else if(/\/requests\/17$/.test(path)){
         state.requestReads++;
         body={...requestFixture(state.requestReads<2?'PENDING':state.requestReads<3?'RUNNING':'COMPLETED'),algorithms:state.compare?['HUI_MINER','EFIM']:[state.config.algorithm],comparisonStatus:state.compare?(state.requestReads<3?'PENDING':'MATCH'):'NOT_REQUESTED'};
@@ -413,10 +416,31 @@ try{
 
   for(const role of ['Merchandiser','Store Admin']){
     state.requestReads=5;const before=state.calls.length;
-    await session(role,'/mining?view=history',true);await textIncludes('Read-only access');
-    await click('View request #17');await textIncludes('Algorithm runs');await click('View run #42');await click('Show patterns');await textIncludes('Not measured');
+    await session(role,'/mining?view=history',true);await textIncludes(role==='Store Admin'?'Mining Results':'Read-only access');
+    if(role==='Store Admin'){await until("!!document.querySelector('button[aria-label=\"View results for analysis #17\"]')",'analysis results');await evaluate("document.querySelector('button[aria-label=\"View results for analysis #17\"]').click()");}else await click('View request #17');await textIncludes(role==='Store Admin'?'Algorithm results':'Algorithm runs');await click(role==='Store Admin'?'View Patterns':'View run #42');if(role!=='Store Admin')await click('Show patterns');await textIncludes('Not measured');
     assert.ok(state.calls.slice(before).filter(x=>!x.path.startsWith('/api/auth/')).every(x=>x.method==='GET'&&x.path.startsWith('/api/mining/')));
     assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),false);
+    if(role==='Store Admin'){
+      assert.equal(await evaluate("!!document.querySelector('nav[aria-label=\"Mining workspace\"]')"),false);
+      for(const count of [2,1]){
+        state.compare=count===2;state.config.algorithm='HUI_MINER';await click('Refresh Details');
+        await until("document.querySelectorAll('[data-store-run-grid] article').length==="+count,'Store run count');
+        for(const width of [1440,768,390]){
+          await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
+          assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
+          if(count===1)assert.equal(await evaluate("(()=>{const grid=document.querySelector('[data-store-run-grid]');return Math.abs(grid.firstElementChild.getBoundingClientRect().width-grid.getBoundingClientRect().width)<2})()"),true,'Single run fills the container');
+          assert.equal(await evaluate("document.querySelector('#f05-details-title').closest('section').innerText.includes('HUI-Miner')"),true);
+          await capture('store-admin-results-'+count+'-'+width);
+        }
+      }
+      await click('Close Details');assert.equal(await evaluate("!!document.querySelector('#f05-details-title')"),false);
+      state.storeHistory='empty';await click('Refresh history');await textIncludes('No mining requests were returned');
+      state.storeHistory='error';await click('Refresh history');await textIncludes('Fixture analysis history unavailable');
+      state.storeHistory='hold';await click('Refresh history');await textIncludes('Loading mining history');
+      state.storeHistory='normal';await until("!!document.querySelector('button[aria-label=\"View results for analysis #17\"]')",'history restored');
+      state.compare=true;
+      await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+    }
   }
   await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
@@ -436,6 +460,7 @@ try{
   console.log(JSON.stringify({result:'FAIL',error:e.stack,browserErrors,unexpected,checks,artifactDirectory},null,2));
   process.exitCode=1;
 }finally{
+  state.storeHistory='normal';
   if(cdp){try{await cdp.call('Browser.close');}catch{}cdp.ws.close();}
   if(processChrome.exitCode===null){await Promise.race([new Promise(r=>processChrome.once('exit',r)),sleep(3000)]);}
   if(processChrome.exitCode===null)processChrome.kill();

@@ -74,14 +74,16 @@ for (const role of ['System Admin', 'End-Customer'] as const) test(`${role} cann
   const html = renderToStaticMarkup(createElement(F06WorkspaceView));
   assert.ok(html.includes('authorized account')); assert.equal(html.includes('<form'), false);
 });
-test('Store Admin can read sources and policy without type selection or a Generate button', async t => {
+test('Store Admin retains source/policy access but opens the recommendation list without generation controls', async t => {
   const f = setup(t, 'Store Admin'); await select(f.workflow);
   await f.workflow.generate();
   assert.equal(f.requests.mock.callCount(), 1); assert.equal(f.config.mock.callCount(), 1);
   assert.equal(f.workflow.getSnapshot().selectedRunId, null); assert.equal(f.submit.mock.callCount(), 0);
   const html = renderToStaticMarkup(createElement(F06WorkspaceView));
-  assert.ok(html.includes('Read-only access')); assert.ok(html.includes('Store Rules'));
-  assert.equal(html.includes('<form'), false); assert.equal(html.includes('Generate recommendations'), false);
+  assert.ok(html.includes('Monitor product suggestions and their current status.'));
+  assert.ok(html.includes('f06-dashboard-title')); assert.equal(html.includes('f06-generate-tab'), false);
+  assert.equal(html.includes('Store Rules'), false); assert.equal(html.includes('f06-filter-snapshot'), false);
+  assert.ok(html.includes('Recommendation filters')); assert.equal(html.includes('Generate recommendations'), false);
 });
 test('empty request history and no completed runs get explicit empty states', async t => {
   const f = setup(t); f.requests.mock.mockImplementation(async () => page([]));
