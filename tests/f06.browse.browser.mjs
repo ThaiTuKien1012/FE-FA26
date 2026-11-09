@@ -44,7 +44,7 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], errors = [], unexpected = [], checks = [];
-const state = { role: 'MERCHANDISER', storeId: 1, listStatus: 200, detailStatus: 200, empty: false, holdList: false, network: false, ready: false };
+const state = { role: 'MERCHANDISER', storeId: 1, listStatus: 200, detailStatus: 200, empty: false, holdList: false, network: false, ready: false, availability: null, reviewStatus: 'APPROVED', namesUnavailable: false };
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/services/authService.ts').name))).authService";
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -67,16 +67,20 @@ async function dashboard() {
   await page.evaluate("document.querySelector('#f06-browse-tab').click()");
   await until("!!document.querySelector('#f06-dashboard-title')", 'dashboard mounted');
 }
+async function openDetails(id) {
+  await page.evaluate(`(()=>{const button=[...document.querySelectorAll('button[aria-label="View details for recommendation #${id}"]')].find(el=>el.getClientRects().length);if(!button)throw new Error('No visible detail button');button.click();})()`);
+}
 async function capture(name) {
   const result = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(result.data, 'base64'));
 }
 function item(id, storeId) {
-  const common = { recommendationId: id, storeId, reviewedBy: 7, reviewedAt: '2026-11-07T00:00:00Z', reviewReason: 'Reviewed frozen evidence', reviewStatus: 'APPROVED',
-    readyForConsumption: state.ready, inventoryChanged: true, currentEligibility: eligibility(state.ready ? 'ELIGIBLE' : 'INELIGIBLE') };
+  const pending = state.reviewStatus === 'PENDING_REVIEW';
+  const common = { recommendationId: id, storeId, reviewedBy: pending ? null : 7, reviewedAt: pending ? null : '2026-11-07T00:00:00Z', reviewReason: pending ? null : 'Reviewed frozen evidence', reviewStatus: state.reviewStatus, version: pending ? 1 : 2,
+    readyForConsumption: state.ready, inventoryChanged: true, currentEligibility: eligibility(state.availability ?? (state.ready ? 'ELIGIBLE' : 'INELIGIBLE')) };
   return recommendation(id % 2 ? { ...common, type: 'CROSS_SELL', anchorProductId: 31 } : { ...common,
     evidence: { totalTransactions: 0, supportCount: null, supportRatio: null, anchorSupportCount: null, confidence: null, status: 'EVIDENCE_UNAVAILABLE' },
-    reviewHistory: [{ oldStatus: 'PENDING_REVIEW', newStatus: 'APPROVED', reviewedBy: 7, reviewedAt: '2026-11-07T00:00:00Z', reason: 'Reviewed frozen evidence', resultingVersion: 2, eligibilityCheck: eligibility() }] });
+    reviewHistory: pending ? [] : [{ oldStatus: 'PENDING_REVIEW', newStatus: state.reviewStatus, reviewedBy: 7, reviewedAt: '2026-11-07T00:00:00Z', reason: 'Reviewed frozen evidence', resultingVersion: 2, eligibilityCheck: eligibility() }] });
 }
 async function fixture({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname;
@@ -98,7 +102,10 @@ async function fixture({ requestId, request }) {
     if (responseCode !== 200) body = { error: responseCode === 409 ? 'Rank scope exceeds 10000 candidates' : 'Controlled list failure' };
   } else if (/^\/api\/recommendations\/\d+$/.test(path)) {
     responseCode = state.detailStatus; body = responseCode === 200 ? item(Number(path.split('/').at(-1)), storeId) : { error: 'Recommendation not found' };
-  } else if (/^\/api\/products\/\d+$/.test(path)) body = { id: Number(path.split('/').at(-1)), name: path.endsWith('/31') ? 'Fixture milk' : 'Fixture bread' };
+  } else if (/^\/api\/products\/\d+$/.test(path)) {
+    responseCode = state.namesUnavailable ? 404 : 200;
+    body = state.namesUnavailable ? { error: 'Product not found' } : { id: Number(path.split('/').at(-1)), name: path.endsWith('/31') ? 'Fixture milk' : 'Fixture bread' };
+  }
   else if (path === '/api/recommendations/config') body = policy;
   else if (path === '/api/mining/requests') body = { items: [{ ...requestFixture('FAILED', storeId), comparisonStatus: 'FAILED' }], page: 0, pageSize: 20, totalElements: 1 };
   else if (path === '/api/mining/requests/17/runs') body = [runFixture('COMPLETED', storeId), { ...runFixture('FAILED', storeId), runId: 43 }];
@@ -127,29 +134,29 @@ try {
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module');
   await login(); await dashboard(); await has('45 matching recommendations');
   assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel thead th')].some(t=>t.textContent==='Rank')"), false);
-  assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel tbody tr th')].map(t=>t.textContent.split('Snapshot')[0]).join(',')"), '#62,#63');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel tbody tr th')].map(t=>t.textContent.match(/#(\\d+)/)[1]).join(',')"), '62,63');
   await click('Next recommendations'); await has('Page 2 of 3');
   await select('f06-filter-snapshot', '2'); await select('f06-filter-type', 'BUNDLE'); await select('f06-filter-review', 'APPROVED'); await select('f06-filter-size', '10');
-  await click('Apply filters'); await has('Page 1 of 5');
+  await click('Apply Filters'); await has('Page 1 of 5');
   const query = new URLSearchParams(calls.filter(call => call.path === '/api/recommendations').at(-1).query);
   assert.deepEqual(Object.fromEntries(query), { page: '0', pageSize: '10', snapshotId: '2', type: 'BUNDLE', reviewStatus: 'APPROVED' });
-  await click('Clear filters'); await has('Page 1 of 3');
+  await click('Reset Filters'); await has('Page 1 of 3');
   checks.push('history order, nullable fields, totalElements pagination and all filters reset page');
 
-  await click('Ranked by mining run'); await until("!!document.querySelector('#f06-ranked-request')", 'ranked requests');
+  await click('Ranked by Mining Run'); await until("!!document.querySelector('#f06-ranked-request')", 'ranked requests');
   await select('f06-ranked-request', '17'); await until("document.querySelector('#f06-ranked-run')?.options.length===3", 'ranked runs');
   assert.equal(await page.evaluate("document.querySelector('#f06-ranked-run option[value=\"43\"]').disabled"), true);
-  await select('f06-ranked-run', '42'); await has('Ranked within source run');
-  assert.equal(await page.evaluate("document.querySelector('#f06-browse-panel tbody tr td').textContent"), '1');
+  await select('f06-ranked-run', '42'); await has('Selected run · System ranking');
+  assert.equal(await page.evaluate("document.querySelector('#f06-browse-panel [data-rank]').getAttribute('data-rank')"), '1');
   assert.ok(calls.filter(call => call.path === '/api/recommendations').at(-1).query.includes('miningRunId=42'));
-  state.listStatus = 409; await click('Refresh recommendations'); await has('Narrow the type or review status filters');
+  state.listStatus = 409; await click('Refresh'); await has('Narrow the type or review status filters');
   const reads = calls.filter(call => call.path === '/api/recommendations').length;
   await sleep(200); assert.equal(calls.filter(call => call.path === '/api/recommendations').length, reads);
-  state.listStatus = 200; await click('Refresh recommendations'); await has('45 matching recommendations'); await capture('ranked-dashboard');
+  state.listStatus = 200; await click('Refresh'); await has('45 matching recommendations'); await capture('ranked-dashboard');
   checks.push('ranked source under failed comparison, no client ranking, 409 narrower-filter guidance');
 
-  await click('Recommendation history'); await has('History · Newest first');
-  await page.evaluate("document.querySelector('button[aria-label=\"View details for recommendation #63\"]').click()");
+  await click('All Recommendations'); await has('All recommendations · Newest first');
+  await openDetails(63);
   await has('Fixture bread');
   assert.equal(await page.evaluate("document.querySelector('dialog [aria-label=\"Suggested cross-sell targets\"]').textContent.includes('#31')"), false);
   assert.equal(await page.evaluate("document.querySelector('dialog [aria-label=\"Suggested cross-sell targets\"]').textContent.includes('#32')"), true);
@@ -157,28 +164,39 @@ try {
   await page.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await page.call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await until("!document.querySelector('dialog')", 'Escape closes drawer');
-  await page.evaluate("document.querySelector('button[aria-label=\"View details for recommendation #62\"]').click()");
-  await has('EVIDENCE_UNAVAILABLE'); await has('Generation eligibility');
-  assert.equal(await page.evaluate("(()=>{const dt=[...document.querySelectorAll('dialog dt')].find(e=>e.textContent==='Ready for consumption');return dt.nextElementSibling.textContent;})()"), 'No');
-  assert.equal(await page.evaluate("(()=>{const dt=[...document.querySelectorAll('dialog dt')].find(e=>e.textContent==='Confidence');return dt.nextElementSibling.textContent;})()"), '—');
+  await openDetails(62);
+  await has('Shopping evidence unavailable'); await has('Availability when created');
+  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').textContent"), 'Not ready');
+  assert.equal(await page.evaluate("(()=>{const dt=[...document.querySelectorAll('dialog dt')].find(e=>e.textContent==='Frequency');return dt.nextElementSibling.textContent;})()"), 'N/A');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('dialog dt')].some(e=>e.textContent==='Confidence')"), false, 'Bundle has no confidence field');
+  await has('Approved; current selling conditions are not met.');
   await capture('read-only-details');
+  state.reviewStatus = 'PENDING_REVIEW'; state.availability = 'ELIGIBLE';
+  await click('Refresh details'); await has('Awaiting approval. Products are currently eligible.');
+  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').textContent"), 'Not ready');
+  await has('No review decision has been recorded yet.');
+  state.reviewStatus = 'APPROVED'; state.availability = null;
   state.ready = true; await click('Refresh details'); await has('Fixture bread');
-  assert.equal(await page.evaluate("(()=>{const dt=[...document.querySelectorAll('dialog dt')].find(e=>e.textContent==='Ready for consumption');return dt.nextElementSibling.textContent;})()"), 'Yes');
+  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').textContent"), 'Ready to use');
+  state.namesUnavailable = true; await click('Refresh details'); await has('Some product names are unavailable.');
+  assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('Product #31')"), true);
+  assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('Fixture milk')"), false);
+  state.namesUnavailable = false;
   state.detailStatus = 404; await click('Refresh details'); await has('unavailable for your Store');
   assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('Fixture milk')"), false);
   await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').click()");
   checks.push('drawer, focus/Escape, names, anchor exclusion, null evidence, approved-unready, live refresh and cross-Store 404');
 
-  state.empty = true; await click('Refresh recommendations'); await has('No recommendations match these filters');
-  state.network = true; await click('Refresh recommendations'); await has('Check your connection and refresh manually'); state.network = false;
-  state.empty = false; state.holdList = true; await click('Refresh recommendations'); await has('Loading recommendations...');
+  state.empty = true; await click('Refresh'); await has('No recommendations match these filters');
+  state.network = true; await click('Refresh'); await has('Check your connection and refresh manually'); state.network = false;
+  state.empty = false; state.holdList = true; await click('Refresh'); await has('Loading recommendations...');
   await login('MERCHANDISER', 2); state.empty = true; state.holdList = false; await dashboard(); await has('No recommendations match these filters');
   assert.equal(await page.evaluate("!!document.querySelector('#f06-browse-panel tbody')"), false);
   checks.push('empty, network, loading, session/Store change discards stale list');
 
   state.empty = false; state.detailStatus = 200;
   await login('STORE_ADMIN'); await dashboard(); await has('45 matching recommendations');
-  await page.evaluate("document.querySelector('button[aria-label=\"View details for recommendation #62\"]').click()"); await has('Fixture bread');
+  await openDetails(62); await has('Fixture bread');
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].some(b=>/^(approve|reject)/i.test(b.textContent.trim()))"), false);
   await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').click()");
   assert.equal(await page.evaluate("!!document.querySelector('form[aria-label=\"Generate recommendations\"]')"), false);
@@ -189,10 +207,17 @@ try {
   checks.push('Store Admin list/detail read-only; System Admin and End-Customer denied');
 
   await login(); await dashboard(); await has('45 matching recommendations');
+  for (const width of [1024, 820]) {
+    await page.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true, 'No tablet overflow');
+    assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Product recommendation cards\"]').getClientRects().length>0"), true);
+  }
   await page.call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true);
+  assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Product recommendation cards\"]').getClientRects().length>0"), true, 'Mobile cards are visible');
+  assert.equal(await page.evaluate("document.querySelector('#f06-browse-panel table').getClientRects().length"), 0, 'Wide table is hidden on mobile');
   await capture('mobile-dashboard');
-  await page.evaluate("document.querySelector('button[aria-label=\"View details for recommendation #62\"]').click()"); await has('Fixture bread');
+  await openDetails(62); await has('Fixture bread');
   assert.equal(await page.evaluate("document.querySelector('dialog').scrollWidth <= innerWidth + 1"), true);
   await capture('mobile-details'); checks.push('390px dashboard and drawer without horizontal page overflow');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);

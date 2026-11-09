@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { requestFixture, runFixture } from './f05.fixtures.ts';
-import { generation, policy } from './f06.fixtures.ts';
+import { generation, policy, recommendation } from './f06.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
@@ -100,6 +100,7 @@ async function fixture({ requestId, request }) {
   else if (url.pathname === '/api/mining/requests/17/runs') body = [run];
   else if (url.pathname === '/api/mining/runs/42') body = run;
   else if (url.pathname === '/api/recommendations/config') body = policy;
+  else if (url.pathname === '/api/recommendations') body = { items: [recommendation()], page: 0, pageSize: 20, totalElements: 1, ordering: 'CREATED_DESC' };
   else if (url.pathname === '/api/recommendations/generate') {
     assert.equal(request.method, 'POST');
     const input = JSON.parse(request.postData); assert.equal(input.miningRunId, 42);
@@ -132,18 +133,29 @@ try {
   await page.call('Page.navigate', { url: origin + '/login' });
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module');
   await login(); await selectCompleted();
-  await has('Comparison status'); await has('FAILED'); await capture('merchant-source');
+  await has('Comparison result'); await has('Failed'); await capture('merchant-source');
   assert.equal(await page.evaluate("document.querySelector('form[aria-label=\"Generate recommendations\"] button[type=submit]').disabled"), false);
   await page.evaluate("document.querySelector('input[type=checkbox][value=BUNDLE]').click()");
-  await has('Select at least one recommendation type.');
+  await has('Select at least one recommendation format.');
   assert.equal(await page.evaluate("document.querySelector('form button[type=submit]').disabled"), true);
   await page.evaluate("document.querySelector('input[type=checkbox][value=BUNDLE]').click()");
   state.holdWrite = true;
   await page.evaluate("(()=>{const form=document.querySelector('form[aria-label=\"Generate recommendations\"]');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");
   await has('Generating recommendations...');
   await sleep(150); assert.equal(calls.filter(call => call.path.endsWith('/generate')).length, 1);
-  state.holdWrite = false; await has('Generation complete'); await has('#62'); await has('PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS');
+  state.holdWrite = false; await has('Recommendations Created'); await has('#62');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-result-title')][0].closest('section').querySelector('details').open"), false, 'Skipped reasons start collapsed');
+  await page.evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent.startsWith('Why some suggestions were skipped')).click()");
+  await has('This format needs at least two products.');
+  await page.evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent==='Technical reason').click()");
+  await has('PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS');
   await capture('merchant-result'); checks.push('completed run under failed comparison, no types, double submit, real DTO/results');
+  const writesBeforeBrowse = calls.filter(call => call.path.endsWith('/generate')).length;
+  await click('View Recommendations'); await has('1 matching recommendations');
+  assert.equal(await page.evaluate("document.activeElement.id"), 'f06-browse-tab');
+  assert.equal(calls.filter(call => call.path.endsWith('/generate')).length, writesBeforeBrowse);
+  await page.evaluate("document.querySelector('#f06-generate-tab').click()");
+  checks.push('View Recommendations opens Browse without another mutation and restores Create state');
 
   state.mode = 'empty'; await click('Generate recommendations'); await has('No recommendations were returned.');
   assert.equal(await page.evaluate("!!document.querySelector('#f06-result-title')"), true);
@@ -160,7 +172,7 @@ try {
   state.noRequests = true; await click('Refresh requests'); await has('No mining requests are available');
   checks.push('unfinished source is disabled; empty Store history');
   state.noRequests = false; state.runStatus = 'COMPLETED';
-  await login('STORE_ADMIN'); await has('Read-only access'); await has('Current policy');
+  await login('STORE_ADMIN'); await has('Read-only access'); await has('Store Rules');
   assert.equal(await page.evaluate("!!document.querySelector('form[aria-label=\"Generate recommendations\"]')"), false);
   await capture('store-admin'); checks.push('Store Admin reads without Generate');
   for (const role of ['SYSTEM_ADMIN', 'END_CUSTOMER']) {

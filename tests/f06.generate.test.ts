@@ -80,7 +80,7 @@ test('Store Admin can read sources and policy without type selection or a Genera
   assert.equal(f.requests.mock.callCount(), 1); assert.equal(f.config.mock.callCount(), 1);
   assert.equal(f.workflow.getSnapshot().selectedRunId, null); assert.equal(f.submit.mock.callCount(), 0);
   const html = renderToStaticMarkup(createElement(F06WorkspaceView));
-  assert.ok(html.includes('Read-only access')); assert.ok(html.includes('Current policy'));
+  assert.ok(html.includes('Read-only access')); assert.ok(html.includes('Store Rules'));
   assert.equal(html.includes('<form'), false); assert.equal(html.includes('Generate recommendations'), false);
 });
 test('empty request history and no completed runs get explicit empty states', async t => {
@@ -124,7 +124,7 @@ test('successful generation renders actual counts, unique IDs and all skipped re
   const f = setup(t); await select(f.workflow); await f.workflow.generate();
   assert.deepEqual(f.workflow.getSnapshot().result, generation);
   const html = renderToStaticMarkup(createElement(F06GenerationResult, { result: { ...generation, reusedCount: 3 }, types: ['BUNDLE'] }));
-  for (const text of ['Generation complete', 'Created count', 'Reused count', '#62', '#83', 'PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS']) assert.ok(html.includes(text));
+  for (const text of ['Recommendations Created', 'New Suggestions', 'Reused Suggestions', 'Skipped Checks', '#62', '#83', 'This format needs at least two products.', 'PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS']) assert.ok(html.includes(text));
   assert.equal(html.includes('<button'), false);
 });
 test('zero candidates is a successful empty result, including zero-pattern runs with no skips', async t => {
@@ -134,6 +134,22 @@ test('zero candidates is a successful empty result, including zero-pattern runs 
   await f.workflow.generate(); assert.deepEqual(f.workflow.getSnapshot().result, result); assert.equal(f.workflow.getSnapshot().generationError, '');
   const html = renderToStaticMarkup(createElement(F06GenerationResult, { result, types: ['BUNDLE'] }));
   assert.ok(html.includes('No recommendations were returned')); assert.ok(html.includes('No patterns were skipped'));
+});
+
+test('reused-only results do not claim new recommendations and skipped reasons can be collapsed', () => {
+  const html = renderToStaticMarkup(createElement(F06GenerationResult, { result: { ...generation, createdCount: 0, reusedCount: 3 }, types: ['BUNDLE'] }));
+  assert.ok(html.includes('Existing Suggestions Reused')); assert.equal(html.includes('Recommendations Created'), false);
+  assert.ok(html.includes('Reused Suggestions')); assert.ok(html.includes('A pattern may appear more than once'));
+  assert.match(html, /<details[^>]*>\s*<summary[^>]*>Why some suggestions were skipped/);
+  assert.equal(html.includes('<details open'), false);
+});
+
+test('long recommendation references are collapsed without dropping IDs; browse action is a plain UI button', () => {
+  const ids = Array.from({ length: 12 }, (_, index) => 100 + index);
+  const html = renderToStaticMarkup(createElement(F06GenerationResult, { result: { ...generation, recommendationIds: ids }, types: ['BUNDLE'], onViewRecommendations: () => {} }));
+  for (const id of ids) assert.ok(html.includes(`#${id}`));
+  assert.match(html, /<details[^>]*>\s*<summary[^>]*>Show all 12 recommendation references/);
+  assert.match(html, /<button type="button"[^>]*>View Recommendations/); assert.equal(html.includes('href='), false);
 });
 test('409 retains backend detail and waits for a new manual action, without automatic reads or writes', async t => {
   const f = setup(t); await select(f.workflow);

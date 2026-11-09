@@ -11,6 +11,7 @@ import type { RecListParams, RecPage, RecView } from '../src/features/f06/f06.ty
 import { F06RecommendationTable } from '../src/features/f06/components/F06RecommendationTable';
 import { F06RecommendationDetailContent } from '../src/features/f06/components/F06RecommendationDetails';
 import { F06DashboardContent } from '../src/features/f06/components/F06DashboardView';
+import { RecommendationBadge, RecommendationProduct, recommendationPercent, recommendationValue, recommendationReadiness } from '../src/features/f06/components/F06ReadShared';
 import { eligibility, recommendation } from './f06.fixtures';
 import { user, requestFixture, runFixture } from './f05.fixtures';
 
@@ -54,7 +55,7 @@ test('history list succeeds in backend order without a rank column, fabricated K
   assert.equal(f.list.mock.calls[0].arguments[0]?.miningRunId, undefined); assert.equal(f.products.mock.callCount(), 0);
   const html = table(f.workflow.getSnapshot().list!);
   assert.ok(html.indexOf('#80') < html.indexOf('#62')); assert.equal(html.includes('>Rank<'), false);
-  for (const label of ['Historical utility', 'Review status', 'Current eligibility', 'Ready', 'View details']) assert.ok(html.includes(label));
+  for (const label of ['Utility Score', 'Review', 'Availability / Readiness', 'Why Suggested', 'View Details']) assert.ok(html.includes(label));
 });
 for (const role of ['Merchandiser', 'Store Admin'] as const) test(`${role} selects a completed F05 run even with failed request comparison and reads server ranks`, async t => {
   const f = setup(t, role); f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, [recommendation({ rank: params.miningRunId ? 21 : null })]));
@@ -62,7 +63,7 @@ for (const role of ['Merchandiser', 'Store Admin'] as const) test(`${role} selec
   assert.equal(f.list.mock.callCount(), 1, 'no ranked request until run selected');
   await f.workflow.selectRequest(17); await f.workflow.selectRun(42);
   assert.equal(f.list.mock.calls.at(-1)!.arguments[0]?.miningRunId, 42);
-  assert.ok(table(f.workflow.getSnapshot().list!).includes('>21<'));
+  assert.ok(table(f.workflow.getSnapshot().list!).includes('data-rank="21"'));
   f.workflow.setMode('history'); await flush();
   assert.equal(f.list.mock.calls.at(-1)!.arguments[0]?.miningRunId, undefined);
 });
@@ -116,13 +117,13 @@ test('detail success loads optional product names using GET only; source evidenc
   assert.deepEqual(f.products.mock.calls.map(call => String(call.arguments[0])), ['/api/products/31', '/api/products/32']);
   assert.equal(f.workflow.getSnapshot().detailLoading, false);
   const html = content(f.workflow.getSnapshot().detail!);
-  for (const label of ['Source mining runs', 'Input hash', 'Matrix hash', 'Explanation', 'Review history', 'Captured rule &amp; policy', 'Generation eligibility']) assert.ok(html.includes(label));
+  for (const label of ['Additional Evidence', 'Input hash', 'Matrix hash', 'Full system explanation', 'Review History', 'Rules Applied', 'Availability at creation']) assert.ok(html.includes(label));
 });
-test('null evidence/expiry scores remain em dashes while real zero remains zero', t => {
-  setup(t); const item = recommendation({ utility: 0, evidence: { totalTransactions: 0, supportCount: null, supportRatio: null, anchorSupportCount: null, confidence: null, status: 'EVIDENCE_UNAVAILABLE' } });
+test('null evidence/expiry scores show N/A while real zero remains zero', t => {
+  setup(t); const item = recommendation({ utility: 0, type: 'CROSS_SELL', anchorProductId: 31, evidence: { totalTransactions: 0, supportCount: null, supportRatio: null, anchorSupportCount: null, confidence: null, status: 'EVIDENCE_UNAVAILABLE' } });
   const html = content(item);
-  assert.match(html, /Confidence<\/dt><dd[^>]*>—<\/dd>/); assert.match(html, /Support count<\/dt><dd[^>]*>—<\/dd>/);
-  assert.match(html, /Historical utility<\/dt><dd[^>]*>0<\/dd>/); assert.ok(html.includes('EVIDENCE_UNAVAILABLE'));
+  assert.match(html, /Confidence<\/dt><dd[^>]*>N\/A<\/dd>/); assert.match(html, /Bought together \(orders\)<\/dt><dd[^>]*>N\/A<\/dd>/);
+  assert.match(html, /Utility Score<\/dt><dd[^>]*>0<\/dd>/); assert.ok(html.includes('Shopping evidence unavailable'));
 });
 test('CROSS_SELL targets exclude anchor; API product names are rendered as escaped text', t => {
   setup(t); const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, {
@@ -138,8 +139,8 @@ test('approved can be unready with changed eligibility; refresh uses the new det
   f.detail.mock.mockImplementation(async () => item); await f.workflow.openDetail(62);
   assert.deepEqual(f.workflow.getSnapshot().detail, item); const html = content(item);
   assert.ok(html.includes('APPROVED')); assert.ok(html.includes('INELIGIBLE'));
-  assert.match(html, /Ready for consumption<\/dt><dd[^>]*>No<\/dd>/); assert.match(html, /Inventory changed<\/dt><dd[^>]*>Yes<\/dd>/);
-  assert.ok(html.includes('Historical decision')); assert.ok(html.includes('Historical review check'));
+  assert.match(html, /data-readiness="not-ready"[^>]*>Not ready<\/dd>/); assert.match(html, /Inventory changed<\/dt><dd[^>]*>Yes<\/dd>/);
+  assert.ok(html.includes('Historical decision')); assert.ok(html.includes('Stock at the time of review'));
   assert.equal(html.includes('<button'), false);
 });
 test('cross-Store 404 clears prior detail and names without revealing another Store', async t => {
@@ -198,4 +199,58 @@ test('product name requests honor abort, deduplicate IDs and use bounded concurr
   assert.equal(Object.keys(names).length, 6); assert.equal(f.products.mock.callCount(), 6); assert.ok(maximum <= 4);
   const controller = new AbortController(); controller.abort();
   await assert.rejects(readRecommendationProductNames([1], controller.signal), error => (error as Error).name === 'AbortError');
+});
+
+test('business percentages preserve backend decimal values without floating point artifacts or rounding', () => {
+  for (const [ratio, display] of [[0, '0%'], [1, '100%'], [0.5, '50%'], [0.29, '29%'],
+    [0.333333, '33.3333%'], [0.666667, '66.6667%'], [0.123456, '12.3456%'], [0.000001, '0.0001%'], [1e-7, '0.00001%']] as const) {
+    assert.equal(recommendationPercent(ratio), display);
+  }
+  assert.equal(recommendationPercent(null), 'N/A'); assert.equal(recommendationPercent(undefined), 'N/A');
+  assert.equal(recommendationValue(null), 'N/A'); assert.equal(recommendationValue(0), '0');
+});
+test('status wording distinguishes review, current usability and readiness without changing backend fields', t => {
+  setup(t);
+  for (const [status, wording] of [['ELIGIBLE', 'Eligible'], ['INELIGIBLE', 'Not eligible'], ['NEEDS_RECHECK', 'Needs recheck'], ['PENDING_REVIEW', 'Pending review']]) {
+    const html = renderToStaticMarkup(createElement(RecommendationBadge, { status }));
+    assert.ok(html.includes(`data-status="${status}"`)); assert.equal(html.replace(/<[^>]*>/g, ''), wording);
+  }
+  const item = recommendation({ reviewStatus: 'APPROVED', readyForConsumption: false, currentEligibility: eligibility('INELIGIBLE') });
+  const before = JSON.stringify(item); const html = content(item);
+  assert.ok(html.includes('Approved')); assert.ok(html.includes('Not eligible'));
+  assert.match(html, /data-readiness="not-ready"[^>]*>Not ready<\/dd>/);
+  assert.ok(html.includes('Ready to use means approved and still eligible'));
+  assert.equal(JSON.stringify(item), before, 'presentation never changes API evidence or eligibility');
+});
+test('available product names precede IDs and unknown products retain a clear reference', () => {
+  const named = renderToStaticMarkup(createElement(RecommendationProduct, { id: 31, names: { 31: 'Fresh milk' } }));
+  assert.ok(named.indexOf('Fresh milk') < named.indexOf('#31'));
+  assert.ok(renderToStaticMarkup(createElement(RecommendationProduct, { id: 31 })).includes('Product #31'));
+  assert.equal(renderToStaticMarkup(createElement(RecommendationProduct, { id: null })), 'N/A');
+});
+test('friendly filter options keep exact backend enum values and the drawer keeps six clear sections', t => {
+  const f = setup(t); const html = renderToStaticMarkup(createElement(F06DashboardContent, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
+  assert.ok(html.includes('value="APPROVED">Approved</option>')); assert.ok(html.includes('value="CROSS_SELL">Cross-sell</option>'));
+  assert.ok(html.includes('Items per page')); assert.ok(html.includes('Ranked by Mining Run'));
+  const detail = content(recommendation());
+  for (const title of ['Recommendation Overview', 'Why This Was Suggested', 'Can This Be Used Now?', 'Rules Applied', 'Additional Evidence', 'Review History']) assert.ok(detail.includes(title));
+});
+
+test('not-ready wording follows review and availability without replacing the server readiness flag', () => {
+  const check = (reviewStatus: RecView['reviewStatus'], status: RecView['currentEligibility']['status']) => recommendationReadiness(recommendation({ reviewStatus, readyForConsumption: false, currentEligibility: eligibility(status) }));
+  assert.match(check('PENDING_REVIEW', 'ELIGIBLE'), /^Awaiting approval/);
+  assert.match(check('APPROVED', 'INELIGIBLE'), /^Approved; current selling conditions are not met/);
+  assert.match(check('PENDING_REVIEW', 'INELIGIBLE'), /^Awaiting approval; current selling conditions are not met/);
+  assert.match(check('APPROVED', 'NEEDS_RECHECK'), /^Approved; product availability needs a recheck/);
+  assert.match(check('REJECTED', 'ELIGIBLE'), /^Rejected/);
+  assert.match(check('APPROVED', 'ELIGIBLE'), /^Not ready according to the latest check/);
+  assert.equal(recommendationReadiness(recommendation({ readyForConsumption: true })), 'Approved and currently eligible.');
+});
+test('mobile cards preserve important data and confidence is only shown when applicable', () => {
+  const bundle = recommendation({ reviewStatus: 'PENDING_REVIEW', currentEligibility: eligibility() });
+  const html = table(resultPage({}, [bundle]));
+  assert.ok(html.includes('aria-label="Product recommendation cards"')); assert.ok(html.includes('xl:hidden'));
+  for (const text of ['Product #31', 'Utility Score', 'Bought together in 2 orders', '33.3333%', 'Pending review', 'Awaiting approval', 'View Details']) assert.ok(html.includes(text));
+  assert.equal(content(bundle).includes('>Confidence</dt>'), false);
+  assert.ok(content(recommendation({ type: 'CROSS_SELL' })).includes('>Confidence</dt>'));
 });
