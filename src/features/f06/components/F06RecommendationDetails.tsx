@@ -3,6 +3,7 @@ import { CheckCircle2, Clock3, RefreshCw, X, XCircle } from 'lucide-react';
 import { miningButton, miningDate } from '../../f05/f05.display';
 import type { RecEligibility, RecView } from '../f06.types';
 import type { RecommendationBrowseState, RecommendationBrowser } from '../f06.browse';
+import { F06ReviewForm } from './F06ReviewForm';
 import { RecommendationBadge, RecommendationFields, RecommendationProduct, RecommendationRuleSummary, recommendationLabel as label, recommendationPercent as percent, recommendationValue as value, recommendationYesNo as yesNo, recommendationReadiness, recommendationAvailability, recommendationNumber } from './F06ReadShared';
 
 export function F06EligibilityCheck({ title, check, names = {} }: { title: string; check: RecEligibility; names?: Record<number, string> }) {
@@ -95,12 +96,15 @@ export function F06RecommendationDetails({ state, workflow }: { state: Recommend
     return () => { node?.close(); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); };
   }, []);
   return <dialog ref={dialog} aria-labelledby="f06-detail-title" aria-modal="true" onCancel={event => { event.preventDefault(); workflow.closeDetail(); }} className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full max-w-3xl overflow-y-auto border-l border-[#E7E2D8] bg-white p-0 text-[#191C1B] shadow-xl backdrop:bg-black/30">
-    <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[#E7E2D8] bg-white p-5 sm:p-6"><div><p className="text-xs font-semibold text-[#356B54]">Product suggestion · Read-only details</p><h2 id="f06-detail-title" className="mt-1 text-xl font-semibold">Recommendation #{state.detailId}</h2></div><button type="button" aria-label="Close recommendation details" autoFocus className="rounded-lg p-2 text-[#57534E] hover:bg-[#EDF5F0] focus-visible:outline-2" onClick={workflow.closeDetail}><X aria-hidden="true" className="h-5 w-5" /></button></div>
-    <div className="space-y-5 p-5 sm:p-6"><button type="button" className={miningButton} disabled={state.detailLoading} onClick={() => void workflow.openDetail(state.detailId!)}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh details</button>
+    <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[#E7E2D8] bg-white p-5 sm:p-6"><div><p className="text-xs font-semibold text-[#356B54]">Product suggestion · {state.role === 'Merchandiser' ? 'Details & review' : 'Read-only details'}</p><h2 id="f06-detail-title" className="mt-1 text-xl font-semibold">Recommendation #{state.detailId}</h2></div><button type="button" aria-label="Close recommendation details" autoFocus disabled={state.reviewPending} className="rounded-lg p-2 text-[#57534E] hover:bg-[#EDF5F0] focus-visible:outline-2 disabled:opacity-50" onClick={workflow.closeDetail}><X aria-hidden="true" className="h-5 w-5" /></button></div>
+    <div className="space-y-5 p-5 sm:p-6"><button type="button" className={miningButton} disabled={state.detailLoading || state.reviewPending} onClick={() => void workflow.openDetail(state.detailId!)}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh details</button>
+      {state.reviewError && <p role="alert" className="whitespace-pre-wrap break-words rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{state.reviewError}</p>}
+      {state.reviewNotice && <p role="status" className="rounded-xl bg-[#EDF5F0] p-4 text-sm text-[#1E3A2F]">{state.reviewNotice}</p>}
       {state.detailLoading ? <p role="status" className="text-sm text-[#6D7974]">Loading recommendation details...</p> : state.detailError ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.detailError}</p> : state.detail && <>
         {state.namesLoading && <p role="status" className="text-xs text-[#6D7974]">Loading product names...</p>}
         {state.namesUnavailable && <p className="text-xs text-[#6D7974]">Some product names are unavailable. Product references are shown instead.</p>}
         <F06RecommendationDetailContent compact={state.role === 'Store Admin'} item={state.detail} names={state.names} />
+        <F06ReviewForm key={`${state.detail.recommendationId}:${state.detail.version}`} state={state} workflow={workflow} />
       </>}
     </div>
   </dialog>;

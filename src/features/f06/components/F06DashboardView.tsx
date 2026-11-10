@@ -9,6 +9,7 @@ import { F06RankedSource } from './F06RankedSource';
 import { F06RecommendationTable } from './F06RecommendationTable';
 import { F06RecommendationDetails } from './F06RecommendationDetails';
 import { recommendationLabel } from './F06ReadShared';
+import { F06ExpiryPanel, F06RulesPanel } from './F06Utilities';
 
 export function F06DashboardContent({ state, workflow }: { state: RecommendationBrowseState; workflow: RecommendationBrowser }) {
   const [snapshot, setSnapshot] = useState('');
@@ -16,6 +17,7 @@ export function F06DashboardContent({ state, workflow }: { state: Recommendation
   const [reviewStatus, setReviewStatus] = useState<BrowseFilters['reviewStatus'] | ''>('');
   const [pageSize, setPageSize] = useState('20');
   const [inputError, setInputError] = useState('');
+  const [utilityPanel, setUtilityPanel] = useState<'rules' | 'expiry' | null>(null);
   useEffect(() => {
     setSnapshot(state.filters.snapshotId === undefined ? '' : String(state.filters.snapshotId));
     setType(state.filters.type ?? ''); setReviewStatus(state.filters.reviewStatus ?? '');
@@ -27,7 +29,7 @@ export function F06DashboardContent({ state, workflow }: { state: Recommendation
   if (state.role !== 'Merchandiser' && state.role !== 'Store Admin') return <p role="alert" className="text-sm text-red-800">This role cannot access recommendations.</p>;
   return <section aria-labelledby="f06-dashboard-title" className="min-w-0 rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="f06-dashboard-title" className="text-xl font-semibold">{compact ? 'Recommendations' : ranked ? 'Suggestions from this mining run' : 'All Recommendations'}</h2>{!compact && <><p className="mt-2 max-w-2xl text-sm leading-6 text-[#6D7974]">Explore product suggestions and check whether they can be used.</p><p className="mt-1 max-w-2xl text-xs leading-5 text-[#6D7974]">{ranked ? 'Ranked by Mining Run shows system priorities within one run. Rank can change as stock changes.' : 'All Recommendations shows the latest saved suggestions first. Utility scores from different snapshots are not a global ranking.'}</p></>}</div>
-      <button type="button" className={miningButton} disabled={state.loading || ranked && state.miningRunId === null} onClick={() => void workflow.refresh(compact)}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh</button></div>
+      <div className="flex flex-wrap gap-2"><button type="button" className={miningButton} onClick={() => setUtilityPanel('rules')}>{compact ? 'Manage Rules' : 'Store Rules'}</button><button type="button" className={miningButton} onClick={() => setUtilityPanel('expiry')}>Expiry Alerts</button><button type="button" className={miningButton} disabled={state.loading || ranked && state.miningRunId === null} onClick={() => void workflow.refresh(compact)}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh</button></div></div>
     {!compact && <div role="group" aria-label="Recommendation ordering" className="mt-5 flex flex-wrap gap-2"><button type="button" aria-pressed={!ranked} className={`${miningButton} aria-pressed:border-[#356B54] aria-pressed:bg-[#EDF5F0]`} onClick={() => workflow.setMode('history')}>All Recommendations</button><button type="button" aria-pressed={ranked} className={`${miningButton} aria-pressed:border-[#356B54] aria-pressed:bg-[#EDF5F0]`} onClick={() => workflow.setMode('ranked')}>Ranked by Mining Run</button></div>}
     {!compact && <div className="mt-5 rounded-xl bg-[#EDF5F0] p-4 text-sm leading-6 text-[#1E3A2F]"><strong>{compact ? 'Ready to use means approved and currently eligible.' : 'Ready to use = approved and still usable.'}</strong>{!compact && <p>A review decision and stock status are separate. An approved suggestion may no longer be usable if its products or stock have changed.</p>}</div>}
     {ranked && <F06RankedSource state={state} workflow={workflow} />}
@@ -57,6 +59,8 @@ export function F06DashboardContent({ state, workflow }: { state: Recommendation
         <nav aria-label="Recommendation pages" className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6D7974]"><span>Page {data.page + 1} of {Math.max(1, Math.ceil(data.totalElements / data.pageSize))}</span><div className="flex gap-2"><button type="button" className={miningButton} disabled={data.page === 0} onClick={() => void workflow.setPage(data.page - 1)}>Previous recommendations</button><button type="button" className={miningButton} disabled={(data.page + 1) * data.pageSize >= data.totalElements} onClick={() => void workflow.setPage(data.page + 1)}>Next recommendations</button></div></nav>
       </>}
     {state.detailId !== null && <F06RecommendationDetails key={state.detailId} state={state} workflow={workflow} />}
+    {utilityPanel === 'rules' && <F06RulesPanel onClose={() => setUtilityPanel(null)} />}
+    {utilityPanel === 'expiry' && <F06ExpiryPanel onClose={() => setUtilityPanel(null)} />}
   </section>;
 }
 
