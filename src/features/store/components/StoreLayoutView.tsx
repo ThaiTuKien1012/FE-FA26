@@ -218,7 +218,7 @@ export const StoreLayoutView: React.FC = () => {
           ? {
               ...aisle,
               x: Math.max(25, Math.min(705, x - 135)),
-              y: Math.max(165, Math.min(470, y - 35)),
+              y: Math.max(25, Math.min(480, y - 35)),
             }
           : aisle,
       ),
