@@ -254,6 +254,9 @@ export const StoreLayoutView: React.FC = () => {
   const aisleGroup = (aisle: Aisle) => {
     const slotsForAisle = aisleSlots(aisle);
     const rows = Math.ceil(aisle.capacity / 6);
+    const height = rows > 1 ? 166 : 136;
+    const filled = slotsForAisle.filter((slot) => layout[slot] !== null).length;
+    const selected = selectedAisle === aisle.id || movingAisle === aisle.id;
     return (
       <g
         key={aisle.id}
@@ -272,54 +275,124 @@ export const StoreLayoutView: React.FC = () => {
         className="cursor-grab active:cursor-grabbing"
       >
         <rect
+          x={aisle.x + 5}
+          y={aisle.y + 6}
+          width="290"
+          height={height}
+          rx="14"
+          fill="#173D32"
+          opacity="0.12"
+        />
+        <rect
           x={aisle.x}
           y={aisle.y}
-          width="270"
-          height={rows > 1 ? 155 : 122}
-          rx="12"
+          width="290"
+          height={height}
+          rx="14"
+          fill="#FFFFFF"
+          stroke={selected ? "#F28B72" : "#356B54"}
+          strokeWidth={selected ? "5" : "3"}
+        />
+        <rect
+          x={aisle.x}
+          y={aisle.y}
+          width="290"
+          height="42"
+          rx="14"
+          fill="#1E4D3E"
+        />
+        <rect
+          x={aisle.x}
+          y={aisle.y + 28}
+          width="290"
+          height="14"
+          fill="#1E4D3E"
+        />
+        <text
+          x={aisle.x + 16}
+          y={aisle.y + 27}
+          fill="#FFFFFF"
+          fontSize="15"
+          fontWeight="800"
+        >
+          A{aisle.id} ·{" "}
+          {aisle.name.length > 18 ? `${aisle.name.slice(0, 18)}…` : aisle.name}
+        </text>
+        <rect
+          x={aisle.x + 228}
+          y={aisle.y + 11}
+          width="48"
+          height="21"
+          rx="10"
           fill="#DDEFE3"
-          stroke={movingAisle === aisle.id ? "#F28B72" : "#356B54"}
-          strokeWidth={movingAisle === aisle.id ? "5" : "3"}
+        />
+        <text
+          x={aisle.x + 252}
+          y={aisle.y + 26}
+          textAnchor="middle"
+          fill="#1E4D3E"
+          fontSize="11"
+          fontWeight="700"
+        >
+          {filled}/{aisle.capacity}
+        </text>
+        <text
+          x={aisle.x + 274}
+          y={aisle.y + 27}
+          textAnchor="end"
+          fill="#B9D8C7"
+          fontSize="14"
+        >
+          ⋮⋮
+        </text>
+        <rect
+          x={aisle.x + 12}
+          y={aisle.y + 51}
+          width="266"
+          height={rows > 1 ? 86 : 57}
+          rx="8"
+          fill="#F1F7F3"
+          stroke="#D6E8DC"
+        />
+        {slotsForAisle.map((slot, index) => (
+          <g key={slot}>
+            <rect
+              x={aisle.x + 19 + (index % 6) * 43}
+              y={aisle.y + 59 + Math.floor(index / 6) * 42}
+              width="35"
+              height="35"
+              rx="6"
+              fill={layout[slot] === null ? "#FFFFFF" : "#E1F0E5"}
+              stroke={layout[slot] === null ? "#A9CBB5" : "#5F9674"}
+              strokeWidth="2"
+              strokeDasharray={layout[slot] === null ? "4 3" : undefined}
+            />
+            {byId(layout[slot]) && (
+              <image
+                href={imageFor(byId(layout[slot])!)}
+                x={aisle.x + 22 + (index % 6) * 43}
+                y={aisle.y + 62 + Math.floor(index / 6) * 42}
+                width="29"
+                height="29"
+                preserveAspectRatio="xMidYMid meet"
+              />
+            )}
+          </g>
+        ))}
+        <line
+          x1={aisle.x + 18}
+          y1={aisle.y + (rows > 1 ? 146 : 113)}
+          x2={aisle.x + 272}
+          y2={aisle.y + (rows > 1 ? 146 : 113)}
+          stroke="#D6E8DC"
         />
         <text
           x={aisle.x + 18}
-          y={aisle.y + 27}
-          fill="#1E3A2F"
-          fontSize="16"
-          fontWeight="800"
+          y={aisle.y + (rows > 1 ? 158 : 126)}
+          fill="#6B8479"
+          fontSize="10"
         >
-          A{aisle.id} · {aisle.name}
-        </text>
-        <text
-          x={aisle.x + 216}
-          y={aisle.y + 27}
-          fill="#356B54"
-          fontSize="13"
-          fontWeight="700"
-        >
-          {slotsForAisle.filter((slot) => layout[slot] !== null).length}/
-          {aisle.capacity}
-        </text>
-        {slotsForAisle.map((slot, index) => (
-          <rect
-            key={slot}
-            x={aisle.x + 18 + (index % 6) * 38}
-            y={aisle.y + 55 + Math.floor(index / 6) * 42}
-            width="28"
-            height="30"
-            rx="4"
-            fill={layout[slot] === null ? "#A9CBB5" : "#5F9674"}
-            stroke="#356B54"
-            strokeWidth="1"
-          />
-        ))}
-        <text
-          x={aisle.x + 18}
-          y={aisle.y + (rows > 1 ? 146 : 113)}
-          fill="#577064"
-          fontSize="11"
-        >
-          Kéo để di chuyển · bấm để thêm sản phẩm
+          {selected ? "Đang chọn kệ" : "Bấm để mở · kéo để di chuyển"}
         </text>
       </g>
     );
