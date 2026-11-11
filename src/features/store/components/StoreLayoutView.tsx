@@ -9,6 +9,9 @@ import {
   Trash2,
   WandSparkles,
   X,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from "lucide-react";
 import { F02Product, storeApi } from "../store.api";
 
@@ -75,6 +78,7 @@ export const StoreLayoutView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [zoom, setZoom] = useState(0.82);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => {
@@ -146,11 +150,11 @@ export const StoreLayoutView: React.FC = () => {
     const id = aisles.length
       ? Math.max(...aisles.map((aisle) => aisle.id)) + 1
       : 1;
-    const x = aisles.length % 2 ? 635 : 95;
-    const y = 165 + Math.min(aisles.length, 3) * 110;
+    const x = aisles.length % 2 ? 760 : 70;
+    const y = 170 + Math.floor(aisles.length / 2) * 190;
     setAisles((current) => [
       ...current,
-      { id, name: `Khu mới ${id}`, x, y: Math.min(y, 470), capacity: 6 },
+      { id, name: `Khu mới ${id}`, x, y, capacity: 6 },
     ]);
     setSelectedAisle(id);
     setNotice(`Đã thêm kệ A${id}. Kéo kệ trên bản vẽ để đặt vị trí.`);
@@ -204,8 +208,8 @@ export const StoreLayoutView: React.FC = () => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return [0, 0];
     return [
-      ((event.clientX - rect.left) / rect.width) * 1000,
-      ((event.clientY - rect.top) / rect.height) * 640,
+      ((event.clientX - rect.left) / rect.width) * 1400,
+      ((event.clientY - rect.top) / rect.height) * 1300,
     ];
   };
   const moveAisle = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -217,8 +221,8 @@ export const StoreLayoutView: React.FC = () => {
         aisle.id === movingAisle
           ? {
               ...aisle,
-              x: Math.max(25, Math.min(705, x - 135)),
-              y: Math.max(25, Math.min(480, y - 35)),
+              x: Math.max(25, Math.min(1105, x - 135)),
+              y: Math.max(25, Math.min(1145, y - 35)),
             }
           : aisle,
       ),
@@ -427,26 +431,67 @@ export const StoreLayoutView: React.FC = () => {
             </div>
             <Map className="h-5 w-5 text-[#356B54]" />
           </div>
-          <div
-            className="w-full overflow-hidden rounded-2xl border-0 bg-[#F8F5EF]"
-            style={{ aspectRatio: "1000 / 640" }}
-          >
+          <div className="mb-3 flex items-center justify-between rounded-xl bg-[#FAF8F5] px-3 py-2">
+            <p className="text-xs text-[#707973]">
+              Vùng làm việc lớn · cuộn để xem các kệ ở xa
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() =>
+                  setZoom((value) =>
+                    Math.max(0.6, Number((value - 0.1).toFixed(2))),
+                  )
+                }
+                className="rounded-lg border bg-white p-2"
+                title="Thu nhỏ"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <span className="w-12 text-center text-xs font-bold text-[#356B54]">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() =>
+                  setZoom((value) =>
+                    Math.min(1.5, Number((value + 0.1).toFixed(2))),
+                  )
+                }
+                className="rounded-lg border bg-white p-2"
+                title="Phóng to"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setZoom(0.82)}
+                className="rounded-lg border bg-white p-2"
+                title="Thu toàn cảnh"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="max-h-[720px] overflow-auto rounded-2xl border-0 bg-[#F8F5EF]">
             <svg
               ref={svgRef}
               onPointerMove={moveAisle}
               onPointerUp={finishMove}
               onPointerCancel={finishMove}
               onPointerLeave={finishMove}
-              viewBox="0 0 1000 640"
-              className="block h-full w-full touch-none"
+              viewBox="0 0 1400 1300"
+              className="block touch-none"
+              style={{
+                width: `${1400 * zoom}px`,
+                height: `${1300 * zoom}px`,
+                minWidth: "100%",
+              }}
               preserveAspectRatio="xMidYMid meet"
               aria-label="Bản vẽ mặt bằng cửa hàng"
             >
               <rect
                 x="18"
                 y="18"
-                width="964"
-                height="604"
+                width="1364"
+                height="1264"
                 rx="18"
                 fill="#FCFBF8"
               />
