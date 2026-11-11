@@ -1,12 +1,12 @@
 /** Same-origin HTTPS (or localhost), modern browsers with Web Locks + BroadcastChannel.
- * Credentials live only in memory. localStorage contains coordination metadata, never tokens.
+ * Credentials are kept in sessionStorage so a Vite hot reload does not log the user out.
  * Web Locks serialize cookie rotation; the channel transfers credentials to waiting/new tabs.
  */
 export interface TokenCredentials {
   accessToken: string;
   expiresIn: number;
   tokenType: string;
-  csrfToken: string;
+  csrfToken?: string;
 }
 interface Credentials extends TokenCredentials { expiresAt: number; refreshAt: number; }
 interface Coordination { epoch: string; signedOut: boolean; retryAt?: number; }
@@ -23,6 +23,7 @@ export class SessionError extends Error {
   constructor(public status: number | null, message: string) { super(message); }
 }
 const META_KEY = 'paspm_session_coordination';
+const CREDENTIALS_KEY = 'paspm_session_credentials';
 export const INACTIVITY_MS = 15 * 60 * 1000;
 // Opt in only on the Vite development server. Production builds replace DEV
 // with false and remove the fast-popup branches, even if the flag is supplied.
@@ -53,8 +54,13 @@ export class AuthSession<U> {
 
   constructor(private mapUser: (data: any) => U, private now: () => number = Date.now) {
     this.lastActivity = this.now();
-    // Migrate legacy sessions through HttpOnly refresh cookies; never trust cached user/JWT.
-    try { localStorage.removeItem('retailspace_auth_token'); localStorage.removeItem('retailspace_auth_user'); } catch { /* Storage may be disabled. */ }
+    try {
+      localStorage.removeItem('retailspace_auth_token');
+      localStorage.removeItem('retailspace_auth_user');
+      const cached = JSON.parse(sessionStorage.getItem(CREDENTIALS_KEY) || 'null');
+      if (cached?.accessToken && cached?.expiresAt > this.now()) this.credentials = cached as Credentials;
+      else sessionStorage.removeItem(CREDENTIALS_KEY);
+    } catch { /* Storage may be disabled. */ }
   }
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
@@ -150,12 +156,13 @@ export class AuthSession<U> {
     }
     const data = await response.json().catch(() => null);
     if (!data || typeof data.accessToken !== 'string' || !data.accessToken || data.tokenType !== 'Bearer' ||
-        !Number.isFinite(data.expiresIn) || data.expiresIn <= 0 || typeof data.csrfToken !== 'string' || !data.csrfToken) {
+        !Number.isFinite(data.expiresIn) || data.expiresIn <= 0 ||
+        (data.csrfToken !== null && data.csrfToken !== undefined && typeof data.csrfToken !== 'string')) {
       throw new SessionError(null, 'The server returned invalid session credentials. Please sign in again.');
     }
     const ttl = data.expiresIn * 1000;
     // Request start is conservative: network latency cannot extend the server's lifetime.
-    return { accessToken: data.accessToken, expiresIn: data.expiresIn, tokenType: data.tokenType, csrfToken: data.csrfToken,
+    return { accessToken: data.accessToken, expiresIn: data.expiresIn, tokenType: data.tokenType, csrfToken: typeof data.csrfToken === 'string' ? data.csrfToken : undefined,
       expiresAt: startedAt + ttl, refreshAt: startedAt + ttl - Math.min(60000, Math.max(5000, ttl * 0.1)) };
   }
   private async validate(credentials: Credentials): Promise<U> {
@@ -166,6 +173,7 @@ export class AuthSession<U> {
   private accept(credentials: Credentials, user: U, epoch: string) {
     if (this.meta().signedOut || this.meta().epoch !== epoch) throw new SessionError(401, 'Your session changed. Please sign in again.');
     this.credentials = credentials;
+    try { sessionStorage.setItem(CREDENTIALS_KEY, JSON.stringify(credentials)); } catch { /* Storage may be disabled. */ }
     this.epoch = epoch;
     this.update({ status: 'authenticated', user, expiresAt: credentials.expiresAt, notice: '', attention: false });
     this.channel?.postMessage({ type: 'credentials', epoch, credentials, user, activity: this.lastActivity });
@@ -258,6 +266,7 @@ export class AuthSession<U> {
   private clearLocal(notice: string, noticeKind: SessionState<U>['noticeKind'] = 'message') {
     notice = cleanSessionNotice(notice);
     this.credentials = null;
+    try { sessionStorage.removeItem(CREDENTIALS_KEY); } catch { /* Storage may be disabled. */ }
     clearTimeout(this.timer);
     this.update({ status: 'anonymous', user: null, expiresAt: null, attention: false, busy: false, notice, noticeKind });
   }
