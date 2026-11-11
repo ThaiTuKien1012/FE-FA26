@@ -29,6 +29,18 @@ const images = [
   "/products/baguette.png",
   "/products/milk.png",
   "/products/apple.png",
+  "/images/products/aquafina.png",
+  "/images/products/chocopie.png",
+  "/images/products/cocacola.jpg",
+  "/images/products/dove.png",
+  "/images/products/haohao.jpg",
+  "/images/products/kitkat.jpg",
+  "/images/products/lays.png",
+  "/images/products/lifebuoy.jpg",
+  "/images/products/maggi.jpg",
+  "/images/products/pulppy.png",
+  "/images/products/thtruemilk.png",
+  "/images/products/vinamilk.jpg",
 ];
 const defaultAisles: Aisle[] = [
   { id: 1, name: "Đồ ăn nhanh", x: 95, y: 205, capacity: 6 },
@@ -120,7 +132,27 @@ export const StoreLayoutView: React.FC = () => {
   const available = products.filter((product) => !placed.has(product.id));
   const byId = (id: number | null) =>
     products.find((product) => product.id === id);
-  const imageFor = (product: F02Product) => images[product.id % images.length];
+  const imageFor = (product: F02Product) => {
+    const name = product.name.toLowerCase();
+    if (name.includes("mì")) return "/images/products/haohao.jpg";
+    if (name.includes("nước khoáng") || name.includes("nước suối"))
+      return "/images/products/aquafina.png";
+    if (name.includes("cola")) return "/images/products/cocacola.jpg";
+    if (name.includes("snack") || name.includes("khoai tây"))
+      return "/images/products/lays.png";
+    if (name.includes("khăn giấy")) return "/images/products/pulppy.png";
+    if (
+      name.includes("sữa") ||
+      name.includes("phô mai") ||
+      name.includes("yaourt")
+    )
+      return "/images/products/vinamilk.jpg";
+    if (name.includes("dầu gội") || name.includes("sữa tắm"))
+      return "/images/products/dove.png";
+    if (name.includes("nước tương") || name.includes("nước mắm"))
+      return "/images/products/maggi.jpg";
+    return images[product.id % images.length];
+  };
   const aisleById = (id: number) => aisles.find((aisle) => aisle.id === id);
   const aisleSlots = (aisle: Aisle) =>
     Array.from({ length: aisle.capacity }, (_, index) =>
