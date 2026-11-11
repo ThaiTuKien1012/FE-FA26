@@ -428,7 +428,7 @@ export const StoreLayoutView: React.FC = () => {
             <Map className="h-5 w-5 text-[#356B54]" />
           </div>
           <div
-            className="w-full overflow-hidden rounded-2xl border-4 border-[#1E3A2F] bg-[#F8F5EF]"
+            className="w-full overflow-hidden rounded-2xl border-0 bg-[#F8F5EF]"
             style={{ aspectRatio: "1000 / 640" }}
           >
             <svg
@@ -449,61 +449,8 @@ export const StoreLayoutView: React.FC = () => {
                 height="604"
                 rx="18"
                 fill="#FCFBF8"
-                stroke="#1E3A2F"
-                strokeWidth="4"
-              />
-              <rect
-                x="55"
-                y="78"
-                width="250"
-                height="70"
-                rx="10"
-                fill="#F5FAF6"
-                stroke="#86B496"
-                strokeWidth="3"
-              />
-              <rect
-                x="695"
-                y="78"
-                width="250"
-                height="70"
-                rx="10"
-                fill="#F6FAFA"
-                stroke="#9FC6CB"
-                strokeWidth="3"
-              />
-              <path
-                d="M340 113 H660"
-                stroke="#C8D8CC"
-                strokeDasharray="8 8"
-                strokeWidth="3"
-              />
-              <path
-                d="M500 158 V535"
-                stroke="#C8D8CC"
-                strokeDasharray="10 10"
-                strokeWidth="3"
               />
               {aisles.map(aisleGroup)}
-              <rect
-                x="55"
-                y="535"
-                width="300"
-                height="58"
-                rx="10"
-                fill="#F5FAF6"
-                stroke="#86B496"
-                strokeWidth="3"
-                strokeDasharray="8 5"
-              />
-              <rect
-                x="645"
-                y="535"
-                width="300"
-                height="58"
-                rx="10"
-                fill="#F28B72"
-              />
             </svg>
           </div>
           {selectedAisle !== null &&
