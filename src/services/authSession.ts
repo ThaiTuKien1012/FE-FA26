@@ -296,8 +296,11 @@ export class AuthSession<U> {
         const startedAt = this.now();
         credentials = await this.tokenResponse(await this.raw('/api/auth/refresh', { method: 'POST', headers: { 'X-CSRF-Token': this.csrf() } }), startedAt);
       }
+      const csrfToken = this.csrf() || credentials.csrfToken;
+      const logoutHeaders: Record<string, string> = { Authorization: `Bearer ${credentials.accessToken}` };
+      if (csrfToken) logoutHeaders['X-CSRF-Token'] = csrfToken;
       const response = await this.raw(all ? '/api/auth/logout-all' : '/api/auth/logout', {
-        method: 'POST', headers: { Authorization: `Bearer ${credentials.accessToken}`, 'X-CSRF-Token': this.csrf() || credentials.csrfToken }
+        method: 'POST', headers: logoutHeaders
       });
       if (!response.ok) throw new SessionError(response.status, 'Server revocation was not confirmed.');
       if (this.meta().epoch === epoch) this.endLocal(all ? 'Signed out from all devices.' : 'Signed out successfully.', 'success');

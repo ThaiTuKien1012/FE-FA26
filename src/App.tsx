@@ -21,6 +21,7 @@ import { RegisterView } from './features/auth/components/RegisterView';
 import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
+import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
 import { PublishedCampaignStatusView } from './features/merchandiser/components/PublishedCampaignStatusView';
@@ -95,7 +96,7 @@ export default function App() {
 
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
-    if (!currentUser && !['login', 'register', 'activate', 'forgot-password'].includes(currentScreen)) {
+    if (!currentUser && !['login', 'register', 'activate', 'forgot-password', 'customer-home'].includes(currentScreen)) {
       syncBrowserUrl('login', true);
       setCurrentScreen('login');
     }
@@ -157,7 +158,7 @@ export default function App() {
       'store-admin': 'store-inventory',
       'system-admin': 'overview',
       'merchandiser': 'merchandiser-recommendations',
-      'customer': 'customer-storefront'
+      'customer': 'customer-home'
     };
     const dest = roleScreens[roleKey] || 'overview';
     syncBrowserUrl(dest);
@@ -172,6 +173,8 @@ export default function App() {
         return ['Authentication', 'Sign In'];
       case 'customer-storefront':
         return ['Storefront Kiosk', 'Catalog & Basket'];
+      case 'customer-home':
+        return ['Customer', 'Home'];
 
       // Merchandiser screen (Recommendations Dashboard - Single Page)
       case 'merchandiser-recommendations':
@@ -246,6 +249,19 @@ export default function App() {
   };
 
   // 1. If currently on Login screen, render LoginView standalone full-screen
+  if (currentScreen === 'customer-home') {
+    return (
+      <CustomerHomeView
+        user={currentUser}
+        onLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }}
+        onRegister={() => { syncBrowserUrl('register'); setCurrentScreen('register'); }}
+        onExplore={() => handleNavigate('customer-storefront')}
+        onProfile={currentUser ? () => handleNavigate('profile') : undefined}
+        onLogout={currentUser ? handleLogout : undefined}
+      />
+    );
+  }
+
   if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password'].includes(currentScreen))) {
     return (
       <LoginView
@@ -296,10 +312,11 @@ export default function App() {
   if (currentScreen === 'customer-storefront' && currentUser?.role === 'End-Customer') {
     return (
       <CustomerStorefrontView
-        products={storeProducts}
         user={currentUser}
         onLogout={handleLogout}
         onProfile={() => handleNavigate('profile')}
+        onHome={() => handleNavigate('customer-home')}
+        onLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }}
       />
     );
   }

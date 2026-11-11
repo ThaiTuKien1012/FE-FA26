@@ -10,5 +10,5 @@ export interface AppRoute {
 export const APP_ROUTES: AppRoute[] = Object.entries(SCREEN_TO_PATH).map(([screen, path]) => ({
   screen: screen as ActiveNavScreen,
   path,
-  public: ['login', 'register', 'activate'].includes(screen)
+  public: ['login', 'register', 'activate', 'customer-home'].includes(screen)
 }));

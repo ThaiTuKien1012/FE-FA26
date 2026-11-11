@@ -90,8 +90,9 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
   },
   'End-Customer': {
     department: 'Retail Loyalty Customer',
-    defaultScreen: 'customer-storefront',
+    defaultScreen: 'customer-home',
     allowedScreens: [
+      'customer-home',
       'customer-storefront',
       'profile'
     ]
@@ -272,6 +273,12 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   },
 
   // Customer Module
+  'customer-home': {
+    primaryRole: 'End-Customer',
+    roleKey: 'customer',
+    title: 'Customer Home',
+    allowedRoles: ['End-Customer']
+  },
   'customer-storefront': {
     primaryRole: 'End-Customer',
     roleKey: 'customer',
