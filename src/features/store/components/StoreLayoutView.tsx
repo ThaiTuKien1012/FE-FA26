@@ -80,6 +80,8 @@ export const StoreLayoutView: React.FC = () => {
   const [error, setError] = useState("");
   const [zoom, setZoom] = useState(0.82);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragPointRef = useRef<[number, number] | null>(null);
+  const dragFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     storeApi
@@ -90,6 +92,13 @@ export const StoreLayoutView: React.FC = () => {
       )
       .finally(() => setLoading(false));
   }, []);
+  useEffect(
+    () => () => {
+      if (dragFrameRef.current !== null)
+        cancelAnimationFrame(dragFrameRef.current);
+    },
+    [],
+  );
   const allSlots = useMemo(
     () =>
       aisles.flatMap((aisle) =>
@@ -215,18 +224,25 @@ export const StoreLayoutView: React.FC = () => {
   const moveAisle = (event: React.PointerEvent<SVGSVGElement>) => {
     if (movingAisle === null) return;
     event.preventDefault();
-    const [x, y] = mapPoint(event);
-    setAisles((current) =>
-      current.map((aisle) =>
-        aisle.id === movingAisle
-          ? {
-              ...aisle,
-              x: Math.max(25, Math.min(1105, x - 135)),
-              y: Math.max(25, Math.min(1145, y - 35)),
-            }
-          : aisle,
-      ),
-    );
+    dragPointRef.current = mapPoint(event);
+    if (dragFrameRef.current !== null) return;
+    dragFrameRef.current = requestAnimationFrame(() => {
+      dragFrameRef.current = null;
+      if (movingAisle === null || !dragPointRef.current) return;
+      const [x, y] = dragPointRef.current;
+      const snap = (value: number) => Math.round(value / 20) * 20;
+      setAisles((current) =>
+        current.map((aisle) =>
+          aisle.id === movingAisle
+            ? {
+                ...aisle,
+                x: Math.max(25, Math.min(1105, snap(x - 135))),
+                y: Math.max(25, Math.min(1145, snap(y - 35))),
+              }
+            : aisle,
+        ),
+      );
+    });
   };
   const finishMove = () => {
     if (movingAisle !== null) {
@@ -246,6 +262,7 @@ export const StoreLayoutView: React.FC = () => {
         onPointerDown={(event) => {
           event.preventDefault();
           event.stopPropagation();
+          event.currentTarget.setPointerCapture(event.pointerId);
           setMovingAisle(aisle.id);
         }}
         onClick={() => setSelectedAisle(aisle.id)}
@@ -476,7 +493,6 @@ export const StoreLayoutView: React.FC = () => {
               onPointerMove={moveAisle}
               onPointerUp={finishMove}
               onPointerCancel={finishMove}
-              onPointerLeave={finishMove}
               viewBox="0 0 1400 1300"
               className="block touch-none"
               style={{
