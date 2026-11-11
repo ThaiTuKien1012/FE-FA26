@@ -484,18 +484,6 @@ export const StoreLayoutView: React.FC = () => {
                 strokeDasharray="10 10"
                 strokeWidth="3"
               />
-              <text
-                x="500"
-                y="342"
-                textAnchor="middle"
-                transform="rotate(-90 500 342)"
-                fill="#9BA8A0"
-                fontSize="12"
-                fontWeight="800"
-                letterSpacing="4"
-              >
-                LỐI ĐI CHÍNH
-              </text>
               {aisles.map(aisleGroup)}
               <rect
                 x="55"
@@ -508,16 +496,6 @@ export const StoreLayoutView: React.FC = () => {
                 strokeWidth="3"
                 strokeDasharray="8 5"
               />
-              <text
-                x="205"
-                y="570"
-                textAnchor="middle"
-                fill="#356B54"
-                fontSize="15"
-                fontWeight="800"
-              >
-                CỬA VÀO / LỐI RA
-              </text>
               <rect
                 x="645"
                 y="535"
@@ -526,16 +504,6 @@ export const StoreLayoutView: React.FC = () => {
                 rx="10"
                 fill="#F28B72"
               />
-              <text
-                x="795"
-                y="570"
-                textAnchor="middle"
-                fill="white"
-                fontSize="15"
-                fontWeight="800"
-              >
-                QUẦY THU NGÂN
-              </text>
             </svg>
           </div>
           {selectedAisle !== null &&
