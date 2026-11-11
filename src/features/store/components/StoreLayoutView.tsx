@@ -290,7 +290,7 @@ export const StoreLayoutView: React.FC = () => {
           height={height}
           rx="14"
           fill="#FFFFFF"
-          stroke={selected ? "#F28B72" : "#356B54"}
+          stroke={selected ? "#E8896B" : "#314A5E"}
           strokeWidth={selected ? "5" : "3"}
         />
         <rect
@@ -299,14 +299,14 @@ export const StoreLayoutView: React.FC = () => {
           width="290"
           height="42"
           rx="14"
-          fill="#1E4D3E"
+          fill="#263B4A"
         />
         <rect
           x={aisle.x}
           y={aisle.y + 28}
           width="290"
           height="14"
-          fill="#1E4D3E"
+          fill="#263B4A"
         />
         <text
           x={aisle.x + 16}
@@ -324,13 +324,13 @@ export const StoreLayoutView: React.FC = () => {
           width="48"
           height="21"
           rx="10"
-          fill="#DDEFE3"
+          fill="#F4D7C7"
         />
         <text
           x={aisle.x + 252}
           y={aisle.y + 26}
           textAnchor="middle"
-          fill="#1E4D3E"
+          fill="#263B4A"
           fontSize="11"
           fontWeight="700"
         >
@@ -351,8 +351,8 @@ export const StoreLayoutView: React.FC = () => {
           width="266"
           height={rows > 1 ? 86 : 57}
           rx="8"
-          fill="#F1F7F3"
-          stroke="#D6E8DC"
+          fill="#F5F7F8"
+          stroke="#D9E0E5"
         />
         {slotsForAisle.map((slot, index) => (
           <g key={slot}>
@@ -362,8 +362,8 @@ export const StoreLayoutView: React.FC = () => {
               width="35"
               height="35"
               rx="6"
-              fill={layout[slot] === null ? "#FFFFFF" : "#E1F0E5"}
-              stroke={layout[slot] === null ? "#A9CBB5" : "#5F9674"}
+              fill={layout[slot] === null ? "#FFFDF9" : "#E6EEF3"}
+              stroke={layout[slot] === null ? "#B8C4CB" : "#5E7A8A"}
               strokeWidth="2"
               strokeDasharray={layout[slot] === null ? "4 3" : undefined}
             />
@@ -384,12 +384,12 @@ export const StoreLayoutView: React.FC = () => {
           y1={aisle.y + (rows > 1 ? 146 : 113)}
           x2={aisle.x + 272}
           y2={aisle.y + (rows > 1 ? 146 : 113)}
-          stroke="#D6E8DC"
+          stroke="#D9E0E5"
         />
         <text
           x={aisle.x + 18}
           y={aisle.y + (rows > 1 ? 158 : 126)}
-          fill="#6B8479"
+          fill="#71808A"
           fontSize="10"
         >
           {selected ? "Đang chọn kệ" : "Bấm để mở · kéo để di chuyển"}
@@ -402,7 +402,7 @@ export const StoreLayoutView: React.FC = () => {
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#314A5E]">
             Store Operations · Layout
           </p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight">
@@ -415,7 +415,7 @@ export const StoreLayoutView: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={addAisle}
-            className="rounded-xl border border-[#86B496] bg-[#F5FAF6] px-3 py-2 text-sm font-bold text-[#356B54]"
+            className="rounded-xl border border-[#C6B8A8] bg-[#FCFAF7] px-3 py-2 text-sm font-bold text-[#314A5E]"
           >
             <Plus className="mr-2 inline h-4 w-4" />
             Thêm kệ
@@ -430,14 +430,14 @@ export const StoreLayoutView: React.FC = () => {
           <button
             onClick={autoArrange}
             disabled={loading || !products.length}
-            className="rounded-xl bg-[#DDEFE3] px-3 py-2 text-sm font-bold text-[#1E3A2F] disabled:opacity-50"
+            className="rounded-xl bg-[#E8EEF2] px-3 py-2 text-sm font-bold text-[#263B4A] disabled:opacity-50"
           >
             <WandSparkles className="mr-2 inline h-4 w-4" />
             Tự động xếp
           </button>
           <button
             onClick={save}
-            className="rounded-xl bg-[#1E3A2F] px-3 py-2 text-sm font-semibold text-white"
+            className="rounded-xl bg-[#263B4A] px-3 py-2 text-sm font-semibold text-white"
           >
             <Save className="mr-2 inline h-4 w-4" />
             Lưu sơ đồ
@@ -445,7 +445,7 @@ export const StoreLayoutView: React.FC = () => {
         </div>
       </header>
       {notice && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="rounded-xl border border-[#D9E0E5] bg-[#F5F7F8] px-4 py-3 text-sm text-[#314A5E]">
           {notice}
         </div>
       )}
@@ -466,10 +466,10 @@ export const StoreLayoutView: React.FC = () => {
                 {available.length} sản phẩm chưa xếp · {allSlots.length} ô
               </p>
             </div>
-            <Package className="h-5 w-5 text-[#356B54]" />
+            <Package className="h-5 w-5 text-[#314A5E]" />
           </div>
           {dragged !== null && (
-            <p className="mb-3 rounded-lg bg-[#DDEFE3] px-3 py-2 text-xs font-semibold text-[#1E3A2F]">
+            <p className="mb-3 rounded-lg bg-[#E8EEF2] px-3 py-2 text-xs font-semibold text-[#263B4A]">
               Đã chọn sản phẩm — kéo hoặc bấm vào ô kệ
             </p>
           )}
@@ -493,7 +493,7 @@ export const StoreLayoutView: React.FC = () => {
                     setDragged(product.id);
                   }}
                   onDragEnd={() => setDragged(null)}
-                  className={`cursor-grab rounded-xl border p-3 ${dragged === product.id ? "border-[#356B54] bg-[#EAF4ED]" : "border-[#E7E2D8] bg-[#FAF8F5]"}`}
+                  className={`cursor-grab rounded-xl border p-3 ${dragged === product.id ? "border-[#E8896B] bg-[#F4E4D8]" : "border-[#E7E2D8] bg-[#FAF8F5]"}`}
                 >
                   <img
                     src={imageFor(product)}
@@ -519,7 +519,7 @@ export const StoreLayoutView: React.FC = () => {
                 Kéo kệ để di chuyển · bấm kệ để mở ô sản phẩm.
               </p>
             </div>
-            <Map className="h-5 w-5 text-[#356B54]" />
+            <Map className="h-5 w-5 text-[#314A5E]" />
           </div>
           <div className="mb-3 flex items-center justify-between rounded-xl bg-[#FAF8F5] px-3 py-2">
             <p className="text-xs text-[#707973]">
@@ -537,7 +537,7 @@ export const StoreLayoutView: React.FC = () => {
               >
                 <ZoomOut className="h-4 w-4" />
               </button>
-              <span className="w-12 text-center text-xs font-bold text-[#356B54]">
+              <span className="w-12 text-center text-xs font-bold text-[#314A5E]">
                 {Math.round(zoom * 100)}%
               </span>
               <button
@@ -592,13 +592,13 @@ export const StoreLayoutView: React.FC = () => {
               const aisle = aisleById(selectedAisle);
               if (!aisle) return null;
               return (
-                <div className="mt-4 rounded-2xl border-2 border-[#86B496] bg-[#F5FAF6] p-4">
+                <div className="mt-4 rounded-2xl border-2 border-[#C6B8A8] bg-[#FCFAF7] p-4">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <h3 className="font-bold text-[#1E3A2F]">
+                      <h3 className="font-bold text-[#263B4A]">
                         A{aisle.id} · {aisle.name}
                       </h3>
-                      <p className="text-xs text-[#577064]">
+                      <p className="text-xs text-[#71808A]">
                         Kéo sản phẩm từ cột bên trái vào từng ô kệ
                       </p>
                     </div>
@@ -610,7 +610,7 @@ export const StoreLayoutView: React.FC = () => {
                       >
                         − ô
                       </button>
-                      <span className="text-xs font-bold text-[#356B54]">
+                      <span className="text-xs font-bold text-[#314A5E]">
                         {aisle.capacity} ô
                       </span>
                       <button
@@ -642,7 +642,7 @@ export const StoreLayoutView: React.FC = () => {
                         <div
                           key={slot}
                           {...dropProps(slot)}
-                          className="min-h-[120px] rounded-xl border-2 border-dashed border-[#A9CBB5] bg-white p-2 text-center"
+                          className="min-h-[120px] rounded-xl border-2 border-dashed border-[#B8C4CB] bg-white p-2 text-center"
                         >
                           {product ? (
                             <>
@@ -668,8 +668,8 @@ export const StoreLayoutView: React.FC = () => {
                             </>
                           ) : (
                             <>
-                              <Grid2X2 className="mx-auto mt-4 h-5 w-5 text-[#86B496]" />
-                              <p className="mt-2 text-[10px] text-[#577064]">
+                              <Grid2X2 className="mx-auto mt-4 h-5 w-5 text-[#B8C4CB]" />
+                              <p className="mt-2 text-[10px] text-[#71808A]">
                                 Kéo vào đây
                               </p>
                             </>
