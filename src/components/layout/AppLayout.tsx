@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Package, BarChart3, Bell, SlidersHorizontal, LogOut, ShoppingBag, Users, Zap,
-  Layers, LayoutGrid, Settings, Upload, History, ReceiptText, Menu, X,
+  Layers, LayoutGrid, Settings, Upload, History, ReceiptText, Menu, X, Map,
   type LucideIcon
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
@@ -141,6 +141,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   <SidebarItem screen="store-categories" label="Categories" icon={Layers} active={currentScreen === 'store-categories'} onNavigate={onNavigate} />
                   <SidebarItem screen="store-inventory" label="Products" icon={Package} active={currentScreen === 'store-inventory' || currentScreen === 'store-edit-product'} onNavigate={onNavigate} />
                   <SidebarItem screen="store-batches" label="Inventory Batches" icon={ShoppingBag} active={currentScreen === 'store-batches'} onNavigate={onNavigate} />
+                  <SidebarItem screen="store-layout" label="Store Layout" icon={Map} active={currentScreen === 'store-layout'} onNavigate={onNavigate} />
                 </SidebarSection>
                 <SidebarSection title="TRANSACTION MANAGEMENT">
                   <SidebarItem screen="f04-import-transactions" label="Import Transactions" icon={Upload} active={currentScreen === 'f04-import-transactions'} onNavigate={onNavigate} />

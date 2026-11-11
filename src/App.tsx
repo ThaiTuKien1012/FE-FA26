@@ -14,6 +14,7 @@ import { ProductInventoryView } from './features/store/components/ProductInvento
 import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
+import { StoreLayoutView } from './features/store/components/StoreLayoutView';
 import { LoginView } from './features/auth/components/LoginView';
 import { ForgotPasswordView } from './features/auth/components/ForgotPasswordView';
 import { RegisterView } from './features/auth/components/RegisterView';
@@ -210,6 +211,8 @@ export default function App() {
         return ['Store Admin', 'Category Management'];
       case 'store-batches':
         return ['Store Admin', 'Inventory Batches'];
+      case 'store-layout':
+        return ['Store Admin', 'Store Layout Planner'];
       case 'f04-import-transactions':
         return ['Store Admin', 'Import Transactions'];
       case 'f04-import-history':
@@ -401,6 +404,7 @@ export default function App() {
 
           {/* F02: Store Admin - Inventory Batches */}
           {currentScreen === 'store-batches' && <StoreBatchesView onNavigate={handleNavigate} />}
+          {currentScreen === 'store-layout' && <StoreLayoutView />}
 
           {currentScreen === 'f04-import-transactions' && currentUser?.role === 'Store Admin' && (
             <ImportTransactionsView />

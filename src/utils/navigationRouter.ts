@@ -33,6 +33,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'store-edit-product': '/store/edit-product',
   'store-categories': '/store/categories',
   'store-batches': '/store/batches',
+  'store-layout': '/store/layout',
   'f04-import-transactions': '/store/transactions/import',
   'f04-import-history': '/store/transactions/history',
   'f04-transactions': '/store/transactions',

@@ -46,6 +46,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'store-edit-product',
       'store-categories',
       'store-batches',
+      'store-layout',
       'f04-import-transactions',
       'f04-import-history',
       'f04-transactions',
@@ -128,6 +129,12 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
     title: 'Inventory Batches',
+    allowedRoles: ['Store Admin']
+  },
+  'store-layout': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Store Layout Planner',
     allowedRoles: ['Store Admin']
   },
   'f04-import-transactions': {
