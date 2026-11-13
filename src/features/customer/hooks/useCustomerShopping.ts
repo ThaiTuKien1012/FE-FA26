@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { applyCartItems, type CartAddition } from '../cartRules';
 
 type ShoppingState = {
   carts: Record<string, Record<string, number>>;
@@ -59,6 +60,14 @@ function changeQuantity(storeId: string, productId: string, difference: number):
   commit({ ...current, carts: { ...current.carts, [storeId]: quantities } });
 }
 
+function addItems(storeId: string, items: CartAddition[]): boolean {
+  const current = getSnapshot();
+  const cart = applyCartItems(current.carts[storeId] || {}, items);
+  if (!cart) return false;
+  commit({ ...current, carts: { ...current.carts, [storeId]: cart } });
+  return true;
+}
+
 function clearCart(storeId: string): void {
   const current = getSnapshot();
   commit({ ...current, carts: { ...current.carts, [storeId]: {} } });
@@ -75,5 +84,5 @@ function toggleSaved(productId: string): void {
 /** Home and Shop share one tab-scoped cart per store, including across reloads. */
 export function useCustomerShopping() {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => emptyState);
-  return { storeCarts: state.carts, saved: state.saved, changeQuantity, clearCart, toggleSaved };
+  return { storeCarts: state.carts, saved: state.saved, addItems, changeQuantity, clearCart, toggleSaved };
 }

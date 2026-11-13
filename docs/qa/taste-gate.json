@@ -1,0 +1,51 @@
+{
+ "start": "2026-11-12T17:14:06.154Z",
+ "round": 0,
+ "idle": 0,
+ "errors": 1,
+ "status": "error",
+ "history": [
+  {
+   "at": "2026-11-12T17:14:31.721Z",
+   "mode": "manual",
+   "status": "error",
+   "fails": 0,
+   "round": 0,
+   "reused": false,
+   "stopHookActive": false
+  }
+ ],
+ "max": 3,
+ "marker": {
+  "page": null,
+  "url": "http://localhost:3001/customer-home",
+  "root": null,
+  "kind": "product",
+  "category": "grocery storefront",
+  "primary": "Thêm vào giỏ",
+  "rounds": 3,
+  "start": "2026-11-12T17:14:06.154Z",
+  "by": "gate.mjs --start"
+ },
+ "manual": true,
+ "fp": "151205da4ed887a9",
+ "page": "http://localhost:3001/customer-home",
+ "found": {
+  "fails": [],
+  "warns": [],
+  "crashed": [
+   "the copy (the page showed no <main>, <section> or <h1> to lint)",
+   "consistency.mjs gave no report (exit 1: Error: Chrome exited early (null))",
+   "check.mjs could not run (exit 2: check: Chrome did not start)"
+  ],
+  "seconds": {
+   "consistency": 0,
+   "layout": 15
+  }
+ },
+ "open": [],
+ "waived": [],
+ "warnCount": 0,
+ "note": "the copy (the page showed no <main>, <section> or <h1> to lint); consistency.mjs gave no report (exit 1: Error: Chrome exited early (null)); check.mjs could not run (exit 2: check: Chrome did not start)",
+ "at": "2026-11-12T17:14:31.721Z"
+}

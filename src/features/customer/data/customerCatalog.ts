@@ -75,5 +75,5 @@ export function getCustomerCategories(storeId: string): string[] {
 }
 
 export function formatCustomerPrice(priceVnd: number): string {
-  return `${new Intl.NumberFormat('en-US').format(priceVnd)} VND`;
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(priceVnd);
 }
