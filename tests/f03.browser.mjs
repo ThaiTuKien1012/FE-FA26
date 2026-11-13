@@ -15,7 +15,7 @@ const chrome = spawn(process.env.F03_TEST_CHROME || 'C:/Program Files/Google/Chr
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let fixtureRole, cdp, initId;
 const calls = [], unexpected = [], errors = [], checks = [];
-const state = { config: structuredClone(configView), historyError: false, empty: false, ready: true, warnings: [], snapshotError: false, scoreError: false, configError: false, forbiddenMatrix: false, delayCreate: false, delayPreview: false, delayScore: false, delayConfig: false, created: false };
+const state = { expiryError: false, expiryEmpty: false, holdExpiry: false, config: structuredClone(configView), historyError: false, empty: false, ready: true, warnings: [], snapshotError: false, scoreError: false, configError: false, forbiddenMatrix: false, delayCreate: false, delayPreview: false, delayScore: false, delayConfig: false, created: false };
 class CDP {
   next = 0; pending = new Map(); listeners = new Map();
   constructor(ws) { this.ws = ws; ws.addEventListener('message', e => { const data = JSON.parse(e.data); if (data.id) { const p = this.pending.get(data.id); if (!p) return; this.pending.delete(data.id); data.error ? p.reject(new Error(data.error.message)) : p.resolve(data.result); } else for (const handler of this.listeners.get(data.method) || []) void handler(data.params); }); }
@@ -64,7 +64,10 @@ async function paused({ requestId, request }) {
       if (method === 'PATCH' && state.scoreError) { code = 400; body = { error: 'Fixture score save failed' }; }
       else body = { ...scores, productId: Number(path.split('/')[4]), ...(method === 'PATCH' ? JSON.parse(request.postData) : {}) };
     } else if (path === '/api/utility/expiry-push-batches') {
+      while (state.holdExpiry) await sleep(20);
       body = { items: [{ productId: 1, batchId: page + 1, expiryDate: '2026-11-10', remainingQuantity: 12, expiryPushDays: 10, daysRemaining: 5, pushRequired: true, pushRequiredQuantity: 12, asOfDate: '2026-11-05' }], page, pageSize: size, totalElements: 21, asOfDate: '2026-11-05', timeZone: 'Asia/Ho_Chi_Minh', warnings: [] };
+      if (state.expiryEmpty) body = { ...body, items: [], totalElements: 0 };
+      if (state.expiryError) { code = 503; body = { error: 'Fixture expiry unavailable' }; }
     } else if (path === '/api/utility/preview') {
       while (state.delayPreview) await sleep(20);
       body = { ...matrix(JSON.parse(request.postData).page), ready: state.ready, warnings: state.warnings };
@@ -174,11 +177,13 @@ try {
   checks.push('history pagination, empty/error/refresh; deep-link detail and same-route ID Back; refresh; frozen config is version 7, current is 10; matrix pagination');
 
   // All four layouts at the requested viewport widths; horizontal tables stay contained.
-  for (const width of [1440, 1024, 820, 390]) {
+  for (const width of [1440, 1024, 820, 768, 390]) {
     await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
     for (const label of ['Configuration', 'Product Scores', 'Preview', 'Snapshots']) {
       await tab(label); await sleep(100);
       assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'), true, `${label} at ${width}px`);
+      assert.equal(await evaluate("document.querySelector('.f03-planner > header').firstElementChild.tagName"), 'H1', 'Planner header starts with the page title');
+      assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"), false);
       await capture(`${width}-${label.replaceAll(' ', '-').toLowerCase()}`);
     }
   }
@@ -194,14 +199,28 @@ try {
   await session('Merchandiser', '/f03/snapshot'); await has('Utility Snapshots');
   state.forbiddenMatrix = true; await session('Merchandiser', '/f03/snapshot/matrix?id=21'); await has('Access denied (403)'); await has('Frozen Configuration'); state.forbiddenMatrix = false;
   for (const role of ['Store Admin', 'Merchandiser']) {
-    await session(role, '/mining?view=snapshots'); await has('Read-only access'); await has('Snapshot #122');
+    await session(role, '/mining?view=snapshots'); await has(role === 'Store Admin' ? 'Mining Results' : 'Read-only access'); await has('Snapshot #122');
     assert.equal(await evaluate(buttons + ".some(b=>b.innerText.trim()==='Run Mining')"), false);
   }
   await session('Store Admin', '/f03/snapshots'); await has('Details require Merchandiser access'); assert.equal(await enabled('Create Snapshot'), false);
   const featureCalls = () => calls.filter(c => !c.path.startsWith('/api/auth/')).length; const beforeDenied = featureCalls();
   for (const [role, path] of [['Store Admin', '/f03/snapshot/detail?id=21'], ['Store Admin', '/f03/preview'], ['System Admin', '/f03/snapshots'], ['End-Customer', '/f03/snapshots']]) { await session(role, path); await has('Access Restricted'); }
   assert.equal(featureCalls(), beforeDenied);
-  await session('Store Admin', '/f03/product-scores'); await has('Read-only scores'); await select(1); await has('Utility Weight'); assert.equal(await enabled('Save Product Scores'), false);
+  await session('Store Admin', '/f03/product-scores'); await has('Monitor product priorities and scores across your store.');
+  await until("!!document.querySelector('button[aria-label=\"View scores for Product 001\"]')", 'Store product list');
+  await evaluate("document.querySelector('button[aria-label=\"View scores for Product 001\"]').click()"); await has('Utility Weight'); assert.equal(await enabled('Save Product Scores'), false);
+  assert.equal(await evaluate("!!document.querySelector('nav[aria-label=\"Utility Planner tabs\"],input[aria-label=\"Stock Priority Score\"]')"), false);
+  for (const width of [1440, 1024, 820, 390]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true);
+    await has('5 days left'); await has('Needs attention');
+    assert.equal(await evaluate("document.querySelector('#store-expiry-title').closest('section').innerText.includes('Priority push (')"), false);
+    await capture('store-admin-scores-' + width);
+  }
+  state.expiryEmpty = true; await click('Refresh Batches'); await has('No batches approaching expiry were returned.');
+  state.expiryEmpty = false; state.expiryError = true; await click('Refresh Batches'); await has('Fixture expiry unavailable');
+  state.expiryError = false; state.holdExpiry = true; await click('Refresh Batches'); await has('Loading batches');
+  state.holdExpiry = false; await has('Needs attention');
   await session('System Admin', '/admin/lambda-policy'); await has('Global Lambda Policy'); assert.equal(await evaluate(buttons + ".some(b=>b.innerText.trim()==='Save Configuration')"), false);
   checks.push('direct Snapshots starts without Preview; legacy links; matrix 403; F03 READY snapshots readable by F05; Store Admin read-only; Customer/System Admin isolation; Lambda Policy preserved');
 
@@ -210,6 +229,7 @@ try {
   console.log(JSON.stringify({ result: 'PASS (HTTP fixtures only)', checks, interceptedApiCalls: calls.length, realBackendWrites: 0, artifacts }, null, 2));
 } catch (error) { try { await capture('failure'); } catch {} console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, errors, unexpected, artifacts }, null, 2)); process.exitCode = 1; }
 finally {
+  state.holdExpiry = false;
   if (cdp) { try { await cdp.call('Browser.close'); } catch {} cdp.ws.close(); }
   if (chrome.exitCode === null) await Promise.race([new Promise(r => chrome.once('exit', r)), sleep(2000)]);
   if (chrome.exitCode === null) chrome.kill();

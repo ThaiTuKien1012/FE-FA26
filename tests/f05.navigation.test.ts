@@ -42,7 +42,7 @@ test('Store context is preserved while request/run context stays within History 
 test('sidebar matches the required groups and has exactly one active item for each destination',()=>{
   const menus=[...SYSTEM_MINING_NAV.map(x=>x.screen),'users','lambda-policy'] as ActiveNavScreen[];
   for(const screen of menus){
-    const html=renderToStaticMarkup(createElement(AppLayout,{currentScreen:screen,currentUser:user,breadcrumbs:[],onNavigate:()=>{},children:null}));
+    const html=renderToStaticMarkup(createElement(AppLayout,{currentScreen:screen,currentUser:user,onNavigate:()=>{},children:null}));
     for(const group of ['OVERVIEW','MINING ENGINE MANAGEMENT','SYSTEM MANAGEMENT'])assert.ok(html.includes(group));
     for(const label of ['Dashboard','Algorithm Configuration','Run Mining','Mining History','Algorithm Benchmark','Users &amp; Roles','Lambda Policy'])assert.ok(html.includes(label));
     assert.equal((html.match(/aria-current="page"/g)||[]).length,1);

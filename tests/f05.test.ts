@@ -344,6 +344,7 @@ test('workspace RBAC and result actions match all four actors; old drafts never 
     const html=renderToStaticMarkup(createElement(F05WorkspaceView,{currentUser:{...user,role}}));
     if(role==='End-Customer')assert.equal(html,'');
     else if(role==='System Admin'){assert.ok(html.includes('Dashboard'));assert.equal(html.includes('<form'),false);}
+    else if(role==='Store Admin'){assert.ok(html.includes('Mining Results'));assert.ok(html.includes('Recent analyses'));assert.ok(html.includes('Source snapshots'));assert.equal(html.includes('Request history'),false);assert.equal(html.includes('Run Mining'),false);}
     else {assert.ok(html.includes('Read-only access'));assert.equal(html.includes('Run Mining'),false);assert.ok(html.includes('Request history'));}
   }
   for(const reader of [storeMiningReader,systemMiningReader(1)]){

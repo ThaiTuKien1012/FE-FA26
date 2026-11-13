@@ -5,9 +5,9 @@ import { f05Api, F05ApiError } from '../f05.api';
 import { miningButton, miningErrorMessage } from '../f05.display';
 import type { Page, PatternView, RunView } from '../f05.types';
 
-interface Props { run: RunView; onReadError: (error: unknown) => void; }
+interface Props { compact?: boolean; run: RunView; onReadError: (error: unknown) => void; }
 
-export function MiningPatternsView({ run, onReadError }: Props) {
+export function MiningPatternsView({ run, onReadError, compact=false }: Props) {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [revision, setRevision] = useState(0);
@@ -41,15 +41,15 @@ export function MiningPatternsView({ run, onReadError }: Props) {
   const pages = data ? Math.max(1, Math.ceil(data.totalElements / pageSize)) : 1;
   return <section aria-labelledby="f05-patterns-title" className="mt-4 rounded-xl border border-[#E7E2D8] bg-white p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h4 id="f05-patterns-title" className="text-lg font-semibold">Patterns · Run #{run.runId}</h4><p className="mt-2 text-sm text-[#6D7974]">Utility is frozen weighted utility, not revenue or profit. Product IDs and row order come from the backend.</p></div>
+      <div><h4 id="f05-patterns-title" className="text-lg font-semibold">{compact ? 'Product patterns' : `Patterns · Run #${run.runId}`}</h4><p className="mt-2 text-sm text-[#6D7974]">{compact ? 'Utility scores use the saved analysis; they are not revenue.' : 'Utility is frozen weighted utility, not revenue or profit. Product IDs and row order come from the backend.'}</p></div>
       <button type="button" className={miningButton} disabled={!current} onClick={() => setRevision(value => value + 1)}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh patterns</button>
     </div>
     {!current ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-[#6D7974]"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />Loading patterns...</p> : current.error ?
       <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{current.error} Use Refresh patterns to retry manually.</div> : data && <>
         {data.items.length === 0 ? <p className="mt-4 rounded-lg bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">{data.totalElements === 0 ? 'This completed run returned no patterns. Zero patterns is a valid mining result.' : 'No patterns were returned on this page. Refresh to check the results.'}</p> :
           <div className="mt-4 max-h-[28rem] overflow-auto rounded-lg border border-[#E7E2D8]"><table className="w-full text-left text-sm">
-            <caption className="sr-only">High utility patterns for run {run.runId}</caption><thead className="sticky top-0 bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{['Pattern ID', 'Product IDs', 'Frozen weighted utility', 'Pattern size', 'Support count'].map(label => <th scope="col" key={label} className="whitespace-nowrap p-3">{label}</th>)}</tr></thead>
-            <tbody>{data.items.map(pattern => <tr key={pattern.patternId} className="border-t border-[#E7E2D8]"><th scope="row" className="p-3 font-medium">#{pattern.patternId}</th><td className="p-3">{pattern.productIds.join(', ')}</td><td className="p-3">{pattern.utility}</td><td className="p-3">{pattern.patternSize}</td><td className="p-3">{pattern.supportCount === null ? 'Not measured' : pattern.supportCount}</td></tr>)}</tbody>
+            <caption className="sr-only">High utility patterns for run {run.runId}</caption><thead className="sticky top-0 bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{(compact ? ['Products', 'Utility Score', 'Evidence'] : ['Pattern ID', 'Product IDs', 'Frozen weighted utility', 'Pattern size', 'Support count']).map(label => <th scope="col" key={label} className="whitespace-nowrap p-3">{label}</th>)}</tr></thead>
+            <tbody>{data.items.map(pattern => <tr key={pattern.patternId} className="border-t border-[#E7E2D8]">{compact ? <><th scope="row" className="p-3 font-medium">{pattern.productIds.map(id => 'Product #' + id).join(', ')}</th><td className="p-3 tabular-nums">{pattern.utility.toLocaleString('en-US', { maximumSignificantDigits: 21 })}</td><td className="p-3"><details className="text-xs"><summary className="cursor-pointer text-[#356B54]">Details</summary><dl className="mt-3 space-y-2"><div><dt className="text-[#6D7974]">Pattern</dt><dd>#{pattern.patternId}</dd></div><div><dt className="text-[#6D7974]">Products</dt><dd>{pattern.patternSize}</dd></div><div><dt className="text-[#6D7974]">Support</dt><dd>{pattern.supportCount === null ? 'Not measured' : pattern.supportCount}</dd></div></dl></details></td></> : <><th scope="row" className="p-3 font-medium">#{pattern.patternId}</th><td className="p-3">{pattern.productIds.join(', ')}</td><td className="p-3">{pattern.utility}</td><td className="p-3">{pattern.patternSize}</td><td className="p-3">{pattern.supportCount === null ? 'Not measured' : pattern.supportCount}</td></>}</tr>)}</tbody>
           </table></div>}
         <nav aria-label="Pattern pages" className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#6D7974]">
           <p>Page {data.page + 1} of {pages} · {data.totalElements} patterns</p>

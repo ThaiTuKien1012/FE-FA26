@@ -11,6 +11,8 @@ import { storeMiningReader } from '../f05.reader';
 import type { MiningReader } from '../f05.reader';
 
 interface Props {
+  compact?: boolean;
+  onClose?: () => void;
   reader?: MiningReader;
   onOpenBenchmark?: (requestId:number,runId:number)=>void;
   requestId: number;
@@ -34,7 +36,7 @@ function RunMeasurements({ run }: { run: RunView }) {
   </>;
 }
 
-export function RequestDetails({ requestId, onUpdated, onReadError, reader=storeMiningReader, onOpenBenchmark }: Props) {
+export function RequestDetails({ requestId, onUpdated, onReadError, reader=storeMiningReader, onOpenBenchmark, compact=false, onClose }: Props) {
   const [runId, setRunId] = useState<number | null>(null);
   const [revision, setRevision] = useState(0);
   const token=(authService.getSessionId() || authService.getToken());
@@ -55,6 +57,24 @@ export function RequestDetails({ requestId, onUpdated, onReadError, reader=store
 
   const data = current?.data;
   const request = data?.request;
+  if (compact && reader.kind === 'store') return <section aria-labelledby="f05-details-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 sm:p-6">
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="f05-details-title" className="text-xl font-semibold">Analysis overview</h2><div className="flex flex-wrap gap-2"><button type="button" className={miningButton} disabled={!current} onClick={() => setRevision(value => value + 1)}>Refresh Details</button>{onClose && <button type="button" className={miningButton} onClick={onClose}>Close Details</button>}</div></div>
+    {!current ? <p role="status" className="mt-5 text-sm text-[#6D7974]">Loading request and algorithm runs...</p> : current.error ? <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{current.error} Use Refresh details to try again.</p> : request && data && <>
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm"><span className="text-[#6D7974]">Analysis status</span><MiningStatusBadge friendly kind="request" status={request.status} /><span>{request.snapshot.rangeStart} to {request.snapshot.rangeEnd}</span></div>
+      <h3 className="mt-5 font-semibold">Algorithm results</h3>
+      {!data.runs.length ? <p className="mt-3 text-sm text-[#6D7974]">No runs were returned for this analysis.</p> : <div data-store-run-grid className={data.runs.length === 1 ? 'mt-3' : 'mt-3 grid gap-4 lg:grid-cols-2'}>{data.runs.map(run => <article key={run.runId} className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="text-sm font-semibold">{algorithmName(run.algorithm)}</h4><span className="flex items-center gap-2 text-xs text-[#6D7974]">Run status <MiningStatusBadge friendly kind="run" status={run.status} /></span></div>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-xs text-[#6D7974]">Completed</dt><dd className="mt-1">{miningDate(run.completedAt)}</dd></div><div><dt className="text-xs text-[#6D7974]">Patterns</dt><dd className="mt-1 font-semibold">{formatMiningNumber(run.patternCount)}</dd></div></dl>
+        {(run.failureCode !== null || run.failureMessage !== null) && <p className="mt-3 break-words rounded-lg bg-red-50 p-3 text-sm text-red-800">{run.failureCode} {run.failureMessage}</p>}
+        <button type="button" aria-label={'View run #' + run.runId} aria-pressed={runId === run.runId} onClick={() => setRunId(runId === run.runId ? null : run.runId)} className={miningButton + ' mt-4'}>{runId === run.runId ? 'Hide Patterns' : 'View Patterns'}</button>
+      </article>)}</div>}
+      {data.runDetail && <div className="mt-5"><MiningRunResults compact key={data.runDetail.runId} reader={reader} request={request} runs={data.runs} run={data.runDetail} onReadError={onReadError} /></div>}
+      <details className="mt-5 border-t border-[#E7E2D8] pt-4 text-sm"><summary className="cursor-pointer font-semibold text-[#356B54]">Additional details</summary>
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2"><div><dt className="text-xs text-[#6D7974]">Request / Snapshot</dt><dd>#{request.requestId} / #{request.snapshotId}</dd></div><div><dt className="text-xs text-[#6D7974]">Comparison status</dt><dd><MiningStatusBadge kind="comparison" status={request.comparisonStatus} /></dd></div><div><dt className="text-xs text-[#6D7974]">Minimum utility</dt><dd>{formatThreshold(request.minUtilValue, request.minUtilMode)}</dd></div><div><dt className="text-xs text-[#6D7974]">Transactions / Distinct items</dt><dd>{request.transactionCount} / {request.distinctItems}</dd></div><div><dt className="text-xs text-[#6D7974]">Snapshot / Input hash</dt><dd className="break-all">{request.snapshotHash} / {request.inputHash}</dd></div><div><dt className="text-xs text-[#6D7974]">Conversion / SPMF threshold / Effective minimum utility</dt><dd className="break-words">{request.conversionVersion} / {request.minUtilSpmf} / {request.effectiveMinUtility}</dd></div></dl>
+        {data.runs.map(row => { const run = data.runDetail?.runId === row.runId ? data.runDetail : row; return <div key={run.runId} className="mt-5 border-t border-[#E7E2D8] pt-4"><p className="font-semibold">Run #{run.runId} / {algorithmName(run.algorithm)}</p><RunMeasurements run={run} /><dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2"><div><dt>Library / Attempt / Conversion</dt><dd>{run.libraryVersion} / {run.attemptNo} / {run.conversionVersion}</dd></div><div><dt>Runtime method</dt><dd className="break-words">{run.runtimeMethod}</dd></div><div><dt>Memory method</dt><dd className="break-words">{run.memoryMethod}</dd></div><div><dt>Environment</dt><dd className="break-words">{run.environment ?? 'Not available'}</dd></div></dl></div>; })}
+      </details>
+    </>}
+  </section>;
   if(reader.kind==='system')return <section aria-labelledby="f05-details-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="f05-details-title" className="text-lg font-semibold">Request Details{request?' #'+request.requestId:''}</h2><button type="button" className={miningButton} disabled={!current} onClick={()=>setRevision(value=>value+1)}>Refresh details</button></div>
     {!current?<p role="status" className="mt-5 text-sm text-[#6D7974]">Loading request and algorithm runs...</p>:current.error?<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{current.error} Updates have stopped. Use Refresh details to try again.</p>:request&&data&&<>

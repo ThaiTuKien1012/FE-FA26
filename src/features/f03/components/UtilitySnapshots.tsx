@@ -42,7 +42,7 @@ export function UtilitySnapshots({ flow, readOnly, invalidate, isCurrent }: { fl
     <SnapshotHistory refresh={refresh} readOnly={readOnly} />
   </div>;
 }
-function SnapshotHistory({ refresh, readOnly }: { refresh: number; readOnly: boolean }) {
+export function SnapshotHistory({ refresh, readOnly }: { refresh: number; readOnly: boolean }) {
   const [result, setResult] = useState<F03SnapshotPage | null>(null);
   const [page, setPage] = useState(0);
   const [reload, setReload] = useState(0);

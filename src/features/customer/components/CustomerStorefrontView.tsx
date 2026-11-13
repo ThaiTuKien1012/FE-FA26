@@ -207,10 +207,6 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-[#1e3a2f] to-[#2d5746] rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden shadow-sm">
           <div className="relative z-10 max-w-2xl space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-[11px] font-semibold text-[#caeada]">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Smart Recommendation Engine Active</span>
-            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Good morning, {user?.name || 'Customer'}!
             </h1>
