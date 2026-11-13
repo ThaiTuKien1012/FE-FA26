@@ -5,10 +5,11 @@ const requireValue = (condition:unknown,message:string):void => { if (!condition
 const text = (value:unknown):value is string => typeof value==='string' && value.trim().length>0 && value.length<=200;
 const integer = (n:unknown,min=0,max=Number.MAX_SAFE_INTEGER):n is number => typeof n==='number' && Number.isSafeInteger(n) && n>=min && n<=max;
 function storeExists(storeId:string) { requireValue(mockStores.some(s=>s.id===storeId),'Unknown fixture store'); }
+function scope(actor:MockActor,storeId:string) { requireValue(!actor.storeId || actor.storeId===storeId,'Action outside assigned store'); }
 function merchant(actor:MockActor) { requireValue(actor?.role==='Merchandiser','Only Merchandiser can perform this action'); }
 function layout(state:MockState,id:string,storeId:string):MockLayout { const found=state.layouts.find(l=>l.id===id && l.storeId===storeId); requireValue(found,'Layout does not belong to this store'); return found!; }
 function campaign(state:MockState,id:string):MockCampaign { const found=state.campaigns.find(c=>c.id===id); requireValue(found,'Campaign not found'); return found!; }
-function placementsForStore(storeId:string,placements:CustomerPlacement[]):CustomerPlacement[] {
+function placementsForStore(storeId:string,placements:CustomerPlacement[], checkAvailability=true):CustomerPlacement[] {
   storeExists(storeId);
   requireValue(Array.isArray(placements) && placements.length<=30,'Invalid placements');
   const normalized=normalizeActiveLayout({id:'validate',version:'1',status:'ACTIVE',storeId,placements},storeId)!;
@@ -23,7 +24,7 @@ function placementsForStore(storeId:string,placements:CustomerPlacement[]):Custo
     else requireValue(p.items.length===group!.items.length,'Use the complete approved product set');
     for (const item of p.items) {
       const product=mockProducts(storeId).find(p=>p.id===item.productId);
-      requireValue(product?.isActive && integer(product.priceVnd) && integer(item.quantity,1) && item.quantity<=product.stockQuantity,'Product unavailable, invalid price, or insufficient stock');
+      if(checkAvailability) requireValue(product?.isActive && integer(product.priceVnd) && integer(item.quantity,1) && item.quantity<=product.stockQuantity,'Product unavailable, invalid price, or insufficient stock');
     }
   }
   return normalized.placements;
@@ -32,23 +33,32 @@ export function initialMockState():MockState { return {schemaVersion:1,revision:
 function next(state:MockState):MockState { requireValue(integer(state.revision,0,Number.MAX_SAFE_INTEGER-1),'Revision exhausted'); return {...state,revision:state.revision+1}; }
 /** Versions increment per store, independently of the draft name. Every save creates a new immutable snapshot. */
 export function saveDraft(state:MockState,actor:MockActor,storeId:string,name:string,placements:CustomerPlacement[]):MockState {
-  merchant(actor); requireValue(text(name),'Enter a layout name');
+  merchant(actor); scope(actor,storeId); requireValue(text(name),'Enter a layout name');
   const safe=placementsForStore(storeId,placements); const updated=next(state);
   const version=1+Math.max(0,...state.layouts.filter(l=>l.storeId===storeId).map(l=>l.version));
   return {...updated,layouts:[...state.layouts,{id:`layout-${updated.revision}`,storeId,name:name.trim(),version,status:'DRAFT',placements:safe}]};
 }
 export function createCampaign(state:MockState,actor:MockActor,storeId:string,name:string,proposedId:string,baselineId:string|null):MockState {
-  merchant(actor); storeExists(storeId); requireValue(text(name),'Enter a campaign name');
+  merchant(actor); scope(actor,storeId); storeExists(storeId); requireValue(text(name),'Enter a campaign name');
   const proposed=layout(state,proposedId,storeId); requireValue(proposed.status==='DRAFT','Choose a saved draft for B');
   requireValue(proposedId!==baselineId,'A and B must be different versions');
   if(baselineId!==null) layout(state,baselineId,storeId);
   const updated=next(state);
-  return {...updated,campaigns:[...state.campaigns,{id:`campaign-${updated.revision}`,storeId,name:name.trim(),baselineId,proposedId,result:null}]};
+  return {...updated,campaigns:[...state.campaigns,{id:`campaign-${updated.revision}`,storeId,name:name.trim(),baselineId,proposedId,result:null,history:[]}]};
+}
+export function editCampaign(state:MockState,actor:MockActor,id:string,name:string,proposedId:string,baselineId:string|null):MockState {
+  merchant(actor); const current=campaign(state,id); scope(actor,current.storeId);
+  requireValue(layout(state,current.proposedId,current.storeId).status==='DRAFT','Published campaign is locked; create a new campaign');
+  const checked=createCampaign(state,actor,current.storeId,name,proposedId,baselineId).campaigns.at(-1)!;
+  return {...next(state),campaigns:state.campaigns.map(c=>c.id===id?{...c,name:checked.name,proposedId,baselineId,result:null}:c)};
+}
+function fingerprint(state:MockState,c:MockCampaign):string {
+  return JSON.stringify([c.baselineId,c.proposedId,...[c.baselineId,c.proposedId].filter((id):id is string=>id!==null).map(id=>layout(state,id,c.storeId).placements.map(p=>({placement:p,utility:approvedGroups(c.storeId).find(g=>g.id===p.groupId)?.utility,prices:p.items.map(i=>mockProducts(c.storeId).find(x=>x.id===i.productId)?.priceVnd)})))]);
 }
 function metrics(state:MockState,c:MockCampaign,id:string|null,seed:number,visitors:number):SimulationMetrics {
-  if(id===null) return {orders:0,revenue:0,utility:0};
+  if(id===null) return {orders:0,revenue:0,utility:0,clicks:0,ctr:0,conversion:0};
   const placements=placementsForStore(c.storeId,layout(state,id,c.storeId).placements);
-  const result={orders:0,revenue:0,utility:0}; let random=seed>>>0;
+  const result={orders:0,revenue:0,utility:0,clicks:0,ctr:0,conversion:0}; let random=seed>>>0;
   // Each arm receives exactly visitors opportunities. A visitor buys at most one bundle.
   // Repeated presentation of a group does not invent additional demand.
   const seen=new Set<string>();
@@ -61,29 +71,32 @@ function metrics(state:MockState,c:MockCampaign,id:string|null,seed:number,visit
   // Same visitor stream for both arms; 8% is illustrative, never real sales evidence.
   for(let v=0;v<visitors;v++) {
     random=(Math.imul(random,1664525)+1013904223)>>>0;
+    if(random/4294967296<0.25) result.clicks++;
     if(random/4294967296<0.08) {
       const offer=offers[v%offers.length]; result.orders++; result.revenue+=offer.total; result.utility+=offer.utility;
     }
   }
-  requireValue(Object.values(result).every(n=>integer(n)),'Simulation totals exceed safe bounds'); return result;
+  requireValue(Object.values(result).every(n=>integer(n)),'Simulation totals exceed safe bounds'); result.ctr=result.clicks/visitors; result.conversion=result.orders/visitors; return result;
 }
 function simulate(state:MockState,c:MockCampaign,seed:number,visitors:number):SimulationResult {
   requireValue(integer(seed,0,4294967295),'Seed must be an integer from 0 to 4294967295');
   requireValue(integer(visitors,1,1000000),'Visitors must be an integer from 1 to 1000000');
-  return {seed,visitors,a:metrics(state,c,c.baselineId,seed,visitors),b:metrics(state,c,c.proposedId,seed,visitors)};
+  return {seed,visitors,inputFingerprint:fingerprint(state,c),a:metrics(state,c,c.baselineId,seed,visitors),b:metrics(state,c,c.proposedId,seed,visitors)};
 }
 export function simulateCampaign(state:MockState,actor:MockActor,campaignId:string,seed:number,visitors:number):MockState {
-  merchant(actor); const c=campaign(state,campaignId); const result=simulate(state,c,seed,visitors);
-  return {...next(state),campaigns:state.campaigns.map(x=>x.id===c.id?{...x,result}:x)};
+  merchant(actor); const c=campaign(state,campaignId); scope(actor,c.storeId); requireValue((c.history?.length||0)<1000,'Simulation history limit reached; create a new campaign'); const result={...simulate(state,c,seed,visitors),ranAt:new Date().toISOString()};
+  return {...next(state),campaigns:state.campaigns.map(x=>x.id===c.id?{...x,result,history:[...(x.history||[]),{result,baselineId:c.baselineId,proposedId:c.proposedId}]}:x)};
 }
 export function publishCampaign(state:MockState,actor:MockActor,campaignId:string):MockState {
-  merchant(actor); const c=campaign(state,campaignId); const b=layout(state,c.proposedId,c.storeId);
+  merchant(actor); const c=campaign(state,campaignId); scope(actor,c.storeId); const b=layout(state,c.proposedId,c.storeId);
   requireValue(b.placements.length>0,'Publish requires a nonempty saved layout');
-  requireValue(c.result && JSON.stringify(c.result)===JSON.stringify(simulate(state,c,c.result.seed,c.result.visitors)),'Run a matching simulation before publication');
+  requireValue(c.result && c.result.inputFingerprint===fingerprint(state,c),'Run a matching simulation before publication');
+  placementsForStore(c.storeId,b.placements);
+  const {ranAt: _date,...stored}=c.result!; requireValue(JSON.stringify(stored)===JSON.stringify(simulate(state,c,c.result!.seed,c.result!.visitors)),'Run a matching simulation before publication');
   return {...next(state),layouts:state.layouts.map(l=>l.id===b.id?{...l,status:'PUBLISHED'}:l)};
 }
 export function activateLayout(state:MockState,actor:MockActor,storeId:string,layoutId:string):MockState {
-  requireValue(actor?.role==='Store Admin','Only Store Admin can activate layouts'); storeExists(storeId);
+  requireValue(actor?.role==='Store Admin','Only Store Admin can activate layouts'); storeExists(storeId); scope(actor,storeId);
   const saved=layout(state,layoutId,storeId); requireValue(saved.status==='PUBLISHED','Only published layouts can be activated');
   placementsForStore(storeId,saved.placements);
   return {...next(state),activeByStore:{...state.activeByStore,[storeId]:layoutId}};
@@ -91,7 +104,35 @@ export function activateLayout(state:MockState,actor:MockActor,storeId:string,la
 export function projectActiveLayout(state:MockState,storeId:string):CustomerActiveLayout|null {
   const saved=state.layouts.find(l=>l.id===state.activeByStore[storeId] && l.storeId===storeId && l.status==='PUBLISHED');
   if(!saved) return null;
-  try { return {id:saved.id,version:String(saved.version),status:'ACTIVE',storeId,placements:placementsForStore(storeId,saved.placements)}; } catch { return null; }
+  try { return {id:saved.id,version:String(saved.version),status:'ACTIVE',storeId,placements:placementsForStore(storeId,saved.placements,false)}; } catch { return null; }
+}
+/** Replay persisted price/utility evidence, never today's inventory, to detect corrupted history. */
+function evidenceMetrics(rows:unknown,seed:number,visitors:number):SimulationMetrics {
+  requireValue(Array.isArray(rows),'Invalid price evidence');
+  const seen=new Set<string>(); const offers:{total:number;utility:number}[]=[];
+  for(const value of rows as {placement:CustomerPlacement;utility:number;prices:number[]}[]) {
+    requireValue(value && value.placement && Array.isArray(value.placement.items) && Array.isArray(value.prices) && value.prices.length===value.placement.items.length && integer(value.utility),'Invalid price snapshot');
+    requireValue(value.prices.every(price=>integer(price))&&value.placement.items.every(item=>integer(item.quantity,1)),'Invalid captured price');
+    if(value.placement.type==='BUNDLE'&&!seen.has(value.placement.groupId)) { seen.add(value.placement.groupId); offers.push({total:value.prices.reduce((sum,price,index)=>sum+price*value.placement.items[index].quantity,0),utility:value.utility}); }
+  }
+  const result={orders:0,revenue:0,utility:0,clicks:0,ctr:0,conversion:0};let random=seed>>>0;
+  if(offers.length) for(let visitor=0;visitor<visitors;visitor++) {random=(Math.imul(random,1664525)+1013904223)>>>0;if(random/4294967296<0.25)result.clicks++;if(random/4294967296<0.08){const offer=offers[visitor%offers.length];result.orders++;result.revenue+=offer.total;result.utility+=offer.utility;}}
+  result.ctr=result.clicks/visitors;result.conversion=result.orders/visitors;return result;
+}
+function validateResult(result:SimulationResult) {
+  requireValue(result && integer(result.seed,0,4294967295)&&integer(result.visitors,1,1000000),'Invalid simulation settings');
+  if(result.ranAt!==undefined) requireValue(typeof result.ranAt==='string' && Number.isFinite(Date.parse(result.ranAt)),'Invalid run date');
+  if(result.inputFingerprint!==undefined) requireValue(typeof result.inputFingerprint==='string'&&result.inputFingerprint.length<100000,'Invalid simulation evidence');
+  if(result.inputFingerprint!==undefined) {
+    const evidence=JSON.parse(result.inputFingerprint);requireValue(Array.isArray(evidence)&&evidence.length>=3,'Invalid captured inputs');
+    const baseline=evidence[0]===null?[]:evidence[2];const proposed=evidence[evidence[0]===null?2:3];
+    requireValue(JSON.stringify(result.a)===JSON.stringify(evidenceMetrics(baseline,result.seed,result.visitors))&&JSON.stringify(result.b)===JSON.stringify(evidenceMetrics(proposed,result.seed,result.visitors)),'Corrupted simulation evidence');
+  }
+  for(const m of [result.a,result.b]) {
+    requireValue(m && integer(m.orders,0,result.visitors)&&integer(m.revenue)&&integer(m.utility),'Invalid simulation metrics');
+    if(m.clicks!==undefined) requireValue(integer(m.clicks,m.orders,result.visitors)&&m.ctr===m.clicks/result.visitors&&m.conversion===m.orders/result.visitors,'Invalid simulation rates');
+    else requireValue(m.ctr===undefined&&m.conversion===undefined,'Invalid legacy rates');
+  }
 }
 /** Entire invalid snapshots recover to empty state; no guessed publication or activation. */
 export function restoreMockState(input:unknown):MockState {
@@ -105,14 +146,18 @@ export function restoreMockState(input:unknown):MockState {
       requireValue(l && text(l.id) && !ids.has(l.id) && text(l.name) && integer(l.version,1) && ['DRAFT','PUBLISHED'].includes(l.status),'Invalid saved layout');
       requireValue(!versions.has(`${l.storeId}:${l.version}`),'Duplicate store version');
       versions.add(`${l.storeId}:${l.version}`);
-      ids.add(l.id); l.placements=placementsForStore(l.storeId,l.placements);
+      ids.add(l.id); l.placements=placementsForStore(l.storeId,l.placements,false);
     }
     for(const c of s.campaigns) {
       requireValue(c && text(c.id) && !ids.has(c.id) && text(c.name),'Invalid campaign'); ids.add(c.id);
       storeExists(c.storeId); layout(s,c.proposedId,c.storeId);
       requireValue(c.baselineId===null || (typeof c.baselineId==='string' && c.baselineId!==c.proposedId),'Invalid baseline');
       if(c.baselineId!==null) layout(s,c.baselineId,c.storeId);
-      if(c.result!==null) requireValue(c.result && JSON.stringify(c.result)===JSON.stringify(simulate(s,c,c.result.seed,c.result.visitors)),'Invalid simulation');
+      if(c.result!==null) validateResult(c.result);
+      if(c.history===undefined) c.history=c.result?[{result:structuredClone(c.result),baselineId:c.baselineId,proposedId:c.proposedId}]:[];
+      requireValue(Array.isArray(c.history)&&c.history.length<=1000,'Invalid run history');
+      for(const run of c.history!) { layout(s,run.proposedId,c.storeId); if(run.baselineId!==null) layout(s,run.baselineId,c.storeId); validateResult(run.result); }
+
     }
     for(const l of s.layouts.filter(l=>l.status==='PUBLISHED')) requireValue(l.placements.length>0 && s.campaigns.some(c=>c.proposedId===l.id && c.result!==null),'Publication requires simulation evidence');
     for(const [storeId,id] of Object.entries(s.activeByStore)) { storeExists(storeId); requireValue(text(id) && projectActiveLayout(s,storeId),'Invalid active pointer'); }

@@ -1,3 +1,6 @@
+import { DemoRecommendations } from './features/demo/DemoRecommendations';
+import { DEMO_MODE } from './demo/demo.config';
+import { DemoAuthService } from './demo/demo.auth';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -157,6 +160,12 @@ export default function App() {
   };
 
   const handleSwitchRole = (roleKey: 'store-admin' | 'system-admin' | 'merchandiser' | 'customer') => {
+    if (DEMO_MODE && authService instanceof DemoAuthService) {
+      const roles = { 'store-admin': 'Store Admin', 'system-admin': 'System Admin', 'merchandiser': 'Merchandiser', 'customer': 'End-Customer' } as const;
+      const user = authService.selectPersona(roles[roleKey]);
+      handleLoginSuccess(user, user.defaultScreen);
+      return;
+    }
     const roleScreens: Record<string, ActiveNavScreen> = {
       'store-admin': 'store-inventory',
       'system-admin': 'overview',
@@ -353,7 +362,7 @@ export default function App() {
           {currentScreen === 'merchandising-mock' && currentUser && <MockMerchandisingWorkspace currentUser={currentUser} />}
           {/* Merchandiser: Single Recommendations Dashboard Screen */}
           {currentScreen === 'merchandiser-recommendations' && (
-            <MerchandiserRecommendationsView
+            DEMO_MODE && currentUser ? <DemoRecommendations user={currentUser} onNavigate={handleNavigate}/> : <MerchandiserRecommendationsView
               currentScreen={currentScreen}
               onNavigate={handleNavigate}
             />
@@ -361,17 +370,17 @@ export default function App() {
 
           {/* Merchandiser: Review & Approve Product Group */}
           {currentScreen === 'merchandiser-approve' && (
-            <ReviewApproveGroupView onNavigate={handleNavigate} />
+            DEMO_MODE && currentUser ? <DemoRecommendations user={currentUser} onNavigate={handleNavigate}/> : <ReviewApproveGroupView onNavigate={handleNavigate} />
           )}
 
           {/* Merchandiser: Campaign Draft & Publish */}
           {currentScreen === 'merchandiser-campaign-draft' && (
-            <CampaignDraftPublishView onNavigate={handleNavigate} />
+            DEMO_MODE && currentUser ? <MockMerchandisingWorkspace currentUser={currentUser} initialTab="campaigns"/> : <CampaignDraftPublishView onNavigate={handleNavigate} />
           )}
 
           {/* Merchandiser: Published / Waiting Campaign Status */}
           {currentScreen === 'merchandiser-campaign-status' && (
-            <PublishedCampaignStatusView onNavigate={handleNavigate} />
+            DEMO_MODE && currentUser ? <MockMerchandisingWorkspace currentUser={currentUser} initialTab="campaigns"/> : <PublishedCampaignStatusView onNavigate={handleNavigate} />
           )}
 
           {/* Merchandiser: Utility Profile & Priority Weights */}
@@ -386,17 +395,17 @@ export default function App() {
 
           {/* Merchandiser: A/B Simulation Setup */}
           {currentScreen === 'merchandiser-ab-simulation' && (
-            <ABSimulationSetupView onNavigate={handleNavigate} />
+            DEMO_MODE && currentUser ? <MockMerchandisingWorkspace currentUser={currentUser} initialTab="campaigns"/> : <ABSimulationSetupView onNavigate={handleNavigate} />
           )}
 
           {/* Merchandiser: Compare A/B Simulation */}
           {currentScreen === 'merchandiser-compare-simulation' && (
-            <CompareABSimulationView onNavigate={handleNavigate} />
+            DEMO_MODE && currentUser ? <MockMerchandisingWorkspace currentUser={currentUser} initialTab="campaigns"/> : <CompareABSimulationView onNavigate={handleNavigate} />
           )}
 
           {/* Merchandiser: Keep Layout A Review */}
           {currentScreen === 'merchandiser-keep-layout-a' && (
-            <KeepLayoutAReviewView onNavigate={handleNavigate} />
+            DEMO_MODE && currentUser ? <MockMerchandisingWorkspace currentUser={currentUser} initialTab="campaigns"/> : <KeepLayoutAReviewView onNavigate={handleNavigate} />
           )}
 
           {currentScreen.startsWith('f03-') && <F03WorkspaceView currentUser={currentUser} section={currentScreen} />}
@@ -431,7 +440,7 @@ export default function App() {
 
           {/* F02: Store Admin - Inventory Batches */}
           {currentScreen === 'store-batches' && <StoreBatchesView onNavigate={handleNavigate} />}
-          {currentScreen === 'store-layout' && <StoreLayoutView />}
+          {currentScreen === 'store-layout' && (DEMO_MODE && currentUser ? <MockMerchandisingWorkspace currentUser={currentUser} initialTab="campaigns"/> : <StoreLayoutView />)}
 
           {currentScreen === 'f04-import-transactions' && currentUser?.role === 'Store Admin' && (
             <ImportTransactionsView />

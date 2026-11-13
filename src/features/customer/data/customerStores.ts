@@ -1,3 +1,4 @@
+import { DEMO_MODE } from '../../../demo/demo.config';
 import { getCustomerProducts } from './customerCatalog';
 
 /** Shared demo stores for the public landing page and existing storefront. */
@@ -42,7 +43,7 @@ export const CUSTOMER_STORES = [
 
 export type CustomerStore = (typeof CUSTOMER_STORES)[number];
 
-const STORE_STORAGE_KEY = 'retailspace_customer_store';
+const STORE_STORAGE_KEY = DEMO_MODE ? 'paspm_demo_customer_store' : 'retailspace_customer_store';
 
 export function getCustomerStoreId(): string {
   try {

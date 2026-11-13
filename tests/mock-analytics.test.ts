@@ -9,23 +9,26 @@ import type { MockState } from '../src/features/merchandising-mock/mock.types';
 const empty: MockState = { schemaVersion: 1, revision: 0, layouts: [], campaigns: [], activeByStore: {} };
 
 test('benchmark comparison requires every matching condition and opposite algorithms', () => {
-  const { huiMiner, efim } = benchmarkPairs[0];
+  const conditions={datasetHash:'test',threshold:'1',utilityModel:'units',hardware:'test',repeatProtocol:'test',outputChecksum:'test',medianMs:1,peakMemoryMb:1};
+  const huiMiner={...conditions,algorithm:'HUI-Miner' as const},efim={...conditions,algorithm:'EFIM' as const};
+  assert.deepEqual(benchmarkPairs,[]);
   assert.deepEqual(benchmarkEligibility(huiMiner, efim), []);
   for (const key of ['datasetHash', 'threshold', 'utilityModel', 'hardware', 'repeatProtocol', 'outputChecksum'] as const) {
     const altered = { ...efim, [key]: `${efim[key]}-different` };
     assert.ok(benchmarkEligibility(huiMiner, altered).includes(key));
   }
   assert.ok(benchmarkEligibility(huiMiner, { ...efim, algorithm: 'HUI-Miner' }).includes('algorithm'));
-  assert.ok(benchmarkEligibility(benchmarkPairs[1].huiMiner, benchmarkPairs[1].efim).includes('outputChecksum'));
+
 });
 
 test('empty analytics labels synthetic history and never invents simulation data', () => {
   const html = renderToStaticMarkup(React.createElement(MockAnalytics, { state: empty, storeId: 'north' }));
   assert.match(html, /No simulation results yet/);
   assert.match(html, /No active layout/);
-  assert.match(html, /Synthetic historical benchmark fixtures/);
-  assert.match(html, /Excluded from comparison/);
-  assert.match(html, /142 ms/);
+  assert.match(html, /Benchmark unavailable/);
+  assert.match(html, /Reference margin unavailable/);
+  assert.match(html, /From date/);
+  assert.doesNotMatch(html, /142 ms/);
   assert.doesNotMatch(html, /93 ms|35 MB/);
   assert.doesNotMatch(html, /Simulated bundle revenue<\/h3>/);
 });

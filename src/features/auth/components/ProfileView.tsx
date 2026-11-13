@@ -1,3 +1,4 @@
+import { DEMO_MODE } from '../../../demo/demo.config';
 import React, { useEffect, useRef, useState } from "react";
 import {
   User,
@@ -77,7 +78,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const data = await authService.getMe();
       if (data) {
         setMe(data);
-        if (data.avatarUrl) {
+        if (DEMO_MODE && data.avatarUrl?.startsWith("data:image/")) {
+          setAvatarSrc(data.avatarUrl);
+        } else if (data.avatarUrl) {
           const avatarResponse = await authService.request(data.avatarUrl, {
             headers: { Authorization: `Bearer ${authService.getToken()}` },
           });
@@ -121,7 +124,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   useEffect(() => {
     fetchProfile();
-    if (!document.getElementById("google-identity-services")) {
+    if (!DEMO_MODE && !document.getElementById("google-identity-services")) {
       const script = document.createElement("script");
       script.id = "google-identity-services";
       script.src = "https://accounts.google.com/gsi/client?hl=en";
@@ -132,6 +135,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   }, []);
 
   const linkGoogle = () => {
+    if (DEMO_MODE) { setErrorMessage("Google linking is unavailable in Demo Mode."); return; }
     setErrorMessage(null);
     setIsLinkingGoogle(true);
     const clientId =
@@ -233,12 +237,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   return (
     <div className="w-full space-y-6 animate-in fade-in">
       {confirmLogoutAll && <SessionDialog title="Sign out all devices?" onCancel={signingOutAll ? undefined : () => setConfirmLogoutAll(false)}>
-        <p>This will end your sessions on every device, including this one. Save any changes before continuing.</p>
+        <p>{DEMO_MODE ? "This exits the current local demo screen. No real device sessions are changed." : "This will end your sessions on every device, including this one. Save any changes before continuing."}</p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row-reverse">
           <button disabled={signingOutAll} className={sessionPrimary} onClick={async () => {
             if (signingOutAll) return;
             setSigningOutAll(true);
             await authService.logout(true);
+            if (DEMO_MODE) { setConfirmLogoutAll(false); setSigningOutAll(false); onLogout(); }
           }}>{signingOutAll ? 'Signing out…' : 'Sign out all devices'}</button>
           <button autoFocus disabled={signingOutAll} className={sessionSecondary} onClick={() => setConfirmLogoutAll(false)}>Cancel</button>
         </div>

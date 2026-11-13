@@ -1,9 +1,21 @@
+import { DEMO_MODE } from '../../../demo/demo.config';
+import { DemoToolbar } from '../../../demo/DemoToolbar';
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { authService } from '../../../services/authService';
 import { SessionDialog, sessionPrimary, sessionSecondary } from '../../../components/common/SessionDialog';
 
 export function SessionBoundary({ children }: { children: React.ReactNode }) {
+  if (DEMO_MODE) return <DemoSessionBoundary>{children}</DemoSessionBoundary>;
+  return <ApiSessionBoundary>{children}</ApiSessionBoundary>;
+}
+
+function DemoSessionBoundary({ children }: { children: React.ReactNode }) {
+  useSyncExternalStore(authService.subscribe, authService.getSnapshot);
+  return <><DemoToolbar /><React.Fragment key={authService.getSessionId()}>{children}</React.Fragment></>;
+}
+
+function ApiSessionBoundary({ children }: { children: React.ReactNode }) {
   const state = useSyncExternalStore(authService.subscribe, authService.getSnapshot);
   useEffect(() => { void authService.restore(); return () => authService.dispose(); }, []);
   useEffect(() => {

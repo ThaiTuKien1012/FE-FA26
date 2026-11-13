@@ -1,3 +1,4 @@
+import { DEMO_MODE } from '../../../demo/demo.config';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
@@ -56,7 +57,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
-    if (document.getElementById('google-identity-services')) return;
+    if (DEMO_MODE || document.getElementById('google-identity-services')) return;
     const script = document.createElement('script');
     script.id = 'google-identity-services';
     script.src = 'https://accounts.google.com/gsi/client?hl=en';
@@ -67,6 +68,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   }, []);
 
   const handleGoogleLogin = () => {
+    if (DEMO_MODE) { setErrorMessage('Use the Demo persona selector to switch accounts.'); return; }
     setErrorMessage(null);
     setIsLoading(true);
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '190316473848-mv2i3hg2d7qv9v332t61o4ugfj9kfpt7.apps.googleusercontent.com';
@@ -99,6 +101,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
   const verifyGoogleRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (DEMO_MODE) return;
     if (!googlePending || !/^\d{6}$/.test(googleOtp)) { setErrorMessage('Enter the 6-digit verification code from your email.'); return; }
     setIsLoading(true); setErrorMessage(null);
     try {

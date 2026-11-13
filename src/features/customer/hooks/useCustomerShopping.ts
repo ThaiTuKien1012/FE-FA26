@@ -1,3 +1,4 @@
+import { DEMO_MODE } from '../../../demo/demo.config';
 import { useSyncExternalStore } from 'react';
 import { applyCartItems, type CartAddition } from '../cartRules';
 
@@ -6,7 +7,7 @@ type ShoppingState = {
   saved: string[];
 };
 
-const STORAGE_KEY = 'retailspace_customer_shopping_v1';
+const STORAGE_KEY = DEMO_MODE ? 'paspm_demo_shopping_v1' : 'retailspace_customer_shopping_v1';
 const emptyState: ShoppingState = { carts: {}, saved: [] };
 let snapshot: ShoppingState | undefined;
 const listeners = new Set<() => void>();
@@ -86,3 +87,7 @@ export function useCustomerShopping() {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => emptyState);
   return { storeCarts: state.carts, saved: state.saved, addItems, changeQuantity, clearCart, toggleSaved };
 }
+
+if(typeof window!=='undefined' && DEMO_MODE)window.addEventListener('paspm-demo-reset',()=>commit({carts:{},saved:[]}));
+
+if(typeof window!=='undefined' && DEMO_MODE)window.addEventListener('storage',event=>{if(event.key==='paspm_demo_reset_epoch')commit({carts:{},saved:[]})});

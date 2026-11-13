@@ -4,23 +4,29 @@ export const MOCK_STORAGE_KEY = 'paspm_merchandising_mock_v1';
 export interface MockStorage { getItem(key: string): string | null; setItem(key: string, value: string): void }
 
 /** One local mock database. Auth/session/backend storage is never touched. */
-export function createMockStore(storage: () => MockStorage | undefined) {
+export function createMockStore(storage: () => MockStorage | undefined, options: {key?:string;seed?:()=>MockState} = {}) {
+  const key=options.key ?? MOCK_STORAGE_KEY;
+  const initial=options.seed ?? initialMockState;
   let state: MockState | undefined;
   let warning = '';
   let memoryOnly = false;
   const listeners = new Set<() => void>();
   const read = (): MockState => {
-    if (memoryOnly) return state ?? initialMockState();
+    if (memoryOnly) return state ?? initial();
     try {
       const target=storage();
       if(!target) throw new Error('Storage unavailable');
-      const raw=target.getItem(MOCK_STORAGE_KEY);
-      if(!raw) return initialMockState();
+      const raw=target.getItem(key);
+      if(!raw) {
+        const seeded=state ?? initial();
+        if(options.seed) target.setItem(key,JSON.stringify(seeded));
+        return seeded;
+      }
       return restoreMockState(JSON.parse(raw));
     } catch {
       warning='Không đọc được dữ liệu mô phỏng đã lưu. Phiên này sử dụng bộ nhớ tạm.';
       memoryOnly=true;
-      return state ?? initialMockState();
+      return state ?? initial();
     }
   };
   const getSnapshot=()=>state ??= read();
@@ -36,7 +42,7 @@ export function createMockStore(storage: () => MockStorage | undefined) {
       try {
         const target=memoryOnly?undefined:storage();
         if(!target)throw new Error('Storage unavailable');
-        target.setItem(MOCK_STORAGE_KEY,JSON.stringify(next));
+        target.setItem(key,JSON.stringify(next));
       } catch {
         memoryOnly=true;
         warning='Chưa lưu được vào trình duyệt. Thay đổi chỉ tồn tại trong phiên này; không đóng trang.';

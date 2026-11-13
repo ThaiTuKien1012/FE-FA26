@@ -1,3 +1,5 @@
+import { authService } from '../../../services/authService';
+import { DemoAuthService } from '../../../demo/demo.auth';
 import { useEffect, useRef, useState } from 'react';
 import { normalizeCustomerSearch } from '../customerSearch';
 import { APP_BRAND } from '../../../app/branding';
@@ -75,6 +77,7 @@ export function useCustomerStorefront(productsByStore?: Record<string, ProductIt
     setSelectedProduct(null);
     setSelectedStoreId(storeId);
     rememberCustomerStore(storeId);
+    if (authService instanceof DemoAuthService) authService.selectCustomerStore(storeId);
     resetFilters();
     setSort('featured');
     setNotice('');

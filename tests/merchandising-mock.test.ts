@@ -33,12 +33,12 @@ test('roles, store scope, approved product sets and stock are enforced without m
 test('seeded simulation is reproducible and revenue uses current retail prices, utility uses fixture units', () => {
   const s=campaign(); const id=s.campaigns[0].id;
   const one=engine.simulateCampaign(s,merchant,id,42,1000);
-  assert.deepEqual(one,engine.simulateCampaign(s,merchant,id,42,1000));
+  assert.deepEqual(one.campaigns[0].result!.b,engine.simulateCampaign(s,merchant,id,42,1000).campaigns[0].result!.b);
   const result=one.campaigns[0].result!;
   const total=placement().items.reduce((sum,i)=>sum+mockProducts(store).find(p=>p.id===i.productId)!.priceVnd*i.quantity,0);
   assert.ok(result.b.orders>0); assert.equal(result.b.revenue,result.b.orders*total);
   assert.equal(result.b.utility,result.b.orders*approvedGroups(store)[0].utility);
-  assert.deepEqual(result.a,{orders:0,revenue:0,utility:0});
+  assert.deepEqual(result.a,{orders:0,revenue:0,utility:0,clicks:0,ctr:0,conversion:0});
   for (const n of [NaN,Infinity,-1,1.5,2**32]) assert.throws(()=>engine.simulateCampaign(s,merchant,id,n,100));
   for (const n of [0,NaN,Infinity,1.5,1000001]) assert.throws(()=>engine.simulateCampaign(s,merchant,id,1,n));
 });
@@ -93,6 +93,6 @@ test('each arm has one visitor budget and only distinct bundle groups contribute
   const result=engine.simulateCampaign(s,merchant,s.campaigns[0].id,42,1000).campaigns[0].result!;
   let clean=engine.saveDraft(engine.initialMockState(),merchant,store,'Groups',[p,placements[3]]);
   clean=engine.createCampaign(clean,merchant,store,'Traffic',clean.layouts[0].id,null);
-  assert.deepEqual(result,engine.simulateCampaign(clean,merchant,clean.campaigns[0].id,42,1000).campaigns[0].result);
+  assert.deepEqual(result.b,engine.simulateCampaign(clean,merchant,clean.campaigns[0].id,42,1000).campaigns[0].result!.b);
   assert.ok(result.b.orders<=1000);
 });

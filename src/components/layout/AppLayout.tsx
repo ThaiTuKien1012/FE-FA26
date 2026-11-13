@@ -1,3 +1,4 @@
+import { DEMO_MODE } from '../../demo/demo.config';
 import { MERCHANDISING_MOCK_ENABLED } from '../../features/merchandising-mock/mock.config';
 import React, { useEffect, useState } from 'react';
 import {
@@ -171,7 +172,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               </>
             )}
 
-            {MERCHANDISING_MOCK_ENABLED && (isMerchandiser || isStoreAdmin) && <SidebarSection title="MERCHANDISING · MOCK"><SidebarItem screen="merchandising-mock" label="F07–F11 Workspace" icon={Layers} active={currentScreen === 'merchandising-mock'} onNavigate={onNavigate} /></SidebarSection>}
+            {MERCHANDISING_MOCK_ENABLED && (isMerchandiser || isStoreAdmin) && <SidebarSection title="MERCHANDISING · MOCK">{DEMO_MODE && isMerchandiser && <SidebarItem screen="merchandiser-recommendations" label="Recommendations" icon={Layers} active={currentScreen === 'merchandiser-recommendations'} onNavigate={onNavigate} />}<SidebarItem screen="merchandising-mock" label="F07–F11 Workspace" icon={Layers} active={currentScreen === 'merchandising-mock'} onNavigate={onNavigate} /></SidebarSection>}
 
             {/* Role 4: Customer Navigation */}
             {isCustomer && (
