@@ -1,6 +1,7 @@
 import { ActiveNavScreen } from '../types/mining';
 
 export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
+  'merchandising-mock': '/merchandising/lab',
   'login': '/login',
   'forgot-password': '/forgot-password',
   'register': '/register',

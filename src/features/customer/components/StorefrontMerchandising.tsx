@@ -24,10 +24,10 @@ function ItemRow({ item, cart, onOpenProduct, selectable, checked, onToggle }: {
   selectable?: boolean; checked?: boolean; onToggle?: () => void;
 }) {
   const available = canPurchase([item], cart);
-  return <div className="flex min-w-0 items-center gap-3 border-b border-[#e4e9e2] py-4 last:border-0">
+  return <div className="flex min-w-0 flex-wrap items-center gap-3 border-b border-[#e4e9e2] py-4 last:border-0">
     {selectable && <input type="checkbox" className="size-5 shrink-0 accent-[#36543A]" aria-label={`Chọn ${item.product?.name || 'sản phẩm không khả dụng'}`} checked={available && checked} disabled={!available} onChange={onToggle} />}
     <ProductImage product={item.product} className="size-18" />
-    <div className="min-w-0 flex-1"><button type="button" disabled={!item.product} onClick={() => item.product && onOpenProduct(item.product)} className="min-h-11 text-left text-sm font-semibold text-[#0A1D11] hover:underline">{item.product?.name || 'Sản phẩm không còn khả dụng'}</button>
+    <div className="min-w-0 flex-1 basis-20"><button type="button" disabled={!item.product} onClick={() => item.product && onOpenProduct(item.product)} className="min-h-11 text-left text-sm font-semibold text-[#0A1D11] hover:underline">{item.product?.name || 'Sản phẩm không còn khả dụng'}</button>
       <p className="text-sm text-[#536455]">× {item.quantity}{item.product?.unit ? ` · ${item.product.unit}` : ''}</p>
       {item.product && Number.isFinite(item.product.priceVnd) && <p className="mt-1 text-sm text-[#536455]">{money(item.product.priceVnd)} / {item.product.unit || 'sản phẩm'}</p>}
       {!available && <p className="mt-1 text-sm text-[#AB422F]">{item.product ? (item.product.stockQuantity <= 0 || item.product.status === 'Out of Stock' ? 'Tạm hết hàng' : 'Chưa thể thêm số lượng này') : 'Sản phẩm không còn khả dụng'}</p>}
@@ -99,6 +99,6 @@ export function ProductRecommendations({ layout, productId, ...props }: SharedPr
   }).map(item=>({placement,item})));
   return <div className="space-y-8">
     {together.length>0 && <section aria-label="Thường mua cùng"><h3 className="text-2xl font-semibold">Thường mua cùng</h3>{together.map(placement=><FrequentlyTogether key={`${layout.id}:${layout.version}:${productId}:${placement.id}`} {...props} placement={placement} />)}</section>}
-    {cross.length>0 && <section aria-label="Có thể bạn cần thêm"><h3 className="text-2xl font-semibold">Có thể bạn cần thêm</h3><div className="mt-5 grid gap-4 sm:grid-cols-2">{cross.map(({placement,item})=><article key={item.productId} className="rounded-2xl border border-[#dfe6dc] p-4"><ItemRow item={item} cart={props.cart} onOpenProduct={props.onOpenProduct} /><button className={`${button} mt-3 w-full`} disabled={!canPurchase([item],props.cart)} onClick={()=>props.onAddGroup(placement,[item.productId])}>Thêm vào giỏ <Plus size={17}/></button></article>)}</div></section>}
+    {cross.length>0 && <section aria-label="Có thể bạn cần thêm"><h3 className="text-2xl font-semibold">Có thể bạn cần thêm</h3><div className="mt-5 grid gap-4 sm:grid-cols-2">{cross.map(({placement,item})=><article key={item.productId} className="min-w-0 rounded-2xl border border-[#dfe6dc] p-4"><ItemRow item={item} cart={props.cart} onOpenProduct={props.onOpenProduct} /><button className={`${button} mt-3 w-full`} disabled={!canPurchase([item],props.cart)} onClick={()=>props.onAddGroup(placement,[item.productId])}>Thêm vào giỏ <Plus size={17}/></button></article>)}</div></section>}
   </div>;
 }

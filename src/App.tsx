@@ -4,6 +4,9 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { MockMerchandisingWorkspace } from './features/merchandising-mock/MockMerchandisingWorkspace';
+import { MERCHANDISING_MOCK_ENABLED } from './features/merchandising-mock/mock.config';
+import { mockCustomerSource } from './features/merchandising-mock/useMockStore';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen } from './types/mining';
 import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
@@ -169,6 +172,8 @@ export default function App() {
   // Determine breadcrumbs according to current screen & active user role
   const getBreadcrumbs = () => {
     switch (currentScreen) {
+      case 'merchandising-mock':
+        return ['Merchandising', 'F07–F11 · Mô phỏng'];
       case 'login':
         return ['Authentication', 'Sign In'];
       case 'customer-storefront':
@@ -252,6 +257,8 @@ export default function App() {
   if (currentScreen === 'customer-home') {
     return (
       <CustomerHomeView
+        source={MERCHANDISING_MOCK_ENABLED ? mockCustomerSource : undefined}
+        mockMode={MERCHANDISING_MOCK_ENABLED}
         user={currentUser}
         onLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }}
         onRegister={() => { syncBrowserUrl('register'); setCurrentScreen('register'); }}
@@ -312,6 +319,8 @@ export default function App() {
   if (currentScreen === 'customer-storefront' && currentUser?.role === 'End-Customer') {
     return (
       <CustomerStorefrontView
+        source={MERCHANDISING_MOCK_ENABLED ? mockCustomerSource : undefined}
+        mockMode={MERCHANDISING_MOCK_ENABLED}
         user={currentUser}
         onLogout={handleLogout}
         onProfile={() => handleNavigate('profile')}
@@ -341,6 +350,7 @@ export default function App() {
         />
       ) : (
         <>
+          {currentScreen === 'merchandising-mock' && currentUser && <MockMerchandisingWorkspace currentUser={currentUser} />}
           {/* Merchandiser: Single Recommendations Dashboard Screen */}
           {currentScreen === 'merchandiser-recommendations' && (
             <MerchandiserRecommendationsView

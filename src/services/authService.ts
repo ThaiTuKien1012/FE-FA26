@@ -42,6 +42,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     department: 'Store Operations & Inventory',
     defaultScreen: 'store-inventory',
     allowedScreens: [
+      'merchandising-mock',
       'store-inventory',
       'store-edit-product',
       'store-categories',
@@ -77,6 +78,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     department: 'Retail Merchandising Planner',
     defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
+      'merchandising-mock',
       'f04-import-history',
       'f04-transactions',
       'f03-configuration',
@@ -107,6 +109,7 @@ export interface ScreenOwnerInfo {
 }
 
 export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>> = {
+  'merchandising-mock': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'F07–F11 Mock Workspace', allowedRoles: ['Merchandiser', 'Store Admin'] },
   // Store Admin Core Modules
   'store-inventory': {
     primaryRole: 'Store Admin',

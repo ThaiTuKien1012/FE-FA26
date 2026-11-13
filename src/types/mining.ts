@@ -51,6 +51,7 @@ export interface BenchmarkComparison {
 }
 
 export type ActiveNavScreen = 
+  | 'merchandising-mock'
   | 'overview'        // S01: Overview
   | 'admin-run-mining'
   | 'admin-mining-history'

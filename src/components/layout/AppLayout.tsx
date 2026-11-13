@@ -1,3 +1,4 @@
+import { MERCHANDISING_MOCK_ENABLED } from '../../features/merchandising-mock/mock.config';
 import React, { useEffect, useState } from 'react';
 import {
   Package, BarChart3, Bell, SlidersHorizontal, LogOut, ShoppingBag, Users, Zap,
@@ -72,7 +73,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isStoreAdmin = role === 'Store Admin';
   const isMerchandiser = role === 'Merchandiser';
   const isCustomer = role === 'End-Customer';
-  const compactPlanner = currentScreen.startsWith('f03-') && !isSystemAdmin;
+  const compactPlanner = (currentScreen.startsWith('f03-') || currentScreen === 'merchandising-mock') && !isSystemAdmin;
   const [plannerNavOpen, setPlannerNavOpen] = useState(false);
   useEffect(() => { setPlannerNavOpen(false); }, [currentScreen]);
 
@@ -169,6 +170,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 </SidebarSection>
               </>
             )}
+
+            {MERCHANDISING_MOCK_ENABLED && (isMerchandiser || isStoreAdmin) && <SidebarSection title="MERCHANDISING · MOCK"><SidebarItem screen="merchandising-mock" label="F07–F11 Workspace" icon={Layers} active={currentScreen === 'merchandising-mock'} onNavigate={onNavigate} /></SidebarSection>}
 
             {/* Role 4: Customer Navigation */}
             {isCustomer && (

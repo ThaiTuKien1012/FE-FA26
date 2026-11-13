@@ -15,6 +15,7 @@ import '../storefront.css';
 interface CustomerStorefrontViewProps {
   productsByStore?: Record<string, ProductItem[]>;
   source?: CustomerStorefrontSource;
+  mockMode?: boolean;
   user?: AuthUser | null;
   onLogout: () => void;
   onProfile: () => void;
@@ -24,14 +25,14 @@ interface CustomerStorefrontViewProps {
   onExplore?: () => void;
 }
 
-export function CustomerStorefrontView({ productsByStore, source, user, onLogout, onProfile, onHome, onLogin, onRegister, onExplore }: CustomerStorefrontViewProps) {
+export function CustomerStorefrontView({ productsByStore, source, mockMode = false, user, onLogout, onProfile, onHome, onLogin, onRegister, onExplore }: CustomerStorefrontViewProps) {
   const shop = useCustomerStorefront(productsByStore, source);
   const { selectedStore, storeProducts, categories, brands, active, query, setQuery, category, setCategory, brand, setBrand,
     saved, savedOnly, sort, setSort, filteredProducts, hasFilters, resetFilters, chooseStore, toggleSavedOnly,
     cart, cartProducts, cartCount, cartTotal, addToCart, updateQuantity, toggleSaved,
     selectedProduct, dialogMode, dialogRef, openProduct, openCart, closeDialog,
     receipt, receiptRef, completeDemoOrder, notice, setNotice, scrollTo, addGroup, openGroup, selectedGroup, groupRef } = shop;
-  const demo = !source;
+  const demo = mockMode || !source;
   const currentProduct = storeProducts.find(product => product.id === selectedProduct?.id) ?? null;
   return <div className="customer-storefront sf-root" lang="vi">
     <a className="sf-skip" href="#shop-main">Đến nội dung chính</a>
@@ -42,6 +43,7 @@ export function CustomerStorefrontView({ productsByStore, source, user, onLogout
       {onRegister && !user && <button onClick={onRegister}>Đăng ký</button>}
       <span className="sf-nav-note"><Leaf size={16} />Cho căn bếp mỗi ngày</span>
     </nav>
+    {mockMode && <div role="note" className="sf-wrap sf-status"><strong>CỬA HÀNG MÔ PHỎNG F07–F11</strong> · Chỉ hiển thị layout đã được Store Admin kích hoạt trong môi trường thử nghiệm. Giỏ hàng dùng thử, không tạo đơn thật.</div>}
     <main id="shop-main">
       <div className="sf-store-context sf-wrap"><span>Cửa hàng / <strong>{selectedStore.name}</strong></span><label>Chọn cửa hàng<select value={selectedStore.id} onChange={e => chooseStore(e.target.value)}>{CUSTOMER_STORES.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label></div>
       {(!active.layout?.placements.some(item => item.type === 'BANNER')) && <section className="sf-hero sf-wrap" aria-labelledby="sf-hero-title">

@@ -40,9 +40,10 @@ export function useActiveStorefront(storeId: string, source?: CustomerStorefront
     if (!source) return;
     const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
     window.addEventListener('focus',refresh);
+    window.addEventListener('paspm:storefront-refresh',refresh);
     document.addEventListener('visibilitychange',onVisible);
     const interval = window.setInterval(onVisible,60_000);
-    return () => { window.removeEventListener('focus',refresh); document.removeEventListener('visibilitychange',onVisible); window.clearInterval(interval); };
+    return () => { window.removeEventListener('paspm:storefront-refresh',refresh); window.removeEventListener('focus',refresh); document.removeEventListener('visibilitychange',onVisible); window.clearInterval(interval); };
   },[source,refresh]);
 
   // Render-time scope guard prevents even a single frame of the previous store/source.
