@@ -15,12 +15,12 @@ F11: Total Utility in fixture utility units, simulated bundle revenue and A/B ch
 Visual direction: retain forest/mint tokens, generous readable cards, 44px controls, responsive editor and restrained chart bars. Keep every simulated/historical status explicit, no custom chart dependency.
 
 ## Ordered implementation
-- [ ] Domain/tests: typed fixtures and pure state transitions, deterministic simulator, projection and persistence validation. Test roles, scope, draft versions, publication vs activation, seed reproducibility and current totals.
-- [ ] Service adapter and F09/F10 wiring: single external store, local storage recovery, subscriptions and active-only source. Test updates/reload/cart.
-- [ ] F07 editor and F08 campaign UI: accessible draft interactions, preview, publish/activate state machine. Preserve existing authenticated routes and add isolated lab navigation.
-- [ ] F11 analytics: charts with textual values, matching benchmark fixtures and simulation labels, connected to shared campaign results.
-- [ ] Browser verification/review: complete merchant→admin→customer flow using intercepted auth fixtures, desktop/mobile, stock/cart and real route guard; run npm test, npm run lint, npm run build, git diff --check.
-- [ ] Commit verified increments and push only feature/f07-f11-mock; verify baseline unchanged and local/remote SHAs if permitted.
+- [x] Domain/tests: typed fixtures and pure state transitions, deterministic simulator, projection and persistence validation. Test roles, scope, draft versions, publication vs activation, seed reproducibility and current totals.
+- [x] Service adapter and F09/F10 wiring: single external store, local storage recovery, subscriptions and active-only source. Test updates/reload/cart.
+- [x] F07 editor and F08 campaign UI: accessible draft interactions, preview, publish/activate state machine. Preserve existing authenticated routes and add isolated lab navigation.
+- [x] F11 analytics: charts with textual values, matching benchmark fixtures and simulation labels, connected to shared campaign results.
+- [x] Browser verification/review: complete merchant→admin→customer flow using intercepted auth fixtures, desktop/mobile, stock/cart and real route guard; run npm test, npm run lint, npm run build, git diff --check.
+- [ ] Push feature/f07-f11-mock and verify remote SHA: blocked by GitHub 403 for khoinm04. Local verified increments committed; baseline unchanged.
 
 ## Validation and backend handoff
 No live F07–F11 backend contract exists in the verified baseline. Future integration must replace the explicit mock adapter with authenticated server persistence/permissions, real activated catalog projection, concurrency/versioning, checkout reservation and real analytics/benchmark evidence. Mock localStorage is a development convenience, not a security boundary or multi-user database.

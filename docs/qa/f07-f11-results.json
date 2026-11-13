@@ -1,0 +1,20 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Four placement types, quantities, keyboard/touch reorder, isolated FBT preview, immutable save and restore",
+    "Seed 42 / 1000 simulation, publication leaves ACTIVE empty, matched and excluded synthetic benchmarks",
+    "Admin activation, cross-tab active projection, banner group purchase, cart persistence, second activation without reload",
+    "End-Customer role denied merchandising lab"
+  ],
+  "api": [
+    "/api/auth/login",
+    "/api/auth/me",
+    "/api/utility/config",
+    "/api/auth/me",
+    "/api/auth/me",
+    "/api/utility/config",
+    "/api/auth/me",
+    "/api/auth/me"
+  ],
+  "errors": []
+}
