@@ -1,0 +1,11 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Startup without API or external network",
+    "Draft → campaign → publish → persona activation → ACTIVE storefront → atomic group cart → refresh",
+    "Analytics labels and reset scenario",
+    "Category CRUD persists, inventory loads, F06 approval feeds F07, System Admin starts without network"
+  ],
+  "api": [],
+  "errors": []
+}
