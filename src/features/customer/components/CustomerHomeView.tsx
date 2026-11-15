@@ -20,6 +20,7 @@ type Props = { onLogin: () => void; onRegister: () => void; onExplore: () => voi
 const textButtonClass = 'inline-flex items-center justify-center gap-[7px] border-0 bg-transparent py-[5px] text-[11px] text-[#088178] hover:text-[#032724]';
 const basketImage = '/images/customer-home/fresh/grocery-basket.png';
 const imagePath = (name: string) => name.startsWith('/') ? name : `/images/customer-home/fresh/${name}`;
+const storeNameFor = (storeId: string) => CUSTOMER_STORES.find(store => store.id === storeId)?.englishName || 'a local store';
 
 export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfile, onLogout }: Props) {
   const home = useCustomerHome(onExplore);
@@ -57,7 +58,7 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
 
       <div className={`fm-store-strip ${containerClass} mb-4 flex items-center justify-between gap-[18px] rounded-lg border border-[#e1ede6] bg-[#f0f7f3] px-[15px] py-[10px] text-[10px] text-[#627e6e] max-[580px]:mb-3 max-[580px]:gap-2 max-[580px]:px-[10px] max-[580px]:py-[9px] max-[580px]:text-[8px]`}>
         <div className="flex min-w-0 items-center gap-[9px] max-[580px]:gap-[5px]">
-          <Store size={17} className="shrink-0 max-[580px]:size-[13px]" /><label htmlFor="fm-current-store" className="whitespace-nowrap">Shopping at</label>
+          <Store size={17} className="shrink-0 max-[580px]:size-[13px]" /><label htmlFor="fm-current-store" className="whitespace-nowrap">Your cart store</label>
           <select className="max-w-[210px] rounded-[5px] border border-[#d6e6dc] bg-white py-[5px] pr-[22px] pl-2 text-[11px] text-[#265b44] max-[580px]:max-w-[145px] max-[580px]:pr-4 max-[580px]:pl-[5px] max-[580px]:text-[9px]" id="fm-current-store" value={selectedStore.id} onChange={event => chooseStore(event.target.value, false)}>{CUSTOMER_STORES.map(store => <option key={store.id} value={store.id}>{store.englishName}</option>)}</select>
           <span className="flex items-center gap-1 text-[9px] max-[800px]:hidden"><MapPin size={12} />{selectedStore.englishArea}</span>
         </div>
@@ -65,7 +66,7 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
       </div>
 
       <main id="fm-main">
-        <CustomerBannerCarousel selectedStore={selectedStore} featuredProduct={featuredProduct} onBrowseProducts={() => { resetFilters(); scrollTo('fm-products'); }} onBrowseStores={() => scrollTo('fm-stores')} onShopStore={storeId => chooseStore(storeId)} onBannerStoreChange={storeId => chooseStore(storeId, false)} />
+        <CustomerBannerCarousel selectedStore={selectedStore} featuredProduct={featuredProduct} onBrowseProducts={() => { resetFilters(); scrollTo('fm-products'); }} onBrowseStores={() => scrollTo('fm-stores')} onShopStore={storeId => chooseStore(storeId)} onBannerStoreChange={() => undefined} />
 
         <section className={`fm-stores-section ${containerClass} scroll-mt-[18px] pt-[42px] pb-[10px] max-[580px]:pt-[29px] max-[580px]:pb-0`} id="fm-stores" aria-labelledby="fm-stores-title">
           <div className="mb-[22px] flex items-center justify-between gap-[18px] max-[580px]:mb-[17px]">
@@ -115,8 +116,8 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
 
         <section id="fm-products" className="fm-products-section scroll-mt-0 bg-[#f5f5f5] pt-[42px] pb-[46px] max-[580px]:py-[29px]" aria-labelledby="fm-products-title">
           <div className={containerClass}>
-            <SectionHeading id="fm-products-title" title={savedOnly ? 'Your Saved Favorites' : `Fresh picks at ${selectedStore.englishName}`}><PillButton onClick={openStorefront}>View All</PillButton></SectionHeading>
-            <p className="fm-catalog-store -mt-[10px] mb-[17px] flex flex-wrap items-center gap-[6px] text-[9px] text-[#8c9b91] max-[580px]:text-[8px]"><Store size={13} />Shopping at <strong className="font-[550] text-[#5d806b]">{selectedStore.englishName}</strong><span>•</span>{selectedStore.englishArea}</p>
+            <SectionHeading id="fm-products-title" title={savedOnly ? 'Your Saved Favorites' : 'Explore products across Storefone'}><PillButton onClick={openStorefront}>View All</PillButton></SectionHeading>
+            <p className="fm-catalog-store -mt-[10px] mb-[17px] flex flex-wrap items-center gap-[6px] text-[9px] text-[#8c9b91] max-[580px]:text-[8px]"><Store size={13} />Products from <strong className="font-[550] text-[#5d806b]">{CUSTOMER_STORES.length} local stores</strong><span>•</span>Choose a store to confirm price and stock</p>
             <div className="fm-product-toolbar flex items-center justify-between gap-[15px] max-[800px]:items-start max-[580px]:flex-wrap max-[580px]:gap-[10px]">
               <div className="fm-category-tabs flex flex-wrap items-center gap-[7px] max-[1100px]:gap-[5px] max-[800px]:flex-nowrap max-[800px]:overflow-auto max-[800px]:py-[2px] max-[800px]:[scrollbar-width:none] max-[580px]:-mr-4 max-[580px]:w-[calc(100%_+_16px)] max-[580px]:gap-[6px] max-[580px]:pr-4" aria-label="Filter by category">
                 {categories.map(item => <button key={item} className={`shrink-0 rounded-full border bg-white px-[15px] py-2 text-[10px] whitespace-nowrap hover:bg-[#e7f1ed] max-[1100px]:px-3 max-[1100px]:py-[7px] max-[1100px]:text-[9px] ${category === item ? 'border-[#088178] text-[#088178]' : 'border-[#e9eceb] text-[#4d5856]'}`} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>)}
@@ -129,7 +130,7 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
               <span className="ml-auto text-[#9ea5a2] max-[580px]:text-[7px]">Demo products & prices</span>
             </div>
             <div className="fm-products-grid grid grid-cols-3 gap-x-[18px] gap-y-[22px] max-[800px]:gap-x-3 max-[800px]:gap-y-[15px] max-[580px]:grid-cols-2 max-[580px]:gap-x-[10px]">
-              {filteredProducts.map(product => <ProductCard key={product.id} product={product} saved={saved.includes(product.id)} quantity={cart[product.id] || 0} onSave={() => toggleSaved(product.id)} onOpen={() => openProduct(product)} onAdd={() => addToCart(product)} />)}
+              {filteredProducts.map(product => <ProductCard key={product.id} product={product} storeLabel={storeNameFor(product.storeId)} saved={saved.includes(product.id)} quantity={cart[product.id] || 0} onSave={() => toggleSaved(product.id)} onOpen={() => openProduct(product)} onAdd={() => addToCart(product)} />)}
             </div>
             {filteredProducts.length === 0 && <div className="fm-empty flex flex-col items-center gap-3 px-[15px] py-[50px] text-center text-[#6f8880]"><Search size={30} /><h3 className="m-0 text-xl">{savedOnly ? 'No saved favorites here yet' : 'No matching products found'}</h3><p className="mb-[6px] text-xs">Try another search or adjust your filters.</p><PillButton onClick={resetFilters}>View All Products</PillButton></div>}
           </div>
@@ -137,7 +138,7 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
 
         <section id="fm-collections" className={`fm-promos ${containerClass} grid scroll-mt-0 grid-cols-[1fr_1.5fr] grid-rows-[175px_175px] gap-4 py-11 max-[1100px]:grid-rows-[160px_160px] max-[800px]:grid-rows-[145px_145px] max-[800px]:gap-3 max-[580px]:grid-cols-2 max-[580px]:grid-rows-[160px_275px] max-[580px]:gap-[10px] max-[580px]:py-[29px]`} aria-label="Shopping collections">
           <article className="fm-promo fm-promo-snack relative col-start-1 row-start-1 overflow-hidden rounded-xl bg-[radial-gradient(ellipse_at_90%_100%,#96dbc7,transparent_60%),linear-gradient(115deg,#4d43df,#6d68e8)] p-[26px] text-white max-[1100px]:p-6 max-[800px]:p-[22px] max-[580px]:rounded-[10px] max-[580px]:px-[14px] max-[580px]:py-[18px]">
-            <div className="relative z-2"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">FAVORITES FROM YOUR STORE</span><h2 className="mt-[9px] mb-[14px] text-[27px] leading-[1.15] font-[650] tracking-[-0.8px] max-[1100px]:text-[25px] max-[800px]:text-[22px] max-[580px]:text-xl">Everyday picks.<br />Made for you.</h2><PillButton compact onClick={() => chooseCategory(featuredProduct.category)}>Shop {featuredProduct.category}</PillButton></div>
+            <div className="relative z-2"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">FAVORITES FROM STOREFONE</span><h2 className="mt-[9px] mb-[14px] text-[27px] leading-[1.15] font-[650] tracking-[-0.8px] max-[1100px]:text-[25px] max-[800px]:text-[22px] max-[580px]:text-xl">Everyday picks.<br />Made for you.</h2><PillButton compact onClick={() => chooseCategory(featuredProduct.category)}>Shop {featuredProduct.category}</PillButton></div>
             <img className="absolute -right-px bottom-[-6px] h-[165px] w-[175px] -rotate-8 object-contain max-[1100px]:right-[-8px] max-[1100px]:h-[140px] max-[1100px]:w-[150px] max-[800px]:right-[-9px] max-[800px]:size-[110px] max-[580px]:bottom-[-7px] max-[580px]:h-[98px] max-[580px]:w-[105px]" src={featuredProduct.image} alt={featuredProduct.name} loading="lazy" />
           </article>
           <article className="fm-promo fm-promo-pantry relative col-start-1 row-start-2 overflow-hidden rounded-xl bg-[linear-gradient(115deg,#dbc19b,#f5e7d4)] p-[26px] text-white max-[1100px]:p-6 max-[800px]:p-[22px] max-[580px]:col-start-2 max-[580px]:row-start-1 max-[580px]:rounded-[10px] max-[580px]:px-[14px] max-[580px]:py-[18px]">
@@ -145,7 +146,7 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
             <img className="absolute right-[5px] bottom-[-8px] h-[154px] w-[158px] rotate-10 object-contain max-[1100px]:right-[-4px] max-[1100px]:size-[135px] max-[800px]:right-[-9px] max-[800px]:bottom-[-10px] max-[800px]:size-[110px] max-[580px]:right-[-8px] max-[580px]:bottom-[-7px] max-[580px]:size-[95px]" src={secondaryProduct.image} alt={secondaryProduct.name} loading="lazy" />
           </article>
           <article className="fm-promo fm-promo-produce relative col-start-2 row-span-2 row-start-1 overflow-hidden rounded-xl bg-[radial-gradient(circle_at_84%_82%,#ecfcff_0%,transparent_57%),linear-gradient(115deg,#229bbc,#84d9eb)] p-9 text-white max-[1100px]:p-[31px] max-[800px]:p-[22px] max-[580px]:col-span-2 max-[580px]:col-start-1 max-[580px]:row-span-1 max-[580px]:row-start-2 max-[580px]:p-[27px]">
-            <div className="relative z-2 max-w-[58%] max-[800px]:max-w-[84%] max-[580px]:max-w-[82%]"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">DISCOVER {selectedStore.englishName.toUpperCase()}</span><h2 className="my-3 text-[38px] leading-[1.16] font-[650] tracking-[-1.2px] max-[1100px]:text-[34px] max-[800px]:text-[30px] max-[580px]:text-[31px]">Good food.<br />Fresh starts.<br />Every day.</h2><p className="mb-[19px] text-[10px] leading-[1.8] text-[#e1f6fc] max-[800px]:text-[8px] max-[580px]:max-w-[170px]">Your favorite brands and everyday essentials,<br className="max-[580px]:hidden" />selected from your current store.</p><PillButton onClick={() => { resetFilters(); scrollTo('fm-products'); }}>Shop This Store</PillButton></div>
+            <div className="relative z-2 max-w-[58%] max-[800px]:max-w-[84%] max-[580px]:max-w-[82%]"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">DISCOVER LOCAL STORES</span><h2 className="my-3 text-[38px] leading-[1.16] font-[650] tracking-[-1.2px] max-[1100px]:text-[34px] max-[800px]:text-[30px] max-[580px]:text-[31px]">Good food.<br />Fresh starts.<br />Every day.</h2><p className="mb-[19px] text-[10px] leading-[1.8] text-[#e1f6fc] max-[800px]:text-[8px] max-[580px]:max-w-[170px]">Compare favorite products across local stores,<br className="max-[580px]:hidden" />then choose where to shop.</p><PillButton onClick={() => scrollTo('fm-stores')}>Choose a Store</PillButton></div>
             <img className="fm-promo-basket absolute right-[-6px] bottom-0 h-[85%] w-[65%] object-contain object-right-bottom drop-shadow-[0_8px_10px_#163e4020] max-[1100px]:right-[-13px] max-[1100px]:h-[75%] max-[800px]:right-[-10px] max-[800px]:h-[67%] max-[800px]:w-[68%] max-[580px]:right-[-12px] max-[580px]:h-[64%] max-[580px]:w-[69%]" src={basketImage} alt="Wicker basket filled with fresh vegetables, fruit, bread and milk" loading="lazy" />
           </article>
         </section>
@@ -155,7 +156,7 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
           <div className="fm-compact-grid grid grid-cols-2 gap-[15px] max-[580px]:grid-cols-1 max-[580px]:gap-[11px]">
             {storeProducts.slice(0, 4).map(product => <article className="fm-compact-product grid min-h-[172px] grid-cols-[45%_1fr] gap-[15px] rounded-xl border border-[#eef0ee] p-2 max-[800px]:grid-cols-[40%_1fr] max-[800px]:gap-[9px] max-[580px]:min-h-[150px] max-[580px]:grid-cols-[43%_1fr] max-[580px]:gap-[13px]" key={product.id}>
               <button className="fm-compact-image group grid place-items-center rounded-lg border-0 bg-[#f5f5f5] p-[15px] max-[800px]:p-[6px]" onClick={() => openProduct(product)} aria-label={`Details for ${product.name}`}><img className="h-[138px] w-full object-contain drop-shadow-[0_5px_3px_#152c1c0c] transition-transform group-hover:scale-105 max-[800px]:h-[127px] max-[580px]:h-[130px]" src={product.image} alt={product.name} loading="lazy" /></button>
-              <div className="py-2 pr-2 max-[580px]:pr-[10px]"><span className="text-[9px] text-[#088178]">{product.brand}</span><h3 className="my-[5px] text-[13px] leading-[1.4] font-semibold max-[800px]:text-[11px] max-[580px]:text-xs">{product.name}</h3><p className="mb-[6px] text-[9px] text-[#969f9a]">{product.unit}</p><strong className="mb-3 block text-sm max-[800px]:text-xs max-[580px]:text-[13px]">{money(product.priceVnd)}</strong><AddToCartButton onClick={() => addToCart(product)} /></div>
+              <div className="py-2 pr-2 max-[580px]:pr-[10px]"><span className="text-[9px] text-[#088178]">{product.brand}</span><h3 className="my-[5px] text-[13px] leading-[1.4] font-semibold max-[800px]:text-[11px] max-[580px]:text-xs">{product.name}</h3><p className="mb-[6px] text-[9px] text-[#969f9a]">{product.unit} · {storeNameFor(product.storeId)}</p><strong className="mb-3 block text-sm max-[800px]:text-xs max-[580px]:text-[13px]">{money(product.priceVnd)}</strong><AddToCartButton onClick={() => addToCart(product)} /></div>
             </article>)}
           </div>
         </section>

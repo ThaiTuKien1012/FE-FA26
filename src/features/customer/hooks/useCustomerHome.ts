@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { APP_BRAND } from '../../../app/branding';
 import { CUSTOMER_STORES, getCustomerStoreId, rememberCustomerStore } from '../data/customerStores';
-import { getCustomerCategories, getCustomerProducts, type CustomerProduct } from '../data/customerCatalog';
+import { CUSTOMER_PRODUCTS, type CustomerProduct } from '../data/customerCatalog';
 import { useCustomerShopping } from './useCustomerShopping';
 
 function normalize(text: string): string {
@@ -25,12 +25,14 @@ export function useCustomerHome(onExplore: () => void) {
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const selectedStore = CUSTOMER_STORES.find(store => store.id === selectedStoreId) || CUSTOMER_STORES[0];
-  const storeProducts = getCustomerProducts(selectedStore.id);
-  const categories = ['All Products', ...getCustomerCategories(selectedStore.id)];
+  // Home is a platform-level catalog. Store-specific pricing and stock are
+  // still applied when the customer enters a store or adds an item.
+  const storeProducts = CUSTOMER_PRODUCTS;
+  const categories = ['All Products', ...new Set(storeProducts.map(product => product.category))];
   const brands = [...new Set(storeProducts.map(product => product.brand))].map((name, index) => ({
     name,
     image: storeProducts.find(product => product.brand === name)!.image,
-    description: `Available at ${selectedStore.englishName}`,
+    description: 'Available on Storefone',
     color: ['#eef5e9', '#fff4e5', '#edf5fb', '#fff0f3', '#eaf5ef'][index % 5],
   }));
   const featuredProduct = storeProducts[0];
@@ -96,9 +98,14 @@ export function useCustomerHome(onExplore: () => void) {
     scrollTo('fm-products');
   };
   const addToCart = (product: Pick<CustomerProduct, 'id' | 'name'>) => {
-    if (!selectedStore.productIds.includes(product.id)) return;
-    changeQuantity(selectedStore.id, product.id, 1);
-    setNotice(`Added ${product.name} to your ${selectedStore.englishName} cart`);
+    const catalogProduct = CUSTOMER_PRODUCTS.find(item => item.id === product.id);
+    if (!catalogProduct) return;
+    const productStore = CUSTOMER_STORES.find(store => store.id === catalogProduct.storeId);
+    if (!productStore) return;
+    setSelectedStoreId(productStore.id);
+    rememberCustomerStore(productStore.id);
+    changeQuantity(productStore.id, product.id, 1);
+    setNotice(`Added ${product.name} to your ${productStore.englishName} cart`);
     clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(''), 3000);
   };
@@ -106,6 +113,11 @@ export function useCustomerHome(onExplore: () => void) {
     if (selectedStore.productIds.includes(id)) changeQuantity(selectedStore.id, id, difference);
   };
   const openProduct = (product: CustomerProduct) => {
+    const productStore = CUSTOMER_STORES.find(store => store.id === product.storeId);
+    if (productStore) {
+      setSelectedStoreId(productStore.id);
+      rememberCustomerStore(productStore.id);
+    }
     setSelectedProduct(product);
     setDialogMode('product');
     dialogRef.current?.showModal();

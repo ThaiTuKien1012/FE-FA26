@@ -34,9 +34,9 @@ export function AddToCartButton({ onClick, quantity = 0 }: { onClick: () => void
   );
 }
 
-export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd }: {
+export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, storeLabel }: {
   product: CustomerDisplayProduct; saved: boolean; quantity: number;
-  onSave: () => void; onOpen: () => void; onAdd: () => void;
+  onSave: () => void; onOpen: () => void; onAdd: () => void; storeLabel?: string;
 }) {
   return (
     <article className="fm-product min-w-0 rounded-[15px] border border-white bg-white p-1 max-[580px]:rounded-xl max-[580px]:p-[3px]">
@@ -52,6 +52,7 @@ export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd }:
         <div className="fm-product-brand flex items-center justify-between gap-[7px] text-[9px] text-[#088178] max-[800px]:text-[8px]">
           {product.brand || product.category}<span className="text-[8px] text-[#a0a7a4] max-[580px]:text-[6px]">{product.unit || 'item'}</span>
         </div>
+        {storeLabel && <div className="mt-1 truncate text-[8px] text-[#7b8f84] max-[580px]:text-[7px]">Available at {storeLabel}</div>}
         <h3 className="mt-[7px] mb-2 text-xs leading-normal font-semibold max-[1100px]:min-h-[33px] max-[1100px]:text-[11px] max-[800px]:min-h-[30px] max-[800px]:text-[10px] max-[580px]:min-h-[33px] max-[580px]:text-[11px]">
           <button className="border-0 bg-transparent p-0 text-left hover:text-[#088178]" onClick={onOpen}>{product.name}</button>
         </h3>
