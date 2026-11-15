@@ -96,7 +96,7 @@ export default function App() {
 
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
-    if (!currentUser && !['login', 'register', 'activate', 'forgot-password', 'customer-home'].includes(currentScreen)) {
+    if (!currentUser && !['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront'].includes(currentScreen)) {
       syncBrowserUrl('login', true);
       setCurrentScreen('login');
     }
@@ -262,7 +262,7 @@ export default function App() {
     );
   }
 
-  if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password'].includes(currentScreen))) {
+  if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password', 'customer-storefront'].includes(currentScreen))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -308,13 +308,13 @@ export default function App() {
     );
   }
 
-  // 2. If Customer role on customer-storefront, render full-screen Kiosk
-  if (currentScreen === 'customer-storefront' && currentUser?.role === 'End-Customer') {
+  // Store pages are browsable before sign-in, like the shared customer home.
+  if (currentScreen === 'customer-storefront' && (!currentUser || currentUser.role === 'End-Customer')) {
     return (
       <CustomerStorefrontView
         user={currentUser}
         onLogout={handleLogout}
-        onProfile={() => handleNavigate('profile')}
+        onProfile={() => handleNavigate(currentUser ? 'profile' : 'login')}
         onHome={() => handleNavigate('customer-home')}
         onLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }}
       />

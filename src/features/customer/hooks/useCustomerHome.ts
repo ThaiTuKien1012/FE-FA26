@@ -4,6 +4,8 @@ import { CUSTOMER_STORES, getCustomerStoreId, rememberCustomerStore } from '../d
 import { CUSTOMER_PRODUCTS, type CustomerProduct } from '../data/customerCatalog';
 import { useCustomerShopping } from './useCustomerShopping';
 
+export type DiscoveryFilter = 'all' | 'hot' | 'trending' | 'new';
+
 function normalize(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
 }
@@ -12,6 +14,7 @@ export function useCustomerHome(onExplore: () => void) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All Products');
   const [brand, setBrand] = useState('All Products');
+  const [discoveryFilter, setDiscoveryFilter] = useState<DiscoveryFilter>('all');
   const { storeCarts, saved, changeQuantity, toggleSaved } = useCustomerShopping();
   const [savedOnly, setSavedOnly] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState(getCustomerStoreId);
@@ -38,7 +41,7 @@ export function useCustomerHome(onExplore: () => void) {
   const featuredProduct = storeProducts[0];
   const secondaryProduct = storeProducts.find(product => product.category !== featuredProduct.category) || storeProducts[1];
   const hotSaleProducts = storeProducts.filter(product => product.isHotSale);
-  const trendingProducts = [...storeProducts].sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0)).slice(0, 8);
+  const trendingProducts = storeProducts.filter(product => product.isTrending).sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
   const newProducts = storeProducts.filter(product => product.isNew);
   const cart = storeCarts[selectedStore.id] || {};
   const cartProducts = storeProducts.filter(product => cart[product.id] > 0);
@@ -47,10 +50,11 @@ export function useCustomerHome(onExplore: () => void) {
   const filteredProducts = storeProducts.filter(product =>
     (category === 'All Products' || product.category === category) &&
     (brand === 'All Products' || product.brand === brand) &&
+    (discoveryFilter === 'all' || (discoveryFilter === 'hot' && product.isHotSale) || (discoveryFilter === 'trending' && product.isTrending) || (discoveryFilter === 'new' && product.isNew)) &&
     (!savedOnly || saved.includes(product.id)) &&
     normalize(`${product.name} ${product.brand} ${product.category}`).includes(normalize(query.trim())),
   );
-  const hasFilters = Boolean(query || brand !== 'All Products' || category !== 'All Products' || savedOnly);
+  const hasFilters = Boolean(query || brand !== 'All Products' || category !== 'All Products' || savedOnly || discoveryFilter !== 'all');
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -70,6 +74,7 @@ export function useCustomerHome(onExplore: () => void) {
     setBrand('All Products');
     setQuery('');
     setSavedOnly(false);
+    setDiscoveryFilter('all');
   };
   const chooseStore = (storeId: string, scroll = true) => {
     if (!CUSTOMER_STORES.some(store => store.id === storeId)) return;
@@ -88,6 +93,11 @@ export function useCustomerHome(onExplore: () => void) {
     resetFilters();
     setCategory(name);
     setCategoryMenuOpen(false);
+    scrollTo('fm-products');
+  };
+  const showCollection = (filter: DiscoveryFilter) => {
+    resetFilters();
+    setDiscoveryFilter(filter);
     scrollTo('fm-products');
   };
   const openStorefront = () => {
@@ -136,10 +146,10 @@ export function useCustomerHome(onExplore: () => void) {
   });
 
   return {
-    query, setQuery, category, setCategory, brand, setBrand, saved, savedOnly,
+    query, setQuery, category, setCategory, brand, setBrand, discoveryFilter, showCollection, saved, savedOnly,
     selectedStore, storeProducts, categories, brands, featuredProduct, secondaryProduct,
     hotSaleProducts, trendingProducts, newProducts,
-    cart, cartCount, cartProducts, cartTotal, filteredProducts, hasFilters,
+    cart, storeCarts, cartCount, cartProducts, cartTotal, filteredProducts, hasFilters,
     notice, setNotice, menuOpen, setMenuOpen, categoryMenuOpen, setCategoryMenuOpen,
     selectedProduct, dialogMode, dialogRef, brandRowRef,
     scrollTo, resetFilters, chooseStore, chooseBrand, chooseCategory, openStorefront,
