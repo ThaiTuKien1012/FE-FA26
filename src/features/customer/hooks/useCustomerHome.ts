@@ -37,6 +37,9 @@ export function useCustomerHome(onExplore: () => void) {
   }));
   const featuredProduct = storeProducts[0];
   const secondaryProduct = storeProducts.find(product => product.category !== featuredProduct.category) || storeProducts[1];
+  const hotSaleProducts = storeProducts.filter(product => product.isHotSale);
+  const trendingProducts = [...storeProducts].sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0)).slice(0, 8);
+  const newProducts = storeProducts.filter(product => product.isNew);
   const cart = storeCarts[selectedStore.id] || {};
   const cartProducts = storeProducts.filter(product => cart[product.id] > 0);
   const cartCount = cartProducts.reduce((sum, product) => sum + cart[product.id], 0);
@@ -135,6 +138,7 @@ export function useCustomerHome(onExplore: () => void) {
   return {
     query, setQuery, category, setCategory, brand, setBrand, saved, savedOnly,
     selectedStore, storeProducts, categories, brands, featuredProduct, secondaryProduct,
+    hotSaleProducts, trendingProducts, newProducts,
     cart, cartCount, cartProducts, cartTotal, filteredProducts, hasFilters,
     notice, setNotice, menuOpen, setMenuOpen, categoryMenuOpen, setCategoryMenuOpen,
     selectedProduct, dialogMode, dialogRef, brandRowRef,

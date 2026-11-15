@@ -41,6 +41,7 @@ export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, s
   return (
     <article className="fm-product min-w-0 rounded-[15px] border border-white bg-white p-1 max-[580px]:rounded-xl max-[580px]:p-[3px]">
       <div className="fm-product-picture relative h-[220px] overflow-hidden rounded-xl bg-[#f5f5f5] max-[1100px]:h-[195px] max-[800px]:h-40 max-[580px]:h-[170px] max-[580px]:rounded-[9px] max-[360px]:h-[150px]">
+        {product.discountPercent && product.discountPercent > 0 && <span className="absolute top-2 left-2 z-1 rounded-full bg-[#e85d4a] px-2 py-1 text-[8px] font-bold text-white max-[580px]:top-[6px] max-[580px]:left-[6px] max-[580px]:px-1.5 max-[580px]:py-0.5 max-[580px]:text-[7px]">-{product.discountPercent}%</span>}
         <button className={`fm-favorite absolute top-2 right-2 z-1 grid size-7 place-items-center rounded-full border border-[#dfe4e1] hover:bg-[#fff2ef] hover:text-[#c6564b] max-[580px]:top-[6px] max-[580px]:right-[6px] max-[580px]:size-[25px] ${saved ? 'bg-[#fff2ef] text-[#c6564b]' : 'bg-[#f9faf8] text-[#78837d]'}`} aria-label={`${saved ? 'Unsave' : 'Save'} ${product.name}`} aria-pressed={saved} onClick={onSave}>
           <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
         </button>
@@ -56,8 +57,9 @@ export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, s
         <h3 className="mt-[7px] mb-2 text-xs leading-normal font-semibold max-[1100px]:min-h-[33px] max-[1100px]:text-[11px] max-[800px]:min-h-[30px] max-[800px]:text-[10px] max-[580px]:min-h-[33px] max-[580px]:text-[11px]">
           <button className="border-0 bg-transparent p-0 text-left hover:text-[#088178]" onClick={onOpen}>{product.name}</button>
         </h3>
-        <div className="fm-product-price mb-[11px] flex items-baseline gap-1 max-[580px]:mb-[9px]">
+        <div className="fm-product-price mb-[11px] flex flex-wrap items-baseline gap-x-1 gap-y-0.5 max-[580px]:mb-[9px]">
           <strong className="text-[15px] font-bold max-[1100px]:text-sm max-[800px]:text-xs max-[580px]:text-[13px]">{money(product.priceVnd)}</strong>
+          {product.originalPriceVnd && product.originalPriceVnd > product.priceVnd && <del className="text-[9px] text-[#a0a7a4] max-[800px]:text-[8px]">{money(product.originalPriceVnd)}</del>}
           <span className="text-[9px] text-[#8e9692] max-[800px]:text-[8px]">/ {product.unit || 'item'}</span>
         </div>
         <AddToCartButton onClick={onAdd} quantity={quantity} />

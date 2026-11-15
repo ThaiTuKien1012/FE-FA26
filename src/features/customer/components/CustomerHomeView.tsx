@@ -13,6 +13,7 @@ import { formatCustomerPrice as money } from '../data/customerCatalog';
 import { CustomerShoppingDialog } from './CustomerShoppingDialog';
 import { CustomerHeader } from './CustomerHeader';
 import type { AuthUser } from '../../../services/authService';
+import type { CustomerProduct } from '../data/customerCatalog';
 import { useCustomerHome } from '../hooks/useCustomerHome';
 import { AddToCartButton, ProductCard, PillButton, SectionHeading, containerClass } from './CustomerCommerce';
 
@@ -22,10 +23,36 @@ const basketImage = '/images/customer-home/fresh/grocery-basket.png';
 const imagePath = (name: string) => name.startsWith('/') ? name : `/images/customer-home/fresh/${name}`;
 const storeNameFor = (storeId: string) => CUSTOMER_STORES.find(store => store.id === storeId)?.englishName || 'a local store';
 
+function ProductRail({ id, eyebrow, title, products, saved, cart, onSave, onOpen, onAdd, onViewAll }: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  products: CustomerProduct[];
+  saved: string[];
+  cart: Record<string, number>;
+  onSave: (id: string) => void;
+  onOpen: (product: CustomerProduct) => void;
+  onAdd: (product: CustomerProduct) => void;
+  onViewAll: () => void;
+}) {
+  return (
+    <section id={id} className={`${containerClass} scroll-mt-5 py-[42px] max-[580px]:py-7`} aria-labelledby={`${id}-title`}>
+      <div className="mb-[22px] flex items-end justify-between gap-4 max-[580px]:mb-[17px]">
+        <div><span className="mb-2 block text-[8px] tracking-[1.4px] text-[#088178] max-[580px]:text-[6px]">{eyebrow}</span><h2 id={`${id}-title`} className="m-0 text-[29px] leading-[1.25] font-[650] tracking-[-1.1px] max-[800px]:text-[26px] max-[580px]:text-[23px]">{title}</h2></div>
+        <button className="inline-flex items-center gap-1 border-0 bg-transparent text-[10px] text-[#088178] hover:text-[#032724] max-[580px]:text-[8px]" onClick={onViewAll}>View all <ArrowUpRight size={14} /></button>
+      </div>
+      <div className="grid grid-cols-4 gap-[15px] max-[800px]:grid-cols-2 max-[800px]:gap-3">
+        {products.slice(0, 4).map(product => <ProductCard key={product.id} product={product} storeLabel={storeNameFor(product.storeId)} saved={saved.includes(product.id)} quantity={cart[product.id] || 0} onSave={() => onSave(product.id)} onOpen={() => onOpen(product)} onAdd={() => onAdd(product)} />)}
+      </div>
+    </section>
+  );
+}
+
 export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfile, onLogout }: Props) {
   const home = useCustomerHome(onExplore);
   const {
     selectedStore, storeProducts, categories, brands, featuredProduct, secondaryProduct,
+    hotSaleProducts, trendingProducts, newProducts,
     query, setQuery, category, setCategory, brand, setBrand, saved, savedOnly,
     cart, cartCount, cartProducts, cartTotal, filteredProducts, hasFilters,
     notice, setNotice, menuOpen, setMenuOpen, categoryMenuOpen, setCategoryMenuOpen,
@@ -49,7 +76,7 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
             </div>}
           </div>
           <nav className={`fm-navigation items-center gap-[29px] max-[1100px]:gap-5 max-[800px]:gap-[13px] max-[580px]:absolute max-[580px]:top-11 max-[580px]:-right-4 max-[580px]:-left-4 max-[580px]:z-20 max-[580px]:flex-col max-[580px]:items-start max-[580px]:gap-0 max-[580px]:border-t max-[580px]:border-[#e9eded] max-[580px]:bg-white max-[580px]:px-5 max-[580px]:py-[14px] max-[580px]:shadow-[0_20px_25px_#03272410] ${menuOpen ? 'flex' : 'flex max-[580px]:hidden'}`} aria-label="Main navigation">
-            {[['Stores', 'fm-stores'], ['Brands', 'fm-brands'], ['Products', 'fm-products'], ['Collections', 'fm-collections']].map(([label, id]) => <a className="hover:text-[#088178] max-[580px]:py-[11px] max-[580px]:text-xs" key={id} href={`#${id}`} onClick={() => setMenuOpen(false)}>{label}</a>)}
+            {[['Hot Sale', 'fm-hot-sale'], ['Stores', 'fm-stores'], ['Brands', 'fm-brands'], ['Products', 'fm-products'], ['Collections', 'fm-collections']].map(([label, id]) => <a className="hover:text-[#088178] max-[580px]:py-[11px] max-[580px]:text-xs" key={id} href={`#${id}`} onClick={() => setMenuOpen(false)}>{label}</a>)}
             <button className="flex items-center gap-[5px] border-0 bg-transparent p-0 hover:text-[#088178] max-[580px]:py-[11px] max-[580px]:text-xs" onClick={openStorefront}>Shop <ArrowUpRight size={12} /></button>
           </nav>
           <a className="flex items-center gap-[7px] text-[10px] max-[800px]:gap-0 max-[800px]:text-[0px] max-[580px]:gap-[5px] max-[580px]:text-[8px]" href="#fm-footer"><Headphones className="size-[22px] rounded-full bg-[#088178] p-1 text-white max-[580px]:size-[18px] max-[580px]:p-[3px]" />Help & Information</a>
@@ -67,6 +94,8 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
 
       <main id="fm-main">
         <CustomerBannerCarousel selectedStore={selectedStore} featuredProduct={featuredProduct} onBrowseProducts={() => { resetFilters(); scrollTo('fm-products'); }} onBrowseStores={() => scrollTo('fm-stores')} onShopStore={storeId => chooseStore(storeId)} onBannerStoreChange={() => undefined} />
+
+        <ProductRail id="fm-hot-sale" eyebrow="LIMITED-TIME DEALS" title="Hot Sale" products={hotSaleProducts} saved={saved} cart={cart} onSave={id => toggleSaved(id)} onOpen={openProduct} onAdd={addToCart} onViewAll={() => { resetFilters(); scrollTo('fm-products'); }} />
 
         <section className={`fm-stores-section ${containerClass} scroll-mt-[18px] pt-[42px] pb-[10px] max-[580px]:pt-[29px] max-[580px]:pb-0`} id="fm-stores" aria-labelledby="fm-stores-title">
           <div className="mb-[22px] flex items-center justify-between gap-[18px] max-[580px]:mb-[17px]">
@@ -92,6 +121,10 @@ export function CustomerHomeView({ onLogin, onRegister, onExplore, user, onProfi
             ))}
           </div>
         </section>
+
+        <ProductRail id="fm-trending" eyebrow="LOVED BY SHOPPERS" title="Trending now" products={trendingProducts} saved={saved} cart={cart} onSave={id => toggleSaved(id)} onOpen={openProduct} onAdd={addToCart} onViewAll={() => { resetFilters(); scrollTo('fm-products'); }} />
+
+        <ProductRail id="fm-new" eyebrow="JUST LANDED" title="New on Storefone" products={newProducts} saved={saved} cart={cart} onSave={id => toggleSaved(id)} onOpen={openProduct} onAdd={addToCart} onViewAll={() => { resetFilters(); scrollTo('fm-products'); }} />
 
         <section id="fm-brands" className={`fm-brands-section ${containerClass} scroll-mt-5 pt-[43px] pb-[45px] max-[580px]:pt-7 max-[580px]:pb-[30px]`} aria-labelledby="fm-brands-title">
           <SectionHeading id="fm-brands-title" title="Explore Our Brands">

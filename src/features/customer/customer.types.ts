@@ -1,4 +1,13 @@
 export * from '../../types/storeInventory';
 import type { ProductItem } from '../../types/storeInventory';
 
-export type CustomerDisplayProduct = ProductItem & { brand?: string };
+export type CustomerDisplayProduct = ProductItem & {
+  brand?: string;
+  originalPriceVnd?: number;
+  discountPercent?: number;
+  soldCount?: number;
+  rating?: number;
+  isHotSale?: boolean;
+  isTrending?: boolean;
+  isNew?: boolean;
+};
