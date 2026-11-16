@@ -258,3 +258,52 @@
   .f04-import .f04-row-stat:last-child { border-bottom: 0; }
   .f04-import .f04-row-stat dd { margin-top: 0; }
 }
+
+.f04-progress-card {
+  --f04-primary: #1e3a2f;
+  overflow: hidden;
+  border: 1px solid #dce5df;
+  border-radius: 16px;
+  background: white;
+  color: #1e3a2f;
+}
+.f04-progress-heading { display: flex; align-items: flex-start; gap: 16px; padding: 24px 24px 20px; }
+.f04-progress-icon { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 46px; height: 46px; border: 1px solid #dce5df; border-radius: 12px; background: #f1f6f2; }
+.f04-progress-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.f04-progress-title h2 { font-size: 23px; line-height: 1.35; letter-spacing: -.025em; font-weight: 650; border-radius: 4px; }
+.f04-progress-title h2:focus-visible { outline: 2px solid #1e3a2f; outline-offset: 4px; }
+.f04-progress-badge { border: 1px solid #d4e3d9; border-radius: 6px; background: #f1f6f2; padding: 4px 9px; font-size: 11px; font-weight: 600; }
+.f04-progress-description { margin-top: 7px; color: #637168; font-size: 13px; line-height: 1.7; }
+.f04-progress-file { display: flex; align-items: center; gap: 10px; margin: 0 24px; padding: 14px; border: 1px solid #e5ebe5; border-radius: 10px; background: #fafcf9; font-size: 13px; }
+.f04-progress-file > svg { flex-shrink: 0; }
+.f04-progress-file > span { overflow-wrap: anywhere; flex: 1; min-width: 0; font-weight: 600; }
+.f04-progress-file small { flex-shrink: 0; color: #6d7974; font-size: 11px; }
+.f04-progress-measure { padding: 24px; min-height: 175px; }
+.f04-progress-numbers { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #637168; }
+.f04-progress-numbers strong { color: #1e3a2f; font-size: 32px; line-height: 1.2; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.f04-progress-track { height: 10px; margin-top: 14px; overflow: hidden; border-radius: 99px; background: #e9eee9; }
+.f04-progress-track > span { display: block; height: 100%; background: #1e3a2f; border-radius: inherit; transition: width 350ms ease; }
+.f04-progress-track--unknown > span { width: 100%; opacity: .28; }
+.f04-progress-detail { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; color: #637168; font-size: 12px; line-height: 1.6; }
+.f04-progress-detail p:first-child { color: #364c40; font-weight: 500; font-variant-numeric: tabular-nums; }
+.f04-progress-footer { border-top: 1px solid #e5ebe5; background: #fafcf9; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; }
+.f04-progress-footer > p { min-width: 0; flex: 1 1 280px; color: #637168; font-size: 12px; line-height: 1.7; }
+.f04-progress-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12px; font-weight: 600; }
+.f04-progress-actions a { text-decoration: underline; text-underline-offset: 3px; }
+.f04-progress-actions button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d4dfd6; border-radius: 7px; padding: 8px 11px; background: white; cursor: pointer; }
+.f04-progress-actions button:disabled { opacity: .45; cursor: wait; }
+.f04-progress-actions :is(a, button):focus-visible { outline: 2px solid #1e3a2f; outline-offset: 3px; }
+.f04-progress-notice { display: flex; align-items: flex-start; gap: 10px; margin: 0 24px 20px; padding: 13px; border-radius: 8px; border: 1px solid #f0d9ab; background: #fff9ed; color: #80531c; font-size: 12px; line-height: 1.7; }
+.f04-progress-notice svg { flex-shrink: 0; margin-top: 2px; }
+.f04-progress-card--warning .f04-progress-icon { color: #80531c; background: #fff9ed; border-color: #f0d9ab; }
+@media (max-width: 639px) {
+  .f04-progress-heading { padding: 20px; gap: 12px; }
+  .f04-progress-title h2 { font-size: 20px; }
+  .f04-progress-file { margin: 0 20px; flex-wrap: wrap; }
+  .f04-progress-measure { padding: 20px; }
+  .f04-progress-footer { padding: 16px 20px; }
+  .f04-progress-notice { margin-right: 20px; margin-left: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .f04-progress-track > span { transition: none; }
+}

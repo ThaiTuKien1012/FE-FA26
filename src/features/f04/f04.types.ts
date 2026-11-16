@@ -1,6 +1,21 @@
 export type TransactionStatus = 'COMPLETED' | 'CANCELLED' | 'REFUNDED' | 'PARTIAL_REFUND';
 
-export type ImportStatus = 'PROCESSING' | 'COMPLETED' | 'COMPLETED_WITH_ERRORS' | 'FAILED';
+export type ImportStatus = 'RECEIVING' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'COMPLETED_WITH_ERRORS' | 'FAILED';
+
+export interface ImportProgress {
+  importBatchId: number;
+  status: ImportStatus;
+  stage: 'RECEIVING' | 'QUEUED' | 'IMPORTING' | 'COMPLETED' | 'COMPLETED_WITH_ERRORS' | 'FAILED' | 'LEGACY';
+  processedCount: number;
+  totalCount: number | null;
+  progressPercent: number | null;
+  createdAt: string;
+  startedAt: string | null;
+  updatedAt: string;
+  completedAt: string | null;
+  statistics: Pick<ImportSummary, 'validCount' | 'rejectedCount' | 'totalOrderCount' | 'acceptedOrderCount' | 'rejectedOrderCount' | 'duplicateOrderCount' | 'conflictOrderCount'>;
+  errorSummary: string | null;
+}
 
 export interface F04Page<T> {
   content: T[];

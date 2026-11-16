@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, ChevronLeft, ChevronRight, Eye, FileClock, FileText, Loader2, RefreshCw, X } from 'lucide-react';
 import { F04ApiError, f04Api } from '../f04.api';
+import { canReadImports } from '../f04.session';
+import { importIsTerminal } from '../f04.import';
+import { useF04Scope, useImportWorkflow } from '../useImportWorkflow';
+import { ImportProgressCard } from './ImportProgressCard';
 import type { F04Page, ImportStatus, ImportSummary } from '../f04.types';
 import './ImportHistoryView.css';
 
@@ -10,7 +14,9 @@ const statusStyles = {
   COMPLETED: { label: 'Completed', tone: 'success' },
   COMPLETED_WITH_ERRORS: { label: 'Completed with issues', tone: 'warning' },
   FAILED: { label: 'Failed', tone: 'danger' },
-  PROCESSING: { label: 'Processing', tone: 'info' }
+  PROCESSING: { label: 'Processing', tone: 'info' },
+  QUEUED: { label: 'Queued', tone: 'info' },
+  RECEIVING: { label: 'Preparing', tone: 'info' }
 };
 
 function StatusBadge({ status }: { status: ImportStatus }) {
@@ -136,13 +142,11 @@ function Metrics({ title, description, values }: { title: string; description: s
   </section>;
 }
 
-function ImportDetails({ batchId, onClose }: { batchId: number; onClose: () => void }) {
+function ImportDetails({ batchId, filename, onClose }: { batchId: number; filename?: string | null; onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [revision, setRevision] = useState(0);
-  const [result, setResult] = useState<{ revision: number; data?: ImportSummary; error?: string } | null>(null);
-  const current = result?.revision === revision ? result : null;
-  const summary = current?.data;
+  const state = useImportWorkflow(batchId);
+  const summary = state.summary;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -158,22 +162,12 @@ function ImportDetails({ batchId, onClose }: { batchId: number; onClose: () => v
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    void f04Api.getImport(batchId).then(data => {
-      if (active) setResult({ revision, data });
-    }).catch(error => {
-      if (active) setResult({ revision, error: errorMessage(error) });
-    });
-    return () => { active = false; };
-  }, [batchId, revision]);
-
   return createPortal(<dialog ref={dialogRef} className="f04-history f04h-dialog" aria-labelledby="f04h-detail-title" aria-describedby="f04h-detail-description" onCancel={event => { event.preventDefault(); onClose(); }}>
     <header className="f04h-dialog-header"><div><p className="f04h-eyebrow">BATCH #{batchId}</p><h2 id="f04h-detail-title">Import details</h2><p id="f04h-detail-description">Review this CSV import and its processing results.</p></div>
       <button ref={closeRef} type="button" className="f04h-icon-button" onClick={onClose} aria-label="Close import details"><X size={20} aria-hidden="true" /></button>
     </header>
     <div className="f04h-dialog-body">
-      {!current ? <Loading label="Loading import details..." /> : current.error ? <RequestError message={current.error} retry={() => setRevision(value => value + 1)} /> : summary && <>
+      {!summary ? <ImportProgressCard state={{ ...state, filename: state.progress ? filename || '' : '' }} refresh={state.workflow.refresh} /> : <>
         <section className="f04h-batch-overview" aria-label="Batch information">
           <div className="f04h-file-heading"><span className="f04h-file-icon"><FileText size={18} aria-hidden="true" /></span><div><div className="f04h-file-title"><h3>{summary.filename ?? 'Unnamed CSV file'}</h3><StatusBadge status={summary.status} /></div>{skippedExisting(summary) && <p className="f04h-skipped">Existing orders skipped</p>}</div></div>
           <dl className="f04h-metadata"><div><dt>Batch ID</dt><dd>#{summary.importBatchId}</dd></div><div><dt>Started at</dt><dd><time dateTime={summary.startedAt}>{formatDate(summary.startedAt)}</time></dd></div><div><dt>Finished at</dt><dd>{summary.finishedAt ? <time dateTime={summary.finishedAt}>{formatDate(summary.finishedAt)}</time> : '—'}</dd></div></dl>
@@ -200,6 +194,11 @@ function ImportDetails({ batchId, onClose }: { batchId: number; onClose: () => v
 }
 
 export function ImportHistoryView() {
+  const scope = useF04Scope();
+  return canReadImports() ? <ImportHistoryContent key={scope} /> : null;
+}
+
+function ImportHistoryContent() {
   const { data, loading, error, refresh, setPage } = usePagedResults(f04Api.listImports);
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const closeDetails = useCallback(() => setSelectedBatch(null), []);
@@ -218,7 +217,7 @@ export function ImportHistoryView() {
             </tr></thead><tbody>{data.content.map(batch => <tr key={batch.importBatchId}>
               <th scope="row">#{batch.importBatchId}</th><td className="f04h-filename">{batch.filename ?? '—'}</td><td className="f04h-date"><time dateTime={batch.startedAt}>{formatDate(batch.startedAt)}</time></td>
               <td><StatusBadge status={batch.status} />{skippedExisting(batch) && <p className="f04h-skipped">Existing orders skipped</p>}</td>
-              <td className="f04h-number">{batch.acceptedOrderCount.toLocaleString()}</td><td className="f04h-number">{batch.duplicateOrderCount.toLocaleString()}</td><td className="f04h-number">{batch.rejectedOrderCount.toLocaleString()}</td><td className="f04h-number">{batch.conflictOrderCount.toLocaleString()}</td>
+              {[batch.acceptedOrderCount, batch.duplicateOrderCount, batch.rejectedOrderCount, batch.conflictOrderCount].map((count, index) => <td key={index} className="f04h-number">{importIsTerminal(batch.status) ? count.toLocaleString() : <span title="Final results available when processing ends">—</span>}</td>)}
               <td><button type="button" className="f04h-details-button" aria-label={`View details for batch ${batch.importBatchId}`} aria-haspopup="dialog" onClick={() => setSelectedBatch(batch.importBatchId)}><Eye size={14} aria-hidden="true" />View Details</button></td>
             </tr>)}</tbody></table>
           </div>
@@ -226,6 +225,6 @@ export function ImportHistoryView() {
         </>
       )}
     </section>
-    {selectedBatch !== null && <ImportDetails key={selectedBatch} batchId={selectedBatch} onClose={closeDetails} />}
+    {selectedBatch !== null && <ImportDetails key={selectedBatch} batchId={selectedBatch} filename={data?.content.find(batch => batch.importBatchId === selectedBatch)?.filename} onClose={closeDetails} />}
   </div>;
 }

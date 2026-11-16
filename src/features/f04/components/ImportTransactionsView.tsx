@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CloudUpload, Files, FileText, Info, Loader2, ShieldAlert, Upload, X, XCircle } from 'lucide-react';
-import { F04ApiError, f04Api } from '../f04.api';
+import { f04Api } from '../f04.api';
+import { authService } from '../../../services/authService';
+import { f04Scope } from '../f04.session';
+import { importRequestError } from '../f04.import';
+import { useF04Scope, useImportWorkflow } from '../useImportWorkflow';
+import { ImportProgressCard } from './ImportProgressCard';
 import type { F04Page, ImportError, ImportSummary } from '../f04.types';
 import './ImportTransactionsView.css';
 
@@ -24,7 +29,9 @@ const importStatusLabels: Record<ImportSummary['status'], string> = {
   COMPLETED: 'Completed',
   COMPLETED_WITH_ERRORS: 'Completed with issues',
   FAILED: 'Failed',
-  PROCESSING: 'Processing'
+  PROCESSING: 'Processing',
+  QUEUED: 'Queued',
+  RECEIVING: 'Preparing'
 };
 
 const metricStyles = {
@@ -41,7 +48,7 @@ function hasImportErrors(summary: ImportSummary): boolean {
 }
 
 function getResultPresentation(summary: ImportSummary): ResultPresentation {
-  if (summary.status === 'FAILED') return { tone: 'error', message: 'Import failed. The file could not be fully processed.' };
+  if (summary.status === 'FAILED') return { tone: 'error', message: 'Import failed' };
   if (summary.status === 'PROCESSING') return { tone: 'processing', message: 'The server is still processing this file.' };
   if (summary.status === 'COMPLETED_WITH_ERRORS' || hasImportErrors(summary)) {
     return { tone: 'warning', message: 'Import completed with issues' };
@@ -57,26 +64,11 @@ function getResultPresentation(summary: ImportSummary): ResultPresentation {
   return { tone: 'neutral', message: 'Import completed. No new transactions were imported.' };
 }
 
-function describeError(error: unknown, context: 'upload' | 'errors' = 'upload'): Notice {
-  if (!(error instanceof F04ApiError)) return { title: 'Request failed', message: error instanceof Error ? error.message : 'Please try again.' };
-  const messages: Record<number, string> = {
-    400: 'Check the CSV header, column order, UTF-8 encoding and file contents.',
-    401: 'Your session is missing or has expired. Sign in again before continuing.',
-    403: 'Use a Store Admin account assigned to a Store to import transactions.',
-    413: 'The file exceeds the server upload limit. Choose a CSV no larger than 5 MiB.'
-  };
-  if (error.status === null) return {
-    title: 'Connection error',
-    message: context === 'errors'
-      ? 'Row details could not be loaded. Your import result is still available. Check your connection and retry loading errors.'
-      : 'The server response could not be received. Check your connection before trying again. The file may already have been processed; importing the same unchanged file again is safe.'
-  };
+function describeError(error: unknown): Notice {
   return {
-    title: `${context === 'errors' ? 'Could not load row errors' : 'Import request failed'} · HTTP ${error.status}`,
-    message: context === 'errors' && error.status !== 401 && error.status !== 403
-      ? 'Your import result is still available. Retry loading the row details.'
-      : messages[error.status] || 'The server could not complete this request. Try again when the service is available.',
-    detail: error.message
+    title: 'Could not load row errors',
+    message: 'Your import result is still available. Retry loading the row details.',
+    detail: importRequestError(error)
   };
 }
 
@@ -119,16 +111,23 @@ function ErrorNotice({ notice }: { notice: Notice }) {
 }
 
 export function ImportTransactionsView() {
+  const scope = useF04Scope();
+  return authService.getCurrentUser()?.role === 'Store Admin' ? <ImportTransactionsContent key={scope} /> : null;
+}
+
+function ImportTransactionsContent() {
+  const state = useImportWorkflow();
+  const { workflow, summary } = state;
+  const uploading = ['uploading', 'restoring', 'tracking', 'uncertain'].includes(state.phase);
+  const scope = useRef(f04Scope());
   const [file, setFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<Notice | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [errorPage, setErrorPage] = useState<F04Page<ImportError> | null>(null);
   const [errorsLoading, setErrorsLoading] = useState(false);
   const [errorsError, setErrorsError] = useState<Notice | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const submitting = useRef(false);
+  submitting.current = uploading;
   const errorsPending = useRef(false);
   const importRun = useRef(0);
   const focusNewFile = useRef(false);
@@ -138,8 +137,6 @@ export function ImportTransactionsView() {
   const resultRef = useRef<HTMLElement | null>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const uploadErrorRef = useRef<HTMLDivElement | null>(null);
-  const processingRef = useRef<HTMLElement | null>(null);
-  const processingHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const errorsRef = useRef<HTMLDivElement | null>(null);
   const errorsHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const presentation = summary ? getResultPresentation(summary) : null;
@@ -156,14 +153,11 @@ export function ImportTransactionsView() {
 
   useEffect(() => {
     let target: HTMLElement | null = null;
-    if (uploading) {
-      processingHeadingRef.current?.focus({ preventScroll: true });
-      target = processingRef.current;
-    } else if (summary) {
+    if (!uploading && summary) {
       // Focus the real result instead of announcing a duplicate hidden message.
       resultHeadingRef.current?.focus({ preventScroll: true });
       target = resultRef.current;
-    } else if (uploadError) {
+    } else if (!uploading && state.error) {
       target = uploadErrorRef.current;
     } else if (focusNewFile.current) {
       focusNewFile.current = false;
@@ -174,7 +168,7 @@ export function ImportTransactionsView() {
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
       block: 'start'
     });
-  }, [uploading, summary, uploadError]);
+  }, [uploading, summary, state.error]);
 
   const reviewErrors = () => {
     errorsHeadingRef.current?.focus({ preventScroll: true });
@@ -188,26 +182,30 @@ export function ImportTransactionsView() {
     if (submitting.current) return;
     setFile(next);
     setValidationError(next ? validateFile(next) : null);
-    setUploadError(null);
   };
 
   const loadErrors = async (batchId: number, page: number, run = importRun.current) => {
-    if (errorsPending.current || run !== importRun.current) return;
+    if (errorsPending.current || (run !== importRun.current || scope.current !== f04Scope())) return;
     errorsPending.current = true;
     setErrorsLoading(true);
     setErrorsError(null);
     try {
       const result = await f04Api.getImportErrors(batchId, page, ERROR_PAGE_SIZE);
-      if (run === importRun.current) setErrorPage(result);
+      if (run === importRun.current && scope.current === f04Scope()) setErrorPage(result);
     } catch (error) {
-      if (run === importRun.current) setErrorsError(describeError(error, 'errors'));
+      if (run === importRun.current && scope.current === f04Scope()) setErrorsError(describeError(error));
     } finally {
-      if (run === importRun.current) {
+      if (run === importRun.current && scope.current === f04Scope()) {
         errorsPending.current = false;
         setErrorsLoading(false);
       }
     }
   };
+
+  useEffect(() => {
+    if (summary && hasImportErrors(summary)) void loadErrors(summary.importBatchId, 0);
+    return () => { importRun.current++; errorsPending.current = false; };
+  }, [summary]);
 
   const importCsv = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -215,29 +213,10 @@ export function ImportTransactionsView() {
     const invalid = file ? validateFile(file) : 'Choose a CSV file before importing.';
     setValidationError(invalid);
     if (!file || invalid) return;
-    submitting.current = true;
-    const run = ++importRun.current;
-    setUploading(true);
-    setUploadError(null);
-    setSummary(null);
     setErrorPage(null);
     setErrorsError(null);
-    setErrorsLoading(false);
-    errorsPending.current = false;
-    try {
-      const result = await f04Api.uploadCsv(file);
-      if (run !== importRun.current) return;
-      setGuideOpen(false);
-      setSummary(result);
-      if (hasImportErrors(result)) void loadErrors(result.importBatchId, 0, run);
-    } catch (error) {
-      if (run === importRun.current) setUploadError(describeError(error));
-    } finally {
-      if (run === importRun.current) {
-        submitting.current = false;
-        setUploading(false);
-      }
-    }
+    setGuideOpen(false);
+    await workflow.submit(file);
   };
 
   const importAnotherFile = () => {
@@ -248,8 +227,7 @@ export function ImportTransactionsView() {
     focusNewFile.current = true;
     setFile(null);
     setValidationError(null);
-    setUploadError(null);
-    setSummary(null);
+    workflow.reset();
     setErrorPage(null);
     setErrorsError(null);
     setErrorsLoading(false);
@@ -296,20 +274,7 @@ export function ImportTransactionsView() {
       </section>
 
       {uploading ? (
-        <section ref={processingRef} aria-labelledby="csv-processing-heading" className="f04-processing scroll-mt-24">
-          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:p-6">
-            <div className="f04-processing-icon flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"><Loader2 aria-hidden="true" className="h-6 w-6 animate-spin motion-reduce:animate-none" /></div>
-            <div className="min-w-0 flex-1">
-              <h2 ref={processingHeadingRef} id="csv-processing-heading" tabIndex={-1} aria-describedby="csv-processing-description csv-processing-file csv-processing-help" className="rounded text-xl font-semibold tracking-tight text-[#1e3a2f] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1e3a2f] sm:text-2xl">Processing your transactions...</h2>
-              <p id="csv-processing-description" className="mt-2 max-w-2xl text-sm leading-6 text-[#4c5e50]">Your CSV is being validated and checked for duplicate or conflicting orders.</p>
-              <div id="csv-processing-file" className="f04-processing-file mt-4 inline-flex max-w-full items-start gap-2 rounded-lg px-3 py-2 text-sm"><FileText aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#1e3a2f]" /><span className="min-w-0 break-all font-medium">{file?.name}{file && <span className="mt-0.5 block text-xs font-normal text-[#6d7974]">{formatFileSize(file.size)}</span>}</span></div>
-            </div>
-          </div>
-          <div className="f04-processing-footer flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
-            <p id="csv-processing-help" className="text-xs leading-5 text-[#4c5e50]">Please keep this page open until the import finishes.</p>
-            <button type="button" disabled className="inline-flex items-center gap-2 rounded-lg bg-[#1e3a2f] px-5 py-2.5 text-sm font-semibold text-white opacity-50 disabled:cursor-not-allowed"><Upload aria-hidden="true" className="h-4 w-4" />Import CSV</button>
-          </div>
-        </section>
+        <ImportProgressCard state={state} refresh={workflow.refresh} retryUpload={() => void workflow.retryUpload()} acknowledge={workflow.reset} focus />
       ) : summary && presentation && resultStyle ? (
         <section ref={resultRef} aria-labelledby="import-result-heading" className={`f04-result scroll-mt-24 ${resultStyle.className}`}>
           <div className="f04-result-header">
@@ -323,6 +288,7 @@ export function ImportTransactionsView() {
                   <span id="import-result-status" title={summary.status} className="f04-status-badge">{importStatusLabels[summary.status]}</span>
                 </div>
                 <p id="import-result-message" className="f04-result-message">{presentation.message}</p>
+                <p className="mt-2 text-sm text-[#6d7974]">{summary.status === 'FAILED' ? "We couldn't finish processing this file." : summary.status === 'COMPLETED_WITH_ERRORS' ? 'Some records could not be imported. Review the details below.' : 'Your transaction data has been processed successfully.'}</p>
                 {quickMeaning.length > 0 && <ul id="import-quick-meaning" aria-label="Quick result summary" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium leading-5">
                   {quickMeaning.map(({ Icon: MeaningIcon, text, color }) => <li key={text} className={`f04-quick-item ${color}`}><MeaningIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />{text}</li>)}
                 </ul>}
@@ -458,7 +424,7 @@ export function ImportTransactionsView() {
                 </div>
               )}
               {validationError && <p role="alert" className="flex items-start gap-2 text-sm text-[#a12b25]"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />{validationError}</p>}
-              {uploadError && <div ref={uploadErrorRef} className="scroll-mt-24"><ErrorNotice notice={uploadError} /></div>}
+              {state.error && <div ref={uploadErrorRef} className="scroll-mt-24"><ErrorNotice notice={{ title: 'Import request failed', message: state.error }} /></div>}
             </div>
             <div className="flex flex-col gap-3 border-t border-[#e7e2d8] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <p className="text-xs leading-5 text-[#6d7974]">Review the result to see which orders were saved.</p>
