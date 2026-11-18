@@ -1,7 +1,7 @@
 import { F05ApiError, miningId, miningPage, miningPagination, miningRequest, requireMiningRole, validateRequestKey } from './f05.http';
 import { parseMinUtilInput } from './f05.numbers';
-import { isBenchmarkView, isMiningConfiguration, isRequestView, isRunView, isSnapshotView } from './f05.read-contracts';
-import type { BenchmarkView, ManualMiningRequest, MiningConfiguration, MiningConfigurationUpdate, Page, RequestView, RunView, SnapshotView, StoreView } from './f05.types';
+import { isMiningProgressView, isMiningConfiguration, isRequestView, isRunView, isSnapshotView } from './f05.read-contracts';
+import type { MiningProgressView, ManualMiningRequest, MiningConfiguration, MiningConfigurationUpdate, Page, RequestView, RunView, SnapshotView, StoreView } from './f05.types';
 
 function request<T>(path: string, init?: RequestInit) {
   requireMiningRole(true);
@@ -12,12 +12,12 @@ export function validateManualRequest(payload: ManualMiningRequest): void {
   if (!payload || typeof payload !== 'object') throw new F05ApiError(400, 'Invalid manual mining payload.');
   validateRequestKey(payload.requestKey);
   miningId(payload.storeId, true); miningId(payload.snapshotId, true);
-  if (typeof payload.compareAlgorithms !== 'boolean') throw new F05ApiError(400, 'Choose whether to compare both algorithms.');
+  if (Object.keys(payload).sort().join(',') !== 'requestKey,snapshotId,storeId') throw new F05ApiError(400, 'Send only storeId, snapshotId and requestKey for EFIM mining.');
 }
 export function validateConfiguration(payload: MiningConfigurationUpdate): void {
-  if (!payload || !['HUI_MINER','EFIM'].includes(payload.algorithm) ||
+  if (!payload || Object.keys(payload).sort().join(',') !== 'expectedVersion,minUtilMode,minUtilValue' ||
       !Number.isSafeInteger(payload.expectedVersion) || payload.expectedVersion < 0 || payload.expectedVersion >= Number.MAX_SAFE_INTEGER) {
-    throw new F05ApiError(400, 'Choose an algorithm and a safe nonnegative configuration version.');
+    throw new F05ApiError(400, 'Use a safe nonnegative configuration version and the current EFIM threshold contract.');
   }
   if (typeof payload.minUtilValue !== 'number' || !Number.isFinite(payload.minUtilValue)) throw new F05ApiError(400, 'Minimum utility must be a JSON number.');
   try { parseMinUtilInput(String(payload.minUtilValue), payload.minUtilMode); }
@@ -40,12 +40,12 @@ export const f05SystemApi = {
   },
   async updateConfiguration(payload: MiningConfigurationUpdate): Promise<MiningConfiguration> {
     validateConfiguration(payload);
-    const { algorithm, minUtilMode, minUtilValue, expectedVersion } = payload;
+    const { minUtilMode, minUtilValue, expectedVersion } = payload;
     const result = await request<MiningConfiguration>('/api/system/mining/config', {
       method:'PUT', headers:{ 'Content-Type':'application/json' },
-      body:JSON.stringify({algorithm,minUtilMode,minUtilValue,expectedVersion})
+      body:JSON.stringify({minUtilMode,minUtilValue,expectedVersion})
     });
-    if (!isMiningConfiguration(result) || result.version !== expectedVersion+1 || result.algorithm !== algorithm ||
+    if (!isMiningConfiguration(result) || result.version !== expectedVersion+1 || result.algorithm !== 'EFIM' ||
         result.minUtilMode !== minUtilMode || result.minUtilValue !== minUtilValue) throw new F05ApiError(200,'The saved configuration response could not be verified. Refresh configuration before another action.');
     return result;
   },
@@ -55,18 +55,11 @@ export const f05SystemApi = {
     return result;
   },
   async createRequest(payload: ManualMiningRequest): Promise<RequestView> {
-    validateManualRequest(payload);
-    const {storeId,snapshotId,requestKey,compareAlgorithms}=payload;
-    const result = await request<RequestView>('/api/system/mining/requests',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({storeId,snapshotId,requestKey,compareAlgorithms})
-    });
-    if (!isRequestView(result) || result.storeId!==storeId || result.snapshotId!==snapshotId ||
-        result.requestKey.toLowerCase()!==requestKey.toLowerCase() ||
-        (compareAlgorithms ? result.algorithms.length!==2 : result.algorithms.length!==1)) {
-      throw new F05ApiError(202,'The submission response could not be verified. Keep the saved key and retry the same payload.');
-    }
-    return result;
+    requireMiningRole(true);
+    // Temporary Product Owner UI policy; Backend still supports administrative POST.
+    // Keep this boundary closed for stale callers as well as hidden controls.
+    void payload;
+    throw new F05ApiError(403, 'Manual analysis is disabled for System Admin in this Frontend. A Merchandiser can run analysis for their Store.');
   },
   async listRequests(storeId: number, page = 0, pageSize = 20, signal?: AbortSignal): Promise<Page<RequestView>> {
     const result = await request<Page<RequestView>>(`${storePath(storeId)}/requests?${miningPagination(page,pageSize)}`,{signal});
@@ -84,9 +77,9 @@ export const f05SystemApi = {
         new Set(result.map(r => r.runId)).size!==result.length) throw new F05ApiError(200,'Algorithm runs do not match the selected Store/request.');
     return result;
   },
-  async getBenchmark(storeId: number, runId: number, signal?: AbortSignal): Promise<BenchmarkView> {
-    const result = await request<BenchmarkView>(`${storePath(storeId)}/runs/${miningId(runId)}/benchmark`,{signal});
-    if (!isBenchmarkView(result) || result.run.storeId!==storeId || result.run.runId!==runId) throw new F05ApiError(200,'The benchmark does not match the selected Store/run.');
+  async getProgress(storeId: number, requestId: number, signal?: AbortSignal): Promise<MiningProgressView> {
+    const result = await request<MiningProgressView>(`${storePath(storeId)}/requests/${miningId(requestId)}/progress`, {signal});
+    if (!isMiningProgressView(result) || result.storeId!==storeId || result.requestId!==requestId) throw new F05ApiError(200,'Progress does not match the selected Store/request.');
     return result;
   }
 };

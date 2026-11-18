@@ -1,4 +1,4 @@
-import type { BenchmarkView, MiningConfiguration, PatternView, RequestView, RunView, SnapshotView } from './f05.types';
+import type { BenchmarkView, MiningConfiguration, MiningProgressView, PatternView, RequestView, RunView, SnapshotView } from './f05.types';
 import { parseMinUtilInput } from './f05.numbers';
 
 const object = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object';
@@ -22,10 +22,24 @@ export function isSnapshotView(value: unknown): value is SnapshotView {
 
 export function isMiningConfiguration(value: unknown): value is MiningConfiguration {
   if (!object(value) || !count(value.version)) return false;
-  if (value.version===0) return [value.algorithm,value.minUtilMode,value.minUtilValue,value.changedBy,value.changedAt].every(v => v===null);
-  if (!algorithm(value.algorithm) || (value.minUtilMode!=='PERCENTAGE' && value.minUtilMode!=='ABSOLUTE') ||
+  if (value.algorithm !== 'EFIM') return false;
+  if (value.version===0) return [value.minUtilMode,value.minUtilValue,value.changedBy,value.changedAt].every(v => v===null);
+  if ((value.minUtilMode!=='PERCENTAGE' && value.minUtilMode!=='ABSOLUTE') ||
       typeof value.minUtilValue!=='number' || !id(value.changedBy) || typeof value.changedAt!=='string') return false;
   try { parseMinUtilInput(String(value.minUtilValue),value.minUtilMode); return true; } catch { return false; }
+}
+
+export function isMiningProgressView(value: unknown): value is MiningProgressView {
+  if (!object(value)) return false;
+  return id(value.requestId) && id(value.storeId) && (value.storeId as number) <= 2147483647 &&
+    ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'].includes(String(value.status)) &&
+    ['LEGACY', 'QUEUED', 'RUNNING', 'SAVING', 'COMPARING', 'COMPLETED', 'FAILED'].includes(String(value.stage)) &&
+    (value.stageStartedAt === null || (typeof value.stageStartedAt === 'string' && Number.isFinite(Date.parse(value.stageStartedAt)))) &&
+    (value.currentRunId === null || id(value.currentRunId)) && (value.algorithm === null || algorithm(value.algorithm)) &&
+    [value.attemptNo, value.completedSteps, value.totalSteps, value.percent].every(count) &&
+    (value.completedSteps as number) <= (value.totalSteps as number) && (value.percent as number) <= 100 &&
+    [value.elapsedMs, value.timeoutMs].every(v => v === null || count(v)) &&
+    ['NOT_REQUESTED', 'PENDING', 'MATCH', 'FAILED', 'BLOCKED'].includes(String(value.comparisonStatus));
 }
 
 export function isRequestView(value: unknown): value is RequestView {

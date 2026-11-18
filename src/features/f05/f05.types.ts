@@ -23,28 +23,46 @@ export interface SnapshotView extends Omit<F03Snapshot, 'configuration'> {
   configuration: F03FrozenConfiguration | null;
 }
 
-export interface ManualMiningRequest {
-  storeId: number;
-  /** Caller-supplied UUID, stable for replays of the same intended submission. */
+export interface StoreMiningRequest {
   requestKey: string;
   snapshotId: number;
-  compareAlgorithms: boolean;
 }
+export interface SystemMiningRequest extends StoreMiningRequest {
+  storeId: number;
+}
+/** New writes are EFIM-only; Algorithm remains a legacy read enum. */
+export type ManualMiningRequest = SystemMiningRequest;
 
 export interface StoreView { storeId: number; name: string; }
 export interface MiningConfiguration {
   version: number;
-  algorithm: Algorithm | null;
+  algorithm: 'EFIM';
   minUtilMode: MinUtilMode | null;
   minUtilValue: number | null;
   changedBy: number | null;
   changedAt: string | null;
 }
 export interface MiningConfigurationUpdate {
-  algorithm: Algorithm;
   minUtilMode: MinUtilMode;
   minUtilValue: number;
   expectedVersion: number;
+}
+
+export interface MiningProgressView {
+  requestId: number;
+  storeId: number;
+  status: RequestStatus;
+  stage: 'LEGACY' | 'QUEUED' | 'RUNNING' | 'SAVING' | 'COMPARING' | 'COMPLETED' | 'FAILED';
+  stageStartedAt: string | null;
+  currentRunId: number | null;
+  algorithm: Algorithm | null;
+  attemptNo: number;
+  completedSteps: number;
+  totalSteps: number;
+  percent: number;
+  elapsedMs: number | null;
+  timeoutMs: number | null;
+  comparisonStatus: ComparisonStatus;
 }
 
 export interface RequestView {

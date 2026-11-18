@@ -70,7 +70,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isStoreAdmin = role === 'Store Admin';
   const isMerchandiser = role === 'Merchandiser';
   const isCustomer = role === 'End-Customer';
-  const compactPlanner = currentScreen.startsWith('f03-') && !isSystemAdmin;
+  const compactPlanner = !isSystemAdmin && (currentScreen.startsWith('f03-') || currentScreen === 'f05-mining' && (isStoreAdmin || isMerchandiser));
   const [plannerNavOpen, setPlannerNavOpen] = useState(false);
   useEffect(() => { setPlannerNavOpen(false); }, [currentScreen]);
 
@@ -124,7 +124,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <>
                 <SidebarSection title="PRODUCT ANALYTICS">
                   <SidebarItem screen="f03-utility" label="Utility Planner" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
-                  <SidebarItem screen="f05-mining" label="High Utility Mining" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f05-mining" label="Product Combination Analysis" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                   <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
                 </SidebarSection>
                 <SidebarSection title="TRANSACTION REVIEW">
@@ -148,7 +148,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 </SidebarSection>
                 <SidebarSection title="PRODUCT ANALYTICS">
                   <SidebarItem screen="f03-product-scores" label="Utility Planner" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
-                  <SidebarItem screen="f05-mining" label="Mining Results" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f05-mining" label="Analysis History" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                   <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
@@ -157,7 +157,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             {isSystemAdmin && (
               <>
                 <SidebarSection title="OVERVIEW">
-                  <SidebarItem screen="overview" label="Dashboard" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
+                  <SidebarItem screen="overview" label="Mining Dashboard" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
                 </SidebarSection>
                 <SidebarSection title="MINING ENGINE MANAGEMENT">
                   {SYSTEM_MINING_NAV.filter(item=>item.screen!=='overview').map(item=><SidebarItem key={item.screen} screen={item.screen} label={item.label} icon={item.screen==='setup'?Settings:item.screen==='admin-mining-history'?History:BarChart3} active={currentScreen===item.screen} onNavigate={onNavigate}/>) }

@@ -24,11 +24,13 @@ export function miningErrorMessage(error: unknown): string {
   const help: Record<number, string> = {
     400: 'Check the snapshot and mining settings.',
     401: 'Your session is missing or has expired. Please sign in again.',
-    403: 'Access denied for this role or Store. Only System Admin can configure mining, submit requests and read benchmarks.',
+    403: 'Access denied for this role or Store. System Admin manages mining policy; Merchandisers submit for their own Store.',
     404: 'The snapshot or mining resource is missing or unavailable to your store.',
     409: 'The configuration version is stale, the request key conflicts with another payload, or the snapshot is unavailable. Refresh before another action.',
     503: 'The mining service is unavailable. It may require backend or mining runtime recovery.'
   };
+  if (error.status === 409 && /configure mining policy|not configured/i.test(error.message)) return `Contact a System Admin to configure minimum utility before running mining. ${error.message} (HTTP 409)`;
+  if (error.status === 409 && /lambda policy changed|snapshot exceeds/i.test(error.message)) return `This snapshot no longer meets the current Lambda Policy. Ask a Merchandiser to prepare a new snapshot; its saved data has not been changed. ${error.message} (HTTP 409)`;
   const advice = help[error.status] ?? (error.status >= 500 ? 'The mining service is unavailable. Check backend availability before retrying.' : '');
   const status = error.message.includes(`HTTP ${error.status}`) ? '' : ` (HTTP ${error.status})`;
   return `${advice ? `${advice} ` : ''}${error.message}${status}`;

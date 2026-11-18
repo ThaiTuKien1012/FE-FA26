@@ -1,4 +1,4 @@
-import { parseDateOnly, formatFriendlyDate } from '../../../utils/dateTime';
+import { parseDateOnly, formatDate } from '../../../utils/dateTime';
 import { useCallback, useEffect, useState } from 'react';
 import { History, Loader2, RefreshCw } from 'lucide-react';
 import { authService } from '../../../services/authService';
@@ -10,7 +10,7 @@ import type { Page, RequestView } from '../f05.types';
 import { MiningStatusBadge } from './MiningStatusBadge';
 import { RequestDetails } from './RequestDetails';
 
-const analysisDate = (value: string) => parseDateOnly(value) ? formatFriendlyDate(value) : miningDate(value);
+const analysisDate = (value: string) => parseDateOnly(value) ? formatDate(value) : miningDate(value);
 
 interface Props {
   compact?: boolean;
@@ -61,7 +61,7 @@ export function MiningHistoryView({ requestId, selectionError, onSelect, reader=
   return <div className="space-y-5">
     <section aria-labelledby="f05-history-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{compact ? 'Recent analyses' : system?(benchmarkPicker?'Select a Request':'Requests'):(benchmarkPicker?'Choose a mining request':'Mining request history')}</h2><p className="mt-2 text-sm text-[#6D7974]">{compact ? 'Choose an analysis to view its runs and discovered patterns.' : <>Requests for {reader.kind==='system'?'the selected Store':'your Store'}, newest first. Dates are shown in your local time.</>}</p></div>
+        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{compact ? 'Recent analyses' : system?(benchmarkPicker?'Select a Request':'Requests'):(benchmarkPicker?'Choose an analysis request':'Analysis History')}</h2><p className="mt-2 text-sm text-[#6D7974]">{compact ? 'Choose an analysis to view its runs and discovered patterns.' : <>Requests for {reader.kind==='system'?'the selected Store':'your Store'}, newest first. Dates are shown in your local time.</>}</p></div>
         <button type="button" disabled={loading} onClick={refresh} className={miningButton}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh history</button>
       </div>
       {loading ? <p role="status" className="mt-6 flex items-center gap-2 text-sm text-[#6D7974]"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />Loading mining history...</p> : error ?
@@ -70,17 +70,17 @@ export function MiningHistoryView({ requestId, selectionError, onSelect, reader=
             <div className="mt-5 max-h-[28rem] overflow-auto rounded-xl border border-[#E7E2D8]">
               {compact ? <>
                 <table className="hidden w-full text-left text-sm lg:table"><caption className="sr-only">Recent store analyses, newest first</caption><thead className="bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{['Sales period', 'Analysis status', 'Created', 'Action'].map(label => <th key={label} scope="col" className="px-4 py-3 font-medium">{label}</th>)}</tr></thead><tbody>{data.items.map(item => <tr key={item.requestId} className="border-t border-[#E7E2D8]">
-                  <th scope="row" className="px-4 py-3 font-medium">{analysisDate(item.snapshot.rangeStart)} <span className="font-normal text-[#6D7974]">to</span> {analysisDate(item.snapshot.rangeEnd)}</th>
+                  <th scope="row" className="px-4 py-3 font-medium">{analysisDate(item.snapshot.rangeStart)} <span className="font-normal text-[#6D7974]">to</span> {analysisDate(item.snapshot.rangeEnd)}<p className="mt-1 text-xs font-normal text-[#6D7974]">Request #{item.requestId} · Snapshot #{item.snapshotId} · {item.algorithms.map(algorithmName).join(', ')} · {formatThreshold(item.minUtilValue,item.minUtilMode)} · User #{item.requestedBy}</p></th>
                   <td className="px-4 py-3"><MiningStatusBadge friendly kind="request" status={item.status} /></td><td className="whitespace-nowrap px-4 py-3"><time dateTime={item.createdAt} title={miningDate(item.createdAt)}>{analysisDate(item.createdAt)}</time></td>
                   <td className="px-4 py-3"><button type="button" className={miningButton + ' whitespace-nowrap'} aria-label={'View results for analysis #' + item.requestId} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>View Results</button></td>
                 </tr>)}</tbody></table>
-                <ul className="divide-y divide-[#E7E2D8] lg:hidden" aria-label="Recent store analyses">{data.items.map(item => <li key={item.requestId} className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs text-[#6D7974]">Sales period</p><p className="mt-1 text-sm font-medium">{analysisDate(item.snapshot.rangeStart)} to {analysisDate(item.snapshot.rangeEnd)}</p></div><MiningStatusBadge friendly kind="request" status={item.status} /></div><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><time className="text-xs text-[#6D7974]" dateTime={item.createdAt}>Created {analysisDate(item.createdAt)}</time><button type="button" className={miningButton} aria-label={'View results for analysis #' + item.requestId} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>View Results</button></div></li>)}</ul>
-              </> : <table className="w-full text-left text-sm"><caption className="sr-only">Store mining requests</caption><thead className="sticky top-0 bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{(system?['Request','Snapshot','Algorithms','Minimum Utility','Status','Created At','Action']:['Request ID', 'Snapshot ID', 'Algorithms', 'Minimum utility', 'Request status', 'Comparison status', 'Created', 'Details']).map(label => <th key={label} scope="col" className="whitespace-nowrap p-3 font-semibold">{label}</th>)}</tr></thead>
+                <ul className="divide-y divide-[#E7E2D8] lg:hidden" aria-label="Recent store analyses">{data.items.map(item => <li key={item.requestId} className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs text-[#6D7974]">Sales period</p><p className="mt-1 text-sm font-medium">{analysisDate(item.snapshot.rangeStart)} to {analysisDate(item.snapshot.rangeEnd)}</p></div><MiningStatusBadge friendly kind="request" status={item.status} /></div><p className="mt-2 text-xs text-[#6D7974]">Request #{item.requestId} · Snapshot #{item.snapshotId} · {item.algorithms.map(algorithmName).join(', ')} · {formatThreshold(item.minUtilValue,item.minUtilMode)} · User #{item.requestedBy}</p><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><time className="text-xs text-[#6D7974]" dateTime={item.createdAt}>Created {analysisDate(item.createdAt)}</time><button type="button" className={miningButton} aria-label={'View results for analysis #' + item.requestId} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>View Results</button></div></li>)}</ul>
+              </> : <table className="w-full text-left text-sm"><caption className="sr-only">Store mining requests</caption><thead className="sticky top-0 bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{(system?['Request','Snapshot','Algorithms','Minimum Utility','Status','Requested By','Created At','Action']:['Request ID', 'Snapshot ID', 'Algorithms', 'Minimum utility', 'Request status', 'Comparison status', 'Requested By', 'Created', 'Details']).map(label => <th key={label} scope="col" className="whitespace-nowrap p-3 font-semibold">{label}</th>)}</tr></thead>
                 <tbody>{data.items.map(item => <tr key={item.requestId} className={`border-t border-[#E7E2D8] ${requestId === item.requestId ? 'bg-[#F3F8F4]' : ''}`}>
                   <th scope="row" className="p-3 font-semibold">#{item.requestId}</th><td className="p-3">#{item.snapshotId}</td><td className="p-3">{item.algorithms.map(algorithmName).join(', ')}</td>
                   <td className="p-3">{system?formatThreshold(item.minUtilValue,item.minUtilMode):<><span className="block text-xs text-[#6D7974]">{item.minUtilMode}</span><span>{item.minUtilValue}{item.minUtilMode==='PERCENTAGE'?'%':''}</span></>}</td>
                   <td className="p-3"><MiningStatusBadge friendly={system} kind="request" status={item.status} /></td>{!system&&<td className="p-3"><MiningStatusBadge kind="comparison" status={item.comparisonStatus} /></td>}
-                  <td className="whitespace-nowrap p-3"><time dateTime={item.createdAt}>{miningDate(item.createdAt)}</time></td>
+                  <td className="p-3">User #{item.requestedBy}</td><td className="whitespace-nowrap p-3"><time dateTime={item.createdAt}>{miningDate(item.createdAt)}</time></td>
                   <td className="p-3"><button type="button" className={`${miningButton} whitespace-nowrap`} aria-label={system?'View details for request #'+item.requestId:undefined} aria-pressed={requestId === item.requestId} onClick={() => onSelect(item.requestId)}>{system?(benchmarkPicker?'Select Request':'View Details'):(benchmarkPicker?'Select request':'View request')}{!system&&' #'+item.requestId}</button></td>
                 </tr>)}</tbody>
               </table>}
@@ -93,7 +93,7 @@ export function MiningHistoryView({ requestId, selectionError, onSelect, reader=
     {selectionError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{selectionError}</div>}
     {!benchmarkPicker && requestId !== null && !error && <>
       {!compact && <div className="flex justify-end"><button type="button" className={miningButton} onClick={() => onSelect(null)}>Close request details</button></div>}
-      <RequestDetails onClose={compact ? () => onSelect(null) : undefined} compact={compact} key={`${reader.scopeKey}:${requestId}`} reader={reader} requestId={requestId} onUpdated={onUpdated} onReadError={onReadError} onOpenBenchmark={onOpenBenchmark} />
+      <RequestDetails onClose={compact ? () => onSelect(null) : undefined} compact={compact||!system} key={`${reader.scopeKey}:${requestId}`} reader={reader} requestId={requestId} onUpdated={onUpdated} onReadError={onReadError} onOpenBenchmark={onOpenBenchmark} />
     </>}
   </div>;
 }
