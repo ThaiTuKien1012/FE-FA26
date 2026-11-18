@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowLeft } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, CircleCheck, X } from 'lucide-react';
 import { getPathForScreen } from '../../../utils/navigationRouter';
 import type { ActiveNavScreen } from '../../../types/mining';
 import { F03ApiError } from '../f03.api';
@@ -12,7 +12,9 @@ export function navigate(screen: ActiveNavScreen, id?: number) {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 export function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof F03ApiError && error.code === 'UNSUPPORTED_SCORING_VERSION') return `${error.message} Contact your administrator; do not overwrite or convert the stored data.`;
   if (error instanceof F03ApiError && error.status === 403) return 'Access denied (403). Your account does not have permission to read or change this data.';
+  if (error instanceof TypeError) return 'Unable to reach the server. Check your connection and try again.';
   return error instanceof Error ? error.message : fallback;
 }
 export function readable(value: string) { return value.toLowerCase().replaceAll('_', ' ').replace(/^\w/, c => c.toUpperCase()); }
@@ -21,10 +23,13 @@ export function Section({ title, subtitle, children }: { title: string; subtitle
   return <section className="min-w-0 rounded-2xl border border-[#e7e2d8] bg-white p-4 shadow-sm sm:p-6"><h2 className="text-lg font-semibold">{title}</h2>{subtitle && <p className="mt-1 text-sm text-[#6d7974]">{subtitle}</p>}<div className="mt-5">{children}</div></section>;
 }
 export function Notice({ error = '', notice = '' }: { error?: string; notice?: string }) {
-  return <>{error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}{notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">{notice}</p>}</>;
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { setVisible(Boolean(notice)); if (!notice) return; const timer = window.setTimeout(() => setVisible(false), 4000); return () => window.clearTimeout(timer); }, [notice]);
+  return <>{error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}{visible && <div role="status" className="f03-success-toast"><CircleCheck size={16} aria-hidden="true" /><span>{notice}</span><button type="button" aria-label="Dismiss notification" onClick={() => setVisible(false)}><X size={16} /></button></div>}</>;
 }
+export function warningText(value: string) { return value.replaceAll('MISSING_PUSH_DAY', 'Some batches have no Push Day and are excluded from expiry-risk analysis. Store Admin can update them in Inventory Batches.').replaceAll('SLOW_MOVING_NO_RECENT_SALES', 'No recent sales in the Sales Window. The backend reports zero expiry risk; review slow-moving stock.').replaceAll('SLOW_MOVING', 'Sales are slow within the Sales Window. Review this stock; the backend determines its expiry risk.').replaceAll('PUSH_DAY_REACHED', 'The batch has reached its Push Day.'); }
 export function Warnings({ warnings }: { warnings?: string[] }) {
-  return warnings?.length ? <div className="my-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-semibold">Warnings</p><ul className="mt-2 list-disc space-y-1 pl-5">{warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></div> : null;
+  return warnings?.length ? <div className="my-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-semibold">Warnings</p><ul className="mt-2 list-disc space-y-1 pl-5">{[...new Set(warnings)].map((warning, i) => <li key={i}>{warningText(warning)}</li>)}</ul></div> : null;
 }
 export function Metrics({ values }: { values: [string, React.ReactNode][] }) {
   return <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">{values.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs font-medium text-[#6d7974]">{label}</dt><dd className="mt-1 break-words font-semibold tabular-nums">{value ?? 'Unavailable'}</dd></div>)}</dl>;

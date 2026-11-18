@@ -50,7 +50,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f04-import-history',
       'f04-transactions',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-snapshots',
+      'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-snapshots',
       'f05-mining',
       'f06-recommendations',
       'profile'
@@ -83,7 +83,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-product-scores',
       'f03-preview',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshots', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-preview', 'f03-snapshots', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'f05-mining',
       'f06-recommendations',
       'profile'
@@ -217,7 +217,8 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   'f03-utility': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Planner', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-expiry-window': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'Expiry Window', allowedRoles: ['Store Admin'] },
   'f03-configuration': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Configuration', allowedRoles: ['Store Admin', 'Merchandiser'] },
-  'f03-product-scores': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Product Priority Scores', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'f03-product-scores': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Product Weight Details', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'f03-seasons': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Season Management', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-preview': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Preview', allowedRoles: ['Merchandiser'] },
   'f03-snapshots': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Snapshots', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-snapshot-detail': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Detail', allowedRoles: ['Merchandiser'] },

@@ -23,6 +23,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'f03-utility': '/f03/utility',
   'f03-expiry-window': '/f03/expiry-window',
   'f03-configuration': '/f03/configuration',
+  'f03-seasons': '/f03/seasons',
   'f03-product-scores': '/f03/product-scores',
   'f03-preview': '/f03/preview',
   'f03-snapshots': '/f03/snapshots',
@@ -68,6 +69,8 @@ const PATH_TO_SCREEN: Record<string, ActiveNavScreen> = Object.entries(SCREEN_TO
 PATH_TO_SCREEN['/f03/snapshot'] = 'f03-snapshots';
 PATH_TO_SCREEN['/f03/snapshot/'] = 'f03-snapshots';
 PATH_TO_SCREEN['/f03-snapshot'] = 'f03-snapshots';
+// The retired expiry-window editor now opens the live Product Weights workspace.
+for (const path of ['/f03/expiry-window', '/f03/expiry-window/', '/f03-expiry-window', '/f03-expiry-window/']) PATH_TO_SCREEN[path] = 'f03-product-scores';
 
 /**
  * Returns the URL path for a given screen ID

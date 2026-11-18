@@ -7,6 +7,7 @@ import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { resolve, join, dirname, basename } from 'node:path';
 import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture } from './f05.fixtures.ts';
+import { configView as weightConfig } from './f03.fixtures.ts';
 
 const origin=process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const chrome=process.env.F05_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -20,7 +21,7 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
-const state={storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,policy:{lambdaMin:0,lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
+const state={storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
   constructor(ws){this.ws=ws;ws.addEventListener('message',event=>{
@@ -88,9 +89,9 @@ async function paused({requestId,request}){
     }
     else if(path==='/api/roles')body=[{code:'SYSTEM_ADMIN',display_name:'System Admin'},{code:'STORE_ADMIN',display_name:'Store Admin'},{code:'MERCHANDISER',display_name:'Merchandiser'},{code:'END_CUSTOMER',display_name:'End-Customer'}];
     else if(path==='/api/system/utility/lambda-policy'){
-      if(method==='PUT'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['lambdaMax','lambdaMin']);state.policy={...sent,version:state.policy.version+1};}body=state.policy;
+      if(method==='PUT'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['lambdaMax']);state.policy={...state.policy,...sent,version:state.policy.version+1};}body=state.policy;
     }
-    else if(path==='/api/utility/config')body={config:{...snapshot().configuration.config,alpha:0.5,beta:0.2,gamma:0.3},lambdaPolicy:state.policy,lambdaValid:true};
+    else if(path==='/api/utility/config')body={...structuredClone(weightConfig),lambdaPolicy:state.policy};
     else if(path==='/api/system/stores')body=responsePage([{storeId:1,name:'Store A'},{storeId:2,name:'Store B'}],url.searchParams);
     else if(path==='/api/system/mining/config'){
       if(method==='PUT'){
@@ -222,13 +223,13 @@ try{
   assert.equal(await evaluate(visibleText+".includes('ms faster')"),false);
   checks.push('Store switching keeps global settings; foreign data rejected; empty snapshot disabled; single algorithm remains supported');
 
-  await click('Lambda Policy');await textIncludes('Current Lambda Range');await textIncludes('Before saving');
+  await click('Lambda Policy');await textIncludes('Current Lambda Range');await textIncludes('Lowering the maximum');
   assert.ok(state.calls.some(x=>x.path==='/api/system/utility/lambda-policy'));
   await input('Maximum Lambda','0.7');await click('Save Policy');await textIncludes('Lambda policy updated');
-  assert.deepEqual(state.policy,{lambdaMin:0,lambdaMax:0.7,version:2});
+  assert.deepEqual(state.policy,{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.7,version:2});
   assert.equal(state.calls.some(x=>x.path==='/api/utility/config'),false);
   await capture('lambda-desktop');
-  checks.push('Lambda global range, helper text, warning and existing GET/PUT contract preserved');
+  checks.push('W2 Lambda global range, helper text, warning and lambdaMax-only GET/PUT contract');
 
   state.usersError=true;await click('Users & Roles');await textIncludes('Accounts could not be loaded');
   assert.equal(await evaluate("document.querySelector('[data-account-statistics]').innerText.includes('Account data unavailable')"),true);
