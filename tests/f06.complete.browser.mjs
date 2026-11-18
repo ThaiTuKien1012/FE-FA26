@@ -209,6 +209,16 @@ try {
     await select('f04s-status','COMPLETED');await click('Apply Filters');await has('No matching transactions');
     assert.ok(calls.filter(c=>c.path==='/api/transactions').at(-1).query.includes('status=COMPLETED'));
     await click('Clear Filters');await has('No transactions yet');
+    const setDate = async (id,value) => { await page.evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`); };
+    await setDate('f04s-from','05/11/2026');await setDate('f04s-to','18/11/2026');await click('Apply Filters');await has('No matching transactions');
+    if(actor==='STORE_ADMIN') for(const width of [1440,820,390]) {await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width===390});assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);await capture('transaction-date-filters-'+width);}
+    const expected = await page.evaluate("({from:new Date(2026,10,5,0,0,0,0).toISOString(),to:new Date(2026,10,18,23,59,59,999).toISOString()})");
+    const params = new URLSearchParams(calls.filter(c=>c.path==='/api/transactions').at(-1).query);assert.equal(params.get('from'),expected.from);assert.equal(params.get('to'),expected.to);
+    const countBeforeInvalid=calls.filter(c=>c.path==='/api/transactions').length;await setDate('f04s-from','31/04/2026');await click('Apply Filters');await sleep(50);assert.equal(calls.filter(c=>c.path==='/api/transactions').length,countBeforeInvalid);
+    await click('Clear Filters');await has('No transactions yet');assert.equal(await page.evaluate("document.getElementById('f04s-from').value"),'');
+    // Clear still resets an invalid draft when the parent ISO was already empty.
+    await setDate('f04s-to','18/11');await click('Clear Filters');await sleep(40);assert.equal(await page.evaluate("document.getElementById('f04s-to').value"),'');
+    await setDate('f04s-from','30/11/2026');await setDate('f04s-to','05/11/2026');await click('Apply Filters');await has('From Date must be on or before To Date');await click('Clear Filters');await has('No transactions yet');
     if(actor==='STORE_ADMIN') {await page.evaluate("history.pushState({},'','/store/transactions/import');dispatchEvent(new PopStateEvent('popstate'))");await has('Import Transactions');}
   }
   assert.equal(calls.slice(beforeF04).some(c=>c.method!=='GET'&&c.path!=='/api/auth/login'),false);

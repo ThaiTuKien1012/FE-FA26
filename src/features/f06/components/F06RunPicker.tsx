@@ -1,3 +1,4 @@
+import { formatDateRange } from '../../../utils/dateTime';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { algorithmName, miningButton, miningDate, miningInput } from '../../f05/f05.display';
 import { MiningStatusBadge } from '../../f05/components/MiningStatusBadge';
@@ -30,7 +31,7 @@ export function F06RunPicker({ state, workflow }: { state: GenerationState; work
     {state.request && <div className="mt-5 border-t border-[#E7E2D8] pt-5">
       <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Request #{state.request.requestId}</h3><button type="button" className={miningButton} disabled={state.runsLoading || state.pending} onClick={() => void workflow.selectRequest(state.request!.requestId)}>Refresh runs</button></div>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm"><span>Request status <MiningStatusBadge friendly kind="request" status={state.request.status} /></span><span>Comparison result <MiningStatusBadge friendly kind="comparison" status={state.request.comparisonStatus} /></span></div>
-      <p className="mt-3 text-sm text-[#6D7974]">Snapshot #{state.request.snapshotId} · {state.request.snapshot.rangeStart} to {state.request.snapshot.rangeEnd}</p>
+      <p className="mt-3 text-sm text-[#6D7974]">Snapshot #{state.request.snapshotId} · {formatDateRange(state.request.snapshot.rangeStart, state.request.snapshot.rangeEnd)}</p>
       <p className="mt-2 text-xs leading-5 text-[#6D7974]">The snapshot is the saved shopping data used for this analysis. A completed run below can still be used if the comparison between algorithms failed.</p>
       {state.runsLoading ? <p role="status" className="mt-4 text-sm text-[#6D7974]">Loading algorithm runs...</p> : state.runsError ?
         <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.runsError}</p> : <>

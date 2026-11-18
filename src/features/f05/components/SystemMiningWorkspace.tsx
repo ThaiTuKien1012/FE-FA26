@@ -1,3 +1,4 @@
+import { formatDate, formatDateRange } from '../../../utils/dateTime';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { authService } from '../../../services/authService';
@@ -126,7 +127,7 @@ export function SystemMiningWorkspace({currentUser,initialView}:Props) {
         <p className="mt-1 text-sm text-[#6D7974]">Review your selected snapshot and mining settings before starting.</p>
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <div><h3 className="text-xs font-semibold uppercase tracking-wide text-[#6D7974]">Selected Snapshot</h3>
-            {selected?<dl className="mt-3 space-y-2 text-sm"><div><dt className="inline text-[#6D7974]">Snapshot </dt><dd className="inline font-semibold">#{selected.snapshotId}</dd></div><div><dt className="text-xs text-[#6D7974]">Sales Period</dt><dd>{selected.rangeStart} to {selected.rangeEnd}</dd></div><div><dt className="text-xs text-[#6D7974]">Analysis Date</dt><dd>{selected.configuration?.analysisDate??selected.asOfDate}</dd></div></dl>:<p className="mt-3 text-sm text-[#6D7974]">Select a snapshot to continue.</p>}
+            {selected?<dl className="mt-3 space-y-2 text-sm"><div><dt className="inline text-[#6D7974]">Snapshot </dt><dd className="inline font-semibold">#{selected.snapshotId}</dd></div><div><dt className="text-xs text-[#6D7974]">Sales Period</dt><dd>{formatDateRange(selected.rangeStart, selected.rangeEnd)}</dd></div><div><dt className="text-xs text-[#6D7974]">Analysis Date</dt><dd>{formatDate(selected.configuration?.analysisDate??selected.asOfDate)}</dd></div></dl>:<p className="mt-3 text-sm text-[#6D7974]">Select a snapshot to continue.</p>}
           </div>
           <div className="border-t border-[#E7E2D8] pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><h3 className="text-xs font-semibold uppercase tracking-wide text-[#6D7974]">Current System Configuration</h3>
             {!config?<p className="mt-3 text-sm text-amber-900">Load a valid configuration before submitting. Open Algorithm Configuration to refresh it.</p>:config.version===0?<p className="mt-3 text-sm text-amber-900">Mining is not configured. Save a configuration before running mining.</p>:<dl className="mt-3 space-y-2 text-sm"><div><dt className="text-xs text-[#6D7974]">Default Algorithm</dt><dd className="font-semibold">{algorithmName(config.algorithm!)}</dd></div><div><dt className="text-xs text-[#6D7974]">Minimum Utility</dt><dd className="break-words font-semibold">{formatThreshold(config.minUtilValue!,config.minUtilMode!)}</dd></div><div className="text-xs text-[#6D7974]">Configuration Version {config.version} · Applies to all stores</div></dl>}

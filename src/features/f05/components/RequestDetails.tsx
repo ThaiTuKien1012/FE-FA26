@@ -1,3 +1,4 @@
+import { formatDateRange } from '../../../utils/dateTime';
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { algorithmName, formatMiningNumber, formatThreshold, MATCH_DESCRIPTION, miningButton, miningDate, miningErrorMessage } from '../f05.display';
@@ -60,7 +61,7 @@ export function RequestDetails({ requestId, onUpdated, onReadError, reader=store
   if (compact && reader.kind === 'store') return <section aria-labelledby="f05-details-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="f05-details-title" className="text-xl font-semibold">Analysis overview</h2><div className="flex flex-wrap gap-2"><button type="button" className={miningButton} disabled={!current} onClick={() => setRevision(value => value + 1)}>Refresh Details</button>{onClose && <button type="button" className={miningButton} onClick={onClose}>Close Details</button>}</div></div>
     {!current ? <p role="status" className="mt-5 text-sm text-[#6D7974]">Loading request and algorithm runs...</p> : current.error ? <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{current.error} Use Refresh details to try again.</p> : request && data && <>
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm"><span className="text-[#6D7974]">Analysis status</span><MiningStatusBadge friendly kind="request" status={request.status} /><span>{request.snapshot.rangeStart} to {request.snapshot.rangeEnd}</span></div>
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-sm"><span className="text-[#6D7974]">Analysis status</span><MiningStatusBadge friendly kind="request" status={request.status} /><span>{formatDateRange(request.snapshot.rangeStart, request.snapshot.rangeEnd)}</span></div>
       <h3 className="mt-5 font-semibold">Algorithm results</h3>
       {!data.runs.length ? <p className="mt-3 text-sm text-[#6D7974]">No runs were returned for this analysis.</p> : <div data-store-run-grid className={data.runs.length === 1 ? 'mt-3' : 'mt-3 grid gap-4 lg:grid-cols-2'}>{data.runs.map(run => <article key={run.runId} className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="text-sm font-semibold">{algorithmName(run.algorithm)}</h4><span className="flex items-center gap-2 text-xs text-[#6D7974]">Run status <MiningStatusBadge friendly kind="run" status={run.status} /></span></div>
@@ -82,7 +83,7 @@ export function RequestDetails({ requestId, onUpdated, onReadError, reader=store
       {request.comparisonStatus==='MATCH'&&<p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{MATCH_DESCRIPTION}</p>}
       <dl className="mt-5 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <div><dt className="text-xs text-[#6D7974]">Snapshot</dt><dd className="mt-1 font-semibold">#{request.snapshotId}</dd></div>
-        <div><dt className="text-xs text-[#6D7974]">Sales Period</dt><dd className="mt-1">{request.snapshot.rangeStart} to {request.snapshot.rangeEnd}</dd></div>
+        <div><dt className="text-xs text-[#6D7974]">Sales Period</dt><dd className="mt-1">{formatDateRange(request.snapshot.rangeStart, request.snapshot.rangeEnd)}</dd></div>
         <div><dt className="text-xs text-[#6D7974]">Algorithms</dt><dd className="mt-1">{request.algorithms.map(algorithmName).join(', ')}</dd></div>
         <div><dt className="text-xs text-[#6D7974]">Minimum Utility</dt><dd className="mt-1 break-words">{formatThreshold(request.minUtilValue,request.minUtilMode)}</dd></div>
         <div><dt className="text-xs text-[#6D7974]">Transactions / Distinct Items</dt><dd className="mt-1">{formatMiningNumber(request.transactionCount)} / {formatMiningNumber(request.distinctItems)}</dd></div>
@@ -125,7 +126,7 @@ export function RequestDetails({ requestId, onUpdated, onReadError, reader=store
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           <section className="min-w-0 rounded-xl bg-[#FAF8F5] p-4"><h3 className="font-semibold">Frozen input</h3><dl className="mt-3 space-y-2 text-sm">
             <div><dt className="text-xs text-[#6D7974]">Snapshot</dt><dd>#{request.snapshotId}</dd></div>
-            <div><dt className="text-xs text-[#6D7974]">Date range</dt><dd>{request.snapshot.rangeStart} to {request.snapshot.rangeEnd}</dd></div>
+            <div><dt className="text-xs text-[#6D7974]">Date range</dt><dd>{formatDateRange(request.snapshot.rangeStart, request.snapshot.rangeEnd)}</dd></div>
             <div><dt className="text-xs text-[#6D7974]">Algorithms</dt><dd>{request.algorithms.map(algorithmName).join(', ')}</dd></div>
             <div><dt className="text-xs text-[#6D7974]">Created (local time)</dt><dd><time dateTime={request.createdAt}>{miningDate(request.createdAt)}</time></dd></div>
           </dl></section>

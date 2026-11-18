@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../utils/dateTime';
 import type { F02Batch, F02BatchCreateRequest, F02BatchPatchRequest, F02Category, F02ProductRequest, F02Status } from './store.api';
 
 export const storeTimeZone: string = import.meta.env?.VITE_PASPM_STORE_TIME_ZONE || 'Asia/Ho_Chi_Minh';
@@ -25,7 +26,7 @@ export function localDateTime(date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
-export const receivedDateTime = (value: string) => new Intl.DateTimeFormat('en-GB', { timeZone: storeTimeZone, dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+export const receivedDateTime = (value: string) => formatDateTime(value, storeTimeZone);
 
 const text = (value: string, label: string, max: number) => {
   const trimmed = value.trim();

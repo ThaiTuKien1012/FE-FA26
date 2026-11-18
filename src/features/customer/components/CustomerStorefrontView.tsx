@@ -1,3 +1,4 @@
+import { formatTime } from '../../../utils/dateTime';
 import React, { useState, useMemo } from 'react';
 import { 
   ShoppingBag, 
@@ -144,7 +145,7 @@ export const CustomerStorefrontView: React.FC<CustomerStorefrontViewProps> = ({
       discount,
       total,
       pointsEarned: Math.round(total / 1000),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: formatTime(new Date())
     };
     setOrderReceipt(receiptData);
     setIsCheckoutModalOpen(true);

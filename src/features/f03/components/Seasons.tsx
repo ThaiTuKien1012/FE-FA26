@@ -1,3 +1,5 @@
+import { AppDatePicker } from '../../../components/common/AppDatePicker';
+import { formatFriendlyDate, formatUtcDateTime, isoDateToDisplay } from '../../../utils/dateTime';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CalendarDays, PackageOpen, Plus, RefreshCw } from 'lucide-react';
 import { f03Api, F03ApiError, type SeasonPage, type SeasonProductPage, type SeasonView } from '../f03.api';
@@ -10,11 +12,11 @@ import { SeasonDialog } from './SeasonDialog';
 const blank: SeasonDraft = { name: '', startDate: '', endDate: '', weight: '' };
 type Editor = { current: SeasonView | null; draft: SeasonDraft; initial: SeasonDraft };
 const draftFor = (view: SeasonView | null): SeasonDraft => view ? { name: view.name, startDate: view.startDate, endDate: view.endDate, weight: String(view.weight) } : { ...blank };
-const dateText = (date: string) => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
+const dateText = formatFriendlyDate;
 const DateRange = ({ season }: { season: SeasonView }) => <><time dateTime={season.startDate}>{dateText(season.startDate)}</time><span className="text-[#89938f]"> – </span><time dateTime={season.endDate}>{dateText(season.endDate)}</time></>;
 const CompactDateRange = ({ season }: { season: SeasonView }) => {
   const sameYear = season.startDate.slice(0, 4) === season.endDate.slice(0, 4);
-  const start = sameYear ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${season.startDate}T00:00:00Z`)) : dateText(season.startDate);
+  const start = sameYear ? formatFriendlyDate(season.startDate, false) : dateText(season.startDate);
   return <><time dateTime={season.startDate}>{start}</time> – <time dateTime={season.endDate}>{dateText(season.endDate)}</time></>;
 };
 
@@ -30,7 +32,8 @@ export function Seasons({ readOnly, invalidate, active = true, navigation }: { r
   const [loading, setLoading] = useState(true), [detailLoading, setDetailLoading] = useState(false), [saving, setSaving] = useState(false), [conflict, setConflict] = useState(false), [attempted, setAttempted] = useState(false);
   const busy = useRef(false), epoch = useRef(0), formId = useId(), deleteHelpId = useId(), dialogOpener = useRef<HTMLElement | null>(null);
   const dialogOpen = active && (selected !== null || editor !== null);
-  const dirty = Boolean(editor && (Object.keys(editor.draft) as (keyof SeasonDraft)[]).some(key => editor.draft[key] !== editor.initial[key]));
+  const [dateDrafts, setDateDrafts] = useState<Record<string, string>>({});
+  const dirty = Boolean(editor && (Object.entries(dateDrafts).some(([key, display]) => display !== isoDateToDisplay(editor.initial[key as keyof SeasonDraft])) || (Object.keys(editor.draft) as (keyof SeasonDraft)[]).some(key => editor.draft[key] !== editor.initial[key])));
   useEffect(() => { return () => { ++epoch.current; }; }, []);
   useEffect(() => {
     // Keep an edit draft when browser navigation temporarily hides this visited tab.
@@ -68,7 +71,7 @@ export function Seasons({ readOnly, invalidate, active = true, navigation }: { r
     if (readOnly || busy.current) return;
     if (selected === null) dialogOpener.current = document.activeElement as HTMLElement;
     const draft = draftFor(view);
-    setAttempted(false); setConflict(false); setFormError(''); setNotice(''); setEditor({ current: view, draft, initial: { ...draft } });
+    setDateDrafts({}); setAttempted(false); setConflict(false); setFormError(''); setNotice(''); setEditor({ current: view, draft, initial: { ...draft } });
   };
   const openDetails = (view: SeasonView) => { dialogOpener.current = document.activeElement as HTMLElement; setSeason(null); setMembers(null); setNotice(''); setSelected(view.seasonId); setMemberPage(0); setProduct(null); };
   const closeAll = () => { setSelected(null); setEditor(null); setDeleting(null); setDiscard(false); setNotice(''); };
@@ -119,7 +122,7 @@ export function Seasons({ readOnly, invalidate, active = true, navigation }: { r
 
     {dialogOpen && <SeasonDialog returnFocus={dialogOpener.current} wide={!editor && !discard && !deleting} initialFocus={editor && !discard ? 'input' : undefined} title={title} subtitle={discard || deleting ? undefined : editor ? 'Update the season’s name, dates and priority.' : 'Review seasonal priorities and assigned products.'} busy={saving} onClose={requestClose} footer={footer}>
       {discard ? <p className="text-sm leading-relaxed text-[#57534e]">Your changes have not been saved. Keep editing, or discard this draft and close the season.</p> : deleting ? <><p className="mb-4 text-sm leading-relaxed">Delete “{deleting.name}”? This season has no assigned products. Saved snapshots will remain unchanged.</p><Notice error={formError} /></> : editor ? <form id={formId} aria-busy={saving} onSubmit={event => { event.preventDefault(); save(); }} noValidate>
-        <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-2">{([['name', 'Season Name', 'text'], ['startDate', 'Start Date', 'date'], ['endDate', 'End Date', 'date'], ['weight', 'Season Weight', 'number']] as const).map(([key, label, type]) => <label key={key} className={`text-sm font-medium ${key === 'name' ? 'sm:col-span-2' : ''}`}>{label}<input className={field} aria-label={label} aria-invalid={attempted && Boolean(errors[key])} aria-describedby={attempted && errors[key] ? `${formId}-${key}-error` : undefined} type={type} maxLength={key === 'name' ? 100 : undefined} min={key === 'weight' ? 0 : undefined} max={key === 'weight' ? 1 : undefined} step={key === 'weight' ? '0.000001' : undefined} value={editor.draft[key]} onChange={e => { edited(); setEditor({ ...editor, draft: { ...editor.draft, [key]: e.target.value } }); }} />{attempted && errors[key] && <span id={`${formId}-${key}-error`} className="mt-1 block text-xs text-red-800">{errors[key]}</span>}</label>)}</fieldset>
+        <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-2">{([['name', 'Season Name', 'text'], ['startDate', 'Start Date', 'date'], ['endDate', 'End Date', 'date'], ['weight', 'Season Weight', 'number']] as const).map(([key, label, type]) => <label key={key} className={`text-sm font-medium ${key === 'name' ? 'sm:col-span-2' : ''}`}>{label}{type === 'date' ? <AppDatePicker className={field} aria-label={label} required aria-invalid={attempted && Boolean(errors[key])} aria-describedby={attempted && errors[key] ? `${formId}-${key}-error` : undefined} value={editor.draft[key]} initialDisplayValue={dateDrafts[key]} onDraftChange={display => { edited(); setDateDrafts(previous => ({ ...previous, [key]: display })); }} onChange={value => { edited(); setEditor({ ...editor, draft: { ...editor.draft, [key]: value } }); }} /> : <input className={field} aria-label={label} aria-invalid={attempted && Boolean(errors[key])} aria-describedby={attempted && errors[key] ? `${formId}-${key}-error` : undefined} type={type} maxLength={key === 'name' ? 100 : undefined} min={key === 'weight' ? 0 : undefined} max={key === 'weight' ? 1 : undefined} step={key === 'weight' ? '0.000001' : undefined} value={editor.draft[key]} onChange={e => { edited(); setEditor({ ...editor, draft: { ...editor.draft, [key]: e.target.value } }); }} />}{attempted && errors[key] && <span id={`${formId}-${key}-error`} className="mt-1 block text-xs text-red-800">{errors[key]}</span>}</label>)}</fieldset>
         <p className="my-4 text-xs leading-relaxed text-[#6d7974]">Weight: 0–1, up to 6 decimal places. Start and end dates are inclusive.{editor.current && ` Version ${editor.current.version}.`}</p><Notice error={formError} />{conflict && <Button className={`${secondary} mt-3`} disabled={saving} onClick={() => void reloadVersion()}>Reload Latest Version</Button>}
       </form> : <>
         <Notice error={detailError} notice={notice} />{detailLoading && <p role="status" className="mb-4 text-sm text-[#6d7974]">{season ? 'Refreshing season and products…' : 'Loading season products…'}</p>}{detailError && <Button className={`${secondary} mb-4`} disabled={detailBusy} onClick={() => setRefresh(x => x + 1)}>Reload Details</Button>}
@@ -132,7 +135,7 @@ export function Seasons({ readOnly, invalidate, active = true, navigation }: { r
             {!readOnly && <div className="mb-4"><div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]"><ProductSelector value={product} onSelect={setProduct} disabled={detailBusy} /><Button className={primary} disabled={!product || detailBusy || !members || members.items.some(item => item.productId === product.id)} onClick={() => product && void mutate(() => f03Api.assignProduct(season.seasonId, product.id), () => { setNotice('Product assigned successfully.'); setProduct(null); }, 'detail')}>Assign Product</Button></div>{product && <p className="mt-2 break-words text-xs text-[#6d7974]">{members?.items.some(item => item.productId === product.id) ? 'This product is already assigned.' : `Selected: ${product.name} · ${product.sku}`}</p>}</div>}
             {members && <>{members.items.length ? <ul aria-label="Assigned product list" className="f03-season-products max-h-64 divide-y divide-[#e7e2d8] overflow-y-auto overscroll-contain pr-1">{members.items.map(item => <li key={item.productId} className="flex items-center justify-between gap-3 py-3 text-sm"><div className="min-w-0"><p className="break-words font-semibold">{item.name}</p><div className="mt-1 flex flex-wrap items-center gap-2"><span className="break-all text-xs text-[#6d7974]">{item.sku}</span><span className={`f03-season-badge ${item.status === 'ACTIVE' ? 'bg-[#edf5f0] text-[#356b54]' : 'bg-[#f1f0ed] text-[#787570]'}`}>{readable(item.status)}</span></div></div>{!readOnly && <Button disabled={detailBusy} className="shrink-0 text-[#6d7974] hover:bg-[#faf8f5] hover:text-[#315445]" aria-label={`Unassign ${item.name}`} onClick={() => void mutate(() => f03Api.unassignProduct(season.seasonId, item.productId), () => setNotice('Product unassigned successfully.'), 'detail')}>Unassign</Button>}</li>)}</ul> : <div className="rounded-lg border border-dashed border-[#d9dfd9] px-4 py-6 text-center"><PackageOpen size={25} className="mx-auto mb-2 text-[#89988e]" aria-hidden="true" /><p className="text-sm font-medium">No products are assigned to this season.</p><p className="mt-1 text-xs text-[#6d7974]">{readOnly ? 'Assigned products will appear here when a Merchandiser adds them.' : 'Search by product name or SKU above to add your first product.'}</p></div>}<Pager page={members} onChange={setMemberPage} label="assigned products" busy={detailBusy} /></>}
           </section>
-          <Technical><Metrics values={[["Season ID", season.seasonId], ['Created At', season.createdAt], ['Updated At', season.updatedAt], ['Created By', season.createdBy], ['Updated By', season.updatedBy]]} /></Technical>
+          <Technical><Metrics values={[["Season ID", season.seasonId], ['Created At', formatUtcDateTime(season.createdAt)], ['Updated At', formatUtcDateTime(season.updatedAt)], ['Created By', season.createdBy], ['Updated By', season.updatedBy]]} /></Technical>
         </div>}
       </>}
     </SeasonDialog>}

@@ -31,7 +31,7 @@ async function click(text) { await until(buttons + '.some(b=>b.innerText.trim()=
 async function aria(label) { const expr = "[...document.querySelectorAll('main button')].find(b=>b.getAttribute('aria-label')===" + JSON.stringify(label) + '&&b.getClientRects().length&&!b.disabled)'; await until('Boolean(' + expr + ')', label); await evaluate(expr + '.focus()'); await evaluate(expr + '.click()'); }
 async function enabled(text) { return evaluate(buttons + '.some(b=>b.innerText.trim()===' + JSON.stringify(text) + '&&!b.disabled)'); }
 async function tab(text) { await click(text); await has(({ Configuration: 'Utility Configuration', Seasons: 'Seasons', 'Product Weights': 'Product Weight Details', Preview: 'Utility Preview', Snapshots: 'Utility Snapshots' })[text]); }
-async function input(label, value) { assert.equal(await evaluate("(()=>{const e=[...document.querySelectorAll('input[aria-label=" + JSON.stringify(label) + "]')].find(e=>e.getClientRects().length);if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e," + JSON.stringify(value) + ");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"), true, label); }
+async function input(label, value) { await until("[...document.querySelectorAll('input[aria-label="+JSON.stringify(label)+"]')].some(e=>e.getClientRects().length&&!e.matches(':disabled'))", 'Ready '+label); if (value && /^\d{4}-\d{2}-\d{2}/.test(value) && await evaluate('Boolean(document.querySelector('+JSON.stringify('input[aria-label='+JSON.stringify(label)+'][data-app-date-kind]')+'))')) { const [date,time] = value.split('T'); value = date.split('-').reverse().join('/') + (time ? ' '+time : ''); } assert.equal(await evaluate("(()=>{const e=[...document.querySelectorAll('input[aria-label=" + JSON.stringify(label) + "]')].find(e=>e.getClientRects().length);if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e," + JSON.stringify(value) + ");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"), true, label); }
 async function choose(id) { await input('Select product', 'SKU-' + id); await until("[...document.querySelectorAll('[role=option]')].some(e=>e.innerText.split('\\n')[0].trim()===" + JSON.stringify('SKU-' + id) + ')', 'Product SKU-' + id); await evaluate("[...document.querySelectorAll('[role=option]')].find(e=>e.innerText.split('\\n')[0].trim()===" + JSON.stringify('SKU-' + id) + ').click()'); }
 async function openSeason(name) { await aria((fixtureRole === 'Store Admin' ? 'View ' : 'Edit ') + name); await has('Season Details'); }
 async function pageNext(label) { const expr = "[...document.querySelectorAll('nav[aria-label=" + JSON.stringify(label + ' pagination') + "] button')].find(b=>b.innerText==='Next'&&b.getClientRects().length&&!b.disabled)"; await until('Boolean(' + expr + ')', 'Next ' + label); await evaluate(expr + '.click()'); }
@@ -168,7 +168,7 @@ try {
   assert.equal(compactListApiMutations, 0, 'Compact list browsing and opening/closing details only send GET requests');
   await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   checks.push('Compact list: one/many/long names, active/inactive, compact and cross-year dates, labelled unboxed metadata, aligned single action, 1440/820/390 screenshots, unchanged modal and zero feature API mutations');
-  await click('Add Season'); await until("document.activeElement?.getAttribute('aria-label')==='Season Name'", 'Editor starts at name'); await click('Save Season'); await has('Enter a season name');
+  await click('Add Season'); await until("document.activeElement?.getAttribute('aria-label')==='Season Name'", 'Editor starts at name'); await click('Save Season'); await has('dd/mm/yyyy'); await input('Start Date', '2026-12-01'); await input('End Date', '2026-12-31'); await click('Save Season'); await has('Enter a season name');
   await input('Season Name', 'New Season'); await input('Start Date', '2026-12-01'); await input('End Date', '2026-12-31'); await input('Season Weight', '0.7');
   state.duplicate = true; await click('Save Season'); await has('already exists'); assert.equal(await evaluate("document.querySelector('input[aria-label=\"Season Name\"]').value"), 'New Season');
   state.duplicate = false; state.seasonDelay = 500; const beforeCreateSeason = count('/api/utility/seasons', 'POST'); await click('Save Season'); await key('Escape'); assert.equal(await evaluate("Boolean(document.querySelector('dialog[open][aria-label=\"Add Season\"]'))"), true); assert.equal(await enabled('Cancel'), false); await has('Season created successfully'); assert.equal(count('/api/utility/seasons', 'POST'), beforeCreateSeason + 1); state.seasonDelay = 0;
@@ -210,6 +210,7 @@ try {
   await click('Edit Season'); await has('Save Changes'); await capture('season-edit-mode');
   assert.equal(await evaluate("document.querySelector('dialog[open]')===window.seasonDialogIdentity"), true);
   assert.equal(await enabled('Delete'), false); const writesBeforeDraft = calls.filter(c => c.path.startsWith('/api/utility/seasons') && c.method !== 'GET').length;
+  await input('Start Date', '18/11'); await key('Escape'); await has('Discard unsaved changes?'); await click('Keep Editing'); assert.equal(await evaluate("document.querySelector('input[aria-label=\"Start Date\"]').value"), '18/11'); await input('Start Date', '2026-11-01');
   await input('Season Name', 'Unsaved Season Draft'); await key('Escape'); await has('Discard unsaved changes?'); await click('Keep Editing');
   assert.equal(await evaluate("document.querySelector('input[aria-label=\"Season Name\"]').value"), 'Unsaved Season Draft');
   await aria('Close dialog'); await has('Discard unsaved changes?'); await key('Escape'); await has('Save Changes');
@@ -248,11 +249,15 @@ try {
   state.scores = { ...state.scores, ready: false, lambdaValid: false, weightValue: null }; await click('Refresh Weights'); await has('Unavailable'); await has('Priority Strength exceeds');
   state.scores = structuredClone(scores); state.scoreDelay = 600; await click('Refresh Weights'); await choose(2); state.scoreDelay = 0; await has('Product 002'); await has('Readiness'); await sleep(650);
   assert.equal(await evaluate(visible + '.includes("Product 002")'), true);
-  await input('Push Analysis Date', '2026-11-10'); await has('As of 2026-11-10'); assert.ok(calls.some(c => c.path === '/api/utility/expiry-push-batches' && c.query.includes('productId=2') && c.query.includes('asOfDate=2026-11-10')));
+  await input('Push Analysis Date', '2026-11-10'); await has('As of 10/11/2026'); assert.ok(calls.some(c => c.path === '/api/utility/expiry-push-batches' && c.query.includes('productId=2') && c.query.includes('asOfDate=2026-11-10')));
   state.expiryEmpty = true; await click('Refresh Batches'); await has('No batches are due'); state.expiryEmpty = false; state.expiryError = true; await click('Refresh Batches'); await has('Fixture expiry unavailable'); state.expiryError = false; await click('Refresh Batches'); await has('2 days overdue');
   await capture('product-weights-1440'); checks.push('GET-only weight details, no active season, simultaneous warnings, unavailable Weight, delayed selection, Push Day filters/null expiry/negative days/empty/error');
 
   await tab('Preview'); await input('Start Date', '2026-10-01'); await input('End Date', '2026-10-31'); await input('Analysis Date', '2026-11-05');
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"Start Date\"]').value"), '01/10/2026');
+  await click('Calculate Preview'); await has('Expiry Risk');
+  const beforeInvalidDate = count('/api/utility/preview'); await input('Start Date', '31/04/2026'); await click('Calculate Preview'); await has('Enter a valid date'); assert.equal(count('/api/utility/preview'), beforeInvalidDate);
+  await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); await tab('Preview'); await input('Start Date', '2026-10-01');
   state.previewError = true; await click('Calculate Preview'); await has('Priority Strength exceeds Lambda Policy'); await has('Review Configuration'); state.previewError = false;
   state.empty = true; await click('Calculate Preview'); await has('No utility rows'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); state.empty = false;
   await tab('Preview'); state.ready = false; await click('Calculate Preview'); await has('Not Ready'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); state.ready = true;
@@ -319,7 +324,7 @@ try {
     await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
     await tab('Configuration'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('configuration-' + width);
     await tab('Seasons'); await has('Holiday'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('seasons-' + width);
-    await click('Add Season'); await capture('season-form-' + width); await click('Cancel');
+    await click('Add Season'); await capture('season-form-' + width); await aria('Open calendar for Start Date'); await until("Boolean(document.querySelector('.app-calendar:popover-open'))", 'Calendar in Season dialog'); assert.equal(await evaluate("document.querySelector('dialog[open]').contains(document.querySelector('.app-calendar'))"), true); await capture('season-calendar-' + width); await key('Escape'); assert.equal(await evaluate("Boolean(document.querySelector('dialog[open]'))"), true); await click('Cancel');
     await tab('Preview'); await click('Calculate Preview'); await has('Expiry Risk'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('preview-' + width);
     await tab('Snapshots'); await has('READY'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('snapshots-' + width);
   }

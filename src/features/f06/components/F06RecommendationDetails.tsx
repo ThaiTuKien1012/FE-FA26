@@ -1,3 +1,4 @@
+import { formatDate } from '../../../utils/dateTime';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { CheckCircle2, Clock3, RefreshCw, X, XCircle } from 'lucide-react';
 import { miningButton, miningDate } from '../../f05/f05.display';
@@ -10,7 +11,7 @@ export function F06EligibilityCheck({ title, check, names = {} }: { title: strin
   return <section className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-semibold">{title}</h4><RecommendationBadge status={check.status} /></div>
     <p className="mt-2 text-sm text-[#57534E]">{recommendationAvailability(check.status)}</p>
-    <p className="mt-2 break-words text-xs leading-5 text-[#6D7974]">Checked {miningDate(check.checkedAt)} · Store date {check.asOfDate} · {check.timeZone}</p>
+    <p className="mt-2 break-words text-xs leading-5 text-[#6D7974]">Checked {miningDate(check.checkedAt)} · Store date {formatDate(check.asOfDate)} · {check.timeZone}</p>
     {check.warnings.length > 0 && <ul className="mt-3 list-disc space-y-1 pl-4 text-sm leading-6 text-amber-900">{check.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
     <h5 className="mb-2 mt-4 text-xs font-semibold text-[#6D7974]">Product availability ({check.products.length})</h5>
     <ul className="grid max-h-96 gap-3 overflow-y-auto sm:grid-cols-2">{check.products.map(product => <li key={product.productId} className="min-w-0 rounded-xl bg-[#FAF8F5] p-3 text-sm">
@@ -65,8 +66,8 @@ export function F06RecommendationDetailContent({ item, names = {}, compact = fal
     <section><h3 className="text-lg font-semibold">Additional Evidence</h3><p className="mt-2 text-sm leading-6 text-[#6D7974]">Saved analyses and creation-time stock checks explain where this suggestion came from. They are separate from today’s availability.</p>
       <details className="mt-4 text-sm"><summary className="cursor-pointer font-medium">Availability when created</summary><div className="mt-3"><F06EligibilityCheck title="Availability at creation" check={item.generationEligibility} names={names} /></div></details>
       <div className="mt-3 space-y-3">{item.sources.map(source => <details key={`${source.runId}:${source.patternId}`} className="rounded-xl border border-[#E7E2D8] p-4">
-        <summary className="cursor-pointer text-sm font-semibold">Mining run #{source.runId} · {source.algorithm === 'HUI_MINER' ? 'HUI-Miner' : source.algorithm} · {source.analysisDate}</summary><div className="mt-4"><RecommendationFields fields={[
-          ['Shopping data snapshot', `#${source.snapshotId}`], ['Analysis date', source.analysisDate], ['Product combination', `Pattern #${source.patternId}`], ['Utility Score', value(source.patternUtility)]
+        <summary className="cursor-pointer text-sm font-semibold">Mining run #{source.runId} · {source.algorithm === 'HUI_MINER' ? 'HUI-Miner' : source.algorithm} · {formatDate(source.analysisDate)}</summary><div className="mt-4"><RecommendationFields fields={[
+          ['Shopping data snapshot', `#${source.snapshotId}`], ['Analysis date', formatDate(source.analysisDate)], ['Product combination', `Pattern #${source.patternId}`], ['Utility Score', value(source.patternUtility)]
         ]} /><details className="mt-4 text-xs"><summary className="cursor-pointer font-medium">Technical source references</summary><div className="mt-3"><RecommendationFields fields={[
           ['Request', `#${source.requestId}`], ['Library version', source.libraryVersion], ['Conversion version', source.conversionVersion], ['Minimum utility mode', source.minUtilMode],
           ['Minimum utility value', value(source.minUtilValue)], ['SPMF threshold', value(source.minUtilSpmf)], ['Effective minimum utility', value(source.effectiveMinUtility)],

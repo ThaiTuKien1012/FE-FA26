@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../../utils/dateTime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, ChevronLeft, ChevronRight, Eye, FileClock, FileText, Loader2, RefreshCw, X } from 'lucide-react';
@@ -31,9 +32,7 @@ function skippedExisting(summary: ImportSummary) {
 function formatDate(value: string | null) {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-GB', {
-    dateStyle: 'medium', timeStyle: 'short'
-  }).format(date);
+  return Number.isNaN(date.getTime()) ? value : formatDateTime(date);
 }
 
 function errorMessage(error: unknown) {

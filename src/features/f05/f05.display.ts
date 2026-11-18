@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../utils/dateTime';
 import { F05ApiError } from './f05.api';
 import type { Algorithm, MinUtilMode } from './f05.types';
 
@@ -14,7 +15,7 @@ export function miningDate(value: string | null): string {
   if (value === null) return 'Not recorded';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'medium' }).format(date);
+  return formatDateTime(date, undefined, true);
 }
 
 export function miningErrorMessage(error: unknown): string {

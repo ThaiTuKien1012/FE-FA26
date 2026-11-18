@@ -1,3 +1,4 @@
+import { formatDate, formatFriendlyDate } from '../../../utils/dateTime';
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { miningButton, miningInput, miningPrimaryButton, miningDate } from '../../f05/f05.display';
@@ -53,7 +54,7 @@ export function F06RulesPanel({ onClose }: { onClose: () => void }) {
     </form>}
   </Panel>;
 }
-const expiryDate = (date: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
+const expiryDate = formatFriendlyDate;
 export function F06ExpiryPanel({ onClose }: { onClose: () => void }) {
   const [workflow] = useState(() => new RecommendationExpiry());
   const state = useSyncExternalStore(workflow.subscribe, workflow.getSnapshot, workflow.getSnapshot);
@@ -71,7 +72,7 @@ export function F06ExpiryPanel({ onClose }: { onClose: () => void }) {
     {state.loading && <p role="status" className="text-sm text-[#6D7974]">Loading expiry alerts...</p>}
     {state.error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.error}</p>}
     {data && <>
-      <p className="text-xs leading-5 text-[#6D7974]">Store date {data.asOfDate} · {data.timeZone}<br />Checked {miningDate(data.checkedAt)}</p>
+      <p className="text-xs leading-5 text-[#6D7974]">Store date {formatDate(data.asOfDate)} · {data.timeZone}<br />Checked {miningDate(data.checkedAt)}</p>
       {data.warnings.length > 0 && <ul aria-label="Expiry warnings" className="space-y-1 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{data.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
       {!data.items.length ? <p className="rounded-xl bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">No expiry alerts match these filters. Products with reminders disabled, expired batches and batches expiring today are not current sellable expiry alerts.</p> : <ul aria-label="Expiry alert batches" className="grid gap-4 sm:grid-cols-2">{data.items.map(batch => <li key={`${batch.productId}:${batch.batchId}`} className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
         <h3 className="break-words text-sm"><RecommendationProduct id={batch.productId} names={state.names} /></h3><p className="mt-1 text-xs text-[#6D7974]">Batch #{batch.batchId}</p>

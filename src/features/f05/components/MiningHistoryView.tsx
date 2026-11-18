@@ -1,3 +1,4 @@
+import { parseDateOnly, formatFriendlyDate } from '../../../utils/dateTime';
 import { useCallback, useEffect, useState } from 'react';
 import { History, Loader2, RefreshCw } from 'lucide-react';
 import { authService } from '../../../services/authService';
@@ -9,7 +10,7 @@ import type { Page, RequestView } from '../f05.types';
 import { MiningStatusBadge } from './MiningStatusBadge';
 import { RequestDetails } from './RequestDetails';
 
-const analysisDate = (value: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', ...(value.length === 10 ? { timeZone: 'UTC' } : {}) }).format(new Date(value.length === 10 ? value + 'T00:00:00Z' : value));
+const analysisDate = (value: string) => parseDateOnly(value) ? formatFriendlyDate(value) : miningDate(value);
 
 interface Props {
   compact?: boolean;

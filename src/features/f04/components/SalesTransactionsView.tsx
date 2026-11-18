@@ -1,3 +1,5 @@
+import { AppDatePicker } from '../../../components/common/AppDatePicker';
+import { formatDate as formatCalendarDate, formatDateTime } from '../../../utils/dateTime';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, ChevronLeft, ChevronRight, Eye, ListFilter, Loader2, ReceiptText, RefreshCw, X } from 'lucide-react';
@@ -8,7 +10,6 @@ import './SalesTransactionsView.css';
 const PAGE_SIZE = 20;
 const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const moneyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 2 });
-const dateFormatter = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: TIME_ZONE });
 const statusStyles = {
   COMPLETED: { label: 'Completed', tone: 'success' },
   CANCELLED: { label: 'Cancelled', tone: 'neutral' },
@@ -59,7 +60,7 @@ function toApiFilters(selection: FilterSelection): TransactionFilters {
 function formatMoney(value: number) { return moneyFormatter.format(value); }
 function formatDate(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
+  return Number.isNaN(date.getTime()) ? value : formatDateTime(value, TIME_ZONE);
 }
 
 function formatImportSource(value: string): string {
@@ -220,6 +221,7 @@ function TransactionDetails({ transactionId, opener, onClose }: { transactionId:
 
 export function SalesTransactionsView() {
   const [draft, setDraft] = useState<FilterSelection>(EMPTY_SELECTION);
+  const [clearRevision, setClearRevision] = useState(0);
   const [filterError, setFilterError] = useState<string | null>(null);
   const { query, data, error, loading, refresh, setPage, apply } = useTransactions();
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -241,6 +243,7 @@ export function SalesTransactionsView() {
   };
 
   const clearFilters = () => {
+    setClearRevision(value => value + 1);
     setDraft({ ...EMPTY_SELECTION });
     setFilterError(null);
     apply({ ...EMPTY_SELECTION }, {});
@@ -252,15 +255,15 @@ export function SalesTransactionsView() {
       <div className="f04s-filter-heading"><ListFilter size={17} aria-hidden="true" /><h2 id="f04s-filters-title">Filters</h2></div>
       <div className="f04s-filter-fields">
         <label htmlFor="f04s-status">Status<select id="f04s-status" value={draft.status} onChange={event => setDraft(previous => ({ ...previous, status: event.target.value as FilterSelection['status'] }))}><option value="">All Statuses</option>{Object.entries(statusStyles).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label htmlFor="f04s-from">From Date<input id="f04s-from" type="date" min="0001-01-01" max="9999-12-31" value={draft.fromDate} aria-invalid={!!filterError} aria-describedby={filterError ? 'f04s-filter-error f04s-timezone-help' : 'f04s-timezone-help'} onChange={event => setDraft(previous => ({ ...previous, fromDate: event.target.value }))} /></label>
-        <label htmlFor="f04s-to">To Date<input id="f04s-to" type="date" min="0001-01-01" max="9999-12-31" value={draft.toDate} aria-invalid={!!filterError} aria-describedby={filterError ? 'f04s-filter-error f04s-timezone-help' : 'f04s-timezone-help'} onChange={event => setDraft(previous => ({ ...previous, toDate: event.target.value }))} /></label>
+        <label htmlFor="f04s-from">From Date<AppDatePicker resetKey={clearRevision} aria-label="From Date" id="f04s-from" min="0001-01-01" max="9999-12-31" value={draft.fromDate} aria-invalid={!!filterError} aria-describedby={filterError ? 'f04s-filter-error f04s-timezone-help' : 'f04s-timezone-help'} onChange={value => setDraft(previous => ({ ...previous, fromDate: value }))} /></label>
+        <label htmlFor="f04s-to">To Date<AppDatePicker resetKey={clearRevision} aria-label="To Date" id="f04s-to" min="0001-01-01" max="9999-12-31" value={draft.toDate} aria-invalid={!!filterError} aria-describedby={filterError ? 'f04s-filter-error f04s-timezone-help' : 'f04s-timezone-help'} onChange={value => setDraft(previous => ({ ...previous, toDate: value }))} /></label>
         <div className="f04s-filter-actions"><button type="submit" className="f04s-button f04s-primary-button">Apply Filters</button><button type="button" className="f04s-button" onClick={clearFilters}>Clear Filters</button></div>
       </div>
       <p id="f04s-timezone-help" className="f04s-filter-help">Browser time zone: <strong>{TIME_ZONE}</strong>. Date filters include the full local day; displayed times use this zone.</p>
       {filterError && <p id="f04s-filter-error" className="f04s-validation-error" role="alert"><AlertCircle size={16} aria-hidden="true" />{filterError}</p>}
     </form>
     <section className="f04s-card" aria-labelledby="f04s-list-title">
-      <div className="f04s-card-heading"><span className="f04s-section-icon"><ReceiptText size={20} aria-hidden="true" /></span><div><h2 ref={listHeadingRef} tabIndex={-1} id="f04s-list-title">Sales Records</h2><p>{appliedStatus} · {hasFilters ? `${query.selection.fromDate || 'Any start date'} → ${query.selection.toDate || 'Any end date'}` : 'All dates'} · Newest first</p></div></div>
+      <div className="f04s-card-heading"><span className="f04s-section-icon"><ReceiptText size={20} aria-hidden="true" /></span><div><h2 ref={listHeadingRef} tabIndex={-1} id="f04s-list-title">Sales Records</h2><p>{appliedStatus} · {hasFilters ? `${formatCalendarDate(query.selection.fromDate, 'Any start date')} → ${formatCalendarDate(query.selection.toDate, 'Any end date')}` : 'All dates'} · Newest first</p></div></div>
       <p className="f04s-list-help">Eligible transactions can be used for utility calculation and subsequent mining.</p>
       {loading ? <Loading label="Loading sales transactions..." /> : error ? <RequestError message={error} retry={refresh} /> : data && <>
         {data.content.length === 0 ? <div className="f04s-empty" role="status"><ReceiptText size={32} aria-hidden="true" /><h3>{hasFilters ? 'No matching transactions' : 'No transactions yet'}</h3><p>{hasFilters ? 'Try another status or date range, or clear your filters.' : "Recorded sales for your store will appear here."}</p>{hasFilters && <button type="button" className="f04s-button" onClick={clearFilters}>Clear Filters</button>}</div> : <div className="f04s-table-scroll" tabIndex={0} role="region" aria-label="Sales transactions; scroll horizontally to see all columns">

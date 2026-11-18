@@ -1,3 +1,4 @@
+import { formatDate, formatDateRange } from '../../../utils/dateTime';
 import { useEffect, useState } from 'react';
 import { AlertCircle, Database, Loader2, RefreshCw } from 'lucide-react';
 import { formatMiningNumber } from '../f05.display';
@@ -89,8 +90,8 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
                 <span className="rounded-full bg-[#EDF5F0] px-2 py-1 text-xs font-semibold text-[#1E3A2F]">{snapshot.status}</span>
               </div>
               <dl className="mt-4 space-y-2 text-sm">
-                <div><dt className="text-xs text-[#6D7974]">{system?'Sales Period':'Date range'}</dt><dd className="mt-0.5">{snapshot.rangeStart} to {snapshot.rangeEnd}</dd></div>
-                <div><dt className="text-xs text-[#6D7974]">{system?'Utility Analysis Date':'Analysis date'}</dt><dd className="mt-0.5">{snapshot.configuration?.analysisDate ?? snapshot.asOfDate}</dd></div>
+                <div><dt className="text-xs text-[#6D7974]">{system?'Sales Period':'Date range'}</dt><dd className="mt-0.5">{formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)}</dd></div>
+                <div><dt className="text-xs text-[#6D7974]">{system?'Utility Analysis Date':'Analysis date'}</dt><dd className="mt-0.5">{formatDate(snapshot.configuration?.analysisDate ?? snapshot.asOfDate)}</dd></div>
                 <div><dt className="text-xs text-[#6D7974]">{system?'Total Weighted Utility':'Total weighted utility'}</dt><dd className="mt-0.5 break-all font-medium">{system?formatMiningNumber(snapshot.totalWeightedUtility):snapshot.totalWeightedUtility}</dd></div>
                 {!system&&<div><dt className="text-xs text-[#6D7974]">Scoring version</dt><dd className="mt-0.5 break-words">{snapshot.configuration?.config?.scoringVersion ?? 'Not available in frozen metadata'}</dd></div>}
               </dl>
