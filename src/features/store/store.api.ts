@@ -6,6 +6,8 @@ export interface F02Product {
   id: number; sku: string; name: string; unit: string; requiresExpiry: boolean;
   category: F02Category | null; sellingPrice: number; costPrice: number;
   status: F02Status; stockQuantity: number; expiryPushDays: number;
+  imageUrl?: string | null; isHotSale?: boolean; isNew?: boolean; isCombo?: boolean;
+  isBestSeller?: boolean; isTrending?: boolean;
 }
 export type F02ProductRequest = Omit<F02Product, 'id' | 'category' | 'stockQuantity' | 'expiryPushDays'> & { categoryId?: number; expiryPushDays?: number | null };
 export interface F02ProductPage { content: F02Product[]; page: number; pageSize: number; totalElements: number; totalPages: number; }

@@ -9,6 +9,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'f05-mining': '/mining',
   'customer-home': '/customer-home',
   'customer-storefront': '/storefront',
+  'customer-product': '/product',
 
   // Merchandiser Screens
   'merchandiser-recommendations': '/merchandiser/recommendations',
@@ -82,10 +83,17 @@ export function getPathForScreen(screen: ActiveNavScreen): string {
  */
 export function getScreenFromPathname(pathname: string): ActiveNavScreen | null {
   const normalized = pathname.trim().toLowerCase();
+  if (/^\/product\/[^/]+\/?$/.test(normalized)) return 'customer-product';
   if (normalized === '' || normalized === '/') {
     return null;
   }
   return PATH_TO_SCREEN[normalized] || null;
+}
+
+export function getCustomerProductId(pathname: string): string | null {
+  const match = /^\/product\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return null;
+  try { return decodeURIComponent(match[1]); } catch { return null; }
 }
 
 /**

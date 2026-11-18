@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen } from './types/mining';
-import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
+import { getCustomerProductId, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
@@ -22,6 +22,7 @@ import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
 import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
+import { CustomerProductDetailView } from './features/customer/components/CustomerProductDetailView';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
 import { PublishedCampaignStatusView } from './features/merchandiser/components/PublishedCampaignStatusView';
@@ -55,6 +56,8 @@ export default function App() {
   });
 
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
+  const [customerProductId, setCustomerProductId] = useState<string | null>(() => getCustomerProductId(window.location.pathname));
+  const [customerProductOrigin, setCustomerProductOrigin] = useState<'customer-home' | 'customer-storefront'>('customer-home');
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
   const isMiningScreen = isSystemMiningScreen(currentScreen);
   const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
@@ -80,11 +83,12 @@ export default function App() {
 
   // Synchronize browser URL bar on load and handle back/forward browser buttons
   useEffect(() => {
-    syncBrowserUrl(currentScreen, true);
+    if (currentScreen !== 'customer-product') syncBrowserUrl(currentScreen, true);
 
     const handlePopState = () => {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
       if (screenFromUrl) {
+        setCustomerProductId(getCustomerProductId(window.location.pathname));
         setCurrentScreen(screenFromUrl);
       }
     };
@@ -96,7 +100,7 @@ export default function App() {
 
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
-    if (!currentUser && !['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront'].includes(currentScreen)) {
+    if (!currentUser && !['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront', 'customer-product'].includes(currentScreen)) {
       syncBrowserUrl('login', true);
       setCurrentScreen('login');
     }
@@ -129,6 +133,14 @@ export default function App() {
     requestAnimationFrame(() => {
       window.scrollTo({ top: scrollPositions.current[screen] ?? 0, behavior: 'auto' });
     });
+  };
+
+  const handleCustomerProduct = (id: string) => {
+    if (currentScreen === 'customer-home' || currentScreen === 'customer-storefront') setCustomerProductOrigin(currentScreen);
+    window.history.pushState({ screen: 'customer-product' }, '', `/product/${encodeURIComponent(id)}`);
+    setCustomerProductId(id);
+    setCurrentScreen('customer-product');
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const handleEditProduct = (prod: ProductItem) => {
@@ -256,13 +268,14 @@ export default function App() {
         onLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }}
         onRegister={() => { syncBrowserUrl('register'); setCurrentScreen('register'); }}
         onExplore={() => handleNavigate('customer-storefront')}
+        onProduct={handleCustomerProduct}
         onProfile={currentUser ? () => handleNavigate('profile') : undefined}
         onLogout={currentUser ? handleLogout : undefined}
       />
     );
   }
 
-  if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password', 'customer-storefront'].includes(currentScreen))) {
+  if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password', 'customer-storefront', 'customer-product'].includes(currentScreen))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -316,9 +329,27 @@ export default function App() {
         onLogout={handleLogout}
         onProfile={() => handleNavigate(currentUser ? 'profile' : 'login')}
         onHome={() => handleNavigate('customer-home')}
+        onProduct={handleCustomerProduct}
         onLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }}
       />
     );
+  }
+
+  if (currentScreen === 'customer-product' && (!currentUser || currentUser.role === 'End-Customer')) {
+    return <CustomerProductDetailView
+      productId={customerProductId}
+      user={currentUser}
+      onBack={() => {
+        if (window.history.state?.screen === 'customer-product') window.history.back();
+        else handleNavigate(customerProductOrigin);
+      }}
+      onHome={() => handleNavigate('customer-home')}
+      onStore={() => handleNavigate('customer-storefront')}
+      onProduct={handleCustomerProduct}
+      onLogin={() => handleNavigate('login')}
+      onProfile={() => handleNavigate(currentUser ? 'profile' : 'login')}
+      onLogout={handleLogout}
+    />;
   }
 
   // 3. For administrative roles (Store Admin, System Admin, Merchandiser), render within AppLayout

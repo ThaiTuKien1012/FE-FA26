@@ -94,6 +94,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     allowedScreens: [
       'customer-home',
       'customer-storefront',
+      'customer-product',
       'profile'
     ]
   }

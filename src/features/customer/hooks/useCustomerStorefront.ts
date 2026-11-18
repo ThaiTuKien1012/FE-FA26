@@ -3,6 +3,7 @@ import { APP_BRAND } from '../../../app/branding';
 import type { CustomerDisplayProduct, ProductItem } from '../customer.types';
 import { CUSTOMER_STORES, getCustomerStoreId, rememberCustomerStore } from '../data/customerStores';
 import { getCustomerProducts } from '../data/customerCatalog';
+import { categoryLabel, normalizeCustomerSearch } from '../data/customerLocale';
 import { useCustomerShopping } from './useCustomerShopping';
 
 type SortOrder = 'featured' | 'price-asc' | 'price-desc' | 'name';
@@ -37,12 +38,12 @@ export function useCustomerStorefront(productsByStore?: Record<string, ProductIt
   const cartProducts = storeProducts.filter(product => cart[product.id] > 0);
   const cartCount = cartProducts.reduce((sum, product) => sum + cart[product.id], 0);
   const cartTotal = cartProducts.reduce((sum, product) => sum + product.priceVnd * cart[product.id], 0);
-  const search = query.trim().toLowerCase();
+  const search = normalizeCustomerSearch(query.trim());
   const filteredProducts = storeProducts.filter(product =>
     (category === 'All Products' || category === product.category) &&
     (brand === 'All Products' || brand === (product.brand || product.category)) &&
     (!savedOnly || saved.includes(product.id)) &&
-    `${product.name} ${product.sku} ${product.brand || ''} ${product.category}`.toLowerCase().includes(search),
+    normalizeCustomerSearch(`${product.name} ${product.sku} ${product.brand || ''} ${product.category} ${categoryLabel(product.category)}`).includes(search),
   ).sort((a, b) => sort === 'price-asc' ? a.priceVnd - b.priceVnd
     : sort === 'price-desc' ? b.priceVnd - a.priceVnd
       : sort === 'name' ? a.name.localeCompare(b.name) : 0);
@@ -51,7 +52,7 @@ export function useCustomerStorefront(productsByStore?: Record<string, ProductIt
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = `${APP_BRAND.name} | Shop Your Everyday Favorites`;
+    document.title = `${APP_BRAND.name} | Cửa hàng`;
     return () => { document.title = previousTitle; clearTimeout(noticeTimer.current); };
   }, []);
 
@@ -76,7 +77,7 @@ export function useCustomerStorefront(productsByStore?: Record<string, ProductIt
   const addToCart = (product: CustomerDisplayProduct) => {
     if (!storeProducts.some(item => item.id === product.id)) return;
     changeQuantity(selectedStore.id, product.id, 1);
-    setNotice(`Added ${product.name} to your ${selectedStore.englishName} cart`);
+    setNotice(`Đã thêm ${product.name} vào giỏ của ${selectedStore.name}`);
     clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(''), 3000);
   };
@@ -90,7 +91,7 @@ export function useCustomerStorefront(productsByStore?: Record<string, ProductIt
   const closeDialog = () => dialogRef.current?.close();
   const completeDemoOrder = () => {
     if (!cartProducts.length) return;
-    setReceipt({ id: `DEMO-${Date.now().toString(36).toUpperCase()}`, storeName: selectedStore.englishName,
+    setReceipt({ id: `DEMO-${Date.now().toString(36).toUpperCase()}`, storeName: selectedStore.name,
       items: cartProducts.map(product => ({ product, quantity: cart[product.id] })), total: cartTotal });
     clearCart(selectedStore.id);
     closeDialog();

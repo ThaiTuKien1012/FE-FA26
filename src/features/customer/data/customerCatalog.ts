@@ -40,44 +40,44 @@ function catalog(storeId: CustomerStoreId, rows: DemoProductRow[]): CustomerProd
 /** Illustrative, store-owned inventory. No catalog is reused as another store's fallback. */
 const BASE_CUSTOMER_PRODUCTS: CustomerProduct[] = [
   ...catalog('store-d1', [
-    ['broccoli', 'Fresh Green Broccoli', 'Retail Greens', 'Vegetables', 'broccoli.png', 'head', 28000, 32],
-    ['cucumber', 'Crisp Green Cucumbers', 'Green Garden', 'Vegetables', 'cucumber.webp', 'kg', 18000, 46],
-    ['bell-pepper', 'Green Bell Peppers', 'Green Garden', 'Vegetables', 'green-bell-pepper.webp', 'pack', 32000, 24],
-    ['red-onion', 'Red Onions', 'Harvest Roots', 'Vegetables', 'red-onions.webp', 'kg', 26000, 38],
-    ['potato', 'Golden Potatoes', 'Harvest Roots', 'Vegetables', 'potatoes.webp', 'kg', 24000, 52],
-    ['chili', 'Fresh Green Chili Peppers', 'Green Garden', 'Vegetables', 'green-chili-pepper.webp', 'pack', 15000, 18],
-    ['chips', "Lay's Classic Potato Chips", "Lay's", 'Snacks', '/images/products/lays.png', 'pack', 32000, 34],
-    ['apple-pack', 'Crisp Red Apple Pack', 'Orchard & Co.', 'Fruits', 'apple.png', 'pack', 55000, 19],
+    ['broccoli', 'Bông cải xanh tươi', 'Retail Greens', 'Vegetables', 'broccoli.png', 'head', 28000, 32],
+    ['cucumber', 'Dưa leo xanh', 'Green Garden', 'Vegetables', 'cucumber.webp', 'kg', 18000, 46],
+    ['bell-pepper', 'Ớt chuông xanh', 'Green Garden', 'Vegetables', 'green-bell-pepper.webp', 'pack', 32000, 24],
+    ['red-onion', 'Hành tây đỏ', 'Harvest Roots', 'Vegetables', 'red-onions.webp', 'kg', 26000, 38],
+    ['potato', 'Khoai tây vàng', 'Harvest Roots', 'Vegetables', 'potatoes.webp', 'kg', 24000, 52],
+    ['chili', 'Ớt xanh tươi', 'Green Garden', 'Vegetables', 'green-chili-pepper.webp', 'pack', 15000, 18],
+    ['chips', "Khoai tây chiên Lay's", "Lay's", 'Snacks', '/images/products/lays.png', 'pack', 32000, 34],
+    ['apple-pack', 'Táo đỏ đóng gói', 'Orchard & Co.', 'Fruits', 'apple.png', 'pack', 55000, 19],
   ]),
   ...catalog('store-q1', [
-    ['bread', 'Fresh Sliced Bread', 'The Good Loaf', 'Bakery', 'bread-loaf.png', 'loaf', 45000, 20],
-    ['milk', 'Fresh Whole Milk', 'Meadow Dairy', 'Dairy & Eggs', 'milk.webp', 'bottle', 34000, 35],
-    ['eggs', 'Farm Fresh Eggs', 'Morning Farm', 'Dairy & Eggs', 'eggs.webp', 'box', 36000, 28],
-    ['honey', 'Golden Honey', 'Sunny Hive', 'Pantry', 'honey-jar.webp', 'jar', 89000, 15],
-    ['coffee', 'Nescafe Instant Coffee', 'Nescafe', 'Beverages', 'nescafe-coffee.webp', 'jar', 78000, 22],
-    ['ice-cream', 'Creamy Vanilla Ice Cream', 'Meadow Dairy', 'Frozen', 'ice-cream.webp', 'tub', 42000, 12],
-    ['yogurt', 'Creamy Strawberry Yogurt', 'Vinamilk', 'Dairy & Eggs', '/images/products/vinamilk.jpg', 'cup', 28000, 26],
-    ['chocolate', 'KitKat Sharing Bar', 'KitKat', 'Snacks', '/images/products/kitkat.jpg', 'bar', 26000, 31],
+    ['bread', 'Bánh mì lát', 'The Good Loaf', 'Bakery', 'bread-loaf.png', 'loaf', 45000, 20],
+    ['milk', 'Sữa tươi nguyên kem', 'Meadow Dairy', 'Dairy & Eggs', 'milk.webp', 'bottle', 34000, 35],
+    ['eggs', 'Trứng gà tươi', 'Morning Farm', 'Dairy & Eggs', 'eggs.webp', 'box', 36000, 28],
+    ['honey', 'Mật ong nguyên chất', 'Sunny Hive', 'Pantry', 'honey-jar.webp', 'jar', 89000, 15],
+    ['coffee', 'Cà phê hòa tan Nescafe', 'Nescafe', 'Beverages', 'nescafe-coffee.webp', 'jar', 78000, 22],
+    ['ice-cream', 'Kem vani', 'Meadow Dairy', 'Frozen', 'ice-cream.webp', 'tub', 42000, 12],
+    ['yogurt', 'Sữa chua dâu Vinamilk', 'Vinamilk', 'Dairy & Eggs', '/images/products/vinamilk.jpg', 'cup', 28000, 26],
+    ['chocolate', 'Sô cô la KitKat', 'KitKat', 'Snacks', '/images/products/kitkat.jpg', 'bar', 26000, 31],
   ]),
   ...catalog('store-c1', [
-    ['apple', 'Crisp Red Apple', 'Orchard & Co.', 'Fruits', 'apple.png', 'kg', 65000, 40],
-    ['orange', 'Sweet Premium Orange', 'Orchard & Co.', 'Fruits', 'orange.png', 'kg', 48000, 42],
-    ['lime', 'Fresh Zesty Limes', 'Citrus Grove', 'Fruits', 'lime.png', 'kg', 22000, 30],
-    ['strawberry', 'Fresh Strawberries', 'Berry Fields', 'Fruits', 'strawberry.webp', 'punnet', 79000, 16],
-    ['kiwi', 'Green Kiwi Fruit', 'Orchard & Co.', 'Fruits', 'kiwi.webp', 'pack', 68000, 24],
-    ['juice', 'Fresh Citrus Juice', 'Pressed & Pure', 'Beverages', 'juice.webp', 'bottle', 39000, 32],
-    ['cola', 'Coca-Cola Original Taste', 'Coca-Cola', 'Beverages', '/images/products/cocacola.jpg', 'bottle', 18000, 56],
-    ['water', 'Aquafina Pure Water', 'Aquafina', 'Beverages', '/images/products/aquafina.png', 'bottle', 9000, 74],
+    ['apple', 'Táo đỏ tươi', 'Orchard & Co.', 'Fruits', 'apple.png', 'kg', 65000, 40],
+    ['orange', 'Cam ngọt', 'Orchard & Co.', 'Fruits', 'orange.png', 'kg', 48000, 42],
+    ['lime', 'Chanh tươi', 'Citrus Grove', 'Fruits', 'lime.png', 'kg', 22000, 30],
+    ['strawberry', 'Dâu tây tươi', 'Berry Fields', 'Fruits', 'strawberry.webp', 'punnet', 79000, 16],
+    ['kiwi', 'Kiwi xanh', 'Orchard & Co.', 'Fruits', 'kiwi.webp', 'pack', 68000, 24],
+    ['juice', 'Nước ép cam chanh', 'Pressed & Pure', 'Beverages', 'juice.webp', 'bottle', 39000, 32],
+    ['cola', 'Coca-Cola nguyên bản', 'Coca-Cola', 'Beverages', '/images/products/cocacola.jpg', 'bottle', 18000, 56],
+    ['water', 'Nước tinh khiết Aquafina', 'Aquafina', 'Beverages', '/images/products/aquafina.png', 'bottle', 9000, 74],
   ]),
   ...catalog('store-n1', [
-    ['rice', 'Jasmine White Rice 5 kg', 'Daily Pantry', 'Pantry', 'rice.webp', 'bag', 125000, 26],
-    ['cooking-oil', 'Everyday Cooking Oil 1 L', 'Kitchen Basics', 'Pantry', 'cooking-oil.webp', 'bottle', 62000, 34],
-    ['fish', 'Fish Steak 500 g', 'Blue Catch', 'Meat & Seafood', 'fish-steak.webp', 'pack', 98000, 18],
-    ['noodles', 'Hao Hao Instant Noodles', 'Acecook', 'Instant Food', '/images/products/haohao.jpg', 'pack', 4500, 90],
-    ['beef', 'Beef Steak 500 g', 'Prime Cuts', 'Meat & Seafood', 'beef-steak.webp', 'pack', 185000, 14],
-    ['chicken', 'Chicken Meat 500 g', 'Morning Farm', 'Meat & Seafood', 'chicken-meat.webp', 'pack', 85000, 21],
-    ['seasoning', 'Maggi Seasoning Sauce', 'Maggi', 'Pantry', '/images/products/maggi.jpg', 'bottle', 26000, 44],
-    ['shampoo', 'Dove Nourishing Shampoo', 'Dove', 'Personal Care', '/images/products/dove.png', 'bottle', 89000, 18],
+    ['rice', 'Gạo thơm Jasmine 5 kg', 'Daily Pantry', 'Pantry', 'rice.webp', 'bag', 125000, 26],
+    ['cooking-oil', 'Dầu ăn 1 lít', 'Kitchen Basics', 'Pantry', 'cooking-oil.webp', 'bottle', 62000, 34],
+    ['fish', 'Cá cắt khúc 500 g', 'Blue Catch', 'Meat & Seafood', 'fish-steak.webp', 'pack', 98000, 18],
+    ['noodles', 'Mì Hảo Hảo', 'Acecook', 'Instant Food', '/images/products/haohao.jpg', 'pack', 4500, 90],
+    ['beef', 'Thịt bò 500 g', 'Prime Cuts', 'Meat & Seafood', 'beef-steak.webp', 'pack', 185000, 14],
+    ['chicken', 'Thịt gà 500 g', 'Morning Farm', 'Meat & Seafood', 'chicken-meat.webp', 'pack', 85000, 21],
+    ['seasoning', 'Nước tương Maggi', 'Maggi', 'Pantry', '/images/products/maggi.jpg', 'bottle', 26000, 44],
+    ['shampoo', 'Dầu gội Dove', 'Dove', 'Personal Care', '/images/products/dove.png', 'bottle', 89000, 18],
   ]),
 ];
 
@@ -119,5 +119,5 @@ export function getCustomerCategories(storeId: string): string[] {
 }
 
 export function formatCustomerPrice(priceVnd: number): string {
-  return `${new Intl.NumberFormat('en-US').format(priceVnd)} VND`;
+  return `${new Intl.NumberFormat('vi-VN').format(priceVnd)} ₫`;
 }

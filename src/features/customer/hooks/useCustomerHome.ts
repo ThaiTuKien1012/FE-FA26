@@ -2,13 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { APP_BRAND } from '../../../app/branding';
 import { CUSTOMER_STORES, getCustomerStoreId, rememberCustomerStore } from '../data/customerStores';
 import { CUSTOMER_PRODUCTS, type CustomerProduct } from '../data/customerCatalog';
+import { categoryLabel, normalizeCustomerSearch } from '../data/customerLocale';
 import { useCustomerShopping } from './useCustomerShopping';
 
 export type DiscoveryFilter = 'all' | 'hot' | 'trending' | 'new';
-
-function normalize(text: string): string {
-  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
-}
 
 export function useCustomerHome(onExplore: () => void) {
   const [query, setQuery] = useState('');
@@ -35,7 +32,7 @@ export function useCustomerHome(onExplore: () => void) {
   const brands = [...new Set(storeProducts.map(product => product.brand))].map((name, index) => ({
     name,
     image: storeProducts.find(product => product.brand === name)!.image,
-    description: 'Available on Storefone',
+    description: 'Có trên Storefone',
     color: ['#eef5e9', '#fff4e5', '#edf5fb', '#fff0f3', '#eaf5ef'][index % 5],
   }));
   const featuredProduct = storeProducts[0];
@@ -52,7 +49,7 @@ export function useCustomerHome(onExplore: () => void) {
     (brand === 'All Products' || product.brand === brand) &&
     (discoveryFilter === 'all' || (discoveryFilter === 'hot' && product.isHotSale) || (discoveryFilter === 'trending' && product.isTrending) || (discoveryFilter === 'new' && product.isNew)) &&
     (!savedOnly || saved.includes(product.id)) &&
-    normalize(`${product.name} ${product.brand} ${product.category}`).includes(normalize(query.trim())),
+    normalizeCustomerSearch(`${product.name} ${product.brand} ${product.category} ${categoryLabel(product.category)}`).includes(normalizeCustomerSearch(query.trim())),
   );
   const hasFilters = Boolean(query || brand !== 'All Products' || category !== 'All Products' || savedOnly || discoveryFilter !== 'all');
 
@@ -118,7 +115,7 @@ export function useCustomerHome(onExplore: () => void) {
     setSelectedStoreId(productStore.id);
     rememberCustomerStore(productStore.id);
     changeQuantity(productStore.id, product.id, 1);
-    setNotice(`Added ${product.name} to your ${productStore.englishName} cart`);
+    setNotice(`Đã thêm ${product.name} vào giỏ của ${productStore.name}`);
     clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(''), 3000);
   };

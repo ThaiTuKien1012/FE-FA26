@@ -94,4 +94,5 @@ export type ActiveNavScreen =
   | 'activate'        // Auth: Staff Account Activation with OTP
   | 'profile'         // Auth: Current User Profile & Security Settings
   | 'customer-home' // Customer: public home and store discovery
+  | 'customer-product' // Customer: product detail
   | 'customer-storefront'; // Customer: Storefront Kiosk & Basket Recommendations
