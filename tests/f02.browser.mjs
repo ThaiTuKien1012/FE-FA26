@@ -66,7 +66,11 @@ function fixtureSummary(productId) {
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/services/authService.ts').name))).authService";
 async function until(expression, label) { const end = Date.now() + 12000; while (Date.now() < end) { if (await page.evaluate(expression)) return; await sleep(40); } throw new Error('UI timeout: ' + label); }
 async function waitFor(predicate, label) { const end = Date.now() + 12000; while (Date.now() < end) { if (predicate()) return; await sleep(30); } throw new Error('Fixture timeout: ' + label); }
-const has = text => until('document.body.innerText.toLowerCase().includes(' + JSON.stringify(text.toLowerCase()) + ')', text);
+const has = async text => {
+  await until('document.body.innerText.toLowerCase().includes(' + JSON.stringify(text.toLowerCase()) + ')', text);
+  // Refetch keeps the previous rows mounted; visible text alone no longer means a request finished.
+  await until("![...document.querySelectorAll('.f02-table-frame')].some(frame=>frame.getAttribute('aria-busy')==='true')", 'F02 tables settled');
+};
 async function click(label) {
   await until("[...([...document.querySelectorAll('dialog[open]')].at(-1)||document).querySelectorAll('button')].some(b=>b.textContent.trim()===" + JSON.stringify(label) + "&&b.getClientRects().length&&!b.disabled&&!b.closest('fieldset[disabled]'))", 'Clickable ' + label);
   await page.evaluate("[...([...document.querySelectorAll('dialog[open]')].at(-1)||document).querySelectorAll('button')].find(b=>b.textContent.trim()===" + JSON.stringify(label) + "&&b.getClientRects().length&&!b.disabled&&!b.closest('fieldset[disabled]')).click()");
@@ -79,6 +83,7 @@ async function input(label, value, tag = 'input') {
 }
 async function navigate(path) { await page.evaluate('history.pushState({},"",' + JSON.stringify(path) + ');dispatchEvent(new PopStateEvent("popstate"));'); }
 async function ariaClick(label) { const selector = 'button[aria-label=' + JSON.stringify(label) + ']'; await until('Boolean(document.querySelector(' + JSON.stringify(selector) + ')&&!document.querySelector(' + JSON.stringify(selector) + ').disabled)', label); await page.evaluate('document.querySelector(' + JSON.stringify(selector) + ').click()'); }
+async function productColumnFilter(label, value) { await input(label === 'Category' ? 'Filter by category' : 'Filter by status', value, 'select'); await until("document.querySelector('[aria-label=\"Product table\"]')?.closest('[aria-busy]').getAttribute('aria-busy')==='false'", 'Toolbar filter'); }
 async function selectProduct(id, search = 'SKU-' + id) {
   await page.evaluate("document.querySelector('input[aria-label=\"Select product\"]').click()");
   await input('Select product', search);
@@ -87,7 +92,7 @@ async function selectProduct(id, search = 'SKU-' + id) {
   await until("document.querySelector('input[aria-label=\"Select product\"]').getAttribute('aria-expanded')==='false'", 'Selector closed');
 }
 async function selectorKey(key) { await page.evaluate("document.querySelector('input[aria-label=\"Select product\"]').dispatchEvent(new KeyboardEvent('keydown',{key:"+JSON.stringify(key)+",bubbles:true,cancelable:true}))"); }
-async function batchAction(code, action) { await until("Boolean([...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr')].find(r=>r.textContent.includes("+JSON.stringify(code)+"))?.querySelector('button:not(:disabled)'))",code+' actions'); await page.evaluate("(()=>{const r=[...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr')].find(r=>r.querySelector('td')?.textContent==="+JSON.stringify(code)+");[...r.querySelectorAll('button')].find(b=>b.textContent.trim()==="+JSON.stringify(action)+").click()})()"); }
+async function batchAction(code, action) { await until("Boolean([...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:not(.f02-table-empty)')].find(r=>r.textContent.includes("+JSON.stringify(code)+"))?.querySelector('button:not(:disabled)'))",code+' actions'); await page.evaluate("(()=>{const r=[...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:not(.f02-table-empty)')].find(r=>r.querySelector('td')?.textContent==="+JSON.stringify(code)+");[...r.querySelectorAll('button')].find(b=>b.textContent.trim()==="+JSON.stringify(action)+").click()})()"); }
 async function summaryValues() { return page.evaluate("Object.fromEntries([...document.querySelectorAll('[aria-label=\"Inventory summary\"] dl>div')].map(e=>[e.querySelector('dt').textContent,Number(e.querySelector('dd').textContent.replaceAll(',',''))]))"); }
 async function login(role = 'STORE_ADMIN') {
   state.role = role;
@@ -174,10 +179,11 @@ try {
   await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false });
   await page.call('Page.navigate', { url: origin + '/login' }); await has('Sign in to the system'); await login(); await navigate('/store/inventory'); await has('Product Management'); await has('Fixture product 1');
   await has('Products · current page'); assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('Push days')"), false);
-  await click('Next'); await has('Showing page 2 of 2'); await click('Previous'); await has('Showing page 1 of 2');
-  await input('Search name or SKU', 'does-not-exist'); await has('No products match the current filters.'); await input('Search name or SKU', ''); await has('Fixture product 1');
+  await click('Next'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='2'", 'Page 2 selected'); await click('Previous'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='1'", 'Page 1 selected');
+  await input('Search name or SKU', 'does-not-exist'); await has('No matching products.'); await input('Search name or SKU', ''); await has('Fixture product 1');
   await click('Add product'); await input('SKU', ' sku-new-0000001 '); await input('Product name', 'New fixture product'); await input('Selling price', '12.75'); await input('Cost price', '15.25'); await input('Category', '1', 'select');
-  assert.deepEqual(await page.evaluate("[...document.querySelector('input[aria-label=Unit]').list.options].map(o=>o.value)"), ['Piece', 'Box', 'Pack', 'Bottle', 'Bag']);
+  await has('Choose a previous unit or enter a new one.'); await ariaClick('Show unit suggestions');
+  assert.deepEqual(await page.evaluate("[...document.querySelectorAll('[aria-label=\"Previous units\"] [role=option]')].map(o=>o.textContent)"), ['Bottle']);
   await input('Unit', 'vỉ');
   await has('The selling price is below the cost price.'); state.hold = true; const beforeCreate = writes().length;
   await page.evaluate("(()=>{const f=document.querySelector('dialog form');f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");
@@ -237,19 +243,19 @@ try {
   await page.evaluate("document.querySelector('dialog form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
   await has('SKU must be 15 characters'); assert.equal(writes().length, legacyWrites); assert.equal(legacyProduct.sku, 'FM26-0001');
   await capture('product-legacy-sku-blocker'); await click('Cancel'); legacyProduct.sku = savedLegacySku;
-  await input('Search name or SKU', 'Fixture'); await input('Filter by category', '1', 'select'); await input('Filter by status', 'ACTIVE', 'select');
-  for (const [label, field] of [['SKU','sku'], ['Product','name'], ['Category','category'], ['Unit','unit'], ['Cost price','costPrice'], ['Selling price','sellingPrice'], ['Expiry tracking','requiresExpiry'], ['Total stock','stockQuantity'], ['Status','status']]) {
-    const beforeSort = calls.length; await ariaClick('Sort by ' + label);
+  await input('Search name or SKU', 'Fixture'); await productColumnFilter('Category', '1'); await productColumnFilter('Status', 'ACTIVE');
+  for (const [label, field] of [['SKU','sku'], ['Product name','name'], ['Category','category'], ['Unit','unit'], ['Cost price','costPrice'], ['Selling price','sellingPrice'], ['Expiry tracking','requiresExpiry'], ['Total stock','stockQuantity'], ['Status','status']]) {
+    const beforeSort = calls.length; if(field === 'unit') await input('Product sort field', field, 'select'); else await ariaClick('Sort by ' + label);
     await waitFor(()=>calls.slice(beforeSort).some(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('sortBy')===field), 'Server sort ' + field);
-    await until("!document.body.innerText.includes('Loading products')", 'Sort settled');
+    await until("document.querySelector('[aria-label=\"Product table\"]')?.closest('[aria-busy]').getAttribute('aria-busy')==='false'", 'Sort settled');
   }
-  await click('Next'); await has('Showing page 2');
+  await click('Next'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='2'", 'Page 2 selected');
   const beforeDesc = calls.length; await ariaClick('Sort by Status');
   await waitFor(()=>calls.slice(beforeDesc).some(c=>{const q=new URLSearchParams(c.query);return c.path==='/api/products'&&q.get('sortBy')==='status'&&q.get('sortDirection')==='desc'&&q.get('page')==='0'&&q.get('search')==='Fixture'&&q.get('categoryId')==='1'&&q.get('status')==='ACTIVE'}), 'Sort resets page, keeps filters');
-  await has('Showing page 1'); await until("Boolean(document.querySelector('th[aria-sort=descending]'))", 'Descending indicator');
-  await click('Next'); await has('Showing page 2');
+  await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='1'", 'Page 1 selected'); await until("Boolean(document.querySelector('th[aria-sort=descending]'))", 'Descending indicator');
+  await click('Next'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='2'", 'Page 2 selected');
   assert.equal(new URLSearchParams(calls.filter(c=>c.path==='/api/products').at(-1).query).get('sortDirection'), 'desc');
-  await input('Filter by category', '', 'select'); await input('Filter by status', '', 'select'); await input('Search name or SKU', ''); await ariaClick('Sort by Product'); await has('Edited fixture product');
+  await productColumnFilter('Category', ''); await productColumnFilter('Status', ''); await input('Search name or SKU', ''); await ariaClick('Sort by Product name'); await has('Edited fixture product');
   await click('Add product'); await capture('product-create-form'); await click('Cancel');
   checks.push('SKU validation/normalization, legacy SKU preserved and PUT blocked, duplicate/other 409 no retry, name POST/PUT Cancel/Continue keeps exact payload, authoritative IDs, all nine server sorts with pagination/filter state');
   await navigate('/store/categories'); await has('Dairy'); await click('Add category'); await input('Category name', '   '); const beforeCategory = writes().length; await click('Save category'); await has('Category name is required'); assert.equal(writes().length, beforeCategory);
@@ -270,7 +276,7 @@ try {
   assert.deepEqual(await summaryValues(), {'Total stock':100,Sellable:60,Expired:15,Blocked:25,'Expiring in 7 days':40});
   await has('40 units expiring within 7 days');
   const info = await page.evaluate("document.querySelector('[aria-label=\"Currently viewing\"]').textContent"); assert.ok(info.includes('Fixture product 1')&&info.includes('SKU: SKU-1')&&info.includes('Expiry tracking enabled'));
-  const badges = await page.evaluate("Object.fromEntries([...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr')].map(r=>[r.querySelector('td').textContent,r.children[2].textContent]))");
+  const badges = await page.evaluate("Object.fromEntries([...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:not(.f02-table-empty)')].map(r=>[r.querySelector('td').textContent,r.children[2].textContent]))");
   assert.ok(badges.SOON.includes('Expiring soon')); assert.ok(badges.EXPIRED.includes('Expired')&&!badges.EXPIRED.includes('Expiring soon'));
   for(const code of ['BATCH-9','BLOCKED-SOON','EMPTY-SOON','LATER']) assert.equal(badges[code].includes('Expiring soon'),false,code);
   const inventoryReadsBeforeSearch=calls.filter(c=>/\/(batches|inventory-summary)$/.test(c.path)).length;
@@ -338,7 +344,7 @@ try {
   const summaryTop=await page.evaluate("document.querySelector('[aria-label=\"Inventory summary\"]').getBoundingClientRect().top"); const beforeBlock=calls.length; state.hold=true; await batchAction('SINGLE-159','Block'); await waitFor(()=>calls.slice(beforeBlock).some(c=>c.method==='PATCH'),'Status write pending');
   assert.equal(await page.evaluate("Boolean(document.querySelector('[data-f02-toast][role=status]'))"),false,'No success before confirmation'); state.hold=false; await has('Batch blocked successfully.');
   assert.deepEqual(await summaryValues(),{'Total stock':159,Sellable:0,Expired:0,Blocked:159,'Expiring in 7 days':0});
-  assert.equal(await page.evaluate("[...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr')].find(r=>r.textContent.includes('SINGLE-159')).textContent.includes('Unblock')"),true);
+  assert.equal(await page.evaluate("[...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:not(.f02-table-empty)')].find(r=>r.textContent.includes('SINGLE-159')).textContent.includes('Unblock')"),true);
   assert.equal(await page.evaluate("Boolean(document.querySelector('[aria-label=\"Expiring stock\"]'))"),false);
   assert.ok(calls.slice(beforeBlock).some(c=>c.path==='/api/products/3/inventory-summary'&&c.method==='GET'));
   assert.ok(Math.abs(await page.evaluate("document.querySelector('[aria-label=\"Inventory summary\"]').getBoundingClientRect().top")-summaryTop)<1,'Toast does not shift content');
@@ -362,7 +368,7 @@ try {
   await click('Add batch'); await input('Initial quantity', '2'); await input('Expiry date', '2099-12-15'); await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.pushDay, null);
   checks.push('Create Batch with past Push Day or without Push Day; expiry required; save failure keeps fields');
   state.readError = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh batches\"]').click()"); await has('Controlled read unavailable'); const beforeRetry = writes().length; state.readError = false; await click('Retry batches'); await has('BATCH-9'); assert.equal(writes().length, beforeRetry);
-  state.batchesEmpty = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh batches\"]').click()"); await has('No batches for this product yet.'); state.batchesEmpty = false;
+  state.batchesEmpty = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh batches\"]').click()"); await has('No batches found.'); state.batchesEmpty = false;
   await page.evaluate("document.querySelector('input[aria-label=\"Select product\"]').click()"); await input('Select product', 'SKU-11'); await until("Boolean([...document.querySelectorAll('[role=option]')].find(e=>e.id.endsWith('-option-11')))", 'Server-side product search'); assert.ok(calls.filter(c=>c.path==='/api/products').at(-1).query.includes('search=SKU-11')); await selectorKey('Escape');
   await page.evaluate("document.querySelector('button[aria-label=\"Refresh batches\"]').click()"); await has('BATCH-9');
   for (const width of [390, 820, 1440]) {
@@ -371,7 +377,7 @@ try {
     const cards = await page.evaluate("[...document.querySelectorAll('[aria-label=\"Inventory summary\"] dl>div')].map(e=>({height:e.getBoundingClientRect().height,background:getComputedStyle(e).backgroundColor}))");
     assert.equal(cards.length,5); assert.ok(cards.slice(0,4).every(card=>card.background==='rgb(255, 255, 255)')); assert.notEqual(cards[4].background,'rgb(255, 255, 255)'); assert.ok(Math.max(...cards.map(c=>c.height))-Math.min(...cards.map(c=>c.height))<=1); assert.ok(cards.every(card=>card.height<=110));
     assert.equal(await page.evaluate("document.querySelector('input[role=combobox]').getBoundingClientRect().width<=document.querySelector('main').getBoundingClientRect().width"),true,'Single selector fits content');
-    assert.equal(await page.evaluate("(()=>{const b=[...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:first-child button')];return b.length===2&&b.every(e=>e.getBoundingClientRect().height>=40)&&b[1].getBoundingClientRect().left-b[0].getBoundingClientRect().right>=12;})()"),true,'Batch actions have usable hit areas and separation');
+    assert.equal(await page.evaluate("(()=>{const b=[...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:not(.f02-table-empty):first-child button')];return b.length===2&&b.every(e=>e.getBoundingClientRect().height>=40)&&b[1].getBoundingClientRect().left-b[0].getBoundingClientRect().right>=12;})()"),true,'Batch actions have usable hit areas and separation');
     assert.equal(await page.evaluate("(()=>{const toast=document.querySelector('[data-f02-toast]');if(!toast)return true;const t=toast.getBoundingClientRect(),a=document.querySelector('[data-batch-actions]').getBoundingClientRect(),table=document.querySelector('[aria-label=\"Inventory batch table\"]').getBoundingClientRect();return t.left>=0&&t.right<=innerWidth&&t.top>=a.bottom&&t.bottom<table.top})()"),true,'Responsive toast stays clear of controls/table');
     await capture('batches-'+width);
   }

@@ -3,6 +3,7 @@ import { ArrowLeft, RefreshCw } from 'lucide-react';
 import type { ActiveNavScreen } from '../../../types/mining';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Category, type F02Product } from '../store.api';
 import { emptyProductForm, normalizeSku, productRequest, validSku } from '../f02.forms';
+import { productUnitScope, rememberProductUnit } from './ProductUnitInput';
 import { ProductFields, productForm } from './ProductInventoryView';
 import { StoreBatchesView } from './StoreBatchesView';
 import { ProductNameConfirmation, useProductSave } from './ProductNameConfirmation';
@@ -12,7 +13,7 @@ export const EditProductView: React.FC<Props> = ({ productId, onNavigate, onProd
   const [product, setProduct] = useState<F02Product | null>(null), [categories, setCategories] = useState<F02Category[]>([]);
   const [form, setForm] = useState(emptyProductForm), [loading, setLoading] = useState(true), [error, setError] = useState(''), [success, setSuccess] = useState('');
   const version = useRef(0), canManage = canManageCatalog();
-  const id = Number(productId);
+  const id = Number(productId), unitScope = productUnitScope();
   const load = async () => {
     const current = ++version.current;
     setLoading(true); setError('');
@@ -25,6 +26,7 @@ export const EditProductView: React.FC<Props> = ({ productId, onNavigate, onProd
   useEffect(() => { void load(); return () => { ++version.current; }; }, [id]);
   const refreshStock = async () => { const updated = await storeApi.getProduct(id); setProduct(updated); onProductUpdated?.(updated); };
   const productSave = useProductSave(updated => {
+    rememberProductUnit(updated.unit, unitScope);
     setProduct(updated); setForm(productForm(updated)); onProductUpdated?.(updated); setSuccess('Product updated successfully.');
   });
   const saving = productSave.saving || Boolean(productSave.confirmation);

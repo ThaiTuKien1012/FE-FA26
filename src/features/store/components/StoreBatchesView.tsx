@@ -1,6 +1,6 @@
 import { AppDatePicker, AppDateTimePicker } from '../../../components/common/AppDatePicker';
 import { formatDate } from '../../../utils/dateTime';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Info, Package, Plus, RefreshCw } from 'lucide-react';
 import type { ActiveNavScreen } from '../../../types/mining';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Batch, type F02InventorySummary, type F02Product } from '../store.api';
@@ -8,6 +8,8 @@ import { batchCreateRequest, batchPatchRequest, batchPushState, emptyBatchForm, 
 import { F02Dialog } from './F02Dialog';
 import { F02Toast, type F02Notice } from './F02Toast';
 import { ProductSelector } from './ProductSelector';
+import { batchTableRows, emptyBatchFilters, hasColumnFilter, nextTableSort, tablePage, type BatchFilters, type BatchSortKey, type ColumnFilterValue, type TableSort } from '../f02.tables';
+import { F02FilterSummary, F02TableFrame, F02TableHeader, F02TablePagination, F02TableEmpty } from './F02Table';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-[#e7e2d8] bg-white p-2 outline-none focus:border-[#1e3a2f]';
 const buttonClass = 'min-h-10 rounded-lg border border-[#e7e2d8] bg-white px-3 py-2 text-sm text-[#1e3a2f] transition-colors hover:bg-[#f2f6f1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315445] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40';
@@ -22,6 +24,14 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
   const [busy, setBusy] = useState(false), pending = useRef(false), loadVersion = useRef(0), noticeId = useRef(0);
   const [today, setToday] = useState(() => storeDate());
   const productId = selectedProduct?.id;
+  const [filters, setFilters] = useState(emptyBatchFilters), [sort, setSort] = useState<TableSort<BatchSortKey> | null>(null), [page, setPage] = useState(0);
+  const matching = useMemo(() => batchTableRows(batches.filter(batch => batch.productId === productId), filters, sort), [batches, productId, filters, sort]);
+  const totalPages = Math.max(Math.ceil(matching.length / 10), 1), visibleBatches = tablePage(matching, page);
+  const filter = (column: keyof BatchFilters, value: ColumnFilterValue) => { setFilters(current => ({ ...current, [column]: value })); setPage(0); };
+  const sortColumn = (by: string) => { setSort(current => nextTableSort(current, by as BatchSortKey)); setPage(0); };
+  const clearFilters = () => { setFilters(emptyBatchFilters()); setPage(0); };
+  useEffect(() => setPage(0), [productId]);
+  useEffect(() => { if (page >= totalPages) setPage(totalPages - 1); }, [page, totalPages]);
 
   useEffect(() => { const timer = window.setInterval(() => setToday(storeDate()), 60000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
@@ -53,7 +63,6 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
     finally { pending.current = false; setBusy(false); }
   };
   const refresh = async () => {
-    setSummary(null);
     if (!await load()) setError(current => `Batch saved, but inventory could not be refreshed. ${current}`);
     try { await onInventoryChanged?.(); } catch (e) { setError(`The batch was saved, but product stock could not be refreshed. ${f02ErrorMessage(e)}`); }
   };
@@ -101,7 +110,7 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
   const showMissingPushHint = selectedProduct?.requiresExpiry && !form.pushDay && !isExpired(form.expiryDate, today) && (editing ? editing.status === 'ACTIVE' && Number(form.remainingQuantity) > 0 : Number(form.initialQuantity) > 0);
   if (!canManage) return <p role="alert" className="p-6 text-[#6d7974]">You do not have permission to manage inventory batches.</p>;
 
-  return <div className="mx-auto max-w-6xl space-y-6 text-[#191c1b]">
+  return <div className="f02-wide-table-view mx-auto max-w-[1680px] space-y-6 text-[#191c1b]">
     <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div><h1 className="text-3xl font-semibold">Inventory Batches</h1><p className="mt-1 text-[#6d7974]">Manage received stock, expiry dates, and Push Days.</p></div>
       <div className="flex min-w-0 flex-1 flex-col items-end gap-2 sm:min-w-80">
@@ -115,28 +124,49 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
       <div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-[#f0f3ef] px-2 py-1 text-xs text-[#315445]">{selectedProduct.requiresExpiry ? 'Expiry tracking enabled' : 'No expiry tracking'}</span>{selectedProduct.status === 'INACTIVE' && <span className="text-xs text-[#6d7974]">Inactive product</span>}</div>
     </section>}
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">{error} <button disabled={busy || loading} onClick={() => void load()} className={buttonClass}>Retry batches</button></div>}
-    {!loading && summary && <section aria-label="Inventory summary" className="space-y-2"><dl className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">{[
+    {summary && summary.productId === productId && <section aria-label="Inventory summary" className="space-y-2"><dl className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">{[
       { label: 'Total stock', value: summary.totalQuantity, color: 'text-[#191c1b]', help: 'All remaining units, including expired and blocked stock.' },
       { label: 'Sellable', value: summary.sellableQuantity, color: 'text-[#315445]', help: 'Active stock with no expiry date or expiring after today.' },
       { label: 'Expired', value: summary.expiredQuantity, color: 'text-[#a44d4d]', help: 'Active stock expiring today or earlier.' },
       { label: 'Blocked', value: summary.blockedQuantity, color: 'text-[#8b6547]', help: 'Remaining units in blocked batches.' },
       { label: 'Expiring in 7 days', value: summary.expiringSoonQuantity, color: 'text-[#8b713a]', help: 'Sellable stock expiring in the next 7 days. Already included in Sellable.' },
     ].map(({ label, value, color, help }) => <div key={label} title={help} className={`flex min-w-0 flex-col justify-between rounded-xl border px-4 py-3 shadow-sm ${label === 'Expiring in 7 days' && value > 0 ? 'border-amber-200 bg-amber-50/50' : 'border-[#e7e2d8] bg-white'}`}><dt className="min-h-8 text-xs font-medium text-[#6d7974]">{label}</dt><dd className={`mt-1 text-2xl font-semibold tabular-nums ${color}`}>{value.toLocaleString('en-GB')}</dd></div>)}</dl><p className="text-xs text-[#6d7974]">Total includes expired and blocked stock. Expiring stock is already included in Sellable.</p></section>}
-    {!loading && summary && summary.expiringSoonQuantity > 0 && <aside aria-label="Expiring stock" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-[#805f25]"><AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-medium">{summary.expiringSoonQuantity.toLocaleString('en-GB')} units expiring within 7 days</p><p className="mt-0.5 text-xs">Review the batches below to prioritize stock before expiry.</p></div></aside>}
+    {summary && summary.productId === productId && summary.expiringSoonQuantity > 0 && <aside aria-label="Expiring stock" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-[#805f25]"><AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-medium">{summary.expiringSoonQuantity.toLocaleString('en-GB')} units expiring within 7 days</p><p className="mt-0.5 text-xs">Review the batches below to prioritize stock before expiry.</p></div></aside>}
     <div className="space-y-2"><p title={`Store time zone: ${storeTimeZone}. Batches expiring today are expired.`} className="flex items-center gap-1.5 text-xs text-[#6d7974]"><Info aria-hidden="true" className="h-3.5 w-3.5" />Expiry status follows the store's local date.</p>
-    <div role="region" aria-label="Inventory batch table" tabIndex={0} className="overflow-x-auto rounded-xl border border-[#e7e2d8] bg-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315445]">{loading ? <p role="status" className="p-10 text-center text-[#6d7974]">Loading batches…</p> : !productId ? <p className="p-10 text-center text-[#6d7974]">Choose a product to view its batches.</p> : error && !batches.length ? <p className="p-10 text-center text-[#6d7974]">Batch data is unavailable. Please retry.</p> : !batches.length ? <p className="p-10 text-center text-[#6d7974]">No batches for this product yet. Add a batch to receive stock.</p> : <table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-[#faf8f5] text-xs uppercase text-[#89938f]"><tr>{['Batch code', 'Received', 'Expiry date', 'Push Day', 'Remaining / Initial', 'Status', 'Actions'].map((label, index) => <th key={label} className={`px-4 py-3 ${index === 4 ? 'text-right' : ''}`}>{label}</th>)}</tr></thead><tbody>{batches.map(batch => {
-      const pushState = batchPushState(batch, today, selectedProduct?.requiresExpiry ?? false);
-      return <tr key={batch.id} className="border-t border-[#eee7df] transition-colors hover:bg-[#fcfaf7] focus-within:bg-[#f7f9f5]">
-        <td className="min-w-36 max-w-56 p-4 font-mono text-xs [overflow-wrap:anywhere]">{batch.batchCode}</td>
-        <td className="whitespace-nowrap p-4 text-[#57534e]">{receivedDateTime(batch.receivedAt)}</td>
-        <td className="whitespace-nowrap p-4">{formatDate(batch.expiryDate, 'Not set')}{batch.status === 'ACTIVE' && isExpired(batch.expiryDate, today) ? <span className="mt-1 block text-xs font-medium text-red-700">Expired</span> : isExpiringSoon(batch, today) && <span className="mt-1 flex w-fit rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-[#805f25]">Expiring soon</span>}</td>
-        <td className="min-w-44 p-4">{formatDate(batch.pushDay, 'Not set')}{pushState && <span className={`mt-1 block text-xs ${pushState === 'reached' ? 'font-medium text-amber-700' : 'text-[#6d7974]'}`}>{pushState === 'reached' ? 'Push Day reached' : 'Set a Push Day for expiry-risk analysis.'}</span>}</td>
-        <td className="whitespace-nowrap p-4 text-right tabular-nums"><span className="font-semibold">{batch.remainingQuantity.toLocaleString('en-GB')}</span><span className="text-[#89938f]"> / {batch.initialQuantity.toLocaleString('en-GB')}</span></td>
-        <td className="p-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${batch.status === 'BLOCKED' ? 'bg-red-50 text-red-700' : 'bg-[#eaf2ec] text-[#315445]'}`}>{batch.status === 'ACTIVE' ? 'Active' : 'Blocked'}</span></td>
-        <td className="p-4"><div className="flex items-center gap-3"><button disabled={busy || loading} onClick={() => editBatch(batch)} className={buttonClass}>Edit</button><button disabled={busy || loading} onClick={() => updateStatus(batch)} className={buttonClass}>{batch.status === 'BLOCKED' ? 'Unblock' : 'Block'}</button></div></td>
-      </tr>;
-    })}</tbody></table>}</div>
+    <div className="f02-toolbar" role="search" aria-label="Batch filters">
+      <label className="f02-toolbar-search">Search<input aria-label="Search batch code" placeholder="Search batch code" disabled={busy || !productId} value={filters.batchCode.text || ''} onChange={e => filter('batchCode', { text: e.target.value })} /></label>
+      <label>Status<select aria-label="Filter batch status" disabled={busy || !productId} value={filters.status.choice || ''} onChange={e => filter('status', { choice: e.target.value })}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="BLOCKED">Blocked</option></select></label>
+      <label>Expiry<select aria-label="Filter batch expiry" disabled={busy || !productId} value={filters.expiryDate.presence || ''} onChange={e => filter('expiryDate', { presence: e.target.value as ColumnFilterValue['presence'] })}><option value="">All expiry dates</option><option value="set">Date is set</option><option value="unset">Not set</option></select></label>
+      <F02FilterSummary active={Object.values(filters).some(hasColumnFilter)} onClearAll={clearFilters} />
     </div>
+    <F02TableFrame label="Batches" loading={loading} hasData={batches.some(batch => batch.productId === productId)}>
+      <table className="f02-data-table f02-batch-table" style={{ minWidth: 1230, '--f02-row-height': '72px' } as React.CSSProperties}>
+        <colgroup>{[200, 172, 150, 190, 200, 120, 198].map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
+        <thead><tr>
+          <F02TableHeader label="Batch code" column="batchCode" sort={sort} onSort={sortColumn} disabled={busy} />
+          <F02TableHeader label="Received" column="receivedAt" sort={sort} onSort={sortColumn} disabled={busy} />
+          <F02TableHeader label="Expiry date" column="expiryDate" sort={sort} onSort={sortColumn} disabled={busy} />
+          <F02TableHeader label="Push Day" column="pushDay" sort={sort} onSort={sortColumn} disabled={busy} />
+          <F02TableHeader label="Remaining / Initial" column="remainingQuantity" sort={sort} onSort={sortColumn} numeric disabled={busy} />
+          <F02TableHeader label="Status" column="status" sort={sort} onSort={sortColumn} disabled={busy} />
+          <th scope="col">Actions</th>
+        </tr></thead>
+        <tbody>{visibleBatches.map(batch => {
+          const pushState = batchPushState(batch, today, selectedProduct?.requiresExpiry ?? false);
+          return <tr key={batch.id}>
+            <td className="font-mono text-xs"><span className="f02-cell-text" title={batch.batchCode}>{batch.batchCode}</span></td>
+            <td><span className="f02-cell-text" title={receivedDateTime(batch.receivedAt)}>{receivedDateTime(batch.receivedAt)}</span></td>
+            <td><span>{formatDate(batch.expiryDate, 'Not set')}</span>{batch.status === 'ACTIVE' && isExpired(batch.expiryDate, today) ? <span className="mt-1 block text-xs font-medium text-red-700">Expired</span> : isExpiringSoon(batch, today) && <span className="mt-1 block text-xs font-medium text-[#805f25]">Expiring soon</span>}</td>
+            <td><span>{formatDate(batch.pushDay, 'Not set')}</span>{pushState && <span className={'f02-cell-text f02-batch-push-note mt-1 text-xs ' + (pushState === 'reached' ? 'font-medium text-amber-700' : 'text-[#6d7974]')} title={pushState === 'reached' ? 'Push Day reached' : 'Set a Push Day for expiry-risk analysis.'}>{pushState === 'reached' ? 'Push Day reached' : 'Set a Push Day for expiry-risk analysis.'}</span>}</td>
+            <td className="f02-numeric"><span className="f02-cell-amount" title={batch.remainingQuantity + ' / ' + batch.initialQuantity}><strong>{batch.remainingQuantity.toLocaleString('en-GB')}</strong><span className="text-[#89938f]"> / {batch.initialQuantity.toLocaleString('en-GB')}</span></span></td>
+            <td><span className={'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ' + (batch.status === 'BLOCKED' ? 'bg-red-50 text-red-700' : 'bg-[#eaf2ec] text-[#315445]')}>{batch.status === 'ACTIVE' ? 'Active' : 'Blocked'}</span></td>
+            <td><div className="f02-cell-actions"><button disabled={busy || loading} onClick={() => editBatch(batch)} className={buttonClass}>Edit</button><button disabled={busy || loading} onClick={() => updateStatus(batch)} className={buttonClass}>{batch.status === 'BLOCKED' ? 'Unblock' : 'Block'}</button></div></td>
+          </tr>;
+        })}<F02TableEmpty columns={7} message={!visibleBatches.length ? loading ? 'Loading batches...' : !productId ? 'Choose a product to view its batches.' : error && !batches.length ? 'Batch data is unavailable. Please retry.' : batches.length ? 'No matching batches.' : 'No batches found.' : undefined} /></tbody>
+      </table>
+    </F02TableFrame>
+    </div>
+    <F02TablePagination label="Batches" page={page} totalPages={totalPages} total={matching.length} count={visibleBatches.length} disabled={busy || loading} onPage={setPage} />
     {open && <F02Dialog title={editing ? 'Edit inventory batch' : 'Add inventory batch'} busy={busy} onClose={() => setOpen(false)}>
       <form onSubmit={save} className="space-y-4"><fieldset disabled={busy || clearExpiryOpen} className="space-y-4">
         {editing && <div className="relative h-14"><F02Toast notice={notice} onClose={() => setNotice(null)} /></div>}
