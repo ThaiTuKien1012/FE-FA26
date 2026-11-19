@@ -474,7 +474,7 @@ try{
   console.log(JSON.stringify({result:'PASS (test-only HTTP fixtures)',checks,interceptedApiCalls:state.calls.length,manualPosts:postBodies.length,realBackendWrites:0,artifactDirectory},null,2));
 }catch(e){
   try{await capture('failure');}catch{}
-  console.log(JSON.stringify({result:'FAIL',error:e.stack,browserErrors,unexpected,checks,diagnostics:await evaluate("({url:location.href,ready:document.readyState,root:document.getElementById('root')?.innerText.slice(0,300)})"),artifactDirectory},null,2));
+  console.log(JSON.stringify({result:'FAIL',error:e.stack,browserErrors,unexpected,checks,diagnostics:await evaluate("({url:location.href,ready:document.readyState,root:document.getElementById('root')?.innerText.slice(0,300)})").catch(()=>null),artifactDirectory},null,2));
   process.exitCode=1;
 }finally{
   state.storeHistory='normal';

@@ -126,6 +126,7 @@ try {
   await page.call('Page.navigate', { url: origin + '/login' });
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module');
   await login(); await has('Upload CSV');
+  await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Import CSV')", 'Import CSV form ready');
   assert.equal(await page.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Import CSV').disabled"), true);
   await choose('bad.xlsx'); await has('Excel files are not supported'); await choose('empty.csv', ''); await has('This file is empty');
   await choose(); await capture('upload-desktop');

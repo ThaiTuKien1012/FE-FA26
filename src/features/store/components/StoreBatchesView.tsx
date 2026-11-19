@@ -18,6 +18,7 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
   const [batches, setBatches] = useState<F02Batch[]>([]), [summary, setSummary] = useState<F02InventorySummary | null>(null);
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState<F02Notice | null>(null);
   const [form, setForm] = useState(emptyBatchForm), [editing, setEditing] = useState<F02Batch | null>(null), [open, setOpen] = useState(false), [formError, setFormError] = useState('');
+  const [clearExpiryOpen, setClearExpiryOpen] = useState(false);
   const [busy, setBusy] = useState(false), pending = useRef(false), loadVersion = useRef(0), noticeId = useRef(0);
   const [today, setToday] = useState(() => storeDate());
   const productId = selectedProduct?.id;
@@ -68,15 +69,15 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
     event.preventDefault();
     void runMutation(async () => {
       if (!selectedProduct) return;
-      const updated = editing ? await storeApi.updateBatch(editing.id, batchPatchRequest(editing, form)) : await storeApi.createBatch(selectedProduct.id, batchCreateRequest(form, selectedProduct.requiresExpiry));
+      const updated = editing ? await storeApi.updateBatch(editing.id, batchPatchRequest(editing, form, selectedProduct.requiresExpiry)) : await storeApi.createBatch(selectedProduct.id, batchCreateRequest(form, selectedProduct.requiresExpiry));
       applyBatch(updated); setOpen(false);
       await refresh();
-      notify('success', editing ? 'Batch updated successfully.' : 'Inventory batch added successfully.');
+      notify('success', editing ? 'Batch updated successfully.' : 'Inventory batch added successfully. ' + updated.batchCode);
     });
   };
   const editBatch = (batch: F02Batch) => void runMutation(async () => {
     const detail = await storeApi.getBatch(batch.id);
-    setEditing(detail); setForm({ batchCode: detail.batchCode, receivedAt: localDateTime(new Date(detail.receivedAt)), expiryDate: detail.expiryDate || '', initialQuantity: String(detail.initialQuantity), remainingQuantity: String(detail.remainingQuantity), pushDay: detail.pushDay || '' });
+    setEditing(detail); setForm({ receivedAt: localDateTime(new Date(detail.receivedAt)), expiryDate: detail.expiryDate || '', initialQuantity: String(detail.initialQuantity), remainingQuantity: String(detail.remainingQuantity), pushDay: detail.pushDay || '' });
     setFormError(''); setOpen(true);
   });
   const clearPushDay = () => void runMutation(async () => {
@@ -85,13 +86,18 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
     applyBatch(updated); setEditing(updated); setForm(current => ({ ...current, pushDay: '' }));
     await refresh(); notify('success', 'Push Day cleared successfully.');
   });
+  const clearExpiryDate = () => void runMutation(async () => {
+    if (!editing?.expiryDate || !selectedProduct || selectedProduct.requiresExpiry) return;
+    const updated = await storeApi.clearExpiryDate(editing.id);
+    applyBatch(updated); setEditing(updated); setForm(current => ({ ...current, expiryDate: updated.expiryDate || '', pushDay: updated.pushDay || '' }));
+    setClearExpiryOpen(false); await refresh(); notify('success', 'Expiry date cleared successfully.');
+  });
   const pushError = validatePushDay(form.pushDay, form.expiryDate);
   const quantityError = /^(Quantity|Remaining quantity)/i.test(formError) ? formError : '';
-  const codeError = /^Batch code/i.test(formError) ? formError : '';
   const receivedError = /valid received date/i.test(formError) ? formError : '';
   const expiryError = /enter an expiry date|expiry date is required/i.test(formError) ? formError : '';
   const pushSaveError = /Push Day|pushDay/i.test(formError) ? formError : '';
-  const generalFormError = quantityError || codeError || receivedError || expiryError || pushSaveError ? '' : formError;
+  const generalFormError = quantityError || receivedError || expiryError || pushSaveError ? '' : formError;
   const showMissingPushHint = selectedProduct?.requiresExpiry && !form.pushDay && !isExpired(form.expiryDate, today) && (editing ? editing.status === 'ACTIVE' && Number(form.remainingQuantity) > 0 : Number(form.initialQuantity) > 0);
   if (!canManage) return <p role="alert" className="p-6 text-[#6d7974]">You do not have permission to manage inventory batches.</p>;
 
@@ -132,21 +138,27 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
     })}</tbody></table>}</div>
     </div>
     {open && <F02Dialog title={editing ? 'Edit inventory batch' : 'Add inventory batch'} busy={busy} onClose={() => setOpen(false)}>
-      <form onSubmit={save} className="space-y-4"><fieldset disabled={busy} className="space-y-4">
+      <form onSubmit={save} className="space-y-4"><fieldset disabled={busy || clearExpiryOpen} className="space-y-4">
         {editing && <div className="relative h-14"><F02Toast notice={notice} onClose={() => setNotice(null)} /></div>}
         {generalFormError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{generalFormError}</p>}
-        {editing ? <><dl className="grid grid-cols-2 gap-3 rounded-lg bg-[#eaf0eb] p-3 text-sm"><div className="min-w-0"><dt>Batch code</dt><dd className="font-semibold [overflow-wrap:anywhere]">{editing.batchCode}</dd></div><div><dt>Received</dt><dd>{receivedDateTime(editing.receivedAt)}</dd></div><div><dt>Expiry date</dt><dd>{formatDate(editing.expiryDate, 'Not set')}</dd></div><div><dt>Initial quantity</dt><dd>{editing.initialQuantity.toLocaleString('en-GB')}</dd></div></dl><p className="text-xs text-[#6d7974]">Received stock details cannot be changed.</p><label className="block text-sm">Remaining quantity<input aria-label="Remaining quantity" aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? 'f02-quantity-error' : undefined} autoFocus required type="number" min="0" step="1" max={editing.initialQuantity} value={form.remainingQuantity} onChange={e => { setFormError(''); setForm({ ...form, remainingQuantity: e.target.value }); }} className={inputClass} /></label>{quantityError && <p id="f02-quantity-error" role="alert" className="text-sm text-red-700">{quantityError}</p>}</> : <>
-          <label className="block text-sm">Batch code<input aria-label="Batch code" aria-invalid={Boolean(codeError)} aria-describedby={codeError ? 'f02-code-error' : undefined} autoFocus required maxLength={80} value={form.batchCode} onChange={e => { setFormError(''); setForm({ ...form, batchCode: e.target.value }); }} className={inputClass} /></label>{codeError && <p id="f02-code-error" role="alert" className="text-sm text-red-700">{codeError}</p>}
+        {editing ? <><dl className="grid grid-cols-2 gap-3 rounded-lg bg-[#eaf0eb] p-3 text-sm"><div><dt>Batch ID (read-only)</dt><dd>{editing.id}</dd></div><div className="min-w-0"><dt>Batch code (read-only)</dt><dd className="font-semibold [overflow-wrap:anywhere]">{editing.batchCode}</dd></div><div><dt>Received</dt><dd>{receivedDateTime(editing.receivedAt)}</dd></div><div><dt>Expiry date</dt><dd>{formatDate(editing.expiryDate, 'Not set')}</dd></div><div><dt>Initial quantity</dt><dd>{editing.initialQuantity.toLocaleString('en-GB')}</dd></div></dl><p className="text-xs text-[#6d7974]">Received stock details cannot be changed.</p><label className="block text-sm">Remaining quantity<input aria-label="Remaining quantity" aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? 'f02-quantity-error' : undefined} autoFocus required type="number" min="0" step="1" max={editing.initialQuantity} value={form.remainingQuantity} onChange={e => { setFormError(''); setForm({ ...form, remainingQuantity: e.target.value }); }} className={inputClass} /></label>{quantityError && <p id="f02-quantity-error" role="alert" className="text-sm text-red-700">{quantityError}</p>}</> : <>
+          <p className="text-sm text-[#6d7974]">Batch code is generated automatically when the batch is received.</p>
           <label className="block text-sm">Received at (your local time)<AppDateTimePicker aria-label="Received at" aria-invalid={Boolean(receivedError)} aria-describedby={receivedError ? 'f02-received-error' : undefined} required value={form.receivedAt} onChange={value => { setFormError(''); setForm({ ...form, receivedAt: value }); }} className={inputClass} /></label>{receivedError && <p id="f02-received-error" role="alert" className="text-sm text-red-700">{receivedError}</p>}
-          <label className="block text-sm">Expiry date{selectedProduct?.requiresExpiry ? ' (required)' : ' (optional)'}<AppDatePicker aria-label="Expiry date" aria-invalid={Boolean(expiryError)} aria-describedby={expiryError ? 'f02-expiry-error' : undefined} required={selectedProduct?.requiresExpiry}  value={form.expiryDate} onChange={value => { setFormError(''); setForm({ ...form, expiryDate: value }); }} className={inputClass} /></label>{expiryError && <p id="f02-expiry-error" role="alert" className="text-sm text-red-700">{expiryError}</p>}
           <label className="block text-sm">Initial quantity<input aria-label="Initial quantity" aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? 'f02-quantity-error' : undefined} required type="number" min="1" max="2147483647" step="1" value={form.initialQuantity} onChange={e => { setFormError(''); setForm({ ...form, initialQuantity: e.target.value }); }} className={inputClass} /></label>{quantityError && <p id="f02-quantity-error" role="alert" className="text-sm text-red-700">{quantityError}</p>}
         </>}
+          <label className="block text-sm">Expiry date{selectedProduct?.requiresExpiry ? ' (required)' : ' (optional)'}<AppDatePicker aria-label="Expiry date" aria-invalid={Boolean(expiryError)} aria-describedby={expiryError ? 'f02-expiry-error' : undefined} required={selectedProduct?.requiresExpiry}  value={form.expiryDate} onChange={value => { setFormError(''); setForm({ ...form, expiryDate: value }); }} className={inputClass} /></label>{expiryError && <p id="f02-expiry-error" role="alert" className="text-sm text-red-700">{expiryError}</p>}
+        {editing?.expiryDate && !selectedProduct?.requiresExpiry && <button type="button" onClick={() => setClearExpiryOpen(true)} className={buttonClass}>Clear Expiry Date</button>}
         <label className="block text-sm">Push Day (optional)<AppDatePicker aria-label="Push Day" aria-invalid={Boolean(pushError || pushSaveError)} aria-describedby={`f02-push-help${pushError || pushSaveError ? ' f02-push-error' : ''}`}  max={form.expiryDate || undefined} value={form.pushDay} onChange={value => { setFormError(''); setForm({ ...form, pushDay: value }); }} className={inputClass} /></label>
         <p id="f02-push-help" className="text-xs text-[#6d7974]">{selectedProduct?.requiresExpiry ? 'Choose the date when this batch should be prioritized before it expires. Used in expiry-risk analysis.' : 'Optional: choose a date to prioritize this batch. Expiry-risk analysis does not apply to this product.'}{showMissingPushHint && ' Without a Push Day, this batch may be excluded from expiry-risk calculations.'}</p>
         {(pushError || pushSaveError) && <p id="f02-push-error" role="alert" className="text-sm text-red-700">{pushError || pushSaveError}</p>}
         {editing?.pushDay && <button type="button" onClick={clearPushDay} className={buttonClass}>Clear Push Day</button>}
         <div className="flex justify-end gap-2"><button type="button" onClick={() => setOpen(false)} className={buttonClass}>Cancel</button><button disabled={Boolean(pushError)} className="rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white disabled:opacity-40">{busy ? 'Saving…' : 'Save batch'}</button></div>
       </fieldset></form>
+    </F02Dialog>}
+    {clearExpiryOpen && <F02Dialog title="Clear expiry date" busy={busy} onClose={() => setClearExpiryOpen(false)}>
+      <p>Clear the expiry date for batch {editing?.batchCode}? This product does not require expiry tracking. The batch will have no expiry date; its Push Day is kept.</p>
+      {formError && <p role="alert" className="mt-3 text-sm text-red-700">{formError}</p>}
+      <div className="mt-5 flex justify-end gap-2"><button type="button" disabled={busy} onClick={() => setClearExpiryOpen(false)} className={buttonClass}>Cancel</button><button type="button" disabled={busy || selectedProduct?.requiresExpiry} onClick={clearExpiryDate} className={buttonClass}>Confirm clear expiry date</button></div>
     </F02Dialog>}
   </div>;
 };

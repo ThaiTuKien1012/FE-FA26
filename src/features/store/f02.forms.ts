@@ -54,34 +54,42 @@ export function validatePushDay(pushDay: string, expiryDate: string): string {
 
 export interface ProductForm { sku: string; name: string; unit: string; categoryId: string; requiresExpiry: boolean; sellingPrice: string; costPrice: string; status: F02Status; }
 export const emptyProductForm: ProductForm = { sku: '', name: '', unit: 'Piece', categoryId: '', requiresExpiry: false, sellingPrice: '0', costPrice: '0', status: 'ACTIVE' };
+export const normalizeSku = (sku: string) => sku.trim().toUpperCase();
+export const validSku = (sku: string) => /^SKU-[A-Z0-9-]{11}$/.test(sku);
+export const legacySkuMessage = 'This saved SKU uses a legacy format. The server blocks product updates with this SKU, including changes to other fields. The saved SKU has been preserved. Compatibility support is required before saving catalog changes.';
 export function productRequest(form: ProductForm, categories: F02Category[]): F02ProductRequest {
+  const sku = normalizeSku(form.sku);
+  if (!validSku(sku)) throw new Error('SKU must be 15 characters: SKU- followed by exactly 11 uppercase letters, digits or hyphens.');
   if (!['ACTIVE', 'INACTIVE'].includes(form.status)) throw new Error('Choose Active or Inactive.');
   const categoryId = form.categoryId ? Number(form.categoryId) : null;
   if (categoryId !== null && !categories.some(c => c.id === categoryId)) throw new Error('Choose a category available in this store.');
-  return { sku: text(form.sku, 'SKU', 80), name: text(form.name, 'Product name', 180), unit: text(form.unit, 'Unit', 40), categoryId,
+  return { sku, name: text(form.name, 'Product name', 180), unit: text(form.unit, 'Unit', 40), categoryId,
     requiresExpiry: form.requiresExpiry, sellingPrice: price(form.sellingPrice, 'Selling price'), costPrice: price(form.costPrice, 'Cost price'), status: form.status };
 }
 export function categoryRequest(form: { name: string; status: F02Status }) {
   if (!['ACTIVE', 'INACTIVE'].includes(form.status)) throw new Error('Choose Active or Inactive.');
   return { name: text(form.name, 'Category name', 150), status: form.status };
 }
-export interface BatchForm { batchCode: string; receivedAt: string; expiryDate: string; initialQuantity: string; remainingQuantity: string; pushDay: string; }
-export const emptyBatchForm = (): BatchForm => ({ batchCode: '', receivedAt: localDateTime(), expiryDate: '', initialQuantity: '', remainingQuantity: '', pushDay: '' });
+export interface BatchForm { receivedAt: string; expiryDate: string; initialQuantity: string; remainingQuantity: string; pushDay: string; }
+export const emptyBatchForm = (): BatchForm => ({ receivedAt: localDateTime(), expiryDate: '', initialQuantity: '', remainingQuantity: '', pushDay: '' });
 export function batchCreateRequest(form: BatchForm, requiresExpiry: boolean): F02BatchCreateRequest {
   if (requiresExpiry && !form.expiryDate) throw new Error('Please enter an expiry date for this product.');
   const pushError = validatePushDay(form.pushDay, form.expiryDate);
   if (pushError) throw new Error(pushError);
   const received = new Date(form.receivedAt);
   if (!form.receivedAt || !Number.isFinite(received.getTime()) || localDateTime(received) !== form.receivedAt.slice(0, 16)) throw new Error('Please enter a valid received date and time.');
-  return { batchCode: text(form.batchCode, 'Batch code', 80), receivedAt: received.toISOString(), expiryDate: form.expiryDate || null,
+  return { receivedAt: received.toISOString(), expiryDate: form.expiryDate || null,
     initialQuantity: quantity(form.initialQuantity, 1), pushDay: form.pushDay || null };
 }
-export function batchPatchRequest(batch: F02Batch, form: BatchForm): F02BatchPatchRequest {
+export function batchPatchRequest(batch: F02Batch, form: BatchForm, requiresExpiry = false): F02BatchPatchRequest {
+  if (requiresExpiry && !form.expiryDate) throw new Error('Please enter an expiry date for this product.');
+  if (batch.expiryDate && !form.expiryDate) throw new Error('Use Clear Expiry Date to remove the saved date.');
   const remainingQuantity = quantity(form.remainingQuantity, 0, batch.initialQuantity);
-  const pushError = validatePushDay(form.pushDay, batch.expiryDate || '');
+  const pushError = validatePushDay(form.pushDay, form.expiryDate);
   if (pushError) throw new Error(pushError);
   if (batch.pushDay && !form.pushDay) throw new Error('Use Clear Push Day to remove the saved date.');
   const patch: F02BatchPatchRequest = {};
+  if (form.expiryDate && form.expiryDate !== batch.expiryDate) patch.expiryDate = form.expiryDate;
   if (remainingQuantity !== batch.remainingQuantity) patch.remainingQuantity = remainingQuantity;
   if (form.pushDay && form.pushDay !== batch.pushDay) patch.pushDay = form.pushDay;
   if (!Object.keys(patch).length) throw new Error('No changes to save.');

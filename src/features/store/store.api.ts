@@ -8,18 +8,20 @@ export interface F02Product {
   category: F02Category | null; sellingPrice: number; costPrice: number;
   status: F02Status; stockQuantity: number;
 }
-export type F02ProductRequest = Omit<F02Product, 'id' | 'category' | 'stockQuantity'> & { categoryId?: number | null };
+export type F02ProductRequest = Omit<F02Product, 'id' | 'category' | 'stockQuantity'> & { categoryId?: number | null; confirmSimilarName?: boolean };
 export interface F02ProductPage { content: F02Product[]; page: number; pageSize: number; totalElements: number; totalPages: number; }
-export interface F02BatchCreateRequest { batchCode: string; receivedAt: string; expiryDate?: string | null; initialQuantity: number; pushDay?: string | null; }
-export interface F02BatchPatchRequest { remainingQuantity?: number; status?: F02BatchStatus; pushDay?: string | null; }
-export interface F02Batch extends F02BatchCreateRequest { id: number; productId: number; expiryDate: string | null; pushDay: string | null; remainingQuantity: number; status: F02BatchStatus; createdAt: string; updatedAt: string; }
+export interface F02BatchCreateRequest { receivedAt: string; expiryDate?: string | null; initialQuantity: number; pushDay?: string | null; }
+export interface F02BatchPatchRequest { remainingQuantity?: number; status?: F02BatchStatus; pushDay?: string | null; expiryDate?: string | null; }
+export interface F02Batch extends F02BatchCreateRequest { id: number; productId: number; readonly batchCode: string; expiryDate: string | null; pushDay: string | null; remainingQuantity: number; status: F02BatchStatus; createdAt: string; updatedAt: string; }
 export interface F02InventorySummary { productId: number; totalQuantity: number; sellableQuantity: number; expiredQuantity: number; blockedQuantity: number; expiringSoonQuantity: number; }
 
 export const canManageCatalog = () => authService.getCurrentUser()?.role === 'Store Admin';
 
 export class F02ApiError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  constructor(public status: number, message: string, public code?: string) { super(message); }
 }
+
+export const needsProductNameConfirmation = (error: unknown) => error instanceof F02ApiError && error.status === 409 && error.code === 'PRODUCT_NAME_CONFIRMATION_REQUIRED';
 
 export function f02ErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : 'Unable to complete the request. Please try again.';
@@ -42,14 +44,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const fallback: Record<number, string> = { 400: 'Please check the information and try again.', 401: 'Your session has ended. Please sign in again.', 403: 'You do not have permission to perform this action.', 404: 'This item was not found in your store.', 409: 'This change conflicts with existing data. Please review and try again.' };
-    throw new F02ApiError(response.status, data?.error || data?.message || fallback[response.status] || 'Unable to complete the request. Please try again.');
+    throw new F02ApiError(response.status, data?.error || data?.message || fallback[response.status] || 'Unable to complete the request. Please try again.', data?.code);
   }
   return data as T;
 }
 
 // Select only writable contract fields, even when the caller holds a response object.
-const productBody = ({ sku, name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status }: F02ProductRequest) =>
-  JSON.stringify({ sku, name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status });
+const productBody = ({ sku, name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName }: F02ProductRequest) =>
+  JSON.stringify({ sku, name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName });
 
 export const storeApi = {
   listCategories: () => request<F02Category[]>('/api/categories'),
@@ -67,12 +69,13 @@ export const storeApi = {
   updateCategory: (id: number, body: { name: string; status: F02Status }) => request<F02Category>(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   updateCategoryStatus: (id: number, status: F02Status) => request<F02Category>(`/api/categories/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   listBatches: (productId: number) => request<F02Batch[]>(`/api/products/${productId}/batches`),
-  createBatch: (productId: number, { batchCode, receivedAt, expiryDate, initialQuantity, pushDay }: F02BatchCreateRequest) => request<F02Batch>(`/api/products/${productId}/batches`, { method: 'POST', body: JSON.stringify({ batchCode, receivedAt, expiryDate, initialQuantity, pushDay }) }),
+  createBatch: (productId: number, { receivedAt, expiryDate, initialQuantity, pushDay }: F02BatchCreateRequest) => request<F02Batch>(`/api/products/${productId}/batches`, { method: 'POST', body: JSON.stringify({ receivedAt, expiryDate, initialQuantity, pushDay }) }),
   getBatch: (id: number) => request<F02Batch>(`/api/inventory-batches/${id}`),
-  updateBatch: async (id: number, { remainingQuantity, status, pushDay }: F02BatchPatchRequest) => {
-    if (remainingQuantity == null && status == null && pushDay == null) throw new F02ApiError(400, 'Choose at least one batch field to update. Use Clear Push Day to remove a date.');
-    return request<F02Batch>(`/api/inventory-batches/${id}`, { method: 'PATCH', body: JSON.stringify({ remainingQuantity, status, pushDay }) });
+  updateBatch: async (id: number, { remainingQuantity, status, pushDay, expiryDate }: F02BatchPatchRequest) => {
+    if (remainingQuantity == null && status == null && pushDay == null && expiryDate == null) throw new F02ApiError(400, 'Choose at least one batch field to update. Use Clear Push Day or Clear Expiry Date to remove a date.');
+    return request<F02Batch>(`/api/inventory-batches/${id}`, { method: 'PATCH', body: JSON.stringify({ remainingQuantity, status, pushDay, expiryDate }) });
   },
+  clearExpiryDate: (id: number) => request<F02Batch>(`/api/inventory-batches/${id}/expiry-date`, { method: 'DELETE' }),
   clearPushDay: (id: number) => request<F02Batch>(`/api/inventory-batches/${id}/push-day`, { method: 'DELETE' }),
   getSummary: (productId: number) => request<F02InventorySummary>(`/api/products/${productId}/inventory-summary?expiringWithinDays=7`)
 };

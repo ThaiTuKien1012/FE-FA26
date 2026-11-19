@@ -19,7 +19,7 @@ const state = { config: structuredClone(configView), seasons: [structuredClone(s
 class CDP {
   next = 0; pending = new Map(); listeners = new Map();
   constructor(ws) { this.ws = ws; ws.addEventListener('message', e => { const data = JSON.parse(e.data); if (data.id) { const p = this.pending.get(data.id); if (!p) return; this.pending.delete(data.id); data.error ? p.reject(new Error(data.error.message)) : p.resolve(data.result); } else for (const handler of this.listeners.get(data.method) || []) void handler(data.params); }); }
-  call(method, params = {}) { return new Promise((resolve, reject) => { const id = ++this.next; const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('CDP timeout: ' + method)); }, 10000); this.pending.set(id, { resolve: v => { clearTimeout(timer); resolve(v); }, reject: e => { clearTimeout(timer); reject(e); } }); this.ws.send(JSON.stringify({ id, method, params })); }); }
+  call(method, params = {}) { return new Promise((resolve, reject) => { const id = ++this.next; const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('CDP timeout: ' + method)); }, method === 'Page.captureScreenshot' ? 30000 : 10000); this.pending.set(id, { resolve: v => { clearTimeout(timer); resolve(v); }, reject: e => { clearTimeout(timer); reject(e); } }); this.ws.send(JSON.stringify({ id, method, params })); }); }
   on(name, callback) { this.listeners.set(name, [...this.listeners.get(name) || [], callback]); }
 }
 async function evaluate(expression) { const r = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result?.value; }
@@ -42,7 +42,7 @@ async function session(role, path = '/f03/configuration') {
   initId = (await cdp.call('Page.addScriptToEvaluateOnNewDocument', { source })).identifier;
   await cdp.call('Page.navigate', { url: origin + path });
 }
-async function capture(name) { await evaluate('window.scrollTo(0,0)'); await sleep(100); const shot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !(await evaluate('Boolean(document.querySelector("dialog[open]"))')) }); writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64')); }
+async function capture(name) { await cdp.call('Page.bringToFront'); await evaluate('window.scrollTo(0,0)'); await sleep(100); const shot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !(await evaluate('Boolean(document.querySelector("dialog[open]"))')) }); writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64')); }
 async function captureCreate(name) { const rect = await evaluate("(()=>{const r=document.querySelector('[data-create-snapshot]').closest('section').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()"); const shot=await cdp.call('Page.captureScreenshot',{format:'png',clip:rect,captureBeyondViewport:true});writeFileSync(join(artifacts,name+'.png'),Buffer.from(shot.data,'base64')); }
 async function key(key, modifiers = 0) { const windowsVirtualKeyCode = key === 'Tab' ? 9 : key === 'Escape' ? 27 : 0; await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key, modifiers, windowsVirtualKeyCode }); await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key, modifiers, windowsVirtualKeyCode }); }
 const count = (path, method) => calls.filter(c => c.path === path && (!method || c.method === method)).length;
@@ -334,7 +334,7 @@ try {
   checks.push('Store Admin read-only across four tabs; role denial without feature requests; legacy links; System Admin lambdaMax-only policy; responsive 1440/820/390 without page overflow');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []); assert.equal(calls.some(c => c.method === 'PATCH' && c.path.includes('/scores')), false);
   console.log(JSON.stringify({ result: 'PASS (HTTP fixtures only; real E2E not run)', checks, interceptedApiCalls: calls.length, compactListApiMutations, realBackendWrites: 0, artifacts }, null, 2));
-} catch (error) { try { await capture('failure'); } catch {} console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, errors, unexpected, modalDiagnostics: await evaluate("[...document.querySelectorAll('dialog')].map(e=>({label:e.getAttribute('aria-label'),open:e.open,text:e.innerText.slice(-500)}))"), artifacts }, null, 2)); process.exitCode = 1; }
+} catch (error) { try { await capture('failure'); } catch {} console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, errors, unexpected, modalDiagnostics: await evaluate("[...document.querySelectorAll('dialog')].map(e=>({label:e.getAttribute('aria-label'),open:e.open,text:e.innerText.slice(-500)}))").catch(()=>null), artifacts }, null, 2)); process.exitCode = 1; }
 finally {
   if (cdp) { try { await cdp.call('Browser.close'); } catch {} cdp.ws.close(); }
   if (chrome.exitCode === null) await Promise.race([new Promise(r => chrome.once('exit', r)), sleep(2000)]);
