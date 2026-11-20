@@ -30,10 +30,173 @@ const buttons = "[...(document.querySelector('dialog[open]')||document.querySele
 async function click(text) { await until(buttons + '.some(b=>b.innerText.trim()===' + JSON.stringify(text) + '&&!b.disabled)', 'click ' + text); await evaluate(buttons + '.find(b=>b.innerText.trim()===' + JSON.stringify(text) + ').click()'); }
 async function aria(label) { const expr = "[...document.querySelectorAll('main button')].find(b=>b.getAttribute('aria-label')===" + JSON.stringify(label) + '&&b.getClientRects().length&&!b.disabled)'; await until('Boolean(' + expr + ')', label); await evaluate(expr + '.focus()'); await evaluate(expr + '.click()'); }
 async function enabled(text) { return evaluate(buttons + '.some(b=>b.innerText.trim()===' + JSON.stringify(text) + '&&!b.disabled)'); }
-async function tab(text) { await click(text); await has(({ Configuration: 'Utility Configuration', Seasons: 'Seasons', 'Product Weights': fixtureRole === 'Merchandiser' ? 'Product Priority Details' : 'Product Weight Details', 'Weight Settings': 'Weight Settings', Preview: 'Utility Preview', Snapshots: 'Utility Snapshots' })[text]); }
+async function tab(text) { await click(text); await has(({ Configuration: 'Utility Configuration', Seasons: 'Seasons', 'Product Weights': 'Product Weights', 'Weight Settings': 'Weight Settings', Preview: 'Utility Preview', Snapshots: 'Utility Snapshots' })[text]); }
 async function input(label, value) { await until("[...document.querySelectorAll('input[aria-label="+JSON.stringify(label)+"]')].some(e=>e.getClientRects().length&&!e.matches(':disabled'))", 'Ready '+label); if (value && /^\d{4}-\d{2}-\d{2}/.test(value) && await evaluate('Boolean(document.querySelector('+JSON.stringify('input[aria-label='+JSON.stringify(label)+'][data-app-date-kind]')+'))')) { const [date,time] = value.split('T'); value = date.split('-').reverse().join('/') + (time ? ' '+time : ''); } assert.equal(await evaluate("(()=>{const e=[...document.querySelectorAll('input[aria-label=" + JSON.stringify(label) + "]')].find(e=>e.getClientRects().length);if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e," + JSON.stringify(value) + ");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"), true, label); }
-async function choose(id) { await input('Select product', 'SKU-' + id); await until("[...document.querySelectorAll('[role=option]')].some(e=>e.innerText.split('\\n')[0].trim()===" + JSON.stringify('SKU-' + id) + ')', 'Product SKU-' + id); await evaluate("[...document.querySelectorAll('[role=option]')].find(e=>e.innerText.split('\\n')[0].trim()===" + JSON.stringify('SKU-' + id) + ').click()'); }
+async function choose(id) { await input('Select product', 'SKU-' + id); await until("[...document.querySelectorAll('[role=option]')].some(e=>e.innerText.split('\\n')[0].trim().split(' ')[0]===" + JSON.stringify('SKU-' + id) + ')', 'Product SKU-' + id); await evaluate("[...document.querySelectorAll('[role=option]')].find(e=>e.innerText.split('\\n')[0].trim().split(' ')[0]===" + JSON.stringify('SKU-' + id) + ').click()'); }
+async function selectFilter(label, value) {
+  await evaluate("(()=>{const e=document.querySelector('select[aria-label=" + JSON.stringify(label) + "]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e," + JSON.stringify(value) + ");e.dispatchEvent(new Event('change',{bubbles:true}));})()");
+}
+async function openProduct(id) {
+  await input('Search Name or SKU', 'Product ' + String(id).padStart(3, '0'));
+  await sleep(300);
+  await aria('View Details for Product ' + String(id).padStart(3, '0') + ' (SKU-' + id + ')');
+  await has('Product Priority Details');
+}
+async function merchantProductChecks() {
+  const before = calls.length, scoreCalls = () => calls.filter(c => /\/products\/\d+\/scores$/.test(c.path)).length;
+  const catalog = "document.querySelector('table[aria-label=\"Product priorities catalog\"]')";
+  const dialog = "document.querySelector('dialog[open][aria-label=\"Product Priority Details\"]')";
+  const initialScores = scoreCalls();
+  state.categoryError=true; await tab('Product Weights'); await has('Product 001');
+  await has('Fixture categories unavailable'); state.categoryError=false; await click('Retry Categories');
+  await until("document.querySelector('select[aria-label=\"Filter Category\"]').options.length===3",'Category retry');
+  assert.equal(await evaluate(catalog + '.tBodies[0].rows.length'), 10);
+  assert.equal(scoreCalls(), initialScores, 'Listing never requests priorities for each row');
+  assert.equal(calls.slice(before).some(c => c.path === '/api/utility/expiry-push-batches'), false);
+  assert.equal(await evaluate("[...document.querySelectorAll('input[aria-label=\"Select product\"]')].some(e=>e.getClientRects().length)"), false);
+  await pageNext('products'); await has('Page 2 of 13'); await has('Product 011');
+  await aria('Sort by Stock'); await has('Page 1 of 13');
+  await until(catalog + ".tBodies[0].rows[0].innerText.includes('Product 001')", 'Server stock ascending');
+  await aria('Sort by Stock'); await until(catalog + ".tBodies[0].rows[0].innerText.includes('Product 121')", 'Server stock descending across all pages');
+  assert.ok(calls.some(c => c.path === '/api/products' && c.query.includes('sortBy=stockQuantity') && c.query.includes('sortDirection=desc') && c.query.includes('pageSize=10')));
+  await selectFilter('Filter Category','1'); await selectFilter('Filter Status','INACTIVE');
+  await input('Search Name or SKU','Product 00'); await sleep(300);
+  await until(catalog + '.tBodies[0].rows.length===2', 'Combined catalog filters');
+  assert.ok(calls.some(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('categoryId')==='1'&&new URLSearchParams(c.query).get('status')==='INACTIVE'&&new URLSearchParams(c.query).get('search')==='Product 00'));
+  await input('Search Name or SKU','no such product'); await has('No products match');
+  await selectFilter('Filter Category',''); await selectFilter('Filter Status',''); await input('Search Name or SKU',''); await has('Product 121');
+  state.productError = true; await click('Refresh Products'); await has('Fixture products unavailable'); state.productError = false; await click('Retry Products'); await has('Product 121');
+  assert.equal(await evaluate("document.querySelectorAll('select[aria-label=\"Product sort field\"],button[aria-label=\"Toggle product sort direction\"]').length"),0,'No separate sort toolbar');
+  assert.equal(await evaluate(catalog + ".querySelectorAll('thead th button[aria-label=\"Sort by SKU\"]').length"),0,'Product header has no secondary SKU action');
+  assert.equal(await evaluate('[...' + catalog + ".querySelectorAll('thead th')].every(e=>e.querySelectorAll('button').length<=1)"),true,'One sort action per column');
+  assert.equal(await evaluate('[...'+catalog+".querySelectorAll('thead th')].every(e=>getComputedStyle(e).fontSize==='13px'&&getComputedStyle(e).fontWeight==='600')&&[..."+catalog+".querySelectorAll('.paspm-product-sort')].every(e=>getComputedStyle(e).color==='rgb(75, 85, 99)'&&getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(e).fontWeight===(e.dataset.active==='true'?'700':'600'))"),true,'F03 neutral semibold header styling');
+  await aria('Sort by Product name'); await has('Product 001');
+  assert.equal(await evaluate("[..."+catalog+".querySelectorAll('.paspm-product-sort svg')].every(e=>getComputedStyle(e).width==='14px'&&getComputedStyle(e).height==='14px')"),true,'F03 uses shared F02 product sort icon size');
+  const beforeSortLayout=await evaluate(`(()=>{const t=${catalog};return {widths:[...t.tHead.rows[0].cells].map(e=>e.getBoundingClientRect().width),height:t.tHead.getBoundingClientRect().height}})()`);
+  state.productDelay=350;await aria('Sort by Category');
+  await until(catalog+".closest('[aria-busy]').getAttribute('aria-busy')==='true'",'Catalog sort pending');
+  assert.deepEqual(await evaluate(`(()=>{const t=${catalog};return {widths:[...t.tHead.rows[0].cells].map(e=>e.getBoundingClientRect().width),height:t.tHead.getBoundingClientRect().height}})()`),beforeSortLayout,'Catalog header stays stable during sorting');
+  await until(catalog+".closest('[aria-busy]').getAttribute('aria-busy')==='false'",'Catalog sort settled');state.productDelay=0;
+  for (const width of [1280,1366,1440,1920,1024,820,390,320]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Catalog page fits '+width);
+    if(width>=1280) assert.equal(await evaluate(`(()=>{const t=${catalog},r=t.tBodies[0].rows[0],b=r.querySelector('button').getBoundingClientRect(),c=r.cells[5].getBoundingClientRect();return t.scrollWidth<=t.clientWidth+1&&b.right<=c.right&&b.left>=c.left&&getComputedStyle(t).tableLayout==='fixed'})()`),true,'View Details visible without horizontal scroll '+width);
+    else assert.equal(await evaluate("document.querySelector('ul[aria-label=\"Product priority cards\"]').getClientRects().length>0"),true);
+  }
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await click('View All Batches Due for Push'); await has('2 days overdue');
+  assert.equal(calls.filter(c=>c.path==='/api/utility/expiry-push-batches').at(-1).query.includes('productId='),false);
+  await click('Hide All Batches');
+  const beforeOpenBatches=count('/api/utility/expiry-push-batches');
+  await openProduct(1); await has('Selected Season'); await has('Holiday');
+  assert.equal(scoreCalls(),initialScores+1); assert.equal(count('/api/utility/expiry-push-batches'),beforeOpenBatches,'Opening priorities does not automatically load batches');
+  assert.equal(await evaluate(dialog + ".querySelectorAll('input,select,textarea').length"),0,'Priorities are read-only');
+  assert.equal(await evaluate(dialog + ".innerText.includes('Clear Product')"),false);
+  await evaluate(dialog + ".querySelector('button[aria-label=\"Close dialog\"]').focus()"); await key('Tab',8);
+  assert.equal(await evaluate('document.activeElement.innerText'),'Close','Shift Tab wraps to last control'); await key('Tab');
+  assert.equal(await evaluate('document.activeElement.getAttribute("aria-label")'),'Close dialog','Tab traps focus');
+  state.scores={...structuredClone(scores),seasonId:3,seasonWeight:0.9,activeSeasons:[{...scores.activeSeasons[0],seasonId:7,name:'Equal Weight Later ID',weight:0.9},{...scores.activeSeasons[0],seasonId:3,name:'Backend Selected Season',weight:0.9}]};
+  await click('Refresh Weights'); await has('Backend Selected Season');
+  state.scores={...structuredClone(scores),seasonId:null,seasonWeight:0,activeSeasons:[],expiryRisk:0,batchesMissingPushDay:[10],warnings:['MISSING_PUSH_DAY','SLOW_MOVING_NO_RECENT_SALES']};
+  await click('Refresh Weights'); await has('No active season');
+  await evaluate(dialog + ".querySelector('details > summary').parentElement.open=true"); await has('No recent sales');
+  state.scores={...state.scores,ready:false,lambdaValid:false,weightValue:null}; await click('Refresh Weights'); await has('Unavailable'); await has('Priority Strength exceeds');
+  state.scoreError=true; await click('Refresh Weights'); await has('Fixture priorities unavailable'); state.scoreError=false;
+  state.scores=structuredClone(scores); await click('Retry Weights'); await has('Readiness');
+  state.wrongScore=true; await click('Refresh Weights'); await has('do not match this product'); state.wrongScore=false; await click('Retry Weights'); await has('Readiness');
+  state.scores={...structuredClone(scores),weightValue:9.99};state.scoreDelay=700;await click('Refresh Weights');await has('Loading product priorities');
+  await key('Escape'); await until('!'+dialog,'Escape closes read in flight');
+  assert.equal(await evaluate('document.activeElement.getAttribute("aria-label")'),'View Details for Product 001 (SKU-1)','Close restores opener focus');
+  state.scores=structuredClone(scores);state.scoreDelay=0;await openProduct(2);await has('Readiness');await sleep(750);
+  assert.equal(await evaluate(dialog + ".querySelector('[data-priority-product]').dataset.priorityProduct"),'2');
+  assert.equal(await evaluate(dialog + ".innerText.includes('9.99')"),false,'Late Product 1 response never appears in Product 2');
+  await evaluate("[..."+dialog+".querySelectorAll('summary')].find(e=>e.innerText==='Batches Due for Push').parentElement.open=true");await has('Batches for Product 002');await has('2 days overdue');
+  await input('Push Analysis Date','2026-11-10');await has('As of 10/11/2026');
+  assert.ok(calls.some(c=>c.path==='/api/utility/expiry-push-batches'&&c.query.includes('productId=2')&&c.query.includes('asOfDate=2026-11-10')));
+  state.expiryEmpty=true;await click('Refresh Batches');await has('No batches are due');state.expiryEmpty=false;state.expiryError=true;await click('Refresh Batches');await has('Fixture expiry unavailable');state.expiryError=false;await click('Refresh Batches');await has('2 days overdue');
+  for (const width of [1440,820,390,320]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:800,deviceScaleFactor:1,mobile:width<768});
+    assert.equal(await evaluate(`(()=>{const d=${dialog},r=d.getBoundingClientRect(),body=d.querySelector('.f03-season-dialog-body');return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1&&body.scrollHeight>body.clientHeight&&document.documentElement.scrollWidth<=innerWidth+1})()`),true,'Priority modal scrolls internally at '+width);
+  }
+  await click('Close'); await until('!'+dialog,'Close button closes Details');
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await openProduct(121);await has('Readiness');
+  await evaluate("history.pushState({},'', '/f03/preview');window.dispatchEvent(new PopStateEvent('popstate'))");await has('Utility Preview');await until('!'+dialog,'Route change removes priorities modal');
+  await tab('Product Weights');assert.equal(await evaluate('Boolean('+dialog+')'),false);
+  assert.equal(calls.slice(before).some(c=>c.method!=='GET'&&!c.path.startsWith('/api/auth/')),false,'Catalog, scores and batches never write');
+  assert.equal(calls.slice(before).filter(c=>c.path==='/api/products').every(c=>new URLSearchParams(c.query).get('pageSize')==='10'),true,'Only ten products fetched per page');
+  checks.push('Merchandiser catalog: GET-only 10/page, combined search/category/status, backend global sort and pagination, empty/error/retry; no eager score/batch reads; modal refresh/error/mismatch/late-response isolation, native focus/Escape/restore, lazy scoped Push Day batches, all-store batches and 1280–1920 desktop/320–1024 responsive layout');
+}
 async function openSeason(name) { await aria((fixtureRole === 'Store Admin' ? 'View ' : 'Edit ') + name); await has('Season Details'); }
+async function storeAdminChecks() {
+  const before=calls.length;
+  await session('Store Admin','/f03/configuration');await has('Read-only configuration');
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('nav[aria-label=\"Utility Planner tabs\"] button')].map(e=>e.innerText)"),['Weight Settings','Seasons','Product Weights','Snapshots']);
+  assert.equal(await enabled('Save Configuration'),false);
+  assert.equal(await evaluate("[...document.querySelectorAll('form input')].every(e=>e.matches(':disabled'))"),true);
+  await evaluate("document.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
+  await tab('Seasons');await has('Holiday');assert.equal(await enabled('Add Season'),false);
+  await openSeason('Holiday');await has('Assigned Products');assert.equal(await enabled('Assign Product'),false);
+  assert.equal(await evaluate("document.querySelector('[data-season-identity]').querySelectorAll('button').length"),0);
+  await click('Close');
+  const scoreCount=calls.filter(c=>/\/products\/\d+\/scores$/.test(c.path)).length;
+  await tab('Product Weights');await has('Product 001');
+  assert.equal(await evaluate("[...document.querySelectorAll('table[aria-label=\"Product priorities catalog\"] thead th')].every(e=>e.querySelectorAll('button').length<=1&&getComputedStyle(e).fontSize==='13px')"),true,'Store Admin shares single-action readable headers');
+  assert.equal(calls.filter(c=>/\/products\/\d+\/scores$/.test(c.path)).length,scoreCount,'Store Admin catalog does not preload scores');
+  assert.equal(await evaluate("[...document.querySelectorAll('input[aria-label=\"Select product\"]')].some(e=>e.getClientRects().length)"),false);
+  assert.equal(await evaluate("document.querySelector('table[aria-label=\"Product priorities catalog\"]').tBodies[0].rows.length"),10);
+  await aria('Sort by Stock');await pageNext('products');await has('Page 2 of 13');
+  await openProduct(1);await has('Readiness');
+  const priorities="document.querySelector('dialog[open][aria-label=\"Product Priority Details\"]')";
+  assert.equal(await evaluate(priorities+".innerText.includes('Manage Seasons')"),false);
+  assert.equal(await evaluate(priorities+".querySelectorAll('input,select,textarea,form').length"),0);
+  await click('Refresh Weights');await has('Readiness');
+  await key('Escape');await until('!'+priorities,'Read-only priorities Escape');
+  assert.equal(await evaluate('document.activeElement.getAttribute("aria-label")'),'View Details for Product 001 (SKU-1)');
+  const originals=['Product 1: MISSING_PUSH_DAY','Product 1: MISSING_PUSH_DAY','MISSING_PUSH_DAY','Other original evidence'];
+  state.historyCount=6;state.historyWarnings={6:originals,5:['MISSING_PUSH_DAY']};
+  await tab('Snapshots');await has('Snapshot #6');
+  const list="document.querySelector('ul[aria-label=\"Saved snapshots\"]')";
+  const history="[...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.innerText==='Saved Snapshots')";
+  assert.equal(await enabled('Create Snapshot'),false);assert.equal(await enabled('Preview'),false);
+  assert.equal(await evaluate(history+".innerText.includes('Details require Merchandiser access')"),false);
+  assert.equal(await evaluate(list+".innerText.includes('Analysis date')&&"+list+".innerText.includes('Total weighted utility')&&!/Created At|Scoring Version|View Warnings/i.test("+list+'.innerText)'),true);
+  const beforeDetails=calls.length;
+  await aria('View Details for Snapshot #6');await has('Configuration Metadata');await has('4 warnings');
+  const metadata="document.querySelector('dialog[open][aria-label=\"Snapshot #6 Details\"]')";
+  assert.equal(await evaluate('location.pathname'),'/f03/snapshots');
+  assert.equal(await evaluate(metadata+".querySelectorAll('table,form,input').length"),0);
+  assert.equal(await evaluate(metadata+".innerText.includes('Snapshot Matrix')"),false);
+  assert.deepEqual(await evaluate('JSON.parse([...'+metadata+".querySelectorAll('summary')].find(e=>e.innerText==='Original configuration metadata').nextElementSibling.textContent)"),snapshot(6).configuration);
+  assert.deepEqual(await evaluate('JSON.parse([...'+metadata+".querySelectorAll('summary')].find(e=>e.innerText==='Original warnings (saved)').nextElementSibling.textContent)"),originals);
+  await has('05/11/2026 02:00 UTC');
+  assert.equal(calls.slice(beforeDetails).some(c=>/^\/api\/utility\/snapshots\//.test(c.path)),false,'Metadata Details never calls restricted endpoints');
+  await evaluate(metadata+".querySelector('button[aria-label=\"Close dialog\"]').focus()");await key('Tab',8);assert.equal(await evaluate('document.activeElement.innerText'),'Close');await key('Tab');assert.equal(await evaluate('document.activeElement.getAttribute("aria-label")'),'Close dialog');
+  for(const width of [1440,820,390,320]){
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:800,deviceScaleFactor:1,mobile:width<768});
+    assert.equal(await evaluate(`(()=>{const d=${metadata},r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1})()`),true,'Read-only metadata modal fits '+width);
+  }
+  await key('Escape');await until('!'+metadata,'Metadata Escape');assert.equal(await evaluate('document.activeElement.getAttribute("aria-label")'),'View Details for Snapshot #6');
+  for(const width of [1280,1440,820,390,320]){
+    await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Shared Store Admin cards fit '+width);
+    assert.equal(await evaluate(`(()=>{const r=${list}.children[0],b=r.querySelector('button').getBoundingClientRect(),box=r.getBoundingClientRect();return b.right<=box.right&&b.left>=box.left&&r.querySelector('.f03-snapshot-metrics').getBoundingClientRect().width>0})()`),true);
+  }
+  await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  state.historyCount=1;state.historyOverrides={1:{configuration:null}};await click('Refresh Snapshots');await has('Snapshot #1');
+  await until(list+'.children.length===1','Single saved metadata row');
+  assert.equal(await evaluate(history+".querySelectorAll('nav').length"),0);
+  await aria('View Details for Snapshot #1');await has('Configuration metadata was not supplied');await has('No warnings were recorded');await click('Close');
+  state.historyOverrides={};state.historyCount=0;await click('Refresh Snapshots');await has('No saved snapshots yet');
+  assert.equal(await evaluate(history+".innerText.includes('Calculate a Preview')"),false);
+  state.historyCount=21;await click('Refresh Snapshots');await has('Snapshot #21');await pageNext('snapshots');await has('Page 2 of 2');await click('Refresh Snapshots');await has('Page 2 of 2');
+  await aria('View Details for Snapshot #1');await has('Configuration Metadata');
+  await evaluate("history.pushState({},'', '/f03/configuration');window.dispatchEvent(new PopStateEvent('popstate'))");await has('Read-only configuration');await until("!document.querySelector('dialog[open]')",'Metadata closes on navigation');
+  assert.equal(calls.slice(before).some(c=>c.path.startsWith('/api/utility/')&&c.method!=='GET'),false,'Store Admin never mutates F03');
+  assert.equal(calls.slice(before).some(c=>/^\/api\/utility\/snapshots\//.test(c.path)),false,'Store Admin never reads forbidden Snapshot/Matrix routes');
+  state.historyCount=null;state.historyWarnings={};
+  checks.push('Store Admin: shared catalog/modal and four tabs; read-only settings/Season/weights; no F03 writes or restricted Snapshot/Matrix GET; list-only metadata Details preserves raw config/warnings, no fake Matrix; focus/Escape/close, refresh, zero/one/multiple pages and responsive cards/modal');
+}
 async function pageNext(label) { const expr = "[...document.querySelectorAll('nav[aria-label=" + JSON.stringify(label + ' pagination') + "] button')].find(b=>b.innerText==='Next'&&b.getClientRects().length&&!b.disabled)"; await until('Boolean(' + expr + ')', 'Next ' + label); await evaluate(expr + '.click()'); }
 async function session(role, path = '/f03/configuration') {
   fixtureRole = role;
@@ -46,8 +209,8 @@ async function capture(name) { if (!artifacts) return; await cdp.call('Page.brin
 async function captureCreate(name) { if (!artifacts) return; const rect = await evaluate("(()=>{const r=document.querySelector('[data-create-snapshot]').closest('section').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()"); const shot=await cdp.call('Page.captureScreenshot',{format:'png',clip:rect,captureBeyondViewport:true});writeFileSync(join(artifacts,name+'.png'),Buffer.from(shot.data,'base64')); }
 async function key(key, modifiers = 0) { const windowsVirtualKeyCode = key === 'Tab' ? 9 : key === 'Escape' ? 27 : 0; await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key, modifiers, windowsVirtualKeyCode }); await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key, modifiers, windowsVirtualKeyCode }); }
 const count = (path, method) => calls.filter(c => c.path === path && (!method || c.method === method)).length;
-Object.assign(state, { historyCount: null, historyWarnings: {}, historyDelay: 0 });
-const savedSnapshot = id => ({ ...snapshot(id), warnings: state.historyWarnings[id] || [] });
+Object.assign(state, { historyCount: null, historyWarnings: {}, historyDelay: 0, historyOverrides: {} });
+const savedSnapshot = id => ({ ...snapshot(id), ...state.historyOverrides[id], warnings: state.historyWarnings[id] || [] });
 
 async function savedSnapshotUiChecks() {
   state.config = structuredClone(configView);
@@ -72,8 +235,8 @@ async function savedSnapshotUiChecks() {
   const history = "[...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.innerText==='Saved Snapshots')";
   assert.equal(await evaluate(history + ".querySelectorAll('table').length"), 0);
   assert.equal(await evaluate(list + '.children.length'), 1);
-  assert.equal(await evaluate(list + '.querySelectorAll("dl").length'), 0);
-  assert.equal(await evaluate("/Analysis date|Total weighted utility|Created at/i.test(" + list + '.innerText)'), false);
+  assert.equal(await evaluate(list + '.querySelectorAll("dl").length'), 1);
+  assert.equal(await evaluate("/Analysis date/i.test(" + list + '.innerText)&&/Total weighted utility/i.test(' + list + '.innerText)&&!/Created at|Scoring Version/i.test(' + list + '.innerText)'), true);
   assert.equal(await evaluate(history + ".querySelectorAll('nav').length"), 0);
   assert.equal(await evaluate(history + ".innerText.includes('0 warnings')"), false);
   const rowsBefore = await evaluate(list + '.innerText');
@@ -128,12 +291,14 @@ async function savedSnapshotUiChecks() {
   await click('Refresh Snapshots'); await has('Page 2 of 2');
   assert.equal(count('/api/utility/snapshots', 'POST'), snapshotPosts, 'History, details and refresh never create snapshots');
   state.historyCount = null; state.historyWarnings = {};
-  checks.push('Compact horizontal Snapshot cards: identity/period, right-aligned independent status plus amber 0/1/8 warnings and View Details; uniform row heights and gaps; auxiliary metrics and full original warnings only in Details; keyboard/mouse routes, stable refresh, empty/single/multiple pages; desktop 1280/1366/1440/1920 and responsive 1024/820/640/390/320');
+  checks.push('Compact horizontal Snapshot cards: identity/period, right-aligned independent status plus amber 0/1/8 warnings and View Details; uniform row heights and gaps; Analysis Date and Total Weighted Utility in shared cards, Created At and full original warnings only in Details; keyboard/mouse routes, stable refresh, empty/single/multiple pages; desktop 1280/1366/1440/1920 and responsive 1024/820/640/390/320');
 }
-const product = id => ({ id, name: `Product ${String(id).padStart(3, '0')}`, sku: 'SKU-' + id, unit: 'EA', requiresExpiry: true, category: null, sellingPrice: 20, costPrice: 10, status: 'ACTIVE', stockQuantity: 30 });
+const categories = [{id:1,name:'Dairy',status:'ACTIVE'}, {id:2,name:'Seasonal',status:'INACTIVE'}];
+const product = id => ({ id, name: `Product ${String(id).padStart(3, '0')}`, sku: 'SKU-' + id, unit: 'EA', requiresExpiry: id % 2 === 1, category: categories[(id - 1) % 2], sellingPrice: 20, costPrice: 10, status: id % 3 === 0 ? 'INACTIVE' : 'ACTIVE', stockQuantity: id * 3 });
+Object.assign(state, { productError:false, categoryError:false, scoreError:false, wrongScore:false, productDelay:0 });
 async function paused({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname, method = request.method;
-  calls.push({ path, method, query: url.search, body: request.postData });
+  calls.push({ path, method, query: url.search, body: request.postData, role: fixtureRole });
   const page = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20), payload = request.postData ? JSON.parse(request.postData) : undefined;
   let body, code = 200, emptyBody = false;
   try {
@@ -141,10 +306,14 @@ async function paused({ requestId, request }) {
     else if (path === '/api/auth/me') body = { userId: fixtureRole === 'System Admin' ? 1 : 12, name: 'Fixture User', email: 'fixture@example.invalid', roleCode: ({ 'System Admin': 'SYSTEM_ADMIN', 'Store Admin': 'STORE_ADMIN', Merchandiser: 'MERCHANDISER', 'End-Customer': 'END_CUSTOMER' })[fixtureRole], storeId: fixtureRole === 'System Admin' ? null : 1, status: 'ACTIVE', emailVerified: true };
     else if (path === '/api/utility/config') {
       if (method === 'PUT') { if (state.configError) { code = 409; body = { error: 'Fixture configuration conflict' }; } else { state.config.config = { ...state.config.config, ...payload, version: state.config.config.version + 1 }; body = state.config; } } else body = state.config;
+    } else if (path === '/api/categories') { if(state.categoryError){code=503;body={error:'Fixture categories unavailable'};}else body=categories;
     } else if (path === '/api/products') {
       const search = (url.searchParams.get('search') || '').toLowerCase();
-      const all = Array.from({ length: 121 }, (_, i) => product(i + 1)).filter(p => !search || p.name.toLowerCase().includes(search) || p.sku.toLowerCase().includes(search));
+      const categoryId=Number(url.searchParams.get('categoryId')||0),status=url.searchParams.get('status'),sortBy=url.searchParams.get('sortBy')||'name',direction=url.searchParams.get('sortDirection')==='desc'?-1:1;
+      const all = Array.from({ length: 121 }, (_, i) => product(i + 1)).filter(p => (!search || p.name.toLowerCase().includes(search) || p.sku.toLowerCase().includes(search))&&(!categoryId||p.category.id===categoryId)&&(!status||p.status===status));
+      all.sort((a,b)=>{const x=sortBy==='category'?a.category.name:a[sortBy],y=sortBy==='category'?b.category.name:b[sortBy];return direction*(typeof x==='string'?x.localeCompare(y):Number(x)-Number(y))||a.id-b.id;});
       body = { content: all.slice(page * size, (page + 1) * size), page, pageSize: size, totalElements: all.length, totalPages: Math.ceil(all.length / size) };
+      await sleep(state.productDelay);if(state.productError){code=503;body={error:'Fixture products unavailable'};}
     } else if (/^\/api\/products\/\d+$/.test(path)) { body=product(Number(path.split('/').at(-1)));if(state.catalogUnavailable){code=404;body={error:'Catalog label unavailable'};}
     } else if (path === '/api/utility/seasons' && method === 'GET') body = { items: state.seasons.slice(page * size, (page + 1) * size), page, pageSize: size, totalElements: state.seasons.length };
     else if (path === '/api/utility/seasons' && method === 'POST') {
@@ -168,7 +337,7 @@ async function paused({ requestId, request }) {
       else if (method === 'PUT') { if (!members.some(p => p.productId === pid)) members.push({ ...product(pid), productId: pid, assignedBy: 12, assignedAt: '2026-11-05T02:00:00Z' }); state.memberships.set(id, members); code = state.assignExisting ? 200 : 201; emptyBody = true; }
       else { state.memberships.set(id, members.filter(p => p.productId !== pid)); code = 204; emptyBody = true; }
       state.seasons.find(s => s.seasonId === id).productCount = state.memberships.get(id).length;
-    } else if (/^\/api\/utility\/products\/\d+\/scores$/.test(path) && method === 'GET') { const result = { ...structuredClone(state.scores), productId: Number(path.split('/')[4]) }; await sleep(state.scoreDelay); body = result; }
+    } else if (/^\/api\/utility\/products\/\d+\/scores$/.test(path) && method === 'GET') { const result = { ...structuredClone(state.scores), productId: state.wrongScore?999:Number(path.split('/')[4]) }; const scoreError=state.scoreError;await sleep(state.scoreDelay); body = result;if(scoreError){code=503;body={error:'Fixture priorities unavailable'};} }
     else if (path === '/api/utility/expiry-push-batches') {
       body = { items: [{ productId: Number(url.searchParams.get('productId') || 1), batchId: page + 1, pushDay: '2026-11-03', expiryDate: null, remainingQuantity: 12, daysToPush: -2 }], page, pageSize: size, totalElements: 21, asOfDate: url.searchParams.get('asOfDate') || '2026-11-05', timeZone: 'Asia/Ho_Chi_Minh', warnings: [] };
       if (state.expiryEmpty) body = { ...body, items: [], totalElements: 0 }; if (state.expiryError) { code = 503; body = { error: 'Fixture expiry unavailable' }; }
@@ -327,23 +496,7 @@ try {
   state.seasons = Array.from({ length: 21 }, (_, i) => ({ ...season, seasonId: i + 1000, name: `Paged Season ${i + 1}` })); await click('Refresh Seasons'); await has('Paged Season 1'); await pageNext('seasons'); await has('Paged Season 21'); await has('Page 2 of 2'); state.seasons = savedSeasons; await click('Refresh Seasons'); await has('Holiday');
   await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   checks.push('One dialog DOM node across overview/edit/confirmation; three summary cards and top actions; safe Save/Escape, unsaved Keep/Discard/Cancel, native focus trap/restore, read-only access, server-only status, real pagination, 45 assigned products and 390/820/1440 modal bounds');
-  const beforeProduct=calls.length;await tab('Product Weights');await has('Product Priority Details');await sleep(100);assert.equal(calls.slice(beforeProduct).some(c=>c.path==='/api/utility/expiry-push-batches'),false,'no Store-wide batch read before choosing a product');await click('View All Batches Due for Push');await has('2 days overdue');assert.equal(calls.filter(c=>c.path==='/api/utility/expiry-push-batches').at(-1).query.includes('productId='),false);await click('Hide All Batches');await has('Select a product to see its batches');await choose(1); await has('Selected Season'); await has('Holiday'); await has('2 days overdue');
-  assert.equal(await evaluate("!!document.querySelector('input[aria-label=\"Stock Priority Score\"],input[aria-label=\"Seasonal Priority Score\"]')"), false);
-  state.scores = { ...structuredClone(scores), seasonId: 3, seasonWeight: 0.9, asOfDate: '2026-11-05', activeSeasons: [
-    { ...scores.activeSeasons[0], seasonId: 7, name: 'Equal Weight Later ID', startDate: '2026-11-05', endDate: '2026-11-05', weight: 0.9 },
-    { ...scores.activeSeasons[0], seasonId: 3, name: 'Backend Selected Season', startDate: '2026-11-05', endDate: '2026-11-05', weight: 0.9 },
-    { ...scores.activeSeasons[0], seasonId: 2, name: 'Lower Weight', weight: 0.8 }
-  ] };
-  await click('Refresh Weights'); await has('Backend Selected Season');
-  assert.equal(await evaluate("[...document.querySelectorAll('dt')].find(e=>e.innerText==='Selected Season').nextElementSibling.innerText"), 'Backend Selected Season');
-  state.scores = { ...structuredClone(scores), seasonId: null, seasonWeight: 0, activeSeasons: [], expiryRisk: 0, batchesMissingPushDay: [10], warnings: ['MISSING_PUSH_DAY', 'SLOW_MOVING_NO_RECENT_SALES'] };
-  await click('Refresh Weights'); await has('No active season');await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('warnings')).parentElement.open=true"); await has('no Push Day'); await has('No recent sales');
-  state.scores = { ...state.scores, ready: false, lambdaValid: false, weightValue: null }; await click('Refresh Weights'); await has('Unavailable'); await has('Priority Strength exceeds');
-  state.scores = structuredClone(scores); state.scoreDelay = 600; await click('Refresh Weights'); await choose(2); state.scoreDelay = 0; await has('Product 002'); await has('Readiness'); await sleep(650);
-  assert.equal(await evaluate(visible + '.includes("Product 002")'), true);
-  await input('Push Analysis Date', '2026-11-10'); await has('As of 10/11/2026'); assert.ok(calls.some(c => c.path === '/api/utility/expiry-push-batches' && c.query.includes('productId=2') && c.query.includes('asOfDate=2026-11-10')));
-  state.expiryEmpty = true; await click('Refresh Batches'); await has('No batches are due'); state.expiryEmpty = false; state.expiryError = true; await click('Refresh Batches'); await has('Fixture expiry unavailable'); state.expiryError = false; await click('Refresh Batches'); await has('2 days overdue');
-  await capture('product-weights-1440'); checks.push('GET-only weight details, no active season, simultaneous warnings, unavailable Weight, delayed selection, Push Day filters/null expiry/negative days/empty/error');
+  await merchantProductChecks();
 
   await tab('Preview'); await input('Start Date', '2026-10-01'); await input('End Date', '2026-10-31'); await input('Analysis Date', '2026-11-05');
   assert.equal(await evaluate("document.querySelector('input[aria-label=\"Start Date\"]').value"), '01/10/2026');
@@ -352,11 +505,11 @@ try {
   assert.equal(await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('3 warnings')).parentElement.open"),false,'warning list starts collapsed');
   await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('View Issue')).parentElement.open=true");
   assert.equal(await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('View Issue')).parentElement.innerText.includes('Unlinked warning')"),false,'unlinked warning is never attached to a row');
-  assert.equal(await evaluate("document.querySelector('.f03-data-table thead button').disabled"),true,'partial matrix cannot be sorted as a page');
-  state.singleMatrix=true;state.warnings=[];await click('Calculate Preview');await until("document.querySelector('.f03-data-table tbody').rows.length===2",'complete matrix');
-  const sortPosts=count('/api/utility/preview');await click('Transaction');await until("document.querySelector('.f03-data-table th[aria-sort=ascending]')!==null",'ascending sort');await evaluate("document.querySelector('.f03-data-table thead button').click()");
-  await until("document.querySelector('.f03-data-table tbody tr td').innerText==='#2'",'whole dataset sort');assert.equal(count('/api/utility/preview'),sortPosts,'sorting does not recalculate utility');
-  state.singleMatrix=false;await click('Calculate Preview');await until("document.querySelector('.f03-data-table tbody').rows.length===20",'paged matrix restored');
+  assert.equal(await evaluate("document.querySelector('.f03-data-table:not(.f03-catalog-table) thead button').disabled"),true,'partial matrix cannot be sorted as a page');
+  state.singleMatrix=true;state.warnings=[];await click('Calculate Preview');await until("document.querySelector('.f03-data-table:not(.f03-catalog-table) tbody').rows.length===2",'complete matrix');
+  const sortPosts=count('/api/utility/preview');await click('Transaction');await until("document.querySelector('.f03-data-table:not(.f03-catalog-table) th[aria-sort=ascending]')!==null",'ascending sort');await evaluate("document.querySelector('.f03-data-table:not(.f03-catalog-table) thead button').click()");
+  await until("document.querySelector('.f03-data-table:not(.f03-catalog-table) tbody tr td').innerText==='#2'",'whole dataset sort');assert.equal(count('/api/utility/preview'),sortPosts,'sorting does not recalculate utility');
+  state.singleMatrix=false;await click('Calculate Preview');await until("document.querySelector('.f03-data-table:not(.f03-catalog-table) tbody').rows.length===20",'paged matrix restored');
   checks.push('importance tenths preserve legacy precision; explicit all-Store push scope; product names; collapsed and exactly linked warnings; complete-dataset sort only, without Preview replay');
   const beforeInvalidDate = count('/api/utility/preview'); await input('Start Date', '31/04/2026'); await click('Calculate Preview'); await has('Enter a valid date'); assert.equal(count('/api/utility/preview'), beforeInvalidDate);
   await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); await tab('Preview'); await input('Start Date', '2026-10-01');
@@ -412,15 +565,11 @@ try {
   checks.push('W2 and both frozen legacy snapshots, unknown scoring version blocked without retry, matrix 403');
 
   await savedSnapshotUiChecks();
-  await session('Store Admin', '/f03/configuration'); await has('Read-only configuration'); assert.equal(await enabled('Save Configuration'), false);
-  await tab('Seasons'); await has('Holiday'); assert.equal(await enabled('Add Season'), false); await openSeason('Holiday'); await has('Assigned Products'); assert.equal(await enabled('Assign Product'), false); assert.equal(await evaluate("document.querySelector('[data-season-identity]').querySelectorAll('button').length"),0); assert.equal(await evaluate("(()=>{const rows=[...document.querySelectorAll('.f03-season-list-row')];return rows.length>0&&rows.every(r=>r.querySelectorAll('button').length===1&&r.querySelector('button').innerText==='View')})()"),true); await capture('store-admin-read-only-modal'); await click('Close');
-  await tab('Product Weights'); await choose(1); await has('Readiness');
-  for (const width of [1440, 820, 390]) { await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 }); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('store-admin-weights-' + width); }
-  await tab('Snapshots'); await has('Details require Merchandiser access'); assert.equal(await enabled('Create Snapshot'), false); assert.equal(await enabled('Preview'), false);
+  await storeAdminChecks();
   const featureCalls = () => calls.filter(c => !c.path.startsWith('/api/auth/')).length, beforeDenied = featureCalls();
   for (const [role, path] of [['Store Admin', '/f03/preview'], ['Store Admin', '/f03/snapshot/detail?id=21'], ['System Admin', '/f03/seasons'], ['End-Customer', '/f03/seasons']]) { await session(role, path); await has('Access Restricted'); }
   assert.equal(featureCalls(), beforeDenied);
-  await session('Store Admin', '/f03/expiry-window'); await has('Product Weight Details');
+  await session('Store Admin', '/f03/expiry-window'); await has('Product Weights');
   await session('Merchandiser', '/f03/snapshot'); await has('Utility Snapshots'); assert.equal(await enabled('Create Snapshot'), false);
   await session('Merchandiser'); await has('Save Configuration');
   for (const width of [390, 820]) {

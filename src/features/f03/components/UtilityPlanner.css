@@ -55,17 +55,30 @@
 .f03-data-table tbody th { background: transparent; font-size: inherit; color: inherit; border-top: 1px solid #eee7df; }
 .f03-merchant .f03-table { table-layout: fixed; }
 .f03-merchant .f03-table th, .f03-merchant .f03-table td { white-space: normal; overflow-wrap: anywhere; }
+.f03-catalog-table > thead > tr > th { height: 56px; padding-top: 6px; padding-bottom: 6px; vertical-align: middle; }
+.f03-product-view { padding: .5rem .625rem; font-size: .75rem; white-space: nowrap; }
+.f03-product-dialog dialog header p { overflow-wrap: anywhere; }
 
 /* Compact snapshot rows group status, warnings and Details at the right. */
 .f03-snapshot-list { display: grid; gap: .5rem; }
-.f03-snapshot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; min-width: 0; gap: .625rem 1rem; padding: .625rem .875rem; border: 1px solid #e7e2d8; border-radius: .75rem; background: #fff; }
-.f03-snapshot-identity { flex: 1 1 13rem; min-width: 0; overflow-wrap: anywhere; }
-.f03-snapshot-controls { display: flex; flex: 0 0 19rem; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; max-width: 100%; margin-left: auto; }
+.f03-snapshot-row { display: grid; grid-template-areas: 'identity' 'metrics' 'controls'; min-width: 0; align-items: center; gap: .5rem 1rem; padding: .625rem .875rem; border: 1px solid #e7e2d8; border-radius: .75rem; background: #fff; }
+.f03-snapshot-identity { grid-area: identity; min-width: 0; overflow-wrap: anywhere; }
+.f03-snapshot-metrics { grid-area: metrics; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: .75rem; min-width: 0; }
+.f03-snapshot-metrics > div { min-width: 0; }
+.f03-snapshot-metrics dt { color: #6d7974; font-size: 11px; line-height: 16px; }
+.f03-snapshot-metrics dd { margin-top: 2px; font-size: 13px; line-height: 20px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.f03-snapshot-controls { grid-area: controls; display: flex; align-items: center; justify-content: flex-end; gap: .5rem; min-width: 0; }
 .f03-snapshot-status { display: flex; align-items: center; justify-content: center; min-width: 0; }
 .f03-snapshot-controls > button { flex-shrink: 0; }
 @media (max-width: 639px) {
-  .f03-snapshot-controls { display: grid; grid-template-areas: 'status action' 'warning action'; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 1.5rem 1.5rem; flex-basis: 100%; justify-items: start; gap: .25rem .5rem; }
+  .f03-snapshot-controls { display: grid; grid-template-areas: 'status action' 'warning action'; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 1.5rem 1.5rem; justify-items: start; gap: .25rem .5rem; }
   .f03-snapshot-status { grid-area: status; }
   .f03-snapshot-warning { grid-area: warning; }
   .f03-snapshot-controls > button { grid-area: action; }
+}
+@media (min-width: 640px) and (max-width: 1279px) {
+  .f03-snapshot-row { grid-template-areas: 'identity metrics' 'controls controls'; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+}
+@media (min-width: 1280px) {
+  .f03-snapshot-row { grid-template-areas: 'identity metrics controls'; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; }
 }

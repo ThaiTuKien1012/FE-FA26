@@ -75,13 +75,13 @@ test('Snapshot Details shows all warnings with originals and counts without a po
   const empty = renderToStaticMarkup(createElement(SnapshotWarnings, { snapshot: snapshot(6) }));
   assert.ok(empty.includes('No warnings were recorded'));
 });
-test('Snapshot list keeps only identity, period, status and actions without changing data or order', () => {
+test('Snapshot list shows saved analysis date and utility without exposing technical metadata or changing order', () => {
   const saved = { ...snapshot(6), totalWeightedUtility: 1234567.123456, warnings: ['MISSING_PUSH_DAY'] };
   const items = [saved, { ...snapshot(5), status: 'PROCESSING' }];
   const before = JSON.stringify(items);
   const html = renderToStaticMarkup(createElement(MerchantSnapshotList, { items, busy: false }));
-  for (const label of ['Saved snapshots', 'Sales period', 'Status:', 'READY', 'PROCESSING']) assert.ok(html.includes(label), label);
-  for (const hidden of ['Analysis date', 'Total weighted utility', 'Created at', '1,234,567.123456', '05/11/2026 02:00 UTC']) assert.equal(html.includes(hidden), false, hidden + ' belongs in Details');
+  for (const label of ['Saved snapshots', 'Sales period', 'Analysis date', 'Total weighted utility', '1,234,567.123456', '05/11/2026', 'Status:', 'READY', 'PROCESSING']) assert.ok(html.includes(label), label);
+  for (const hidden of ['Created at', 'Scoring Version', '05/11/2026 02:00 UTC']) assert.equal(html.includes(hidden), false, hidden + ' belongs in Details');
   assert.equal((html.match(/<li\b/g) ?? []).length, 2);
   assert.equal((html.match(/<h3\b/g) ?? []).length, 2);
   assert.equal((html.match(/<button\b/g) ?? []).length, 2);

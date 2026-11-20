@@ -244,8 +244,8 @@ try {
   await has('SKU must be 15 characters'); assert.equal(writes().length, legacyWrites); assert.equal(legacyProduct.sku, 'FM26-0001');
   await capture('product-legacy-sku-blocker'); await click('Cancel'); legacyProduct.sku = savedLegacySku;
   await input('Search name or SKU', 'Fixture'); await productColumnFilter('Category', '1'); await productColumnFilter('Status', 'ACTIVE');
-  for (const [label, field] of [['SKU','sku'], ['Product name','name'], ['Category','category'], ['Unit','unit'], ['Cost price','costPrice'], ['Selling price','sellingPrice'], ['Expiry tracking','requiresExpiry'], ['Total stock','stockQuantity'], ['Status','status']]) {
-    const beforeSort = calls.length; if(field === 'unit') await input('Product sort field', field, 'select'); else await ariaClick('Sort by ' + label);
+  for (const [label, field] of [['SKU','sku'], ['Product name','name'], ['Category','category'],  ['Cost price','costPrice'], ['Selling price','sellingPrice'], ['Expiry tracking','requiresExpiry'], ['Total stock','stockQuantity'], ['Status','status']]) {
+    const beforeSort = calls.length; await ariaClick('Sort by ' + label);
     await waitFor(()=>calls.slice(beforeSort).some(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('sortBy')===field), 'Server sort ' + field);
     await until("document.querySelector('[aria-label=\"Product table\"]')?.closest('[aria-busy]').getAttribute('aria-busy')==='false'", 'Sort settled');
   }

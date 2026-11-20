@@ -8,10 +8,11 @@ import { BackToSnapshots, Button, errorMessage, Metrics, navigate, Notice, Pager
 import type { PreviewFlow } from './UtilityPreview';
 import { MerchantSnapshotList } from './MerchantSnapshotList';
 import { SnapshotWarnings } from './SnapshotWarnings';
+import { SnapshotMetadataDetails } from './SnapshotMetadataDetails';
 import { FrozenConfiguration, Matrix, MatrixMetadata } from './UtilityMatrix';
 import type { F03MatrixPage } from '../f03.api';
 
-export function UtilitySnapshots({ flow, readOnly, invalidate, isCurrent }: { flow: PreviewFlow; readOnly: boolean; invalidate: (reason: string) => void; isCurrent: () => boolean }) {
+export function UtilitySnapshots({ flow, readOnly, invalidate, isCurrent, active = true }: { flow: PreviewFlow; readOnly: boolean; invalidate: (reason: string) => void; isCurrent: () => boolean; active?: boolean }) {
   const [created, setCreated] = useState<F03Snapshot | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -63,15 +64,17 @@ export function UtilitySnapshots({ flow, readOnly, invalidate, isCurrent }: { fl
         <details className="border-t border-[#e7e2d8] pt-3 text-xs leading-relaxed text-[#6d7974]"><summary className="w-fit cursor-pointer rounded font-medium text-[#356b54]">How snapshots work</summary><p className="mt-2">Snapshots are immutable. When saving, the backend checks the configuration, Lambda Policy and source data again. If they changed after Preview, the saved snapshot may differ from Preview.</p></details>
       </div>
     </Section>}
-    <SnapshotHistory refresh={refresh} readOnly={readOnly} />
+    <SnapshotHistory refresh={refresh} readOnly={readOnly} active={active} />
   </div>;
 }
-export function SnapshotHistory({ refresh, readOnly }: { refresh: number; readOnly: boolean }) {
+export function SnapshotHistory({ refresh, readOnly, active = true }: { refresh: number; readOnly: boolean; active?: boolean }) {
   const [result, setResult] = useState<F03SnapshotPage | null>(null);
   const [page, setPage] = useState(0);
   const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selected, setSelected] = useState<{ snapshot: F03Snapshot; opener: HTMLElement } | null>(null);
+  useEffect(() => { if (!active) setSelected(null); }, [active]);
   useEffect(() => { setPage(0); }, [refresh]);
   useEffect(() => {
     let live = true; setLoading(true); setError('');
@@ -83,11 +86,16 @@ export function SnapshotHistory({ refresh, readOnly }: { refresh: number; readOn
     }).catch(e => { if (live) { setResult(null); setError(errorMessage(e, 'Unable to load saved snapshots.')); } }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [page, reload, refresh]);
-  return <Section title={readOnly ? "Saved Snapshots – Ready for Mining" : "Saved Snapshots"} subtitle={readOnly ? "Snapshot History for this Store includes READY snapshots only, newest first. Other statuses are not included." : "Saved READY datasets, newest first. Warnings do not mean the snapshot failed."} action={!readOnly && <Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh Snapshots</Button>}>
-    {readOnly && <Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh History</Button>}<Notice error={error} />
-    {loading && <p role="status">Loading saved snapshots…</p>}
-    {result && <div aria-busy={loading} className={loading ? "pointer-events-none opacity-60" : ""}>{result.items.length ? !readOnly ? <MerchantSnapshotList items={result.items} busy={loading} /> : <div className="overflow-x-auto"><table className="f03-table"><caption className="sr-only">Saved READY snapshots</caption><thead><tr>{['Snapshot ID', 'Sales Period', 'Analysis Date', 'Total Weighted Utility', 'Status', 'Created At', 'Action'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{result.items.map(snapshot => <tr key={snapshot.snapshotId}><td className="font-semibold">#{snapshot.snapshotId}</td><td>{formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)}</td><td>{formatDate(snapshot.asOfDate)}</td><td>{snapshot.totalWeightedUtility}</td><td><span className="rounded-full bg-[#eef5f0] px-2.5 py-1 text-xs font-semibold text-[#356b54]">{snapshot.status === 'READY' ? 'READY' : readable(snapshot.status)}</span></td><td>{formatUtcDateTime(snapshot.createdAt)}</td><td>{readOnly ? <span className="text-xs text-[#6d7974]">Details require Merchandiser access</span> : <Button className={secondary} aria-label={`View Details for Snapshot #${snapshot.snapshotId}`} onClick={() => navigate('f03-snapshot-detail', snapshot.snapshotId)}>View Details</Button>}</td></tr>)}</tbody></table></div> : readOnly ? <p className="py-5 text-sm text-[#6d7974]">No READY snapshots were returned for this page. A Merchandiser can create a snapshot after reviewing Preview.</p> : <MerchantSnapshotList items={[]} busy={loading} />}<Pager hideSingle={!readOnly} page={result} onChange={setPage} label="snapshots" busy={loading} /></div>}
-  </Section>;
+  return <>
+    <Section title="Saved Snapshots" subtitle="Saved READY datasets, newest first. Warnings do not mean the snapshot failed." action={<Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh Snapshots</Button>}>
+      <Notice error={error} />{loading && <p role="status">Loading saved snapshots...</p>}
+      {result && <div aria-busy={loading} className={loading ? 'pointer-events-none opacity-60' : ''}>
+        <MerchantSnapshotList items={result.items} busy={loading} readOnly={readOnly} onView={readOnly ? (snapshot, opener) => setSelected({ snapshot, opener }) : undefined} />
+        <Pager hideSingle page={result} onChange={setPage} label="snapshots" busy={loading} />
+      </div>}
+    </Section>
+    {readOnly && active && selected && <SnapshotMetadataDetails snapshot={selected.snapshot} opener={selected.opener} onClose={() => setSelected(null)} />}
+  </>;
 }
 
 export function SnapshotDetails({ id, names }: { id: number; names: Record<number, string> }) {

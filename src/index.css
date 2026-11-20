@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./components/common/AppDatePicker.css";
 @import "./features/store/components/F02Table.css";
+@import "./components/common/ProductTableHeader.css";
 
 @layer base {
   :root {

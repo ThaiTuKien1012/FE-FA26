@@ -201,13 +201,22 @@ async function tableChecks() {
   await click('Next'); await navigate('/store/inventory'); await settled('Product'); await navigate('/store/categories'); await settled('Category'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='2'", 'Page 2 selected');
   checks.push('Category toolbar name/status AND, numeric/Vietnamese sort over full data before pagination; saved state; no header filters');
 
+  await page.evaluate("sessionStorage.setItem('f02-products-view-state',JSON.stringify({page:1,query:'SKU-',categoryId:'1',status:'ACTIVE',sortBy:'unit',sortDirection:'desc'}))");
   await navigate('/store/inventory'); await settled('Product'); await noHeaderFilters();
-  for (const [label,field] of [['SKU','sku'],['Product name','name'],['Category','category'],['Unit','unit'],['Cost price','costPrice'],['Selling price','sellingPrice'],['Expiry tracking','requiresExpiry'],['Total stock','stockQuantity'],['Status','status']]) {
-    if(field==='unit') await input('Product sort field',field,'select'); else await ariaClick('Sort by '+label);
+  const restoredQuery=new URLSearchParams(calls.filter(c=>c.path==='/api/products'&&c.method==='GET').at(-1).query);
+  assert.equal(restoredQuery.get('sortBy'),'name');assert.equal(restoredQuery.get('sortDirection'),'desc');assert.equal(restoredQuery.get('page'),'1');
+  assert.equal(restoredQuery.get('search'),'SKU-');assert.equal(restoredQuery.get('categoryId'),'1');assert.equal(restoredQuery.get('status'),'ACTIVE');
+  assert.equal(await page.evaluate("JSON.parse(sessionStorage.getItem('f02-products-view-state')).sortBy"),'name','Legacy Unit sorting is migrated without clearing page/filters');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f02-product-table thead th')].every(e=>e.querySelectorAll('button').length<=1)&&!document.querySelector('.f02-product-table button[aria-label=\"Sort by Unit\"]')"),true,'One sort action per column; Product only sorts Name');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f02-product-table thead th')].every(e=>getComputedStyle(e).fontSize==='13px'&&getComputedStyle(e).fontWeight==='600')&&[...document.querySelectorAll('.f02-product-table .paspm-product-sort')].every(e=>getComputedStyle(e).color==='rgb(75, 85, 99)'&&getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(e).fontWeight===(e.dataset.active==='true'?'700':'600'))"),true,'Clear neutral headers without selected green background');
+  assert.equal(await page.evaluate("document.querySelectorAll('.f02-product-sort,select[aria-label=\"Product sort field\"],button[aria-label=\"Toggle product sort direction\"]').length"),0,'Sorting is only in product headers');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f02-product-table .paspm-product-sort svg')].every(e=>getComputedStyle(e).width==='14px'&&getComputedStyle(e).height==='14px')"),true,'Shared product sort icons have stable dimensions');
+  for (const [label,field] of [['SKU','sku'],['Product name','name'],['Category','category'],['Cost price','costPrice'],['Selling price','sellingPrice'],['Expiry tracking','requiresExpiry'],['Total stock','stockQuantity'],['Status','status']]) {
+    await ariaClick('Sort by '+label);
     await settled('Product'); let query=new URLSearchParams(calls.filter(c=>c.path==='/api/products'&&c.method==='GET').at(-1).query);
     assert.equal(query.get('sortBy'),field);
     const direction=query.get('sortDirection');
-    if(field==='unit') await ariaClick('Toggle product sort direction'); else await ariaClick('Sort by '+label);
+    await ariaClick('Sort by '+label);
     await settled('Product'); query=new URLSearchParams(calls.filter(c=>c.path==='/api/products'&&c.method==='GET').at(-1).query);
     assert.equal(query.get('sortDirection'),direction==='asc'?'desc':'asc');
   }
@@ -230,9 +239,10 @@ async function tableChecks() {
   const fullPageHeight=(await metrics()).height;
   await input('Search name or SKU',products.find(product=>product.id===3).sku); await settled('Product');
   assert.equal(await page.evaluate("(()=>{const r=document.querySelector('[aria-label=\"Product table\"]'),cells=r.querySelector('tbody tr').cells;return r.scrollWidth<=r.clientWidth+1&&cells[3].querySelector('[title]').title==='987,654,321.25 ₫'&&cells[4].querySelector('[title]').title==='1,234,567,890.75 ₫'&&cells[8].querySelector('button').getBoundingClientRect().right<=innerWidth})()"),true,'Large distinct prices retain full tooltips and visible Edit');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f02-product-table .f02-cell-amount')].every(e=>e.scrollWidth<=e.clientWidth+1)"),true,'Large amounts remain fully readable without clipping');
   assert.ok((await metrics()).height < fullPageHeight / 2, 'One-row page shrinks to its content'); await capture('products-large-prices-1280');
   await click('Clear filters'); await settled('Product'); await page.call('Emulation.setDeviceMetricsOverride',{width:1366,height:900,deviceScaleFactor:1,mobile:false});
-  checks.push('All 9 Backend sort fields retained (Unit via sort selector); toolbar queries whitelist; DOM/width/height/focus/scroll stable through held refetch; legacy SKU preserved');
+  checks.push('All 8 displayed Backend sort fields use single-action headers; toolbar queries whitelist; DOM/width/height/focus/scroll stable through held refetch; legacy SKU preserved');
 
   await click('Add product'); await has('Choose a previous unit or enter a new one.');
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').placeholder"),'SKU-00000000001');
@@ -305,7 +315,8 @@ try {
         const layout=await page.evaluate('(()=>{const r=document.querySelector(\'[aria-label="Product table"]\'),t=r.querySelector("table"),cards=r.querySelector(".f02-product-cards"),desktop=t.getClientRects().length>0;return {desktop,width:r.clientWidth,scrollWidth:r.scrollWidth,tableWidth:t.getBoundingClientRect().width,sku:[...r.querySelectorAll(desktop?"tbody tr:not(.f02-table-empty) .f02-product-sku":".f02-product-card .f02-product-sku")].every(e=>e.scrollWidth<=e.clientWidth+1),edits:[...r.querySelectorAll(desktop?"table .f02-product-edit":".f02-product-cards .f02-product-edit")].every(e=>{const b=e.getBoundingClientRect(),c=e.closest(desktop?"td":"article").getBoundingClientRect();return b.width>20&&b.left>=c.left&&b.right<=c.right&&b.right<=innerWidth}),headers:[...t.querySelectorAll("th")].map(e=>e.innerText.trim())}})()');
         assert.equal(layout.desktop,width>=1280,'Table on desktop; cards on smaller widths');
         assert.equal(layout.scrollWidth<=layout.width+1,true,'No horizontal Product scroll '+width); assert.equal(layout.sku,true,'Full SKU visible '+width); assert.equal(layout.edits,true,'Edit fits its cell/card and viewport '+width);
-        if(width>=1280) assert.deepEqual(layout.headers,['SKU','PRODUCT','CATEGORY','COST','SELLING','EXPIRY','STOCK','STATUS','ACTIONS']);
+        if(width>=1280) assert.deepEqual(layout.headers,['SKU','Product','Category','Cost','Selling','Expiry','Stock','Status','Actions']);
+        if(width>=1280) assert.equal(await page.evaluate("(()=>{const t=document.querySelector('.f02-product-table'),r=t.tBodies[0].rows[0],name=r.cells[1].querySelector('.f02-cell-text'),unit=r.cells[1].querySelector('.f02-product-unit'),edit=r.querySelector('.f02-product-edit');return r.cells[1].getBoundingClientRect().width/t.getBoundingClientRect().width<.21&&getComputedStyle(name).webkitLineClamp==='2'&&unit.getBoundingClientRect().top>=name.getBoundingClientRect().bottom&&edit.innerText==='Edit'&&Boolean(edit.querySelector('.lucide-pencil'))&&getComputedStyle(edit).borderTopWidth==='1px'&&getComputedStyle(edit).whiteSpace==='nowrap'})()"),true,'Balanced Product column, two-line name, Unit below and bordered Pencil Edit '+width);
         measurements.push({viewport:width,...layout});
         if(width===1366) {
           await page.evaluate("document.querySelector('.f02-product-edit').scrollIntoView({block:'center'})");

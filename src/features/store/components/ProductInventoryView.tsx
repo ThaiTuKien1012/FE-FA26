@@ -1,12 +1,14 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Ban, Check, Package, Plus, RefreshCw, X, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Ban, Check, Package, Pencil, Plus, RefreshCw, X, type LucideIcon } from 'lucide-react';
+import { ProductTableHeader } from '../../../components/common/ProductTableHeader';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Category, type F02Product, type F02Status } from '../store.api';
 import { emptyProductForm, legacySkuMessage, money, normalizeSku, productRequest, validSku, type ProductForm } from '../f02.forms';
 import { F02Dialog } from './F02Dialog';
 import { ProductNameConfirmation, useProductSave } from './ProductNameConfirmation';
-import { F02FilterSummary, F02TableFrame, F02TableHeader, F02TablePagination, F02TableEmpty } from './F02Table';
+import { F02FilterSummary, F02TableFrame, F02TablePagination, F02TableEmpty } from './F02Table';
 import { ProductUnitInput, productUnitScope, rememberProductUnit } from './ProductUnitInput';
 import { nextTableSort, type SortDirection } from '../f02.tables';
+import { restoreProductViewState } from '../f02.product-view';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-[#e7e2d8] bg-white p-2 outline-none focus:border-[#1e3a2f]';
 export const productForm = (p: F02Product): ProductForm => ({ sku: p.sku, name: p.name, categoryId: p.category ? String(p.category.id) : '', unit: p.unit, requiresExpiry: p.requiresExpiry, sellingPrice: String(p.sellingPrice), costPrice: String(p.costPrice), status: p.status });
@@ -27,14 +29,13 @@ export function ProductFields({ form, categories, onChange, product }: { form: P
   </>;
 }
 
-const productSorts = ['name', 'sku', 'category', 'unit', 'costPrice', 'sellingPrice', 'status', 'requiresExpiry', 'stockQuantity'];
 const productViewStateKey = 'f02-products-view-state';
-const readProductViewState = () => { try { return JSON.parse(sessionStorage.getItem(productViewStateKey) || '{}') as { page?: number; query?: string; status?: string; categoryId?: string; sortBy?: string; sortDirection?: string }; } catch { return {}; } };
+const readProductViewState = () => { try { return restoreProductViewState(sessionStorage.getItem(productViewStateKey)); } catch { return restoreProductViewState(null); } };
 export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void }> = () => {
   const canManage = canManageCatalog(), restoredState = readProductViewState(), unitScope = productUnitScope();
   const [products, setProducts] = useState<F02Product[]>([]), [categories, setCategories] = useState<F02Category[]>([]);
   const [page, setPage] = useState(restoredState.page ?? 0), [totalPages, setTotalPages] = useState(1);
-  const [sortBy, setSortBy] = useState(productSorts.includes(restoredState.sortBy || '') ? restoredState.sortBy! : 'name');
+  const [sortBy, setSortBy] = useState<string>(restoredState.sortBy);
   const [sortDirection, setSortDirection] = useState<SortDirection>(restoredState.sortDirection === 'desc' ? 'desc' : 'asc');
   const sort = (field: string) => { const next = nextTableSort({ by: sortBy, direction: sortDirection }, field); setSortBy(next.by); setSortDirection(next.direction); setPage(0); };
   const [totalElements, setTotalElements] = useState(0);
@@ -62,7 +63,7 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
     } catch (e) { if (version === requestVersion.current) setLoadError(f02ErrorMessage(e)); }
     finally { if (version === requestVersion.current) setLoading(false); }
   };
-  useEffect(() => { sessionStorage.setItem(productViewStateKey, JSON.stringify({ page, query, status, categoryId, sortBy, sortDirection })); }, [page, query, status, categoryId, sortBy, sortDirection]);
+  useEffect(() => { try { sessionStorage.setItem(productViewStateKey, JSON.stringify({ page, query, status, categoryId, sortBy, sortDirection })); } catch { /* Catalog remains usable if preferences cannot be saved. */ } }, [page, query, status, categoryId, sortBy, sortDirection]);
   useEffect(() => { void load(); return () => { ++requestVersion.current; }; }, [query, status, categoryId, page, sortBy, sortDirection]);
   const stats = useMemo(() => ({ total: products.length, active: products.filter(p => p.status === 'ACTIVE').length, inactive: products.filter(p => p.status === 'INACTIVE').length, noStock: products.filter(p => p.stockQuantity === 0).length }), [products]);
   const statCards: Array<[string, number, LucideIcon, string]> = [['Products · current page', stats.total, Package, 'text-[#1e3a2f]'], ['Active · current page', stats.active, Check, 'text-[#059669]'], ['Inactive · current page', stats.inactive, AlertTriangle, 'text-[#b45309]'], ['Out of stock · current page', stats.noStock, Ban, 'text-[#dc2626]']];
@@ -82,7 +83,7 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
   const clearFilters = () => { setQuery(''); setCategoryId(''); setStatus(''); setPage(0); };
   const editProduct = (product: F02Product) => { setEditing(product); setForm(productForm(product)); setFormError(''); productSave.clearError(); setNotice(null); setShowForm(true); };
   const statusButton = (product: F02Product) => <button disabled={!canManage || busy || loading} onClick={() => void toggleStatus(product)} aria-label={'Change status for ' + product.name} title={'Change status for ' + product.name} className={'f02-status-button rounded-full px-2 py-1 text-xs font-semibold disabled:cursor-default ' + (product.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700')}>{product.status === 'ACTIVE' ? 'Active' : 'Inactive'}</button>;
-  const editButton = (product: F02Product) => canManage && <button disabled={busy || loading} onClick={() => editProduct(product)} title={'Edit ' + product.name} className="f02-product-edit">Edit</button>;
+  const editButton = (product: F02Product) => canManage && <button disabled={busy || loading} onClick={() => editProduct(product)} aria-label={'Edit ' + product.name} title={'Edit ' + product.name} className="f02-product-edit"><Pencil aria-hidden="true" />Edit</button>;
   const emptyMessage = loading ? 'Loading products...' : loadError ? 'Product data is unavailable. Please retry.' : query || status || categoryId ? 'No matching products.' : 'This store has no products yet.';
   return <div className="f02-product-view f02-wide-table-view mx-auto max-w-[1680px] space-y-6 bg-[#faf8f5] text-[#191c1b]">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold tracking-tight">Product Management</h1><p className="mt-1 text-[#6d7974]">Manage your store's products, pricing, status, and stock information.</p></div><div className="flex gap-2"><button aria-label="Refresh products" disabled={busy || loading} onClick={() => void load()} className="rounded-lg border border-[#e7e2d8] bg-white p-3 text-[#1e3a2f] shadow-sm disabled:opacity-40"><RefreshCw className="h-4 w-4" /></button>{canManage && <button disabled={busy || loading || Boolean(loadError)} onClick={() => { setEditing(null); setForm(emptyProductForm); setFormError(''); productSave.clearError(); setNotice(null); setShowForm(true); }} className="inline-flex items-center gap-2 rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white shadow-sm disabled:opacity-40"><Plus className="h-4 w-4" /> Add product</button>}</div></div>
@@ -95,11 +96,10 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
       <label>Status<select aria-label="Filter by status" disabled={busy} value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label>
       <F02FilterSummary active={Boolean(query || categoryId || status)} onClearAll={clearFilters} />
     </div>
-    <div className="f02-product-sort"><label>Sort by<select aria-label="Product sort field" disabled={busy} value={sortBy} onChange={e => { setSortBy(e.target.value); setSortDirection('asc'); setPage(0); }}>{[['name','Product name'],['sku','SKU'],['category','Category'],['unit','Unit'],['costPrice','Cost price'],['sellingPrice','Selling price'],['requiresExpiry','Expiry tracking'],['stockQuantity','Total stock'],['status','Status']].map(([field,label]) => <option key={field} value={field}>{label}</option>)}</select></label><button type="button" aria-label="Toggle product sort direction" disabled={busy} onClick={() => { setSortDirection(current => current === 'asc' ? 'desc' : 'asc'); setPage(0); }}>{sortDirection === 'asc' ? 'Ascending ↑' : 'Descending ↓'}</button></div>
     <div className="f02-product-responsive"><F02TableFrame label="Products" loading={loading} hasData={products.length > 0}>
       <table className="f02-data-table f02-product-table" style={{ '--f02-row-height': '76px' } as React.CSSProperties}>
-        <colgroup><col style={{ width: 128 }} /><col /><col style={{ width: 96 }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 62 }} /><col style={{ width: 86 }} />{canManage && <col style={{ width: 56 }} />}</colgroup>
-        <thead><tr>{([['SKU', 'sku', 'SKU'], ['Product', 'name', 'Product name'], ['Category', 'category', 'Category'], ['Cost', 'costPrice', 'Cost price'], ['Selling', 'sellingPrice', 'Selling price'], ['Expiry', 'requiresExpiry', 'Expiry tracking'], ['Stock', 'stockQuantity', 'Total stock'], ['Status', 'status', 'Status']] as const).map(([label, field, description]) => <F02TableHeader key={field} label={label} description={description} column={field} sort={{ by: sortBy, direction: sortDirection }} onSort={sort} disabled={busy} numeric={['costPrice', 'sellingPrice', 'stockQuantity'].includes(field)} />)}{canManage && <th scope="col">Actions</th>}</tr></thead>
+        <colgroup>{(canManage ? [14, 18, 13, 10, 10, 9, 8, 9, 9] : [15, 21, 14, 11, 11, 10, 8, 10]).map((width, index) => <col key={index} style={{ width: width + '%' }} />)}</colgroup>
+        <thead><tr>{([['SKU', 'sku', 'SKU'], ['Product', 'name', 'Product name'], ['Category', 'category', 'Category'], ['Cost', 'costPrice', 'Cost price'], ['Selling', 'sellingPrice', 'Selling price'], ['Expiry', 'requiresExpiry', 'Expiry tracking'], ['Stock', 'stockQuantity', 'Total stock'], ['Status', 'status', 'Status']] as const).map(([label, field, description]) => <ProductTableHeader key={field} label={label} description={description} column={field} sort={{ by: sortBy, direction: sortDirection }} onSort={sort} disabled={busy} />)}{canManage && <th scope="col">Actions</th>}</tr></thead>
         <tbody>{products.map(product => <tr key={product.id}>
           <td className="font-mono text-xs"><span className="f02-product-sku" title={product.sku}>{product.sku}</span></td>
           <td><span className="f02-cell-text font-semibold" title={product.name}>{product.name}</span><span className="f02-product-unit" title={'Unit: ' + product.unit}>{product.unit}</span></td>

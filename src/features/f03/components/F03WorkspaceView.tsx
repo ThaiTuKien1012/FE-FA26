@@ -92,8 +92,8 @@ function Planner({ user, section }: { user: AuthUser; section: string }) {
   const flow: PreviewFlow = { dates, setDates: next => { invalidate('Sales period or Analysis Date changed. Calculate Preview again before creating a snapshot.'); updateDates(next); }, preview, stale: previewNotice(stale, settingsDirty), loading, error, calculate };
   const snapshotId = Number(new URLSearchParams(search).get('id'));
   const [baseTitle, baseSubtitle] = details ? [`Snapshot #${Number.isSafeInteger(snapshotId) && snapshotId > 0 ? snapshotId : '—'}`, 'Review the saved utility dataset and its frozen settings.'] : headings[active] ?? headings['f03-configuration'];
-  const title = !readOnly && active === 'f03-product-scores' ? 'Product Priority Details' : !readOnly && active === 'f03-configuration' ? 'Weight Settings' : baseTitle;
-  const subtitle = !readOnly && active === 'f03-product-scores' ? 'Review the expiry risk, seasonal priority and multiplier reported for a product.' : baseSubtitle;
+  const title = active === 'f03-product-scores' ? 'Product Weights' : active === 'f03-configuration' ? 'Weight Settings' : baseTitle;
+  const subtitle = active === 'f03-product-scores' ? 'Browse your store catalog and view each product’s calculated priorities.' : readOnly && active === 'f03-snapshots' ? 'Review saved utility datasets for your store.' : baseSubtitle;
   const navigation = <nav aria-label="Utility Planner tabs" className={`grid grid-cols-2 gap-1 rounded-xl border border-[#e7e2d8] bg-white p-1.5 shadow-sm ${readOnly ? 'sm:grid-cols-4' : 'sm:grid-cols-5'}`}>{allowed.map(([id, label], index) => <button type="button" key={id} aria-current={active === id ? 'page' : undefined} className={`rounded-lg px-3 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356b54] ${active === id ? 'bg-[#1e3a2f] text-white' : 'text-[#6d7974] hover:bg-[#faf8f5]'}`} onClick={() => navigate(id)} onKeyDown={event => {
       let next = index;
       if (event.key === 'ArrowRight') next = (index + 1) % allowed.length;
@@ -102,15 +102,15 @@ function Planner({ user, section }: { user: AuthUser; section: string }) {
       else if (event.key === 'End') next = allowed.length - 1;
       else return;
       event.preventDefault(); (event.currentTarget.parentElement?.children[next] as HTMLButtonElement)?.focus();
-    }}>{!readOnly && id === 'f03-configuration' ? 'Weight Settings' : label}</button>)}</nav>;
-  return <div className={`f03-planner ${!readOnly ? "f03-merchant" : ""} mx-auto max-w-6xl space-y-5 text-[#191c1b]`}>
+    }}>{id === 'f03-configuration' ? 'Weight Settings' : label}</button>)}</nav>;
+  return <div className="f03-planner f03-merchant mx-auto max-w-6xl space-y-5 text-[#191c1b]">
     {active !== 'f03-seasons' && <header><h1 className="text-2xl font-semibold sm:text-3xl">{title}</h1><p className="mt-2 text-sm text-[#6d7974] sm:text-base">{subtitle}</p></header>}
     {active !== 'f03-seasons' && navigation}
     {visited.includes('f03-configuration') && <div hidden={details || active !== 'f03-configuration'}><UtilityConfiguration readOnly={readOnly} invalidate={readOnly ? invalidate : invalidateSettings} onDraftState={readOnly ? undefined : settingsDraftChanged} /></div>}
-    {visited.includes('f03-product-scores') && <div hidden={details || active !== 'f03-product-scores'}><ProductScores readOnly={readOnly} remember={remember} /></div>}
+    {visited.includes('f03-product-scores') && <div hidden={details || active !== 'f03-product-scores'}><ProductScores readOnly={readOnly} remember={remember} active={!details && active === 'f03-product-scores'} /></div>}
     {visited.includes('f03-seasons') && <div hidden={details || active !== 'f03-seasons'}><Seasons readOnly={readOnly} invalidate={invalidate} active={!details && active === 'f03-seasons'} navigation={active === 'f03-seasons' ? navigation : null} /></div>}
     {active === 'f03-preview' && !readOnly && <UtilityPreview flow={flow} names={names} />}
-    {visited.includes('f03-snapshots') && <div hidden={details || active !== 'f03-snapshots'}><UtilitySnapshots flow={flow} readOnly={readOnly} invalidate={invalidate} isCurrent={() => reviewing.current} /></div>}
+    {visited.includes('f03-snapshots') && <div hidden={details || active !== 'f03-snapshots'}><UtilitySnapshots flow={flow} readOnly={readOnly} invalidate={invalidate} isCurrent={() => reviewing.current} active={!details && active === 'f03-snapshots'} /></div>}
     {details && !readOnly && <SnapshotDetails key={snapshotId} id={snapshotId} names={names} />}
   </div>;
 }
