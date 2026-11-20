@@ -91,7 +91,7 @@ test('pending accounts remain separate from inactive KPI counts',()=>{
 test('Dashboard separates global settings from the Store selector and activity, with no configuration form',()=>{
   const html=renderToStaticMarkup(createElement(SystemMiningDashboard,{config:configuration,loading:false,error:'',reader:null,storeSelector:createElement('div',{'data-test-store':'true'},'Store selector'),onRefresh:()=>{},onConfigure:()=>{},onRequest:()=>{}}));
   assert.ok(html.indexOf('Global Mining Settings')<html.indexOf('data-test-store'));
-  assert.ok(html.indexOf('data-test-store')<html.indexOf('Recent Mining Activity'));
+  assert.ok(html.indexOf('data-test-store')<html.indexOf('Recent Analyses'));
   assert.equal(html.includes('<form'),false);assert.equal(html.includes('Policy version'),false);
   assert.ok(html.includes('Applies to all stores'));assert.ok(html.includes('Configuration Version'));
 });

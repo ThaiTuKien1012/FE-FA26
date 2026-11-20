@@ -5,9 +5,9 @@ import { parseMiningId } from './f05.numbers';
 
 export type MiningView = 'dashboard' | 'configuration' | 'setup' | 'history' | 'benchmark' | 'snapshots';
 export const SYSTEM_MINING_NAV = [
-  {screen:'overview',view:'dashboard',label:'Mining Dashboard'},
+  {screen:'overview',view:'dashboard',label:'Mining Overview'},
   {screen:'setup',view:'configuration',label:'Mining Settings'},
-  {screen:'admin-mining-history',view:'history',label:'Analysis History'}
+  {screen:'admin-mining-history',view:'history',label:'Mining History'}
 ] as const;
 export function isSystemMiningScreen(screen:ActiveNavScreen) {
   return SYSTEM_MINING_NAV.some(item=>item.screen===screen) || ['admin-run-mining','f05-mining','results','failure','benchmark'].includes(screen);

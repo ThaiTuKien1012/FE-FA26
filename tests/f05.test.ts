@@ -336,7 +336,7 @@ test('workspace RBAC and result actions match all four actors; old drafts never 
   for(const role of ['System Admin','Store Admin','Merchandiser','End-Customer'] as const){
     const html=renderToStaticMarkup(createElement(F05WorkspaceView,{currentUser:{...user,role}}));
     if(role==='End-Customer')assert.equal(html,'');
-    else if(role==='System Admin'){assert.ok(html.includes('Dashboard'));assert.ok(html.includes('Mining Dashboard'));}
+    else if(role==='System Admin'){assert.ok(html.includes('Mining Overview'));}
     else if(role==='Store Admin'){assert.ok(html.includes('Analysis History'));assert.ok(html.includes('Recent analyses'));assert.equal(html.includes('Run Analysis'),false);assert.equal(html.includes('Request history'),false);assert.equal(html.includes('Run Analysis'),false);}
     else {assert.ok(html.includes('Run Analysis'));assert.ok(html.includes('Analysis History'));assert.equal(html.includes('Read-only access'),false);}
   }

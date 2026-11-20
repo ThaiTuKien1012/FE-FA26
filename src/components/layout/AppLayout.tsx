@@ -157,14 +157,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             {isSystemAdmin && (
               <>
                 <SidebarSection title="OVERVIEW">
-                  <SidebarItem screen="overview" label="Mining Dashboard" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
+                  <SidebarItem screen="overview" label="Mining Overview" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
                 </SidebarSection>
-                <SidebarSection title="MINING ENGINE MANAGEMENT">
-                  {SYSTEM_MINING_NAV.filter(item=>item.screen!=='overview').map(item=><SidebarItem key={item.screen} screen={item.screen} label={item.label} icon={item.screen==='setup'?Settings:item.screen==='admin-mining-history'?History:BarChart3} active={currentScreen===item.screen} onNavigate={onNavigate}/>) }
+                <SidebarSection title="ANALYTICS MANAGEMENT">
+                  {SYSTEM_MINING_NAV.filter(item=>item.screen!=='overview').map(item=><React.Fragment key={item.screen}>
+                    <SidebarItem screen={item.screen} label={item.label} icon={item.screen==='setup'?Settings:History} active={currentScreen===item.screen} onNavigate={onNavigate}/>
+                    {item.screen==='setup'&&<SidebarItem screen="lambda-policy" label="Priority Strength Policy" icon={SlidersHorizontal} active={currentScreen === 'lambda-policy'} onNavigate={onNavigate} />}
+                  </React.Fragment>)}
                 </SidebarSection>
                 <SidebarSection title="SYSTEM MANAGEMENT">
                   <SidebarItem screen="users" label="Users & Roles" icon={Users} active={currentScreen === 'users'} onNavigate={onNavigate} />
-                  <SidebarItem screen="lambda-policy" label="Lambda Policy" icon={SlidersHorizontal} active={currentScreen === 'lambda-policy'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
             )}

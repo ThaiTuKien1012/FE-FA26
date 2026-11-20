@@ -11,17 +11,17 @@ export function GlobalLambdaPolicy() {
   useEffect(() => { void load(); return () => { ++version.current; }; }, []);
   const save = async () => {
     if (busy.current || !policy) return;
-    if (!validLambda(maximum)) { setError('Enter a non-negative Maximum Lambda with at most 24 integer digits and 6 decimal places, without loss of numeric precision.'); return; }
+    if (!validLambda(maximum)) { setError('Enter a non-negative Maximum Priority Strength with at most 24 integer digits and 6 decimal places, without loss of numeric precision.'); return; }
     const ticket = version.current; busy.current = true; setSaving(true); setError(''); setNotice('');
-    try { const result = await f03Api.updatePolicy({ lambdaMax: Number(maximum) }); if (ticket !== version.current) return; setPolicy(result); setMaximum(decimalNumber(result.lambdaMax)); setNotice('Lambda policy updated.'); }
+    try { const result = await f03Api.updatePolicy({ lambdaMax: Number(maximum) }); if (ticket !== version.current) return; setPolicy(result); setMaximum(decimalNumber(result.lambdaMax)); setNotice('Priority Strength Policy updated.'); }
     catch (e) { if (ticket === version.current) setError(errorMessage(e, 'Unable to update policy.')); }
     finally { busy.current = false; if (ticket === version.current) setSaving(false); }
   };
-  return <div className="f03-planner mx-auto max-w-6xl space-y-5 text-[#191c1b]"><header><h1 className="text-3xl font-semibold">Global Lambda Policy</h1><p className="mt-2 text-sm text-[#6d7974]">Maximum Lambda controls how strongly product priorities can influence utility across stores.</p></header>
-    <Notice error={error} notice={notice} /><Button aria-label="Refresh Lambda Policy" disabled={loading || saving || error.includes('Contact your administrator')} className={secondary} onClick={() => void load()}>Refresh</Button>
-    {loading ? <p role="status">Loading Lambda Policy…</p> : policy && <>
-      <Section title="Current Lambda Range"><Metrics values={[["Allowed range", `0 – ${policy.lambdaMax}`], ['Policy Version', policy.version]]} /><p className="mt-4 text-xs text-[#6d7974]">The lower bound is always 0. This policy applies across stores and is separate from the mining minimum utility threshold.</p></Section>
-      <Section title="Update Maximum Lambda"><form onSubmit={event => { event.preventDefault(); void save(); }} className="space-y-4"><label className="block max-w-md text-sm font-medium">Maximum Lambda<input aria-label="Maximum Lambda" disabled={saving} required type="number" min="0" step="0.000001" className={field} value={maximum} onChange={event => setMaximum(event.target.value)} /></label><p className="max-w-3xl rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Lowering the maximum may make a store's Priority Strength invalid. Store settings and saved snapshots are never adjusted automatically.</p><Button type="submit" disabled={saving} className={primary}>{saving ? 'Saving…' : 'Save Policy'}</Button></form></Section>
+  return <div className="f03-planner mx-auto max-w-6xl space-y-5 text-[#191c1b]"><header><h1 className="text-3xl font-semibold">Priority Strength Policy</h1><p className="mt-2 text-sm text-[#6d7974]">Set the maximum Priority Strength that stores can use when calculating weighted utility.</p></header>
+    <Notice error={error} notice={notice} /><Button aria-label="Refresh Priority Strength Policy" disabled={loading || saving || error.includes('Contact your administrator')} className={secondary} onClick={() => void load()}>Refresh</Button>
+    {loading ? <p role="status">Loading Priority Strength Policy…</p> : policy && <>
+      <Section title="Current Priority Strength Policy"><Metrics values={[["Allowed Range", `0 – ${policy.lambdaMax}`], ['Current Maximum', policy.lambdaMax], ['Policy Version', policy.version]]} /><p className="mt-4 text-xs text-[#6d7974]">Priority Strength affects the weighting used to create F03 snapshots. Minimum Utility filters product combinations in F05; these are separate settings.</p></Section>
+      <Section title="Edit Priority Strength Policy"><form onSubmit={event => { event.preventDefault(); void save(); }} className="space-y-4"><label className="block max-w-md text-sm font-medium">Maximum Priority Strength (λ)<input aria-label="Maximum Priority Strength (λ)" disabled={saving} required type="number" min="0" step="0.000001" className={field} value={maximum} onChange={event => setMaximum(event.target.value)} /></label><p className="text-xs text-[#6d7974]">Stores can choose a Priority Strength between 0 and this maximum.</p><p className="max-w-3xl rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Lowering this limit may make some existing store settings invalid. Saved snapshots are not changed automatically.</p><Button type="submit" disabled={saving} className={primary}>{saving ? 'Saving…' : 'Save Policy'}</Button></form></Section>
     </>}
   </div>;
 }

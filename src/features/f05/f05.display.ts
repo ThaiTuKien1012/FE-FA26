@@ -11,11 +11,11 @@ export const formatMiningNumber = (value: number | null | undefined, maximumFrac
 export const formatThreshold = (value: number, mode: MinUtilMode) => formatMiningNumber(value) + (mode === 'PERCENTAGE' ? '%' : ' frozen utility units');
 export const MATCH_DESCRIPTION = 'Both algorithms returned matching high-utility itemsets and utility values.';
 
-export function miningDate(value: string | null): string {
+export function miningDate(value: string | null, seconds = true): string {
   if (value === null) return 'Not recorded';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return formatDateTime(date, undefined, true);
+  return formatDateTime(date, undefined, seconds);
 }
 
 export function miningErrorMessage(error: unknown): string {

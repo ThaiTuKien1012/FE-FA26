@@ -329,8 +329,8 @@ try {
     await tab('Snapshots'); await has('READY'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('snapshots-' + width);
   }
   await cdp.call('Emulation.setDeviceMetricsOverride', { width: 390, height: 1000, deviceScaleFactor: 1, mobile: true });
-  await session('System Admin', '/admin/lambda-policy'); await has('Global Lambda Policy'); assert.equal(await evaluate("!!document.querySelector('input[aria-label=\"Minimum Lambda\"]')"), false);
-  await input('Maximum Lambda', '0.4'); await click('Save Policy'); await has('Lambda policy updated'); assert.deepEqual(JSON.parse(calls.findLast(c => c.path === '/api/system/utility/lambda-policy' && c.method === 'PUT').body), { lambdaMax: 0.4 }); await capture('lambda-policy-390');
+  await session('System Admin', '/admin/lambda-policy'); await has('Priority Strength Policy'); assert.equal(await evaluate("!!document.querySelector('input[aria-label=\"Minimum Lambda\"]')"), false);
+  await input('Maximum Priority Strength (λ)', '0.4'); await click('Save Policy'); await has('Priority Strength Policy updated'); assert.deepEqual(JSON.parse(calls.findLast(c => c.path === '/api/system/utility/lambda-policy' && c.method === 'PUT').body), { lambdaMax: 0.4 }); await capture('lambda-policy-390');
   checks.push('Store Admin read-only across four tabs; role denial without feature requests; legacy links; System Admin lambdaMax-only policy; responsive 1440/820/390 without page overflow');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []); assert.equal(calls.some(c => c.method === 'PATCH' && c.path.includes('/scores')), false);
   console.log(JSON.stringify({ result: 'PASS (HTTP fixtures only; real E2E not run)', checks, interceptedApiCalls: calls.length, compactListApiMutations, realBackendWrites: 0, artifacts }, null, 2));

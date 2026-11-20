@@ -21,7 +21,7 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
-const state={conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
+const state={systemHistoryCount:1,singleStore:false,conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
   constructor(ws){this.ws=ws;ws.addEventListener('message',event=>{
@@ -74,6 +74,7 @@ async function paused({requestId,request}){
   try {
     assert.equal(fixtureRole==='System Admin'&&path.startsWith('/api/mining/'),false,'System Admin must use System-scoped mining endpoints');
     assert.equal(method==='POST'&&path==='/api/system/mining/requests',false,'Temporary Frontend policy forbids System manual analysis');
+    assert.equal(fixtureRole==='System Admin'&&/\/(patterns|benchmark)$/.test(path),false,'System monitoring must never read raw patterns or benchmarks');
     assert.equal(fixtureRole==='Merchandiser'&&path==='/api/system/mining/config',false,'Merchandiser must not read System policy');
     if (path === '/api/auth/refresh') {
       body = { accessToken: 'browser-test-only-token', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-csrf' };
@@ -97,7 +98,7 @@ async function paused({requestId,request}){
       if(method==='PUT'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['lambdaMax']);state.policy={...state.policy,...sent,version:state.policy.version+1};}body=state.policy;
     }
     else if(path==='/api/utility/config')body={...structuredClone(weightConfig),lambdaPolicy:state.policy};
-    else if(path==='/api/system/stores')body=responsePage([{storeId:1,name:'Store A'},{storeId:2,name:'Store B'}],url.searchParams);
+    else if(path==='/api/system/stores')body=responsePage(state.singleStore?[{storeId:1,name:'Store A'}]:[{storeId:1,name:'Store A'},{storeId:2,name:'Store B'}],url.searchParams);
     else if(path==='/api/system/mining/config'){
       if(method==='PUT'){
         const sent=JSON.parse(request.postData);
@@ -118,7 +119,7 @@ async function paused({requestId,request}){
       else if(/\/requests$/.test(path)){
         if(path==='/api/mining/requests')while(state.storeHistory==='hold')await sleep(20);
         if(state.slowHistory&&storeId===1)await sleep(500);
-        body=responsePage((storeId===1||state.mismatchStore2)&&state.hasRequest?[requestFixture('COMPLETED')]:[],url.searchParams);
+        body=responsePage((storeId===1||state.mismatchStore2)&&state.hasRequest?(fixtureRole==='System Admin'?Array.from({length:state.systemHistoryCount},(_,index)=>({...requestFixture('COMPLETED'),requestId:17+state.systemHistoryCount-1-index})):[requestFixture('COMPLETED')]):[],url.searchParams);
         if(path==='/api/mining/requests'&&state.storeHistory==='empty')body=responsePage([],url.searchParams);
         if(path==='/api/mining/requests'&&state.storeHistory==='error'){code=503;body={error:'Fixture analysis history unavailable'};}
       }else if(/\/requests\/17\/progress$/.test(path)){
@@ -176,56 +177,71 @@ try{
   if(process.env.F05_CONVERSION_ONLY !== 'true') {
   await session(null,'/admin/lambda-policy');await textIncludes('Sign in to the system');await session(null);await textIncludes('Sign in to the system');checks.push('guest direct routes return Login');
   state.holdConfig=true;await session('System Admin');await textIncludes('Loading...');
-  state.holdConfig=false;await expectRoute('/admin/overview','Mining Dashboard');await textIncludes('No global mining configuration');
+  state.holdConfig=false;await expectRoute('/admin/overview','Mining Overview');await textIncludes("Mining settings haven't been configured yet.");
   assert.equal(await evaluate("[...document.querySelectorAll('main form,main input')].filter(e=>e.getClientRects().length).length"),0);
   assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),false);
   assert.equal(await evaluate("(()=>{const a=document.getElementById('dashboard-global-config'),b=document.getElementById('mining-stores-title');return Boolean(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING);})()"),true);
   await click('Mining Settings');await textIncludes('Configuration Version 0');
   for(const invalid of ['0','101','0.1234567','9007199254740993']){
-    await input('Minimum Utility Threshold',invalid);await click('Save Configuration');
+    await input('Minimum Utility Value',invalid);await click('Save Settings');
     await until("document.querySelector('main [role=alert]')!==null",'invalid minimum utility');
   }
   assert.equal(state.calls.filter(x=>x.method==='PUT').length,0);
-  await input('Minimum Utility Threshold','0.5');await click('Save Configuration');await textIncludes('Configuration version 1 saved');
+  await input('Minimum Utility Value','0.5');await click('Save Settings');await textIncludes('Settings saved');
   const savedWrites=state.calls.filter(x=>x.method==='PUT').length;
   assert.equal(await evaluate("document.querySelector('main button[type=submit]').disabled"),true);
-  await input('Minimum Utility Threshold','1');await sleep(150);
+  await input('Minimum Utility Value','1');await sleep(150);
   assert.equal(state.calls.filter(x=>x.method==='PUT').length,savedWrites);
-  await click('Reset Changes');assert.equal(await evaluate("document.querySelector('input[aria-label=\"Minimum Utility Threshold\"]').value"),'0.5');
-  state.conflict=true;await input('Minimum Utility Threshold','1');await click('Save Configuration');await textIncludes('HTTP 409');
+  await click('Discard Changes');assert.equal(await evaluate("document.querySelector('input[aria-label=\"Minimum Utility Value\"]').value"),'0.5');
+  state.conflict=true;await input('Minimum Utility Value','1');await click('Save Settings');await textIncludes('HTTP 409');
   const configReads=state.calls.filter(x=>x.path==='/api/system/mining/config'&&x.method==='GET').length;
   await sleep(250);assert.equal(state.calls.filter(x=>x.path==='/api/system/mining/config'&&x.method==='GET').length,configReads);
   assert.equal(await evaluate("document.querySelector('main button[type=submit]').disabled"),true);
-  await click('Refresh configuration');await textIncludes('Configuration Version 1');
+  await click('Refresh Configuration');await textIncludes('Configuration Version 1');
   checks.push('global configuration loading/version zero, string validation, no-op Save, draft Reset and 409 manual recovery');
+
+  // Monitoring UI: no Store means no Store request read, and empty history has no pager.
+  const noStoreStart=state.calls.length;await session('System Admin','/admin/mining/history');await textIncludes('Select a store to view its mining history.');
+  assert.equal(state.calls.slice(noStoreStart).some(c=>/\/mining\/stores\/\d+\/requests/.test(c.path)),false);
+  state.hasRequest=true;state.systemHistoryCount=0;await click('Store A #1');await textIncludes('No analyses have been recorded for this store yet.');
+  assert.equal(await evaluate(`!!document.querySelector('[aria-label="Mining history pages"]')`),false);
+  state.systemHistoryCount=45;await click('Refresh history');await textIncludes('Page 1 of 3');await click('Next analyses');await textIncludes('Page 2 of 3');await click('Next analyses');await textIncludes('Page 3 of 3');
+  assert.equal(await evaluate('new URLSearchParams(location.search).get("storeId")'),'1');
+  await evaluate(`document.querySelector('button[aria-label="View details for analysis #17"]').click()`);await textIncludes('Analysis Details #17');await textIncludes('Execution Details');
+  await click('Close analysis details');await textIncludes('Page 3 of 3');
+  state.singleStore=true;await session('System Admin','/admin/overview?storeId=1');await textIncludes('Selected store');
+  assert.equal(await evaluate(`document.querySelector('[aria-label="Store selection"]').querySelectorAll("button").length`),0);
+  await click('Refresh Overview');await textIncludes('Recent Analyses');assert.equal(await evaluate('new URLSearchParams(location.search).get("storeId")'),'1');
+  state.singleStore=false;state.systemHistoryCount=1;state.hasRequest=false;
+  checks.push('System History without Store performs no Store read; empty pager hidden; 45 analyses paginate and retain page/Store through details; single selected Store has no redundant selection action; Overview refresh retains Store');
 
   // Existing records are test-only reads; administrative navigation must never POST.
   state.hasRequest=true;state.compare=false;state.requestReads=0;
   const systemPosts=postBodies.length;
   for(const url of ['/admin/mining/run?storeId=1','/admin/overview?view=setup&storeId=1','/admin/mining/history?view=setup&storeId=1','/mining?view=setup&storeId=1']){
-    await session('System Admin',url);await expectRoute('/admin/overview','Mining Dashboard');
+    await session('System Admin',url);await expectRoute('/admin/overview','Mining Overview');
     assert.equal(await evaluate(visibleText+".includes('Run Analysis')||"+visibleText+".includes('Run Mining')"),false);
     assert.equal(await evaluate("!!document.querySelector('main button[type=submit]')"),false);
   }
   // Legacy System drafts stay untouched and are never restored/replayed by this role.
   const legacyKey='paspm:f05:efim:v3:System%20Admin:1:store:1';
   await evaluate('sessionStorage.setItem('+JSON.stringify(legacyKey)+',"legacy-pending")');
-  await cdp.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});initId=null;await cdp.call('Page.reload');await textIncludes('Mining Dashboard');
+  await cdp.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});initId=null;await cdp.call('Page.reload');await textIncludes('Mining Overview');
   assert.equal(await evaluate('sessionStorage.getItem('+JSON.stringify(legacyKey)+')'),'legacy-pending');
   assert.equal(postBodies.length,systemPosts);
-  await click('Store A #1');await textIncludes('Recent Mining Activity');await capture('system-dashboard');
-  await click('View Details');await textIncludes('Algorithm Runs');await textIncludes('Mining in progress');await capture('progress-running');await textIncludes('Mining completed');await capture('progress-completed');
+  await click('Store A #1');await textIncludes('Recent Analyses');await capture('system-dashboard');
+  await click('View Details');await textIncludes('Execution Details');await textIncludes('Mining in progress');await capture('progress-running');await textIncludes('Mining completed');await capture('progress-completed');
   await click('View run #42');await textIncludes('Run #42');assert.equal(await evaluate(visibleText+".includes('Open algorithm benchmark')"),false);
   const benchmarkCalls=()=>state.calls.filter(x=>x.path.endsWith('/benchmark')).length;assert.equal(benchmarkCalls(),0);
-  await session('System Admin','/admin/benchmark?storeId=1&requestId=17&runId=42');await expectRoute('/admin/mining/history','Analysis History');await textIncludes('Algorithm Runs');
+  await session('System Admin','/admin/benchmark?storeId=1&requestId=17&runId=42');await expectRoute('/admin/mining/history','Mining History');await textIncludes('Execution Details');
   assert.equal(await evaluate('location.search.includes("storeId=1")&&location.search.includes("requestId=17")'),true);assert.equal(benchmarkCalls(),0);assert.equal(postBodies.length,systemPosts);
   checks.push('System Admin has no Run action or submit form; all legacy run URLs redirect without POST, old pending drafts remain untouched; Dashboard/History/progress/run metrics remain available');
-  await click('Mining Settings');await textIncludes('Current System Configuration');await capture('system-mining-configuration');
+  await click('Mining Settings');await textIncludes('Current Mining Settings');await capture('system-mining-configuration');
   assert.equal(await evaluate("!!document.querySelector('select[aria-label=\"Default Algorithm\"]')"),false);
-  await input('Minimum Utility Threshold','1');await click('Save Configuration');await textIncludes('Configuration version 2 saved');
-  await click('Mining Dashboard');await click('Store A #1');await textIncludes('Recent Mining Activity');const globalBefore=JSON.stringify(state.config);
-  await click('Store B #2');await textIncludes('This store has no mining requests yet');assert.equal(JSON.stringify(state.config),globalBefore);
-  state.mismatchStore2=true;await click('Refresh dashboard');await textIncludes('invalid or mismatched page');state.mismatchStore2=false;
+  await input('Minimum Utility Value','1');await click('Save Settings');await textIncludes('Settings saved');
+  await click('Mining Overview');await click('Store A #1');await textIncludes('Recent Analyses');const globalBefore=JSON.stringify(state.config);
+  await click('Store B #2');await textIncludes('No analyses have been recorded for this store yet.');assert.equal(JSON.stringify(state.config),globalBefore);
+  state.mismatchStore2=true;await click('Refresh Overview');await textIncludes('invalid or mismatched page');state.mismatchStore2=false;
   checks.push('Store switching preserves global settings and rejects foreign request data');
 
   await session('Merchandiser','/mining?view=setup');await textIncludes('Select Snapshot');await textIncludes('Snapshot #2');
@@ -249,9 +265,9 @@ try{
   state.progressOverride=null;state.requestReads=5;
   checks.push('Merchandiser owns-Store two-field POST, no policy GET, no-policy/numeric errors, uncertain reload retains UUID without POST replay, real DTO percentage including recovery decrease and failure below 100%, results with nullable support');
 
-  await session('System Admin','/admin/lambda-policy');await textIncludes('Current Lambda Range');await click('Lambda Policy');await textIncludes('Current Lambda Range');await textIncludes('Lowering the maximum');
+  await session('System Admin','/admin/lambda-policy');await textIncludes('Current Priority Strength Policy');await click('Priority Strength Policy');await textIncludes('Current Priority Strength Policy');await textIncludes('Lowering this limit');
   assert.ok(state.calls.some(x=>x.path==='/api/system/utility/lambda-policy'));
-  await input('Maximum Lambda','0.7');await click('Save Policy');await textIncludes('Lambda policy updated');
+  await input('Maximum Priority Strength (λ)','0.7');await click('Save Policy');await textIncludes('Priority Strength Policy updated');
   assert.deepEqual(state.policy,{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.7,version:2});
   assert.equal(state.calls.some(x=>x.path==='/api/utility/config'),false);
   await capture('lambda-desktop');
@@ -413,13 +429,13 @@ try{
 
   state.compare=true;state.requestReads=5;
   const pages=[
-    ['/admin/overview?storeId=1','Recent Mining Activity','dashboard'],
-    ['/admin/setup?storeId=1','Update Configuration','configuration'],
-    ['/admin/mining/run?storeId=1','Recent Mining Activity','legacy-run-dashboard'],
-    ['/admin/mining/history?storeId=1&requestId=17','Algorithm Runs','history'],
-    ['/admin/benchmark?storeId=1&requestId=17&runId=42','Algorithm Runs','legacy-history'],
+    ['/admin/overview?storeId=1','Recent Analyses','dashboard'],
+    ['/admin/setup?storeId=1','Edit Mining Settings','configuration'],
+    ['/admin/mining/run?storeId=1','Recent Analyses','legacy-run-dashboard'],
+    ['/admin/mining/history?storeId=1&requestId=17','Execution Details','history'],
+    ['/admin/benchmark?storeId=1&requestId=17&runId=42','Execution Details','legacy-history'],
     ['/admin/users','User Management','users'],
-    ['/admin/lambda-policy','Current Lambda Range','lambda']
+    ['/admin/lambda-policy','Current Priority Strength Policy','lambda']
   ];
   for(const width of [1440,1024,820,390]){
     await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
@@ -478,7 +494,7 @@ try{
     for(const mode of ['LOSSLESS','WHOLE_UNIT_HALF_UP','unknown']) {
       state.conversion=mode;state.emptyPatterns=mode==='WHOLE_UNIT_HALF_UP';state.requestReads=5;
       await session(role,role==='System Admin'?'/admin/mining/history?storeId=1&requestId=17':'/mining?view=history&requestId=17');
-      await textIncludes(role==='System Admin'?'Algorithm Runs':'Algorithm results');
+      await textIncludes(role==='System Admin'?'Execution Details':'Algorithm results');
       await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Loaded Additional details');
       await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').closest('details').open=true");
       await textIncludes(mode==='unknown'?'STORED_LEGACY_V0':mode);
@@ -518,9 +534,9 @@ try{
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
   const featureCalls=()=>state.calls.filter(c=>!c.path.startsWith('/api/auth/')).length;const beforeCustomer=featureCalls();await session('End-Customer');await textIncludes('Access Restricted');assert.equal(featureCalls(),beforeCustomer);
   await session('Store Admin','/admin/setup');await textIncludes('Access Restricted');
-  await session('System Admin','/admin/api-connections');await expectRoute('/admin/overview','Mining Dashboard');
+  await session('System Admin','/admin/api-connections');await expectRoute('/admin/overview','Mining Overview');
   assert.equal(state.calls.some(x=>/connection/i.test(x.path)),false);
-  await click('Analysis History');await click('Mining Settings');await evaluate('history.back()');await expectRoute('/admin/mining/history','Analysis History');await evaluate('history.forward()');await expectRoute('/admin/setup','Mining Settings');
+  await click('Mining History');await click('Mining Settings');await evaluate('history.back()');await expectRoute('/admin/mining/history','Mining History');await evaluate('history.forward()');await expectRoute('/admin/setup','Mining Settings');
   await evaluate("document.querySelector('button[aria-label=\"Account menu\"]').click()");await click('Sign out');await textIncludes('Sign in to the system');
   checks.push('Store Admin read-only and legacy HUI/dual-run rendering; Merchandiser reads and F03 permissions; Customer/admin isolation, back/forward and Logout preserved');
 
