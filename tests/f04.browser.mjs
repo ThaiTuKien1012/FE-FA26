@@ -9,7 +9,7 @@ import { progress, summary } from './f04.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir()), profile = mkdtempSync(join(base, 'paspm-f04-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-f04-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-f04-preview-'));
 const chrome = spawn(process.env.F04_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
   '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'
@@ -65,7 +65,7 @@ async function login(role = 'STORE_ADMIN', storeId = 1) {
 async function choose(name = 'sales.csv', contents = 'source_order_id,occurred_at,sku,quantity,unit_price,unit_cost,status\n') {
   await page.evaluate(`(()=>{const input=document.querySelector('#f04-csv-file');const transfer=new DataTransfer();transfer.items.add(new File([${JSON.stringify(contents)}],${JSON.stringify(name)},{type:'text/csv'}));input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
 }
-async function capture(name) {
+async function capture(name) { if (!artifacts) return;
   const result = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(result.data, 'base64'));
 }

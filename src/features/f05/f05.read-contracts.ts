@@ -1,5 +1,6 @@
 import type { BenchmarkView, MiningConfiguration, MiningProgressView, PatternView, RequestView, RunView, SnapshotView } from './f05.types';
 import { parseMinUtilInput } from './f05.numbers';
+import { isConversionMetadata, isRequestConversion } from './f05.conversion';
 
 const object = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object';
 const id = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
@@ -43,7 +44,7 @@ export function isMiningProgressView(value: unknown): value is MiningProgressVie
 }
 
 export function isRequestView(value: unknown): value is RequestView {
-  if (!object(value) || !object(value.snapshot)) return false;
+  if (!object(value) || !object(value.snapshot) || !isRequestConversion(value)) return false;
   return id(value.requestId) && id(value.storeId) && id(value.snapshotId) &&
     [value.storeId,value.snapshotId,value.requestedBy].every(v => id(v) && (v as number)<=2147483647) &&
     typeof value.requestKey==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.requestKey) &&
@@ -62,7 +63,7 @@ export function isRequestView(value: unknown): value is RequestView {
 }
 
 export function isRunView(value: unknown): value is RunView {
-  if (!object(value)) return false;
+  if (!object(value) || !isConversionMetadata(value)) return false;
   return [value.runId, value.requestId, value.storeId, value.snapshotId].every(id) && algorithm(value.algorithm) &&
     ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'TIMED_OUT'].includes(String(value.status)) &&
     [value.startedAt, value.completedAt, value.environment, value.failureCode, value.failureMessage].every(nullableString) &&

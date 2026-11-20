@@ -9,7 +9,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3102';
 const base = resolve(tmpdir()), profile = mkdtempSync(join(base, 'paspm-f02-pagination-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-f02-pagination-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-f02-pagination-preview-'));
 const chrome = spawn(process.env.F02_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
   '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'
@@ -93,7 +93,7 @@ async function login(role = 'STORE_ADMIN') {
   state.role = role;
   await page.evaluate('(async()=>{const auth=' + session + ';auth.endLocal();await auth.authenticate("/api/auth/login",{email:"fixture@example.invalid",password:"fixture-only"});})()');
 }
-async function capture(name) {
+async function capture(name) { if (!artifacts) return;
   const clip = await page.evaluate("innerWidth<768&&!document.querySelector('dialog[open],.f02-filter-panel:popover-open')?(()=>{const main=document.querySelector('main'),r=main.getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:main.scrollHeight,scale:1}})():null");
   const modal = await page.evaluate("Boolean(document.querySelector('dialog[open]'))");
   const shot = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !modal, ...(clip ? { clip } : {}) });
@@ -211,7 +211,7 @@ async function jump(label,target) {
   throw Error('Pagination did not reach target');
 }
 async function summary(label,from,to,total) { await until('document.querySelector('+JSON.stringify(region(label))+')?.closest(".f02-table-frame").parentElement.parentElement.innerText.includes('+JSON.stringify('Showing '+from+'\u2013'+to+' of '+total+' '+(label==='Category'?'categories':label==='Batch'?'batches':'products'))+')',label+' exact range'); }
-async function captureElement(selector,name) {
+async function captureElement(selector,name) { if (!artifacts) return;
   const clip=await page.evaluate('(()=>{const r=document.querySelector('+JSON.stringify(selector)+').getBoundingClientRect();return{x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()');
   const shot=await page.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip});writeFileSync(join(artifacts,name+'.png'),Buffer.from(shot.data,'base64'));
   await page.evaluate('new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)))');

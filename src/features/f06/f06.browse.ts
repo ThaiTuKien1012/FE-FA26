@@ -1,5 +1,6 @@
 import { authService, type AuthUser } from '../../services/authService';
 import { f05Api, F05ApiError } from '../f05/f05.api';
+import { sameMiningInput } from '../f05/f05.conversion';
 import type { Page, RequestView, RunView } from '../f05/f05.types';
 import { f06Api, F06ApiError } from './f06.api';
 import type { RecListParams, RecPage, RecView } from './f06.types';
@@ -170,9 +171,9 @@ export class RecommendationBrowser {
   };
   refresh = async (refreshNames = false, preserveDetail = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
-    // Explicit Store Admin refresh can pick up catalog renames; paging/filtering
+    // Explicit refresh can pick up catalog renames; paging/filtering
     // reuses labels and does not repeat one F02 request for each row.
-    if (refreshNames && this.state.role === 'Store Admin') {
+    if (refreshNames) {
       this.productNames.clear(); this.update({ listNames: {} });
     }
     this.abort('listNames');
@@ -189,7 +190,7 @@ export class RecommendationBrowser {
       const lastPage = Math.max(0, Math.ceil(list.totalElements / list.pageSize) - 1);
       if (list.page > lastPage) { this.update({ page: lastPage }); await this.refresh(false, preserveDetail); return; }
       this.update({ list, loading: false });
-      if (this.state.role === 'Store Admin') void this.loadListNames(list);
+      void this.loadListNames(list);
     } catch (error) { if (job.current()) this.update({ loading: false, error: recommendationReadError(error, this.state.mode === 'ranked') }); }
   };
   private loadListNames = async (list: RecPage) => {
@@ -224,7 +225,7 @@ export class RecommendationBrowser {
     try {
       const runs = await f05Api.listRuns(id, job.signal);
       if (!job.current()) return;
-      if (runs.some(run => run.storeId !== request.storeId || run.snapshotId !== request.snapshotId)) throw new F06ApiError(200, 'Mismatched mining source was rejected.');
+      if (runs.some(run => run.requestId !== request.requestId || run.storeId !== request.storeId || run.snapshotId !== request.snapshotId || !request.algorithms.includes(run.algorithm) || !sameMiningInput(request, run))) throw new F06ApiError(200, 'Mismatched mining source was rejected.');
       this.update({ runs, runsLoading: false });
     } catch (error) { if (job.current()) this.update({ runsLoading: false, runsError: recommendationReadError(error) }); }
   };
@@ -232,9 +233,10 @@ export class RecommendationBrowser {
     if (!this.allowed() || this.state.reviewPending || !this.state.runs.some(run => run.runId === id && run.status === 'COMPLETED')) return;
     this.update({ miningRunId: id, page: 0 }); await this.refresh();
   };
-  openDetail = async (id: number, retainReviewMessage = false) => {
+  openDetail = async (id: number, retainReviewMessage = false, refreshNames = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
-    if (this.state.role === 'Store Admin') this.abort('listNames');
+    this.abort('listNames');
+    if (refreshNames) this.productNames.clear();
     this.abort('names'); const job = this.begin('detail');
     this.update({ detailId: id, detail: null, detailLoading: true, detailError: '', names: {}, namesLoading: false, namesUnavailable: false,
       reviewConfirmation: null, ...(retainReviewMessage ? {} : { reviewError: '', reviewNotice: '' }) });
@@ -245,8 +247,8 @@ export class RecommendationBrowser {
       this.update({ detail, detailLoading: false, reviewNeedsRefresh: false });
       const namesJob = this.begin('names');
       this.update({ namesLoading: true });
-      const names = await readRecommendationProductNames(detail.productIds, namesJob.signal, this.state.role === 'Store Admin' ? this.productNames : undefined);
-      if (namesJob.current()) this.update({ names, ...(this.state.role === 'Store Admin' ? { listNames: { ...this.state.listNames, ...names } } : {}), namesLoading: false, namesUnavailable: detail.productIds.some(productId => !names[productId]) });
+      const names = await readRecommendationProductNames(detail.productIds, namesJob.signal, this.productNames);
+      if (namesJob.current()) this.update({ names, listNames: { ...this.state.listNames, ...names }, namesLoading: false, namesUnavailable: detail.productIds.some(productId => !names[productId]) });
     } catch (error) { if (job.current()) this.update({ detailLoading: false, detailError: recommendationReadError(error) }); }
   };
   closeDetail = () => {

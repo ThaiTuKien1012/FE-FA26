@@ -9,7 +9,7 @@ import { eligibility, expiryPage, generation, policy, policyRequest, recommendat
 
 const hasStatus = (status: number | null) => (error: unknown) => error instanceof F06ApiError && error.status === status;
 function actor(t: TestContext, role: AuthUser['role'] = 'Merchandiser') {
-  t.mock.method(authService, 'getCurrentUser', () => ({ ...user, role }));
+  t.mock.method(authService, 'getCurrentUser', () => ({ ...user, role, storeId: 1 }));
   t.mock.method(authService, 'getToken', () => 'test-only-token');
   t.mock.method(authService, 'getSessionId', () => 'test-session');
   const calls: { path: string; init: RequestInit }[] = [];

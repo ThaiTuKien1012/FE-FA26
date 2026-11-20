@@ -30,3 +30,17 @@ export function benchmarkFixture(algorithm:RunView['algorithm']='HUI_MINER'):Ben
 /** New-write fixtures are separate from historical HUI-Miner/comparison reads. */
 export function efimRequestFixture(status:RequestView['status']='PENDING',storeId=1):RequestView {return {...requestFixture(status,storeId),algorithms:['EFIM'],comparisonStatus:'NOT_REQUESTED'};}
 export function progressFixture(status:RequestView['status']='PENDING',storeId=1):MiningProgressView {return {requestId:17,storeId,status,stage:status==='PENDING'?'QUEUED':status,stageStartedAt:status==='PENDING'?null:'2026-11-18T00:00:00Z',currentRunId:status==='PENDING'?null:42,algorithm:status==='PENDING'?null:'EFIM',attemptNo:status==='PENDING'?0:1,completedSteps:status==='COMPLETED'?2:0,totalSteps:2,percent:status==='COMPLETED'?100:0,elapsedMs:status==='PENDING'?null:1000,timeoutMs:status==='RUNNING'?60000:null,comparisonStatus:'NOT_REQUESTED'};}
+
+export function conversionRequestFixture(mode: 'LOSSLESS' | 'WHOLE_UNIT_HALF_UP', status: RequestView['status'] = 'COMPLETED', storeId = 1): RequestView {
+  const whole = mode === 'WHOLE_UNIT_HALF_UP';
+  return { ...efimRequestFixture(status, storeId), conversionMode: mode, roundingUnit: whole ? 1 : null,
+    conversionVersion: whole ? 'F03_WHOLE_UNIT_HALF_UP_INT32_DENSE_V1' : 'F03_SCALE6_GCD_INT32_DENSE_V1',
+    utilityScale: whole ? 0 : 6, divisor: 1, totalScaledUtility: whole ? 48 : 48_123_456,
+    minUtilSpmf: whole ? 1 : 240_618, effectiveMinUtility: whole ? 1 : 0.240618 };
+}
+export function conversionRunFixture(mode: 'LOSSLESS' | 'WHOLE_UNIT_HALF_UP', status: RunView['status'] = 'COMPLETED', storeId = 1): RunView {
+  const request = conversionRequestFixture(mode, 'COMPLETED', storeId);
+  return { ...runFixture(status, storeId), algorithm: 'EFIM', conversionVersion: request.conversionVersion,
+    conversionMode: request.conversionMode, roundingUnit: request.roundingUnit, minUtilSpmf: request.minUtilSpmf,
+    patternCount: status === 'COMPLETED' ? 0 : null };
+}

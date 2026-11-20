@@ -42,6 +42,8 @@ export interface RecProductEligibility {
   warnings: string[];
 }
 export interface RecEligibility {
+  /** Absent/null only for immutable, pre-W2 evidence. */
+  scoringVersion?: null;
   status: EligibilityStatus;
   products: RecProductEligibility[];
   checkedAt: string;
@@ -50,6 +52,13 @@ export interface RecEligibility {
   warnings: string[];
   fingerprint: string;
 }
+export type ProductEligibilityV2 = Omit<RecProductEligibility, 'expiryPushDays'>;
+export interface EligibilityV2 extends Omit<RecEligibility, 'products' | 'scoringVersion'> {
+  scoringVersion: 'W2_EXPIRY_SEASON_V1';
+  products: ProductEligibilityV2[];
+}
+export type EligibilityEvidence = RecEligibility | EligibilityV2;
+export interface EndedSeason { seasonId: Int32; name: string; endDate: string; }
 export interface RecSource {
   runId: Int64;
   patternId: Int64;
@@ -91,7 +100,7 @@ export interface RecReview {
   reviewedAt: string;
   reason: string;
   resultingVersion: Int64;
-  eligibilityCheck: RecEligibility;
+  eligibilityCheck: EligibilityEvidence;
 }
 export interface RecView {
   recommendationId: Int64;
@@ -106,8 +115,10 @@ export interface RecView {
   ruleVersion: string;
   policy: RecPolicy;
   evidence: RecTransactionEvidence;
-  generationEligibility: RecEligibility;
-  currentEligibility: RecEligibility;
+  generationEligibility: EligibilityEvidence;
+  currentEligibility: EligibilityV2;
+  seasonEnded: boolean;
+  endedSeasons: EndedSeason[];
   inventoryChanged: boolean;
   readyForConsumption: boolean;
   sources: RecSource[];
@@ -130,13 +141,12 @@ export interface RecPage {
 export interface RecExpiryBatch {
   productId: Int32;
   batchId: Int32;
-  expiryDate: string;
-  daysRemaining: Int64;
+  pushDay: string;
+  expiryDate: string | null;
+  daysToPush: Int64;
   remainingQuantity: Int64;
-  expiryPushDays: Int32;
   pushRequired: boolean;
   checkedAt: string;
-  status: string;
   warnings: string[];
 }
 export interface RecExpiryPage {

@@ -6,13 +6,13 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { requestFixture, runFixture } from './f05.fixtures.ts';
+import { conversionRequestFixture, conversionRunFixture } from './f05.fixtures.ts';
 import { generation, policy, recommendation } from './f06.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
 const profile = mkdtempSync(join(base, 'paspm-f06-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-f06-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-f06-preview-'));
 const chrome = spawn(process.env.F06_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
   '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'
@@ -79,7 +79,7 @@ async function selectCompleted() {
   assert.equal(await page.evaluate("document.querySelector('input[name=\"f06-run\"]').disabled"), false);
   await page.evaluate("document.querySelector('input[name=\"f06-run\"]').click()");
 }
-async function capture(name) {
+async function capture(name) { if (!artifacts) return;
   const screenshot = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(screenshot.data, 'base64'));
 }
@@ -92,8 +92,8 @@ async function fixture({ requestId, request }) {
   });
   calls.push({ path: url.pathname, method: request.method, body: request.postData });
   let responseCode = 200, body;
-  const source = { ...requestFixture('FAILED', state.storeId), comparisonStatus: 'FAILED' };
-  const run = { ...runFixture(state.runStatus, state.storeId), patternCount: 8 };
+  const source = { ...conversionRequestFixture('WHOLE_UNIT_HALF_UP', 'FAILED', state.storeId), comparisonStatus: 'FAILED' };
+  const run = { ...conversionRunFixture('WHOLE_UNIT_HALF_UP', state.runStatus, state.storeId), patternCount: 8 };
   if (url.pathname === '/api/auth/login') body = { accessToken: 'fixture-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-csrf' };
   else if (url.pathname === '/api/auth/me') body = { userId: 12, name: 'F06 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: state.storeId, status: 'ACTIVE', emailVerified: true };
   else if (url.pathname === '/api/mining/requests') {
@@ -139,7 +139,7 @@ try {
   await login(); await selectCompleted();
   assert.equal(await page.evaluate("document.querySelector('main h1').parentElement.firstElementChild.tagName"), 'H1', 'Recommendations header starts with the page title');
   assert.equal(await page.evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"), false);
-  await has('Comparison result'); await has('Failed'); await capture('merchant-source');
+  await page.evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent==='Additional source details').click()");await has('WHOLE_UNIT_HALF_UP');await has('saved F03 snapshot is unchanged');await has('Comparison result'); await has('Failed'); await capture('merchant-source');
   assert.equal(await page.evaluate("document.querySelector('form[aria-label=\"Generate recommendations\"] button[type=submit]').disabled"), false);
   await page.evaluate("document.querySelector('input[type=checkbox][value=BUNDLE]').click()");
   await has('Select at least one recommendation format.');

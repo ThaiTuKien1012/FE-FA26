@@ -9,7 +9,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3102';
 const base = resolve(tmpdir()), profile = mkdtempSync(join(base, 'paspm-f02-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-f02-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-f02-preview-'));
 const chrome = spawn(process.env.F02_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
   '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'
@@ -98,7 +98,7 @@ async function login(role = 'STORE_ADMIN') {
   state.role = role;
   await page.evaluate('(async()=>{const auth=' + session + ';auth.endLocal();await auth.authenticate("/api/auth/login",{email:"fixture@example.invalid",password:"fixture-only"});})()');
 }
-async function capture(name) { const shot = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !(await page.evaluate('Boolean(document.querySelector("dialog[open]"))')) }); writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64')); }
+async function capture(name) { if (!artifacts) return; const shot = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !(await page.evaluate('Boolean(document.querySelector("dialog[open]"))')) }); writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64')); }
 const writes = () => calls.filter(c => !['GET', 'OPTIONS'].includes(c.method) && !c.path.startsWith('/api/auth/'));
 async function fixture({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname, method = request.method;

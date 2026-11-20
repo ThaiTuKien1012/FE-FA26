@@ -1,4 +1,5 @@
 import { f05Api, F05ApiError } from '../f05/f05.api';
+import { authService } from '../../services/authService';
 import { assertRecommendationSession, F06ApiError, recommendationRequest, recommendationSession, requireRecommendationRole } from './f06.http';
 import { isRecExpiryPage, isRecGenerationResult, isRecPage, isRecPolicy, isRecView } from './f06.read-contracts';
 import { INT32_MAX, REC_TYPES, REVIEW_STATUSES, recommendationFields, recommendationInteger, validateGeneration, validatePolicy, validateReview } from './f06.validation';
@@ -8,6 +9,7 @@ export { F06ApiError } from './f06.http';
 function assertResponse(valid: boolean): asserts valid {
   if (!valid) throw new F06ApiError(200, 'The server returned invalid or mismatched recommendation data. Reload before making a decision.');
 }
+const ownStore = (storeId: number) => storeId === authService.getCurrentUser()?.storeId;
 function pagination(params: { page?: number; pageSize?: number }) {
   const page = recommendationInteger(params.page === undefined ? 0 : params.page, 'page', 0, INT32_MAX);
   const pageSize = recommendationInteger(params.pageSize === undefined ? 20 : params.pageSize, 'pageSize', 1, 100);
@@ -24,7 +26,7 @@ async function review(id: number, request: RecReviewRequest, action: 'approve' |
   recommendationInteger(id, 'recommendationId');
   validateReview(request);
   const result = await recommendationRequest<unknown>(`/${id}/${action}`, json('POST', JSON.stringify(request), signal));
-  assertResponse(isRecView(result) && result.recommendationId === id);
+  assertResponse(isRecView(result) && result.recommendationId === id && ownStore(result.storeId));
   return result;
 }
 
@@ -48,6 +50,7 @@ export const f06Api = {
     assertRecommendationSession(session);
     requireRecommendationRole('review');
     if (run.status !== 'COMPLETED') throw new F06ApiError(409, 'Only a COMPLETED mining run can generate recommendations.');
+    assertResponse(ownStore(run.storeId));
     const result = await recommendationRequest<unknown>('/generate', json('POST', body, signal));
     assertResponse(isRecGenerationResult(result) && result.miningRunId === runId && result.snapshotId === run.snapshotId);
     return result;
@@ -68,14 +71,14 @@ export const f06Api = {
     }
     const ordering = params.miningRunId === undefined ? 'CREATED_DESC' : 'RANKED_WITHIN_SOURCE_RUN';
     const result = await recommendationRequest<unknown>(`?${query}`, { signal });
-    assertResponse(isRecPage(result) && matchingPage(result, page, pageSize) && result.ordering === ordering);
+    assertResponse(isRecPage(result) && matchingPage(result, page, pageSize) && result.ordering === ordering && result.items.every(item => ownStore(item.storeId)));
     return result;
   },
   async get(id: number, signal?: AbortSignal): Promise<RecView> {
     requireRecommendationRole();
     recommendationInteger(id, 'recommendationId');
     const result = await recommendationRequest<unknown>(`/${id}`, { signal });
-    assertResponse(isRecView(result) && result.recommendationId === id);
+    assertResponse(isRecView(result) && result.recommendationId === id && ownStore(result.storeId));
     return result;
   },
   approve: (id: number, request: RecReviewRequest, signal?: AbortSignal) => review(id, request, 'approve', signal),

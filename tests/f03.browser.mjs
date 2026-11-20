@@ -9,7 +9,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { configView, scores, matrix, legacyMatrix, season, snapshot } from './f03.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
-const root = resolve(tmpdir()), profile = mkdtempSync(join(root, 'paspm-f03-browser-')), artifacts = mkdtempSync(join(root, 'paspm-f03-preview-'));
+const root = resolve(tmpdir()), profile = mkdtempSync(join(root, 'paspm-f03-browser-')), artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(root, 'paspm-f03-preview-'));
 const chrome = spawn(process.env.F03_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let fixtureRole, cdp, initId;
@@ -42,8 +42,8 @@ async function session(role, path = '/f03/configuration') {
   initId = (await cdp.call('Page.addScriptToEvaluateOnNewDocument', { source })).identifier;
   await cdp.call('Page.navigate', { url: origin + path });
 }
-async function capture(name) { await cdp.call('Page.bringToFront'); await evaluate('window.scrollTo(0,0)'); await sleep(100); const shot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !(await evaluate('Boolean(document.querySelector("dialog[open]"))')) }); writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64')); }
-async function captureCreate(name) { const rect = await evaluate("(()=>{const r=document.querySelector('[data-create-snapshot]').closest('section').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()"); const shot=await cdp.call('Page.captureScreenshot',{format:'png',clip:rect,captureBeyondViewport:true});writeFileSync(join(artifacts,name+'.png'),Buffer.from(shot.data,'base64')); }
+async function capture(name) { if (!artifacts) return; await cdp.call('Page.bringToFront'); await evaluate('window.scrollTo(0,0)'); await sleep(100); const shot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: !(await evaluate('Boolean(document.querySelector("dialog[open]"))')) }); writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64')); }
+async function captureCreate(name) { if (!artifacts) return; const rect = await evaluate("(()=>{const r=document.querySelector('[data-create-snapshot]').closest('section').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()"); const shot=await cdp.call('Page.captureScreenshot',{format:'png',clip:rect,captureBeyondViewport:true});writeFileSync(join(artifacts,name+'.png'),Buffer.from(shot.data,'base64')); }
 async function key(key, modifiers = 0) { const windowsVirtualKeyCode = key === 'Tab' ? 9 : key === 'Escape' ? 27 : 0; await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key, modifiers, windowsVirtualKeyCode }); await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key, modifiers, windowsVirtualKeyCode }); }
 const count = (path, method) => calls.filter(c => c.path === path && (!method || c.method === method)).length;
 const product = id => ({ id, name: `Product ${String(id).padStart(3, '0')}`, sku: 'SKU-' + id, unit: 'EA', requiresExpiry: true, category: null, sellingPrice: 20, costPrice: 10, status: 'ACTIVE', stockQuantity: 30 });

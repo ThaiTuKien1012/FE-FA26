@@ -2,12 +2,12 @@ import { formatDate } from '../../../utils/dateTime';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { CheckCircle2, Clock3, RefreshCw, X, XCircle } from 'lucide-react';
 import { miningButton, miningDate } from '../../f05/f05.display';
-import type { RecEligibility, RecView } from '../f06.types';
+import type { EligibilityEvidence, RecView } from '../f06.types';
 import type { RecommendationBrowseState, RecommendationBrowser } from '../f06.browse';
 import { F06ReviewForm } from './F06ReviewForm';
 import { RecommendationBadge, RecommendationFields, RecommendationProduct, RecommendationRuleSummary, recommendationLabel as label, recommendationPercent as percent, recommendationValue as value, recommendationYesNo as yesNo, recommendationReadiness, recommendationAvailability, recommendationNumber } from './F06ReadShared';
 
-export function F06EligibilityCheck({ title, check, names = {} }: { title: string; check: RecEligibility; names?: Record<number, string> }) {
+export function F06EligibilityCheck({ title, check, names = {} }: { title: string; check: EligibilityEvidence; names?: Record<number, string> }) {
   return <section className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-semibold">{title}</h4><RecommendationBadge status={check.status} /></div>
     <p className="mt-2 text-sm text-[#57534E]">{recommendationAvailability(check.status)}</p>
@@ -18,9 +18,9 @@ export function F06EligibilityCheck({ title, check, names = {} }: { title: strin
       <p className="mb-2 break-words"><RecommendationProduct id={product.productId} names={names} /></p><RecommendationBadge status={product.status} />
       <p className="mt-2 text-xs leading-5">{label(product.productStatus)} · Sellable units: <strong>{value(product.sellableQuantity)}</strong></p><p className="mt-1 text-xs leading-5 text-[#6D7974]">Expiry check: {label(product.expiryStatus)}</p>
       {product.warnings.length > 0 && <ul className="mt-2 space-y-1 text-xs leading-5 text-amber-900">{product.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
-      <details className="mt-2 text-xs text-[#6D7974]"><summary className="cursor-pointer">Expiry details</summary><p className="mt-2">Priority: {value(product.expiryPriorityScore)} · Reminder days: {value(product.expiryPushDays)}</p></details>
+      <details className="mt-2 text-xs text-[#6D7974]"><summary className="cursor-pointer">Expiry details</summary><p className="mt-2">{check.scoringVersion ? 'U_expiry' : 'Legacy expiry priority'}: {value(product.expiryPriorityScore)}{'expiryPushDays' in product && <> · Historical reminder days: {value(product.expiryPushDays)}</>}</p></details>
     </li>)}</ul>
-    <details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer">Technical stock reference</summary><p className="mt-2 break-all">{check.fingerprint}</p></details>
+    <details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer">Technical stock reference</summary><p className="mt-2">Scoring version: {check.scoringVersion ?? 'Legacy V1 (recorded evidence)'}</p><p className="mt-2 break-all">{check.fingerprint}</p></details>
   </section>;
 }
 
@@ -46,7 +46,8 @@ export function F06RecommendationDetailContent({ item, names = {}, compact = fal
       {item.type === 'CROSS_SELL' && <div className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><h4 className="text-xs text-[#6D7974]">Starting product (anchor)</h4><p className="mt-2"><RecommendationProduct id={item.anchorProductId} names={names} /></p></div>
         <div><h4 className="text-xs text-[#6D7974]">Products to suggest alongside it</h4><ul aria-label="Suggested cross-sell targets" className="mt-2 space-y-1">{item.productIds.filter(id => id !== item.anchorProductId).map(id => <li key={id}><RecommendationProduct id={id} names={names} /></li>)}</ul></div></div>}
     </section>
-    <section data-evidence-status={item.evidence.status}><h3 className="text-lg font-semibold">Why This Was Suggested</h3><p className="mb-4 mt-2 text-sm leading-6 text-[#6D7974]">This product group came from past shopping patterns. Its Utility Score helps compare suggestions from the same data; it is not revenue, a price or purchase probability.</p>
+    {item.seasonEnded && <section aria-label="Ended season warning" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><h3 className="font-semibold">Season ended</h3><ul className="mt-2 space-y-1">{item.endedSeasons.map(season => <li key={season.seasonId} className="break-words">{season.name} · Ended {formatDate(season.endDate)}</li>)}</ul><p className="mt-2">This suggestion uses historical season data. Check its current availability before use.</p></section>}
+    <section data-evidence-status={item.evidence.status}><h3 className="text-lg font-semibold">Why This Was Suggested</h3><p className="mb-4 mt-2 text-sm leading-6 text-[#6D7974]">This product group came from past shopping patterns. Its Utility Score helps compare suggestions from the same data; it is not revenue, profit, a price or purchase probability.</p>
       <div className="rounded-xl border border-[#E7E2D8] p-4"><RecommendationFields fields={shoppingFields} /></div>
       <p className="mt-3 text-xs leading-5 text-[#6D7974]">Frequency is the share of past transactions containing this group. Confidence, where applicable, describes co-purchases relative to the starting product. These describe past behaviour, not guaranteed future sales. N/A means not available or not applicable.</p>
       <details className="mt-3 text-sm"><summary className="cursor-pointer font-medium">Full system explanation</summary><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-[#57534E]">{item.explanation.map((line, index) => <li key={index} className="break-words">{line}</li>)}</ul></details>
@@ -98,7 +99,7 @@ export function F06RecommendationDetails({ state, workflow }: { state: Recommend
   }, []);
   return <dialog ref={dialog} aria-labelledby="f06-detail-title" aria-modal="true" onCancel={event => { event.preventDefault(); workflow.closeDetail(); }} className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full max-w-3xl overflow-y-auto border-l border-[#E7E2D8] bg-white p-0 text-[#191C1B] shadow-xl backdrop:bg-black/30">
     <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[#E7E2D8] bg-white p-5 sm:p-6"><div><p className="text-xs font-semibold text-[#356B54]">Product suggestion · {state.role === 'Merchandiser' ? 'Details & review' : 'Read-only details'}</p><h2 id="f06-detail-title" className="mt-1 text-xl font-semibold">Recommendation #{state.detailId}</h2></div><button type="button" aria-label="Close recommendation details" autoFocus disabled={state.reviewPending} className="rounded-lg p-2 text-[#57534E] hover:bg-[#EDF5F0] focus-visible:outline-2 disabled:opacity-50" onClick={workflow.closeDetail}><X aria-hidden="true" className="h-5 w-5" /></button></div>
-    <div className="space-y-5 p-5 sm:p-6"><button type="button" className={miningButton} disabled={state.detailLoading || state.reviewPending} onClick={() => void workflow.openDetail(state.detailId!)}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh details</button>
+    <div className="space-y-5 p-5 sm:p-6"><button type="button" className={miningButton} disabled={state.detailLoading || state.reviewPending} onClick={() => void workflow.openDetail(state.detailId!, false, true)}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh details</button>
       {state.reviewError && <p role="alert" className="whitespace-pre-wrap break-words rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{state.reviewError}</p>}
       {state.reviewNotice && <p role="status" className="rounded-xl bg-[#EDF5F0] p-4 text-sm text-[#1E3A2F]">{state.reviewNotice}</p>}
       {state.detailLoading ? <p role="status" className="text-sm text-[#6D7974]">Loading recommendation details...</p> : state.detailError ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.detailError}</p> : state.detail && <>

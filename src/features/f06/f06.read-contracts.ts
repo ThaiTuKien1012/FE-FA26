@@ -25,11 +25,18 @@ const policy = shape({
   version: id, maxBundleSize: integer(2, 256), minSupportCount: int32Id,
   minSupportRatio: decimal, minConfidence: decimal, minimumSellableQuantity: int32Id, ruleVersion: text
 });
-const eligibility = shape({
+const productEligibility = {
+  productId: int32Id, productStatus: text, sellableQuantity: count,
+  status: eligibilityStatus, expiryPriorityScore: nullable(decimal), expiryStatus: text, warnings: strings
+};
+const eligibilityFields = {
   status: eligibilityStatus, checkedAt: text, asOfDate: text, timeZone: text, warnings: strings, fingerprint: text,
-  products: array(shape({ productId: int32Id, productStatus: text, sellableQuantity: count,
-    status: eligibilityStatus, expiryPriorityScore: nullable(decimal), expiryStatus: text, expiryPushDays: int32Count, warnings: strings }))
-});
+};
+const legacyEligibility = shape({ ...eligibilityFields, products: array(shape({ ...productEligibility, expiryPushDays: int32Count })) });
+const eligibilityV2 = shape({ ...eligibilityFields, scoringVersion: oneOf(['W2_EXPIRY_SEASON_V1']), products: array(shape(productEligibility)) });
+// Match the backend's stored-evidence dispatcher. Unknown versions must never
+// fall back to V1, even if a payload happens to contain the legacy fields.
+const eligibility: Check = value => object(value) && (value.scoringVersion == null ? legacyEligibility(value) : eligibilityV2(value));
 const evidence = shape({
   totalTransactions: int32Count, supportCount: nullable(int32Count), supportRatio: nullable(decimal),
   anchorSupportCount: nullable(int32Count), confidence: nullable(decimal), status: text
@@ -46,7 +53,8 @@ const review = shape({
 const view = shape({
   recommendationId: id, storeId: int32Id, snapshotId: int32Id, type: recType, productIds: array(int32Id),
   anchorProductId: nullable(int32Id), utility: decimal, reviewStatus, version: id, ruleVersion: text,
-  policy, evidence, generationEligibility: eligibility, currentEligibility: eligibility,
+  policy, evidence, generationEligibility: eligibility, currentEligibility: eligibilityV2,
+  seasonEnded: bool, endedSeasons: array(shape({ seasonId: int32Id, name: text, endDate: text })),
   inventoryChanged: bool, readyForConsumption: bool, sources: array(source), explanation: strings,
   reviewHistory: array(review), reviewedBy: nullable(int32Id), reviewedAt: nullable(text),
   reviewReason: nullable(text), createdAt: text, rank: nullable(int32Id)
@@ -60,8 +68,8 @@ const page = shape({ page: int32Count, pageSize: integer(1, 100), totalElements:
 const recPage = shape({ items: array(view), ordering: oneOf(['CREATED_DESC', 'RANKED_WITHIN_SOURCE_RUN']) });
 const expiryPage = shape({
   asOfDate: text, timeZone: text, checkedAt: text, warnings: strings,
-  items: array(shape({ productId: int32Id, batchId: int32Id, expiryDate: text, daysRemaining: count,
-    remainingQuantity: count, expiryPushDays: int32Count, pushRequired: bool, checkedAt: text, status: text, warnings: strings }))
+  items: array(shape({ productId: int32Id, batchId: int32Id, pushDay: text, expiryDate: nullable(text),
+    daysToPush: integer(Number.MIN_SAFE_INTEGER), remainingQuantity: count, pushRequired: bool, checkedAt: text, warnings: strings }))
 });
 export const isRecPolicy = (value: unknown): value is RecPolicy => policy(value);
 export const isRecView = (value: unknown): value is RecView => view(value);

@@ -1,4 +1,4 @@
-import type { RecEligibility, RecExpiryPage, RecGenerationResult, RecPolicy, RecPolicyRequest, RecView } from '../src/features/f06/f06.types';
+import type { EligibilityV2, RecEligibility, RecExpiryPage, RecGenerationResult, RecPolicy, RecPolicyRequest, RecView } from '../src/features/f06/f06.types';
 
 // Test-only wire fixtures. No runtime service imports these values.
 export const policy: RecPolicy = {
@@ -9,7 +9,7 @@ export const policyRequest: RecPolicyRequest = {
   expectedVersion: 1, maxBundleSize: 4, minSupportCount: 2, minSupportRatio: 0.05,
   minConfidence: 0.5, minimumSellableQuantity: 1
 };
-export function eligibility(status: RecEligibility['status'] = 'ELIGIBLE'): RecEligibility {
+export function legacyEligibility(status: RecEligibility['status'] = 'ELIGIBLE'): RecEligibility {
   return {
     status, products: [31, 32].map(productId => ({ productId, productStatus: 'ACTIVE',
       sellableQuantity: 10, status, expiryPriorityScore: null, expiryStatus: 'MISSING_METADATA',
@@ -17,6 +17,10 @@ export function eligibility(status: RecEligibility['status'] = 'ELIGIBLE'): RecE
     checkedAt: '2026-11-06T17:00:01Z', asOfDate: '2026-11-07', timeZone: 'Asia/Ho_Chi_Minh',
     warnings: ['Missing expiry metadata'], fingerprint: 'fixture-fingerprint'
   };
+}
+export function eligibility(status: EligibilityV2['status'] = 'ELIGIBLE'): EligibilityV2 {
+  const legacy = legacyEligibility(status);
+  return { ...legacy, scoringVersion: 'W2_EXPIRY_SEASON_V1', products: legacy.products.map(({ expiryPushDays: _days, ...product }) => product) };
 }
 export function recommendation(overrides: Partial<RecView> = {}): RecView {
   return {
@@ -26,6 +30,7 @@ export function recommendation(overrides: Partial<RecView> = {}): RecView {
     evidence: { totalTransactions: 6, supportCount: 2, supportRatio: 0.333333,
       anchorSupportCount: null, confidence: null, status: 'AVAILABLE' },
     generationEligibility: eligibility(), currentEligibility: eligibility(), inventoryChanged: false,
+    seasonEnded: false, endedSeasons: [],
     readyForConsumption: false, sources: [{ runId: 42, patternId: 82, requestId: 17, snapshotId: 2,
       algorithm: 'HUI_MINER', libraryVersion: 'SPMF_2.67a', conversionVersion: 'F03_SCALE6_GCD_INT32_DENSE_V1',
       inputHash: 'input', sourceHash: 'source', matrixHash: 'matrix', minUtilMode: 'ABSOLUTE',
@@ -42,9 +47,9 @@ export const generation: RecGenerationResult = {
 };
 export function expiryPage(): RecExpiryPage {
   return {
-    items: [{ productId: 31, batchId: 31, expiryDate: '2026-11-12', daysRemaining: 5,
-      remainingQuantity: 10, expiryPushDays: 7, pushRequired: true,
-      checkedAt: '2026-11-06T17:00:01Z', status: 'AVAILABLE', warnings: [] }],
+    items: [{ productId: 31, batchId: 31, pushDay: '2026-11-05', expiryDate: '2026-11-12', daysToPush: -2,
+      remainingQuantity: 10, pushRequired: true,
+      checkedAt: '2026-11-06T17:00:01Z', warnings: [] }],
     page: 0, pageSize: 20, totalElements: 1, asOfDate: '2026-11-07',
     timeZone: 'Asia/Ho_Chi_Minh', checkedAt: '2026-11-06T17:00:01Z', warnings: ['Product 32: missing required expiry metadata']
   };

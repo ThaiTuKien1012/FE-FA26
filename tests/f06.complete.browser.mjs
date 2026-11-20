@@ -5,12 +5,12 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { recommendation, eligibility, policy, expiryPage, generation } from './f06.fixtures.ts';
+import { recommendation, eligibility, legacyEligibility, policy, expiryPage, generation } from './f06.fixtures.ts';
 import { requestFixture, runFixture } from './f05.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir()), profile = mkdtempSync(join(base, 'paspm-f06-complete-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-f06-complete-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-f06-complete-preview-'));
 const chrome = spawn(process.env.F06_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
   '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'
@@ -71,7 +71,7 @@ async function dashboard() {
 async function openDetails(id) {
   await page.evaluate(`(()=>{const button=[...document.querySelectorAll('button[aria-label="View details for recommendation #${id}"]')].find(el=>el.getClientRects().length);if(!button)throw new Error('No visible detail button');button.click();})()`);
 }
-async function capture(name) {
+async function capture(name) { if (!artifacts) return;
   const result = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(result.data, 'base64'));
 }
@@ -79,9 +79,9 @@ async function capture(name) {
 function item(id = 62) {
   const final = state.review !== 'PENDING_REVIEW';
   return recommendation({ recommendationId: id, storeId: state.storeId, version: state.version, reviewStatus: state.review,
-    currentEligibility: eligibility(state.eligibility), readyForConsumption: state.review === 'APPROVED' && state.eligibility === 'ELIGIBLE',
+    generationEligibility: legacyEligibility(), seasonEnded: true, endedSeasons: [{seasonId:3,name:"Autumn fixture season",endDate:"2026-10-31"}], currentEligibility: eligibility(state.eligibility), readyForConsumption: state.review === 'APPROVED' && state.eligibility === 'ELIGIBLE',
     reviewedBy: final ? 12 : null, reviewedAt: final ? '2026-11-10T00:00:00Z' : null, reviewReason: final ? 'Fixture review decision' : null,
-    reviewHistory: final ? [{ oldStatus: 'PENDING_REVIEW', newStatus: state.review, reviewedBy: 12, reviewedAt: '2026-11-10T00:00:00Z', reason: 'Fixture review decision', resultingVersion: state.version, eligibilityCheck: eligibility(state.eligibility) }] : []
+    reviewHistory: final ? [{ oldStatus: 'PENDING_REVIEW', newStatus: state.review, reviewedBy: 12, reviewedAt: '2026-11-10T00:00:00Z', reason: 'Fixture review decision', resultingVersion: state.version, eligibilityCheck: legacyEligibility(state.eligibility) }] : []
   });
 }
 async function fixture({ requestId, request }) {
@@ -117,7 +117,7 @@ async function fixture({ requestId, request }) {
   } else if (path === '/api/recommendations/expiry-push') {
     assert.equal(request.method, 'GET'); for (const key of url.searchParams.keys()) assert.ok(['productId','page','pageSize'].includes(key));
     body = { ...expiryPage(), page: Number(url.searchParams.get('page') || 0), pageSize: Number(url.searchParams.get('pageSize') || 20), totalElements: state.expiryEmpty ? 0 : 45,
-      items: state.expiryEmpty ? [] : expiryPage().items, warnings: ['Fixture metadata warning even on empty pages'] };
+      items: state.expiryEmpty ? [] : [...expiryPage().items, {...expiryPage().items[0],batchId:32,expiryDate:null,daysToPush:0}], warnings: ['Fixture metadata warning even on empty pages'] };
   } else if (path === '/api/recommendations/generate') { assert.equal(request.method, 'POST'); assert.equal(JSON.parse(request.postData).miningRunId, 42); body = generation; }
   else if (/^\/api\/products\/\d+$/.test(path)) body = { id: Number(path.split('/').at(-1)), name: path.endsWith('/31') ? 'Fixture milk' : 'Fixture bread' };
   else if (path === '/api/mining/requests') body = { items: [requestFixture('COMPLETED', state.storeId)], page: 0, pageSize: 20, totalElements: 1 };
@@ -153,7 +153,7 @@ try {
   await until("!!document.querySelector('input[name=\"f06-run\"]')",'completed run');
   await page.evaluate("document.querySelector('input[name=\"f06-run\"]').click()");
   await click('Generate recommendations'); await has('Recommendations Created'); await click('View Recommendations');
-  await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Review this recommendation');
+  await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Review this recommendation');await has('Autumn fixture season');await has('31/10/2026');
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].find(b=>b.textContent==='Approve Recommendation').disabled"),true);
   await prepare('Approve'); assert.equal(writes().length,0);
   state.hold=true; await click('Confirm Approval'); await has('Saving decision...');
@@ -191,7 +191,7 @@ try {
   assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false);await close('recommendation details');
   checks.push('Store Admin full numeric config PUT, exact percentages, validation, explicit 409 comparison; Merchant read-only; captured rules unchanged');
 
-  const beforeExpiry=calls.length;await click('Expiry Alerts');await has('Expires in 5 days');await has('Fixture milk');await has('Asia/Ho_Chi_Minh');
+  const beforeExpiry=calls.length;await click('Expiry Alerts');await has('Days to Push');await has('N/A');await has('05/11/2026');assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Expiry alert batches\"]')?.innerText.includes('-2')"),true);await has('Fixture milk');await has('Asia/Ho_Chi_Minh');
   await select('f06-expiry-product','31');await select('f06-expiry-size','10');await click('Apply Expiry Filters');await has('Page 1 of 5');await click('Next alerts');await has('Page 2 of 5');
   assert.deepEqual(Object.fromEntries(new URLSearchParams(calls.filter(c=>c.path.endsWith('/expiry-push')).at(-1).query)),{page:'1',pageSize:'10',productId:'31'});
   assert.equal(calls.slice(beforeExpiry).some(c=>c.path.startsWith('/api/mining/')),false);

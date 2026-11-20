@@ -47,12 +47,12 @@ function setup(t: TestContext, role: AuthUser['role'] = 'Merchandiser') {
 const table = (data: RecPage) => renderToStaticMarkup(createElement(F06RecommendationTable, { data, onOpen: () => {} }));
 const content = (item: RecView) => renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item }));
 
-test('history list succeeds in backend order without a rank column, fabricated KPIs or product fetches', async t => {
+test('history list succeeds in backend order without a rank column or fabricated KPIs, with cached product names', async t => {
   const f = setup(t); const items = [recommendation({ recommendationId: 80, utility: 1 }), recommendation({ recommendationId: 62, utility: 999 })];
   f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, items));
   f.workflow.start(); await flush();
   assert.deepEqual(f.workflow.getSnapshot().list?.items, items);
-  assert.equal(f.list.mock.calls[0].arguments[0]?.miningRunId, undefined); assert.equal(f.products.mock.callCount(), 0);
+  assert.equal(f.list.mock.calls[0].arguments[0]?.miningRunId, undefined); assert.equal(f.products.mock.callCount(), 2);
   const html = table(f.workflow.getSnapshot().list!);
   assert.ok(html.indexOf('#80') < html.indexOf('#62')); assert.equal(html.includes('>Rank<'), false);
   for (const label of ['Utility Score', 'Review', 'Availability / Readiness', 'Why Suggested', 'View Details']) assert.ok(html.includes(label));

@@ -10,7 +10,7 @@ import { requestFixture, runFixture } from './f05.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir()), profile = mkdtempSync(join(base, 'paspm-f06-browse-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-f06-browse-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-f06-browse-preview-'));
 const chrome = spawn(process.env.F06_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
   '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'
@@ -71,7 +71,7 @@ async function dashboard() {
 async function openDetails(id) {
   await page.evaluate(`(()=>{const button=[...document.querySelectorAll('button[aria-label="View details for recommendation #${id}"]')].find(el=>el.getClientRects().length);if(!button)throw new Error('No visible detail button');button.click();})()`);
 }
-async function capture(name) {
+async function capture(name) { if (!artifacts) return;
   const result = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(result.data, 'base64'));
 }

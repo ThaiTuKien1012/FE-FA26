@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join, dirname, basename } from 'node:path';
-import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture, progressFixture, efimRequestFixture } from './f05.fixtures.ts';
+import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture, progressFixture, efimRequestFixture, conversionRequestFixture, conversionRunFixture } from './f05.fixtures.ts';
 import { configView as weightConfig } from './f03.fixtures.ts';
 
 const origin=process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
@@ -21,7 +21,7 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
-const state={storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
+const state={conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
   constructor(ws){this.ws=ws;ws.addEventListener('message',event=>{
@@ -138,6 +138,18 @@ async function paused({requestId,request}){
       else if(/^\/api\/products\/\d+$/.test(path))body={id:Number(path.split('/').at(-1)),name:'Product '+path.split('/').at(-1)};
       else {unexpected.push({method,path});code=500;body={error:'Unexpected test API route'};}
     }
+    if (code < 300 && state.conversion !== 'legacy') {
+      const decorate = row => {
+        if (!row || typeof row !== 'object' || typeof row.conversionVersion !== 'string') return row;
+        const metadata = state.conversion === 'unknown' ? { conversionMode:null,roundingUnit:null,conversionVersion:'STORED_LEGACY_V0' } : (() => {
+          const expected = row.runId ? conversionRunFixture(state.conversion, row.status, row.storeId) : conversionRequestFixture(state.conversion, row.status, row.storeId);
+          return Object.fromEntries(['conversionMode','roundingUnit','conversionVersion','minUtilSpmf',...(row.runId?[]:['effectiveMinUtility','utilityScale','divisor','totalScaledUtility'])].map(key=>[key,expected[key]]));
+        })();
+        return {...row,...metadata,...(row.runId && state.emptyPatterns && row.status==='COMPLETED'?{patternCount:0}:{}),...(state.failedRun?row.runId?{status:'TIMED_OUT',failureCode:'TIMED_OUT',failureMessage:'Execution time limit exceeded',patternCount:null}:{status:'FAILED'}:{})};
+      };
+      body=Array.isArray(body)?body.map(decorate):body?.items?{...body,items:body.items.map(decorate)}:decorate(body);
+      if(path.endsWith('/runs/42/patterns')) body=state.emptyPatterns?responsePage([],url.searchParams):responsePage([{patternId:91,runId:42,productIds:[7,2],utility:state.conversion==='WHOLE_UNIT_HALF_UP'?12:12.123456,utilitySpmf:state.conversion==='WHOLE_UNIT_HALF_UP'?12:12123456,patternSize:2,supportCount:null}],url.searchParams);
+    }
     await cdp.call('Fetch.fulfillRequest',{requestId,responseCode:code,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(body)).toString('base64')});
   }catch(e){
     // Cancelled reads during navigation can no longer be fulfilled.
@@ -145,8 +157,8 @@ async function paused({requestId,request}){
     try{await cdp.call('Fetch.failRequest',{requestId,errorReason:'Aborted'});}catch{}
   }
 }
-const artifactDirectory=mkdtempSync(join(base,'paspm-f05-redesign-preview-'));
-async function capture(name){assert.equal(await evaluate("/remaining runs|next available run|runs per week|runs per month/i.test(document.querySelector('main')?.innerText||'')"),false,'No invented quota UI');await sleep(100);const shot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:!(/^(add-account|edit-)/.test(name))});writeFileSync(join(artifactDirectory,name+'.png'),Buffer.from(shot.data,'base64'));}
+const artifactDirectory=process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base,'paspm-f05-redesign-preview-'));
+async function capture(name){assert.equal(await evaluate("/remaining runs|next available run|runs per week|runs per month/i.test(document.querySelector('main')?.innerText||'')"),false,'No invented quota UI');if (!artifactDirectory) return;await sleep(100);const shot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:!(/^(add-account|edit-)/.test(name))});writeFileSync(join(artifactDirectory,name+'.png'),Buffer.from(shot.data,'base64'));}
 async function select(label,value){assert.equal(await evaluate("(()=>{const e=document.querySelector('select[aria-label="+JSON.stringify(label)+"]');if(!e||e.disabled)return false;e.value="+JSON.stringify(value)+";e.dispatchEvent(new Event('change',{bubbles:true}));return true;})()"),true,'Select '+label);}
 const checks=[];
 try{
@@ -161,6 +173,7 @@ try{
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
 
 
+  if(process.env.F05_CONVERSION_ONLY !== 'true') {
   await session(null,'/admin/lambda-policy');await textIncludes('Sign in to the system');await session(null);await textIncludes('Sign in to the system');checks.push('guest direct routes return Login');
   state.holdConfig=true;await session('System Admin');await textIncludes('Loading...');
   state.holdConfig=false;await expectRoute('/admin/overview','Mining Dashboard');await textIncludes('No global mining configuration');
@@ -456,6 +469,51 @@ try{
       await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     }
   }
+
+  }
+  // New conversion modes are read-only fixtures; no mining or recommendation POST.
+  const conversionPosts=postBodies.length;
+  state.compare=false;state.legacySingle=false;state.hasRequest=true;state.storeHistory='normal';
+  for(const role of ['System Admin','Merchandiser','Store Admin']) {
+    for(const mode of ['LOSSLESS','WHOLE_UNIT_HALF_UP','unknown']) {
+      state.conversion=mode;state.emptyPatterns=mode==='WHOLE_UNIT_HALF_UP';state.requestReads=5;
+      await session(role,role==='System Admin'?'/admin/mining/history?storeId=1&requestId=17':'/mining?view=history&requestId=17');
+      await textIncludes(role==='System Admin'?'Algorithm Runs':'Algorithm results');
+      await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Loaded Additional details');
+      await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').closest('details').open=true");
+      await textIncludes(mode==='unknown'?'STORED_LEGACY_V0':mode);
+      assert.equal(await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').innerText.includes("+JSON.stringify(mode==='LOSSLESS'?'None (exact conversion)':mode==='WHOLE_UNIT_HALF_UP'?'1':'Not recorded')+")"),true,'Correct rounding/null label');
+      await textIncludes('Snapshot');await textIncludes('Run #42');
+      const beforePatterns=state.calls.filter(call=>call.path.endsWith('/patterns')).length;
+      await click(role==='System Admin'?'View run #42':'View Patterns');
+      if(role==='System Admin') {
+        await until("!![...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42'))",'System run detail');
+        await evaluate("[...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42')).parentElement.open=true");
+        assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,beforePatterns);
+        assert.equal(await evaluate("!!document.querySelector('main button[type=submit]')"),false);
+      } else {
+        await textIncludes(mode==='WHOLE_UNIT_HALF_UP'?'Zero patterns is a valid mining result':'Discovered Product Combinations');
+        if(mode==='WHOLE_UNIT_HALF_UP') await textIncludes('saved F03 snapshot is unchanged');
+      }
+      const completedReads=state.calls.filter(call=>call.path.endsWith('/progress')).length;await sleep(1650);assert.equal(state.calls.filter(call=>call.path.endsWith('/progress')).length,completedReads,'Terminal stops polling');
+      if(mode==='WHOLE_UNIT_HALF_UP') await evaluate("document.querySelectorAll('[aria-label=\"Analysis input conversion\"]').forEach(e=>{const details=e.closest('details');if(details)details.open=true})");
+      if(mode==='WHOLE_UNIT_HALF_UP') for(const width of [1440,820,390]) {
+        await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
+        assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Conversion details fit '+role+' '+width);
+        assert.equal(await evaluate("[...document.querySelectorAll('[aria-label=\"Analysis input conversion\"]')].every(e=>!e.closest('[role=alert]'))"),true,'Accepted fallback is not a warning');
+        await capture('conversion-'+role.toLowerCase().replaceAll(' ','-')+'-'+width);
+      }
+      await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+    }
+  }
+  state.conversion='WHOLE_UNIT_HALF_UP';state.failedRun=true;state.progressOverride={...progressFixture('FAILED'),percent:50,completedSteps:1};state.requestReads=5;
+  await session('Merchandiser','/mining?view=history&requestId=17');await textIncludes('Mining failed');await textIncludes('Execution time limit exceeded');
+  const patternsBeforeFailure=state.calls.filter(call=>call.path.endsWith('/patterns')).length;await click('View Patterns');await textIncludes('Patterns unavailable');await textIncludes('TIMED_OUT');assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,patternsBeforeFailure);
+  await capture('conversion-failed-run');
+  assert.equal(postBodies.length,conversionPosts);assert.equal(state.calls.some(call=>call.path.endsWith('/benchmark')||call.path.includes('/schedules')||call.path==='/api/recommendations/generate'),false);
+  state.conversion='legacy';state.emptyPatterns=false;state.failedRun=false;state.progressOverride=null;state.requestReads=5;
+  checks.push('LOSSLESS/WHOLE_UNIT_HALF_UP/unknown-null Request and Run details for all 3 roles; accepted fallback neutral, exact snapshot kept, terminal poll stop, completed empty patterns, timed-out failure blocked; 1440/820/390 screenshots; no mining/F06/scheduler/benchmark POST');
+
   await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
   const featureCalls=()=>state.calls.filter(c=>!c.path.startsWith('/api/auth/')).length;const beforeCustomer=featureCalls();await session('End-Customer');await textIncludes('Access Restricted');assert.equal(featureCalls(),beforeCustomer);

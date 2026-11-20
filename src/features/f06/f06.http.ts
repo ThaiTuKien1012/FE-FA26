@@ -17,7 +17,10 @@ export function requireRecommendationRole(action: 'read' | 'review' | 'config' =
 }
 
 /** Fence results across login/logout, but allow normal access-token rotation. */
-export const recommendationSession = () => authService.getSessionId() || authService.getToken();
+export const recommendationSession = () => {
+  const user = authService.getCurrentUser();
+  return JSON.stringify([authService.getSessionId() || authService.getToken(), user?.id, user?.storeId, user?.role]);
+};
 export function assertRecommendationSession(session: string | null): void {
   if (recommendationSession() !== session) throw new F06ApiError(401, 'The active session changed. Reload data for the current session.');
 }

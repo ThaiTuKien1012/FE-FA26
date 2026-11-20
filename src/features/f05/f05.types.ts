@@ -8,6 +8,12 @@ export type MinUtilMode = 'PERCENTAGE' | 'ABSOLUTE';
 export type RequestStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
 export type RunStatus = RequestStatus | 'TIMED_OUT';
 export type ComparisonStatus = 'NOT_REQUESTED' | 'PENDING' | 'MATCH' | 'FAILED' | 'BLOCKED';
+export type ConversionMode = 'LOSSLESS' | 'WHOLE_UNIT_HALF_UP';
+export interface MiningConversionMetadata {
+  /** Additive response fields; absent on pre-2026-11-19 API responses. */
+  conversionMode?: ConversionMode | null;
+  roundingUnit?: number | null;
+}
 
 export interface Page<T> {
   items: T[];
@@ -65,7 +71,7 @@ export interface MiningProgressView {
   comparisonStatus: ComparisonStatus;
 }
 
-export interface RequestView {
+export interface RequestView extends MiningConversionMetadata {
   requestId: number;
   storeId: number;
   requestedBy: number;
@@ -92,7 +98,7 @@ export interface RequestView {
   createdAt: string;
 }
 
-export interface RunView {
+export interface RunView extends MiningConversionMetadata {
   runId: number;
   requestId: number;
   storeId: number;
@@ -120,7 +126,7 @@ export interface PatternView {
   patternId: number;
   runId: number;
   productIds: number[];
-  /** Frozen weighted utility; supplied by the backend. */
+  /** Backend analysis utility: exact for lossless input, whole-unit for fallback. */
   utility: number;
   utilitySpmf: number;
   patternSize: number;
