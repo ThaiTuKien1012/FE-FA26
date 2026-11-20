@@ -16,18 +16,7 @@ export function FrozenConfiguration({ configuration }: { configuration?: F03Froz
     ['Effective Stock Importance', effective.alpha], ['Effective Expiry Importance', effective.beta], ['Effective Seasonal Importance', effective.gamma], ['Legacy Expiry Window', config.expiryWindowDays]
   ]} /></>;
 }
-export function Matrix({ result, loadPage, busy, names }: { result: F03MatrixPage; loadPage: (page: number) => void; busy: boolean; names?: Record<number, string> }) {
-  const w2 = result.configuration ? isFrozenV2(result.configuration) : false;
-  return <>
-    <p className="mb-4 text-sm text-[#6d7974]">Base Utility is the backend’s utility before priorities. Weight is the product priority multiplier. Weighted Utility is the resulting utility used for mining.</p>
-    <Warnings warnings={result.warnings} />
-    {result.items.length > 0 ? <div className="overflow-x-auto"><table className="f03-table"><caption className="sr-only">Utility matrix</caption><thead><tr>{['Transaction', 'Product', 'Quantity', ...(w2 ? ['Expiry Risk', 'Season Weight'] : []), 'Base Utility', 'Weight', 'Weighted Utility', 'Transaction Utility'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{result.items.map((item, i) => <tr key={`${item.transactionId}-${item.productId}-${i}`}><td>#{item.transactionId}</td><td>{names?.[item.productId] ?? `Product #${item.productId}`}<small className="block text-[#6d7974]">ID {item.productId}</small></td><td>{item.quantity}</td>{w2 && <><td>{item.expiryRisk ?? 'Unavailable'}</td><td>{item.seasonWeight ?? 'Unavailable'}</td></>}<td>{item.baseUtility}</td><td>{item.weightValue ?? 'Unavailable'}</td><td>{item.weightedUtility ?? 'Unavailable'}</td><td>{item.transactionUtility ?? 'Unavailable'}</td></tr>)}</tbody></table></div> : <p className="text-sm text-[#6d7974]">No utility rows were returned for this page. Preview needs eligible F04 sales transactions in the selected period. Try another sales period or ask a Store Admin to review transaction imports.</p>}
-    <Pager page={result} onChange={loadPage} label="matrix rows" busy={busy} />
-    <Technical><p>Saved evidence and algorithm mapping from the API. Unavailable scores remain null; the frontend does not recalculate them.</p>{result.items.map((item, i) => <details key={`${item.transactionId}-${item.productId}-${i}`} className="rounded-lg border border-[#e7e2d8] p-3"><summary className="cursor-pointer">Transaction #{item.transactionId} / Product #{item.productId}</summary><div className="mt-3"><Metrics values={[
-      ['Algorithm Item ID', item.algorithmItemId], ['Stock Score (legacy)', item.stockScore], ['Expiry Score (legacy)', item.expiryScore], ['Seasonal Score (legacy)', item.seasonalScore], ['Selected Season', item.seasonId], ['Expiry Status', readable(item.expiryStatus)]
-    ]} /><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(item.expiryEvidence, null, 2)}</pre></div></details>)}</Technical>
-  </>;
-}
+export { UtilityMatrixTable as Matrix } from './UtilityMatrixTable';
 export function MatrixMetadata({ result }: { result: F03MatrixPage | F03Snapshot }) {
   const frozen = result.configuration;
   return <Technical><Metrics values={[

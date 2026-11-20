@@ -2,9 +2,12 @@ import { formatDate, formatDateRange, formatUtcDateTime } from '../../../utils/d
 import { useEffect, useRef, useState } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { f03Api, type F03Snapshot, type F03SnapshotPage } from '../f03.api';
+import { utilityNumber } from '../f03.presentation';
 import { previewEligible } from '../f03.validation';
 import { BackToSnapshots, Button, errorMessage, Metrics, navigate, Notice, Pager, primary, readable, secondary, Section, Warnings } from './F03Shared';
 import type { PreviewFlow } from './UtilityPreview';
+import { MerchantSnapshotList } from './MerchantSnapshotList';
+import { SnapshotWarnings } from './SnapshotWarnings';
 import { FrozenConfiguration, Matrix, MatrixMetadata } from './UtilityMatrix';
 import type { F03MatrixPage } from '../f03.api';
 
@@ -41,7 +44,7 @@ export function UtilitySnapshots({ flow, readOnly, invalidate, isCurrent }: { fl
           </div>
           <Metrics values={[
             ['Snapshot ID', `#${created.snapshotId}`], ['Sales Period', formatDateRange(created.rangeStart, created.rangeEnd)], ['Analysis Date', formatDate(created.asOfDate)],
-            ['Total Weighted Utility', created.totalWeightedUtility], ['Created At', formatUtcDateTime(created.createdAt)]
+            ['Total Weighted Utility', utilityNumber(created.totalWeightedUtility)], ['Created At', formatUtcDateTime(created.createdAt)]
           ]} />
           <div><div className="flex flex-wrap gap-3"><Button className={secondary} onClick={() => navigate('f03-preview')}>Run New Preview</Button><Button className={primary} onClick={() => navigate('f03-snapshot-detail', created.snapshotId)}>View Snapshot #{created.snapshotId}</Button></div><p className="mt-3 text-xs text-[#6d7974]">A new Preview is required to create another snapshot.</p></div>
         </> : <>
@@ -80,10 +83,10 @@ export function SnapshotHistory({ refresh, readOnly }: { refresh: number; readOn
     }).catch(e => { if (live) { setResult(null); setError(errorMessage(e, 'Unable to load saved snapshots.')); } }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [page, reload, refresh]);
-  return <Section title="Saved Snapshots – Ready for Mining" subtitle="Snapshot History for this Store includes READY snapshots only, newest first. Other statuses are not included.">
-    <Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh History</Button><div className="mt-4"><Notice error={error} /></div>
+  return <Section title={readOnly ? "Saved Snapshots – Ready for Mining" : "Saved Snapshots"} subtitle={readOnly ? "Snapshot History for this Store includes READY snapshots only, newest first. Other statuses are not included." : "Saved READY datasets, newest first. Warnings do not mean the snapshot failed."} action={!readOnly && <Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh Snapshots</Button>}>
+    {readOnly && <Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh History</Button>}<Notice error={error} />
     {loading && <p role="status">Loading saved snapshots…</p>}
-    {!loading && result && <>{result.items.length ? <div className="overflow-x-auto"><table className="f03-table"><caption className="sr-only">Saved READY snapshots</caption><thead><tr>{['Snapshot ID', 'Sales Period', 'Analysis Date', 'Total Weighted Utility', 'Status', 'Created At', 'Action'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{result.items.map(snapshot => <tr key={snapshot.snapshotId}><td className="font-semibold">#{snapshot.snapshotId}</td><td>{formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)}</td><td>{formatDate(snapshot.asOfDate)}</td><td>{snapshot.totalWeightedUtility}</td><td><span className="rounded-full bg-[#eef5f0] px-2.5 py-1 text-xs font-semibold text-[#356b54]">{snapshot.status === 'READY' ? 'READY' : readable(snapshot.status)}</span></td><td>{formatUtcDateTime(snapshot.createdAt)}</td><td>{readOnly ? <span className="text-xs text-[#6d7974]">Details require Merchandiser access</span> : <Button className={secondary} aria-label={`View Details for Snapshot #${snapshot.snapshotId}`} onClick={() => navigate('f03-snapshot-detail', snapshot.snapshotId)}>View Details</Button>}</td></tr>)}</tbody></table></div> : <p className="py-5 text-sm text-[#6d7974]">No READY snapshots were returned for this page. {readOnly ? 'A Merchandiser can create a snapshot after reviewing Preview.' : 'Calculate Preview and create a snapshot to save a utility dataset.'}</p>}<Pager page={result} onChange={setPage} label="snapshots" busy={loading} /></>}
+    {result && <div aria-busy={loading} className={loading ? "pointer-events-none opacity-60" : ""}>{result.items.length ? !readOnly ? <MerchantSnapshotList items={result.items} busy={loading} /> : <div className="overflow-x-auto"><table className="f03-table"><caption className="sr-only">Saved READY snapshots</caption><thead><tr>{['Snapshot ID', 'Sales Period', 'Analysis Date', 'Total Weighted Utility', 'Status', 'Created At', 'Action'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{result.items.map(snapshot => <tr key={snapshot.snapshotId}><td className="font-semibold">#{snapshot.snapshotId}</td><td>{formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)}</td><td>{formatDate(snapshot.asOfDate)}</td><td>{snapshot.totalWeightedUtility}</td><td><span className="rounded-full bg-[#eef5f0] px-2.5 py-1 text-xs font-semibold text-[#356b54]">{snapshot.status === 'READY' ? 'READY' : readable(snapshot.status)}</span></td><td>{formatUtcDateTime(snapshot.createdAt)}</td><td>{readOnly ? <span className="text-xs text-[#6d7974]">Details require Merchandiser access</span> : <Button className={secondary} aria-label={`View Details for Snapshot #${snapshot.snapshotId}`} onClick={() => navigate('f03-snapshot-detail', snapshot.snapshotId)}>View Details</Button>}</td></tr>)}</tbody></table></div> : readOnly ? <p className="py-5 text-sm text-[#6d7974]">No READY snapshots were returned for this page. A Merchandiser can create a snapshot after reviewing Preview.</p> : <MerchantSnapshotList items={[]} busy={loading} />}<Pager hideSingle={!readOnly} page={result} onChange={setPage} label="snapshots" busy={loading} /></div>}
   </Section>;
 }
 
@@ -104,8 +107,8 @@ export function SnapshotDetails({ id, names }: { id: number; names: Record<numbe
   }, [id, refresh]);
   useEffect(() => {
     if (!snapshot) return;
-    let live = true; setLoading(true); setMatrix(null); setMatrixError('');
-    f03Api.getMatrix(snapshot.snapshotId, page, 20).then(value => { if (live) setMatrix(value); }).catch(e => { if (live) setMatrixError(errorMessage(e, 'Unable to load snapshot matrix.')); }).finally(() => { if (live) setLoading(false); });
+    let live = true; setLoading(true); setMatrixError('');
+    f03Api.getMatrix(snapshot.snapshotId, page, 20).then(value => { if (live) setMatrix(value); }).catch(e => { if (live) { setMatrix(null); setMatrixError(errorMessage(e, 'Unable to load snapshot matrix.')); } }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [snapshot, page, matrixRefresh]);
   return <div className="space-y-5"><BackToSnapshots /><Notice error={error} />
@@ -116,8 +119,9 @@ export function SnapshotDetails({ id, names }: { id: number; names: Record<numbe
         ['Snapshot ID', snapshot.snapshotId], ['Store', `Store #${snapshot.storeId}`], ['Created At', formatUtcDateTime(snapshot.createdAt)],
         ['Created By', snapshot.createdBy != null ? `User #${snapshot.createdBy}` : undefined],
         ['Sales Period', formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)], ['Analysis Date', formatDate(snapshot.asOfDate)],
-        ['Total Weighted Utility', snapshot.totalWeightedUtility], ['Status', snapshot.status === 'READY' ? 'READY' : readable(snapshot.status)]
-      ]} /><Warnings warnings={snapshot.warnings} /></Section>
+        ['Total Weighted Utility', utilityNumber(snapshot.totalWeightedUtility)], ['Status', snapshot.status === 'READY' ? 'READY' : readable(snapshot.status)]
+      ]} /></Section>
+      <Section title="Snapshot Warnings"><SnapshotWarnings snapshot={snapshot} /></Section>
       <Section title="Frozen Configuration" subtitle="Read-only settings saved with this snapshot. Current Store settings do not change these values."><FrozenConfiguration configuration={snapshot.configuration} /><MatrixMetadata result={snapshot} /></Section>
       <Section title="Snapshot Matrix" subtitle="Immutable utility rows saved with this snapshot."><Notice error={matrixError} />{loading && <p role="status">Loading matrix…</p>}{matrixError && !matrixError.includes('Contact your administrator') && <Button className={secondary} onClick={() => setMatrixRefresh(x => x + 1)}>Retry Matrix</Button>}{matrix && <Matrix result={matrix} loadPage={setPage} busy={loading} names={names} />}</Section>
     </>}

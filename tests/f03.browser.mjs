@@ -15,7 +15,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 let fixtureRole, cdp, initId;
 const calls = [], unexpected = [], errors = [], checks = [];
 let compactListApiMutations = 0;
-const state = { config: structuredClone(configView), seasons: [structuredClone(season)], memberships: new Map([[1, []]]), seasonConflict: false, seasonDelay: 0, duplicate: false, deleteConflict: false, assignError: false, assignExisting: false, scores: structuredClone(scores), scoreDelay: 0, expiryEmpty: false, expiryError: false, historyEmpty: false, historyError: false, created: false, empty: false, ready: true, warnings: [], previewDelay: 0, createDelay: 0, snapshotError: false, snapshotNetworkError: false, createId: 122, createdCount: 0, lastCreatedSnapshot: null, snapshotTotal: null, previewError: false, configError: false, forbiddenMatrix: false, matrixMode: 'W2', unsupported: false };
+const state = { singleMatrix:false,catalogUnavailable:false,config: structuredClone(configView), seasons: [structuredClone(season)], memberships: new Map([[1, []]]), seasonConflict: false, seasonDelay: 0, duplicate: false, deleteConflict: false, assignError: false, assignExisting: false, scores: structuredClone(scores), scoreDelay: 0, expiryEmpty: false, expiryError: false, historyEmpty: false, historyError: false, created: false, empty: false, ready: true, warnings: [], previewDelay: 0, createDelay: 0, snapshotError: false, snapshotNetworkError: false, createId: 122, createdCount: 0, lastCreatedSnapshot: null, snapshotTotal: null, previewError: false, configError: false, forbiddenMatrix: false, matrixMode: 'W2', unsupported: false };
 class CDP {
   next = 0; pending = new Map(); listeners = new Map();
   constructor(ws) { this.ws = ws; ws.addEventListener('message', e => { const data = JSON.parse(e.data); if (data.id) { const p = this.pending.get(data.id); if (!p) return; this.pending.delete(data.id); data.error ? p.reject(new Error(data.error.message)) : p.resolve(data.result); } else for (const handler of this.listeners.get(data.method) || []) void handler(data.params); }); }
@@ -30,7 +30,7 @@ const buttons = "[...(document.querySelector('dialog[open]')||document.querySele
 async function click(text) { await until(buttons + '.some(b=>b.innerText.trim()===' + JSON.stringify(text) + '&&!b.disabled)', 'click ' + text); await evaluate(buttons + '.find(b=>b.innerText.trim()===' + JSON.stringify(text) + ').click()'); }
 async function aria(label) { const expr = "[...document.querySelectorAll('main button')].find(b=>b.getAttribute('aria-label')===" + JSON.stringify(label) + '&&b.getClientRects().length&&!b.disabled)'; await until('Boolean(' + expr + ')', label); await evaluate(expr + '.focus()'); await evaluate(expr + '.click()'); }
 async function enabled(text) { return evaluate(buttons + '.some(b=>b.innerText.trim()===' + JSON.stringify(text) + '&&!b.disabled)'); }
-async function tab(text) { await click(text); await has(({ Configuration: 'Utility Configuration', Seasons: 'Seasons', 'Product Weights': 'Product Weight Details', Preview: 'Utility Preview', Snapshots: 'Utility Snapshots' })[text]); }
+async function tab(text) { await click(text); await has(({ Configuration: 'Utility Configuration', Seasons: 'Seasons', 'Product Weights': fixtureRole === 'Merchandiser' ? 'Product Priority Details' : 'Product Weight Details', 'Weight Settings': 'Weight Settings', Preview: 'Utility Preview', Snapshots: 'Utility Snapshots' })[text]); }
 async function input(label, value) { await until("[...document.querySelectorAll('input[aria-label="+JSON.stringify(label)+"]')].some(e=>e.getClientRects().length&&!e.matches(':disabled'))", 'Ready '+label); if (value && /^\d{4}-\d{2}-\d{2}/.test(value) && await evaluate('Boolean(document.querySelector('+JSON.stringify('input[aria-label='+JSON.stringify(label)+'][data-app-date-kind]')+'))')) { const [date,time] = value.split('T'); value = date.split('-').reverse().join('/') + (time ? ' '+time : ''); } assert.equal(await evaluate("(()=>{const e=[...document.querySelectorAll('input[aria-label=" + JSON.stringify(label) + "]')].find(e=>e.getClientRects().length);if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e," + JSON.stringify(value) + ");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"), true, label); }
 async function choose(id) { await input('Select product', 'SKU-' + id); await until("[...document.querySelectorAll('[role=option]')].some(e=>e.innerText.split('\\n')[0].trim()===" + JSON.stringify('SKU-' + id) + ')', 'Product SKU-' + id); await evaluate("[...document.querySelectorAll('[role=option]')].find(e=>e.innerText.split('\\n')[0].trim()===" + JSON.stringify('SKU-' + id) + ').click()'); }
 async function openSeason(name) { await aria((fixtureRole === 'Store Admin' ? 'View ' : 'Edit ') + name); await has('Season Details'); }
@@ -46,6 +46,90 @@ async function capture(name) { if (!artifacts) return; await cdp.call('Page.brin
 async function captureCreate(name) { if (!artifacts) return; const rect = await evaluate("(()=>{const r=document.querySelector('[data-create-snapshot]').closest('section').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()"); const shot=await cdp.call('Page.captureScreenshot',{format:'png',clip:rect,captureBeyondViewport:true});writeFileSync(join(artifacts,name+'.png'),Buffer.from(shot.data,'base64')); }
 async function key(key, modifiers = 0) { const windowsVirtualKeyCode = key === 'Tab' ? 9 : key === 'Escape' ? 27 : 0; await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key, modifiers, windowsVirtualKeyCode }); await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key, modifiers, windowsVirtualKeyCode }); }
 const count = (path, method) => calls.filter(c => c.path === path && (!method || c.method === method)).length;
+Object.assign(state, { historyCount: null, historyWarnings: {}, historyDelay: 0 });
+const savedSnapshot = id => ({ ...snapshot(id), warnings: state.historyWarnings[id] || [] });
+
+async function savedSnapshotUiChecks() {
+  state.config = structuredClone(configView);
+  const snapshotPosts = count('/api/utility/snapshots', 'POST');
+  await session('Merchandiser'); await has('Save Configuration');
+  await input('Sales Window', '31'); await tab('Preview'); await has('Weight Settings have unsaved changes');
+  assert.equal(await evaluate("document.querySelector('[data-preview-notice]').compareDocumentPosition([...document.querySelectorAll('h2')].find(e=>e.innerText==='Select Sales Period')) & Node.DOCUMENT_POSITION_FOLLOWING"), 4);
+  await tab('Weight Settings'); const savedVersion = state.config.config.version + 1; await click('Save Configuration'); await has('Configuration version ' + savedVersion + ' saved');
+  await tab('Preview'); await has('Calculate Preview again');
+  assert.equal(await evaluate("document.querySelector('[data-preview-notice]').innerText.includes('unsaved')"), false);
+  await click('Calculate Preview'); await has('Expiry Risk');
+  assert.equal(await evaluate("Boolean(document.querySelector('[data-preview-notice]'))"), false);
+  await input('Analysis Date', '2026-11-06'); await has('Analysis Date changed');
+  await click('Calculate Preview'); await has('Expiry Risk');
+  await until("!document.querySelector('[data-preview-notice]')", 'Successful Preview clears notice');
+  state.config = structuredClone(configView);
+  checks.push('Preview notice above sales period: unsaved settings, saved settings, analysis date and successful recalculation');
+
+  state.historyCount = 1;
+  await session('Merchandiser', '/f03/snapshots'); await has('Snapshot #1');
+  const list = "document.querySelector('ul[aria-label=\"Saved snapshots\"]')";
+  const history = "[...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.innerText==='Saved Snapshots')";
+  assert.equal(await evaluate(history + ".querySelectorAll('table').length"), 0);
+  assert.equal(await evaluate(list + '.children.length'), 1);
+  assert.equal(await evaluate(list + '.querySelectorAll("dl").length'), 0);
+  assert.equal(await evaluate("/Analysis date|Total weighted utility|Created at/i.test(" + list + '.innerText)'), false);
+  assert.equal(await evaluate(history + ".querySelectorAll('nav').length"), 0);
+  assert.equal(await evaluate(history + ".innerText.includes('0 warnings')"), false);
+  const rowsBefore = await evaluate(list + '.innerText');
+  const widthsBefore = await evaluate('[...' + list + '.children[0].children].map(c=>c.getBoundingClientRect().width)');
+  state.historyDelay = 400; await click('Refresh Snapshots');
+  await until(history + ".querySelector('[aria-busy=true]')!==null", 'History refreshing');
+  assert.equal(await evaluate(list + '.innerText'), rowsBefore, 'Refresh retains saved rows');
+  assert.deepEqual(await evaluate('[...' + list + '.children[0].children].map(c=>c.getBoundingClientRect().width)'), widthsBefore);
+  assert.equal(await evaluate(list + '.querySelector("button").disabled'), true);
+  await until(history + ".querySelector('[aria-busy=true]')===null", 'History refreshed'); state.historyDelay = 0;
+  assert.equal(await evaluate(list + '.innerText'), rowsBefore);
+
+  const originals = ['Product 1: MISSING_PUSH_DAY', 'Product 1: MISSING_PUSH_DAY', 'MISSING_PUSH_DAY', 'Product 2: MISSING_PUSH_DAY', 'Product 2: MISSING_PUSH_DAY', 'Product 2: MISSING_PUSH_DAY', 'Unmapped warning with original evidence', 'Product 1: MISSING_PUSH_DAY'];
+  state.historyCount = 6; state.historyWarnings = { 6: originals, 5: ['MISSING_PUSH_DAY'] };
+  await click('Refresh Snapshots'); await has('Snapshot #6');
+  for (const width of [1280, 1366, 1440, 1920]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    assert.equal(await evaluate(`(()=>{const l=${list},r=l.children[0],i=r.children[0].getBoundingClientRect(),s=r.querySelector('.f03-snapshot-status'),sr=s.getBoundingClientRect(),a=r.querySelector('.f03-snapshot-controls'),b=a.querySelector('button').getBoundingClientRect(),w=a.querySelector('.f03-snapshot-warning'),wr=w.getBoundingClientRect(),heights=[...l.children].map(e=>e.getBoundingClientRect().height),h=${history},title=h.querySelector('h2').getBoundingClientRect(),refresh=[...h.querySelectorAll('button')].find(e=>e.innerText==='Refresh Snapshots').getBoundingClientRect();return l.children.length===6&&r.querySelectorAll('h3').length===1&&r.querySelectorAll('button').length===1&&i.right<=a.getBoundingClientRect().left&&sr.right<=wr.left&&wr.left-sr.right<=9&&wr.right<=b.left&&b.left-wr.right<=9&&Math.abs((sr.top+sr.bottom)-(b.top+b.bottom))<2&&b.right<=r.getBoundingClientRect().right&&w.innerText==='8 warnings'&&s.innerText.includes('READY')&&getComputedStyle(w).backgroundColor!=='rgba(0, 0, 0, 0)'&&parseFloat(getComputedStyle(w).fontSize)<parseFloat(getComputedStyle(r.querySelector('h3')).fontSize)&&Math.max(...heights)-Math.min(...heights)<1&&Math.max(...heights)<90&&parseFloat(getComputedStyle(l).rowGap)===8&&Math.abs(title.top-refresh.top)<5&&refresh.left>title.right})()`), true, 'Compact horizontal card with grouped right controls at ' + width);
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true);
+  }
+  assert.equal(await evaluate(history + ".innerText.includes('View Warnings')"), false);
+  assert.equal(await evaluate(list + ".children[1].querySelector('.f03-snapshot-controls').innerText.includes('1 warning')"), true);
+  assert.equal(await evaluate(list + ".children[2].querySelector('.f03-snapshot-controls').innerText.includes('warning')"), false);
+  for (const width of [1024, 820, 640, 390, 320]) {
+    await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true);
+    assert.equal(await evaluate(`(()=>{const l=${list},r=l.children[0],b=r.querySelector('button').getBoundingClientRect(),box=r.getBoundingClientRect(),s=r.querySelector('.f03-snapshot-status').getBoundingClientRect(),w=r.querySelector('.f03-snapshot-warning').getBoundingClientRect(),heights=[...l.children].map(e=>e.getBoundingClientRect().height),h=${history},refresh=[...h.querySelectorAll('button')].find(e=>e.innerText==='Refresh Snapshots').getBoundingClientRect();return l.getClientRects().length>0&&l.children.length===6&&r.innerText.includes('8 warnings')&&b.left>=box.left&&b.right<=box.right&&s.right<=box.right&&(innerWidth>=640?s.right<=w.left&&w.right<=b.left:s.bottom<=w.top&&w.right<=b.left)&&Math.max(...heights)-Math.min(...heights)<1&&refresh.right<=h.getBoundingClientRect().right&&r.querySelectorAll('button').length===1})()`), true, 'Responsive card without duplicate actions at ' + width);
+  }
+  await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await cdp.call('Page.bringToFront');
+  await evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+  await evaluate("[...document.querySelectorAll('button[aria-label=\"View Details for Snapshot #6\"]')].find(b=>b.getClientRects().length).focus()");
+  await until("document.activeElement.getAttribute('aria-label')==='View Details for Snapshot #6'", 'Details keyboard focus');
+  await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' });
+  await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+  await has('Snapshot Warnings'); await has('Product 001'); await has('Repeated 3 times');
+  assert.deepEqual(await evaluate("Object.fromEntries([...([...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.innerText==='Summary')).querySelectorAll('dt')].filter(e=>['Analysis Date','Total Weighted Utility','Created At'].includes(e.innerText)).map(e=>[e.innerText,e.nextElementSibling.innerText]))"), {'Analysis Date':'05/11/2026','Total Weighted Utility':'242.35554','Created At':'05/11/2026 02:00 UTC'});
+  assert.equal(await evaluate('location.search'), '?id=6');
+  const warnings = "[...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.innerText==='Snapshot Warnings')";
+  assert.deepEqual(await evaluate('JSON.parse([...' + warnings + ".querySelectorAll('summary')].find(s=>s.innerText==='Original warnings (saved)').nextElementSibling.textContent)"), originals);
+  assert.equal(await evaluate(warnings + ".innerText.includes('Saved status: READY')"), true);
+  assert.equal(await evaluate("Boolean(document.querySelector('dialog[open]'))"), false);
+  await click('Back to Snapshots'); await has('Snapshot #6');
+  await aria('View Details for Snapshot #5'); await has('1 warning.');
+  await click('Back to Snapshots'); await has('Snapshot #4');
+  await aria('View Details for Snapshot #4'); await has('No warnings were recorded');
+  await click('Back to Snapshots'); await has('Snapshot #6');
+  state.historyCount = 0; await click('Refresh Snapshots'); await has('No saved snapshots yet');
+  assert.equal(await evaluate(history + ".querySelectorAll('nav').length"), 0);
+  state.historyCount = 21; await click('Refresh Snapshots'); await has('Snapshot #21'); await pageNext('snapshots'); await has('Page 2 of 2');
+  await has('Snapshot #1'); assert.equal(await evaluate(list + '.children.length'), 1);
+  await click('Refresh Snapshots'); await has('Page 2 of 2');
+  assert.equal(count('/api/utility/snapshots', 'POST'), snapshotPosts, 'History, details and refresh never create snapshots');
+  state.historyCount = null; state.historyWarnings = {};
+  checks.push('Compact horizontal Snapshot cards: identity/period, right-aligned independent status plus amber 0/1/8 warnings and View Details; uniform row heights and gaps; auxiliary metrics and full original warnings only in Details; keyboard/mouse routes, stable refresh, empty/single/multiple pages; desktop 1280/1366/1440/1920 and responsive 1024/820/640/390/320');
+}
 const product = id => ({ id, name: `Product ${String(id).padStart(3, '0')}`, sku: 'SKU-' + id, unit: 'EA', requiresExpiry: true, category: null, sellingPrice: 20, costPrice: 10, status: 'ACTIVE', stockQuantity: 30 });
 async function paused({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname, method = request.method;
@@ -61,6 +145,7 @@ async function paused({ requestId, request }) {
       const search = (url.searchParams.get('search') || '').toLowerCase();
       const all = Array.from({ length: 121 }, (_, i) => product(i + 1)).filter(p => !search || p.name.toLowerCase().includes(search) || p.sku.toLowerCase().includes(search));
       body = { content: all.slice(page * size, (page + 1) * size), page, pageSize: size, totalElements: all.length, totalPages: Math.ceil(all.length / size) };
+    } else if (/^\/api\/products\/\d+$/.test(path)) { body=product(Number(path.split('/').at(-1)));if(state.catalogUnavailable){code=404;body={error:'Catalog label unavailable'};}
     } else if (path === '/api/utility/seasons' && method === 'GET') body = { items: state.seasons.slice(page * size, (page + 1) * size), page, pageSize: size, totalElements: state.seasons.length };
     else if (path === '/api/utility/seasons' && method === 'POST') {
       await sleep(state.seasonDelay);
@@ -88,15 +173,16 @@ async function paused({ requestId, request }) {
       body = { items: [{ productId: Number(url.searchParams.get('productId') || 1), batchId: page + 1, pushDay: '2026-11-03', expiryDate: null, remainingQuantity: 12, daysToPush: -2 }], page, pageSize: size, totalElements: 21, asOfDate: url.searchParams.get('asOfDate') || '2026-11-05', timeZone: 'Asia/Ho_Chi_Minh', warnings: [] };
       if (state.expiryEmpty) body = { ...body, items: [], totalElements: 0 }; if (state.expiryError) { code = 503; body = { error: 'Fixture expiry unavailable' }; }
     } else if (path === '/api/utility/preview') {
-      const result = { ...matrix(payload.page), ready: state.ready, warnings: [...state.warnings] }; if (state.empty) Object.assign(result, { items: [], totalElements: 0, totalWeightedUtility: 0 });
+      const result = { ...matrix(payload.page), ready: state.ready, warnings: [...state.warnings] };if(state.singleMatrix)Object.assign(result,{items:result.items.slice(0,2),page:0,totalElements:2,totalWeightedUtility:23.08148}); if (state.empty) Object.assign(result, { items: [], totalElements: 0, totalWeightedUtility: 0 });
       await sleep(state.previewDelay); body = result; if (state.previewError) { code = 409; body = { error: 'Priority Strength exceeds Lambda Policy' }; }
     } else if (path === '/api/utility/snapshots' && method === 'POST') {
       await sleep(state.createDelay);
       if (state.snapshotError) { code = 503; body = { error: 'Fixture snapshot creation failed' }; } else { state.created = true; state.createdCount++; body = { ...snapshot(state.createId), ...payload, ...(state.snapshotTotal === null ? {} : { totalWeightedUtility: state.snapshotTotal }) }; state.lastCreatedSnapshot = body; code = 201; if (state.snapshotNetworkError) { await cdp.call('Fetch.failRequest', { requestId, errorReason: 'ConnectionClosed' }); return; } }
     } else if (path === '/api/mining/snapshots') {
-      if (state.historyError) { code = 503; body = { error: 'Fixture history unavailable' }; } else { const count = state.historyEmpty ? 0 : 121 + state.createdCount; body = { items: Array.from({ length: Math.max(0, Math.min(size, count - page * size)) }, (_, i) => state.created && page === 0 && i === 0 ? state.lastCreatedSnapshot : snapshot(count - page * size - i)), page, pageSize: size, totalElements: count }; }
+      await sleep(state.historyDelay);
+      if (state.historyError) { code = 503; body = { error: 'Fixture history unavailable' }; } else { const count = state.historyEmpty ? 0 : state.historyCount ?? 121 + state.createdCount; body = { items: Array.from({ length: Math.max(0, Math.min(size, count - page * size)) }, (_, i) => state.historyCount === null && state.created && page === 0 && i === 0 ? state.lastCreatedSnapshot : savedSnapshot(count - page * size - i)), page, pageSize: size, totalElements: count }; }
     } else if (/^\/api\/utility\/snapshots\/\d+$/.test(path)) {
-      body = Number(path.split('/').at(-1)) === state.lastCreatedSnapshot?.snapshotId ? state.lastCreatedSnapshot : snapshot(Number(path.split('/').at(-1))); if (state.matrixMode !== 'W2') body.configuration = legacyMatrix(state.matrixMode).configuration;
+      body = Number(path.split('/').at(-1)) === state.lastCreatedSnapshot?.snapshotId ? state.lastCreatedSnapshot : savedSnapshot(Number(path.split('/').at(-1))); if (state.matrixMode !== 'W2') body.configuration = legacyMatrix(state.matrixMode).configuration;
       if (state.unsupported) body.configuration = { ...body.configuration, config: { ...body.configuration.config, scoringVersion: 'FUTURE_V9' } };
     } else if (/^\/api\/utility\/snapshots\/\d+\/matrix$/.test(path)) { body = state.matrixMode === 'W2' ? matrix(page) : legacyMatrix(state.matrixMode); if (state.forbiddenMatrix) { code = 403; body = { error: 'Forbidden matrix fixture' }; } }
     else if (path === '/api/mining/requests') body = { items: [], page, pageSize: size, totalElements: 0 };
@@ -119,15 +205,21 @@ try {
   assert.equal(await enabled('Create Snapshot'), false); await has('Save a frozen utility dataset for mining.');
   await captureCreate('create-snapshot-preview-required');
   const postsBeforePreviewNavigation = count('/api/utility/snapshots', 'POST'); await click('Go to Preview'); await has('Utility Preview'); assert.equal(count('/api/utility/snapshots', 'POST'), postsBeforePreviewNavigation);
-  await session('Merchandiser'); await has('Save Configuration');
+  state.config.config.alpha=0.333333;state.config.config.beta=0.666667;
+  await session('Merchandiser'); await has('Save Configuration');await has('Saved importance uses finer precision');
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"Expiry Importance\"]').value"),'0.3');
+  assert.equal(count('/api/utility/config','PUT'),0,'loading must not rewrite the saved coefficients');
+  await input('Priority Strength','0.4');await click('Save Configuration');await has('Configuration version 8 saved');
+  const preserved=JSON.parse(calls.findLast(c=>c.path==='/api/utility/config'&&c.method==='PUT').body);assert.equal(preserved.alpha,0.333333);assert.equal(preserved.beta,0.666667);
+
   assert.equal(await evaluate("document.querySelectorAll('nav[aria-label=\"Utility Planner tabs\"] button').length"), 5);
   await evaluate("(()=>{const e=document.querySelector('nav[aria-label=\"Utility Planner tabs\"] button');e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));})()");
   assert.equal(await evaluate('document.activeElement.innerText'), 'Seasons');
-  await input('Expiry Importance', '0.333333'); assert.equal(await evaluate("document.querySelector('input[aria-label=\"Season Importance\"]').value"), '0.666667');
+  await input('Expiry Importance', '0.3'); assert.equal(await evaluate("document.querySelector('input[aria-label=\"Season Importance\"]').value"), '0.7');
   await input('Priority Strength', '0.500001'); assert.equal(await enabled('Save Configuration'), false);
   await input('Priority Strength', '0.3'); await input('Sales Window', '366'); assert.equal(await enabled('Save Configuration'), false);
-  await input('Sales Window', '30'); state.configError = true; await click('Save Configuration'); await has('Fixture configuration conflict'); assert.equal(await evaluate("document.querySelector('input[aria-label=\"Expiry Importance\"]').value"), '0.333333');
-  state.configError = false; await click('Save Configuration'); await has('Configuration version 8 saved');
+  await input('Sales Window', '30'); state.configError = true; await click('Save Configuration'); await has('Fixture configuration conflict'); assert.equal(await evaluate("document.querySelector('input[aria-label=\"Expiry Importance\"]').value"), '0.3');
+  state.configError = false; await click('Save Configuration'); await has('Configuration version 9 saved');
   assert.deepEqual(Object.keys(JSON.parse(calls.findLast(c => c.path === '/api/utility/config' && c.method === 'PUT').body)).sort(), ['alpha', 'beta', 'lambda', 'salesWindowDays']);
   await capture('configuration-1440'); checks.push('W2 config exact complement, validation, preserved failed draft, four-field PUT');
   state.config.lambdaValid = false; state.config.config.lambda = 0.7; await click('Refresh Configuration'); await has("The current Priority Strength exceeds the system's allowed range");
@@ -139,7 +231,7 @@ try {
   assert.equal(await evaluate("(()=>{const h=document.querySelector('[data-season-header]'),r=h.getBoundingClientRect(),bs=[...h.querySelectorAll('button')].map(b=>b.getBoundingClientRect());return bs.length===2&&Math.abs(bs[0].top-bs[1].top)<1&&Math.abs(bs[0].height-bs[1].height)<1&&bs[0].top<r.top+16&&bs[1].right<=r.right+1})()"), true, 'Header actions align on the desktop title row');
   assert.equal(await evaluate(visible + ".includes('Status uses Store time')"), false);
   assert.equal(await evaluate("(()=>{const rows=[...document.querySelectorAll('.f03-season-list > li')];return rows.length===1&&rows.every(r=>{const bs=[...r.querySelectorAll('button')];return bs.length===1&&bs[0].innerText==='Edit'&&!bs[0].querySelector('svg')})})()"), true);
-  assert.equal(await evaluate("(()=>{const row=document.querySelector('.f03-season-list-row'),meta=row.querySelector('.f03-season-list-meta');return !document.querySelector('section[aria-label=\"Seasons list\"] table')&&meta.children.length===4&&meta.innerText.includes('Weight: 0.8')&&meta.innerText.includes('0 products')&&meta.innerText.includes('Version 2')&&[...meta.children].every(e=>getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(e).borderWidth==='0px')&&parseFloat(getComputedStyle(meta).fontSize)<parseFloat(getComputedStyle(row.querySelector('h2')).fontSize)})()"), true, 'Compact metadata is labelled, secondary and unboxed');
+  assert.equal(await evaluate("(()=>{const row=document.querySelector('.f03-season-list-row'),meta=row.querySelector('.f03-season-list-meta');return !document.querySelector('section[aria-label=\"Seasons list\"] table')&&meta.children.length===4&&meta.innerText.includes('Priority: 0.8')&&meta.innerText.includes('0 products')&&meta.innerText.includes('Version 2')&&[...meta.children].every(e=>getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(e).borderWidth==='0px')&&parseFloat(getComputedStyle(meta).fontSize)<parseFloat(getComputedStyle(row.querySelector('h2')).fontSize)})()"), true, 'Compact metadata is labelled, secondary and unboxed');
   assert.equal(await evaluate("document.querySelector('section[aria-label=\"Seasons list\"]').querySelectorAll('nav').length"), 0, 'One page has no disabled pagination controls');
   const listWrites = () => calls.filter(c => c.path.startsWith('/api/utility/') && c.method !== 'GET').length;
   const listWritesBefore = listWrites(), originalList = state.seasons;
@@ -152,7 +244,7 @@ try {
   state.memberships.set(701, Array.from({ length: 3 }, (_, i) => ({ ...product(i + 1), productId: i + 1, assignedBy: 12, assignedAt: '2026-11-05T02:00:00Z' })));
   await click('Refresh Seasons'); await has(longSeasonName); await has('3 products'); await has('1 product'); await has('Not active today');
   assert.equal(await evaluate("document.querySelectorAll('.f03-season-list > li').length"), 3);
-  assert.equal(await evaluate("document.querySelectorAll('.f03-season-list > li')[2].querySelector('.f03-season-list-meta > li').innerText"), '01 Dec 2026 – 31 Jan 2027');
+  assert.equal(await evaluate("document.querySelectorAll('.f03-season-list > li')[2].querySelector('.f03-season-list-meta > li').innerText"), '01/12/2026 – 31/01/2027');
   for (const width of [1440, 820, 390]) {
     await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
     assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true);
@@ -161,7 +253,7 @@ try {
     await capture('compact-seasons-' + width);
   }
   await openSeason('November Promotion 2026'); await has('Product 003');
-  assert.equal(await evaluate("[...document.querySelectorAll('[data-season-summary] dt')].map(e=>e.innerText).join('|')"), 'Date Range|Season Weight|Products');
+  assert.equal(await evaluate("[...document.querySelectorAll('[data-season-summary] dt')].map(e=>e.innerText).join('|')"), 'Date Range|Seasonal Priority|Products');
   assert.equal(await enabled('Delete'), false); await click('Close');
   state.seasons = originalList; await click('Refresh Seasons'); await has('Holiday');
   compactListApiMutations = listWrites() - listWritesBefore;
@@ -169,13 +261,13 @@ try {
   await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   checks.push('Compact list: one/many/long names, active/inactive, compact and cross-year dates, labelled unboxed metadata, aligned single action, 1440/820/390 screenshots, unchanged modal and zero feature API mutations');
   await click('Add Season'); await until("document.activeElement?.getAttribute('aria-label')==='Season Name'", 'Editor starts at name'); await click('Save Season'); await has('dd/mm/yyyy'); await input('Start Date', '2026-12-01'); await input('End Date', '2026-12-31'); await click('Save Season'); await has('Enter a season name');
-  await input('Season Name', 'New Season'); await input('Start Date', '2026-12-01'); await input('End Date', '2026-12-31'); await input('Season Weight', '0.7');
+  await input('Season Name', 'New Season'); await input('Start Date', '2026-12-01'); await input('End Date', '2026-12-31'); await input('Seasonal Priority', '0.7');
   state.duplicate = true; await click('Save Season'); await has('already exists'); assert.equal(await evaluate("document.querySelector('input[aria-label=\"Season Name\"]').value"), 'New Season');
   state.duplicate = false; state.seasonDelay = 500; const beforeCreateSeason = count('/api/utility/seasons', 'POST'); await click('Save Season'); await key('Escape'); assert.equal(await evaluate("Boolean(document.querySelector('dialog[open][aria-label=\"Add Season\"]'))"), true); assert.equal(await enabled('Cancel'), false); await has('Season created successfully'); assert.equal(count('/api/utility/seasons', 'POST'), beforeCreateSeason + 1); state.seasonDelay = 0;
   assert.equal('expectedVersion' in JSON.parse(calls.findLast(c => c.path === '/api/utility/seasons' && c.method === 'POST').body), false);
   await openSeason('New Season'); await has('No products are assigned');
   await evaluate("void(window.seasonDialogIdentity=document.querySelector('dialog[open]'))");
-  assert.equal(await evaluate("[...document.querySelectorAll('[data-season-summary] dt')].map(e=>e.innerText).join('|')"), 'Date Range|Season Weight|Products');
+  assert.equal(await evaluate("[...document.querySelectorAll('[data-season-summary] dt')].map(e=>e.innerText).join('|')"), 'Date Range|Seasonal Priority|Products');
   assert.equal(await evaluate("(()=>{const d=document.querySelector('dialog[open]'),id=d.querySelector('[data-season-identity]'),sum=d.querySelector('[data-season-summary]');return id.getBoundingClientRect().bottom<=sum.getBoundingClientRect().top&&[...d.querySelectorAll('footer button')].map(b=>b.innerText).join('|')==='Close'&&id.querySelectorAll('button').length===2&&!id.querySelector('button svg')})()"), true, 'Identity actions precede three summary cards; footer only closes');
   assert.equal(await evaluate("document.querySelector('dialog[open] details').open"), false, 'Weight explanation starts collapsed');
   await click('Edit Season'); await has('Save Changes'); assert.equal(await evaluate("document.querySelector('dialog[open]')===window.seasonDialogIdentity"), true, 'Edit uses the existing dialog DOM node');
@@ -235,7 +327,7 @@ try {
   state.seasons = Array.from({ length: 21 }, (_, i) => ({ ...season, seasonId: i + 1000, name: `Paged Season ${i + 1}` })); await click('Refresh Seasons'); await has('Paged Season 1'); await pageNext('seasons'); await has('Paged Season 21'); await has('Page 2 of 2'); state.seasons = savedSeasons; await click('Refresh Seasons'); await has('Holiday');
   await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   checks.push('One dialog DOM node across overview/edit/confirmation; three summary cards and top actions; safe Save/Escape, unsaved Keep/Discard/Cancel, native focus trap/restore, read-only access, server-only status, real pagination, 45 assigned products and 390/820/1440 modal bounds');
-  await tab('Product Weights'); await choose(1); await has('Selected Season'); await has('Holiday'); await has('2 days overdue');
+  const beforeProduct=calls.length;await tab('Product Weights');await has('Product Priority Details');await sleep(100);assert.equal(calls.slice(beforeProduct).some(c=>c.path==='/api/utility/expiry-push-batches'),false,'no Store-wide batch read before choosing a product');await click('View All Batches Due for Push');await has('2 days overdue');assert.equal(calls.filter(c=>c.path==='/api/utility/expiry-push-batches').at(-1).query.includes('productId='),false);await click('Hide All Batches');await has('Select a product to see its batches');await choose(1); await has('Selected Season'); await has('Holiday'); await has('2 days overdue');
   assert.equal(await evaluate("!!document.querySelector('input[aria-label=\"Stock Priority Score\"],input[aria-label=\"Seasonal Priority Score\"]')"), false);
   state.scores = { ...structuredClone(scores), seasonId: 3, seasonWeight: 0.9, asOfDate: '2026-11-05', activeSeasons: [
     { ...scores.activeSeasons[0], seasonId: 7, name: 'Equal Weight Later ID', startDate: '2026-11-05', endDate: '2026-11-05', weight: 0.9 },
@@ -245,7 +337,7 @@ try {
   await click('Refresh Weights'); await has('Backend Selected Season');
   assert.equal(await evaluate("[...document.querySelectorAll('dt')].find(e=>e.innerText==='Selected Season').nextElementSibling.innerText"), 'Backend Selected Season');
   state.scores = { ...structuredClone(scores), seasonId: null, seasonWeight: 0, activeSeasons: [], expiryRisk: 0, batchesMissingPushDay: [10], warnings: ['MISSING_PUSH_DAY', 'SLOW_MOVING_NO_RECENT_SALES'] };
-  await click('Refresh Weights'); await has('No active season'); await has('no Push Day'); await has('No recent sales');
+  await click('Refresh Weights'); await has('No active season');await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('warnings')).parentElement.open=true"); await has('no Push Day'); await has('No recent sales');
   state.scores = { ...state.scores, ready: false, lambdaValid: false, weightValue: null }; await click('Refresh Weights'); await has('Unavailable'); await has('Priority Strength exceeds');
   state.scores = structuredClone(scores); state.scoreDelay = 600; await click('Refresh Weights'); await choose(2); state.scoreDelay = 0; await has('Product 002'); await has('Readiness'); await sleep(650);
   assert.equal(await evaluate(visible + '.includes("Product 002")'), true);
@@ -255,13 +347,23 @@ try {
 
   await tab('Preview'); await input('Start Date', '2026-10-01'); await input('End Date', '2026-10-31'); await input('Analysis Date', '2026-11-05');
   assert.equal(await evaluate("document.querySelector('input[aria-label=\"Start Date\"]').value"), '01/10/2026');
-  await click('Calculate Preview'); await has('Expiry Risk');
+  state.warnings=['Product 1: inactive Product; historical transactions retained, not currently sellable','MISSING_PUSH_DAY','Unlinked warning'];
+  await click('Calculate Preview'); await has('Expiry Risk');await has('Needs Attention');await has('Product 001');
+  assert.equal(await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('3 warnings')).parentElement.open"),false,'warning list starts collapsed');
+  await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('View Issue')).parentElement.open=true");
+  assert.equal(await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('View Issue')).parentElement.innerText.includes('Unlinked warning')"),false,'unlinked warning is never attached to a row');
+  assert.equal(await evaluate("document.querySelector('.f03-data-table thead button').disabled"),true,'partial matrix cannot be sorted as a page');
+  state.singleMatrix=true;state.warnings=[];await click('Calculate Preview');await until("document.querySelector('.f03-data-table tbody').rows.length===2",'complete matrix');
+  const sortPosts=count('/api/utility/preview');await click('Transaction');await until("document.querySelector('.f03-data-table th[aria-sort=ascending]')!==null",'ascending sort');await evaluate("document.querySelector('.f03-data-table thead button').click()");
+  await until("document.querySelector('.f03-data-table tbody tr td').innerText==='#2'",'whole dataset sort');assert.equal(count('/api/utility/preview'),sortPosts,'sorting does not recalculate utility');
+  state.singleMatrix=false;await click('Calculate Preview');await until("document.querySelector('.f03-data-table tbody').rows.length===20",'paged matrix restored');
+  checks.push('importance tenths preserve legacy precision; explicit all-Store push scope; product names; collapsed and exactly linked warnings; complete-dataset sort only, without Preview replay');
   const beforeInvalidDate = count('/api/utility/preview'); await input('Start Date', '31/04/2026'); await click('Calculate Preview'); await has('Enter a valid date'); assert.equal(count('/api/utility/preview'), beforeInvalidDate);
   await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); await tab('Preview'); await input('Start Date', '2026-10-01');
   state.previewError = true; await click('Calculate Preview'); await has('Priority Strength exceeds Lambda Policy'); await has('Review Configuration'); state.previewError = false;
   state.empty = true; await click('Calculate Preview'); await has('No utility rows'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); state.empty = false;
   await tab('Preview'); state.ready = false; await click('Calculate Preview'); await has('Not Ready'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); state.ready = true;
-  await tab('Preview'); state.warnings = ['MISSING_PUSH_DAY', 'SLOW_MOVING_NO_RECENT_SALES']; await click('Calculate Preview'); await has('Expiry Risk'); await has('No recent sales'); await pageNext('matrix rows'); await has('Page 2 of 2'); await capture('preview-1440');
+  await tab('Preview'); state.warnings = ['MISSING_PUSH_DAY', 'SLOW_MOVING_NO_RECENT_SALES']; await click('Calculate Preview'); await has('Expiry Risk');await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('View All')).parentElement.open=true"); await has('No recent sales'); await pageNext('matrix rows'); await has('Page 2 of 2'); await capture('preview-1440');
   await tab('Snapshots'); await has('Preview Ready');
   assert.equal(await evaluate("document.querySelector('[data-create-snapshot]').dataset.state"), 'ready');
   assert.equal(await enabled('Review Preview'), true); assert.equal(await enabled('Create Snapshot'), true);
@@ -272,7 +374,7 @@ try {
   }
   await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   const postsBeforeReview = count('/api/utility/snapshots', 'POST'); await click('Review Preview'); await has('Utility Preview'); assert.equal(count('/api/utility/snapshots', 'POST'), postsBeforeReview);
-  const previewPosts = count('/api/utility/preview'); await tab('Configuration'); await input('Sales Window', '31'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false);
+  const previewPosts = count('/api/utility/preview'); await tab('Weight Settings'); await input('Sales Window', '31'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false);
   await tab('Preview'); await click('Calculate Preview'); await tab('Seasons'); await openSeason('Holiday'); await has('No products are assigned'); await choose(121); await click('Assign Product'); await has('Product assigned'); await click('Close'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false);
   await tab('Preview'); state.previewDelay = 650; await click('Calculate Preview'); await tab('Seasons'); await openSeason('Holiday'); await has('Product 121'); await aria('Unassign Product 121'); await has('Product unassigned'); await sleep(700); state.previewDelay = 0; await click('Close'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false);
   await tab('Preview'); await click('Calculate Preview'); await tab('Snapshots'); state.snapshotError = true; let before = count('/api/utility/snapshots', 'POST'); await click('Create Snapshot'); await has('No automatic retry'); await sleep(100); assert.equal(count('/api/utility/snapshots', 'POST'), before + 1); assert.equal(await enabled('Create Snapshot'), false);
@@ -283,7 +385,7 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-create-snapshot]').dataset.state"), 'created');
   assert.equal(await evaluate("(()=>{const e=document.querySelector('[data-create-snapshot]');return e.innerText.includes('Your utility snapshot is saved and ready for mining.')&&e.innerText.includes('A new Preview is required to create another snapshot.')&&!e.innerText.includes('Recalculation required')&&!e.innerText.includes('Snapshot creation was submitted')&&!e.innerText.includes('View Created Snapshot')&&!e.innerText.includes('Preview Ready')})()"), true, 'Saved readiness never masquerades as a reusable Preview');
   assert.ok(count('/api/utility/preview') > previewPosts); assert.deepEqual(Object.keys(JSON.parse(calls.findLast(c => c.path === '/api/utility/snapshots' && c.method === 'POST').body)).sort(), ['asOfDate', 'rangeEnd', 'rangeStart']);
-  await pageNext('snapshots'); await has('Page 2 of 7'); state.historyError = true; await click('Refresh History'); await has('Fixture history unavailable'); state.historyError = false; state.historyEmpty = true; await click('Refresh History'); await has('No READY snapshots'); state.historyEmpty = false; await click('Refresh History'); await has('READY');
+  await pageNext('snapshots'); await has('Page 2 of 7'); state.historyError = true; await click('Refresh Snapshots'); await has('Fixture history unavailable'); state.historyError = false; state.historyEmpty = true; await click('Refresh Snapshots'); await has('No saved snapshots yet'); state.historyEmpty = false; await click('Refresh Snapshots'); await has('READY');
   await click('View Snapshot #122'); await has('Frozen Configuration'); assert.equal(await evaluate('location.search'), '?id=122'); await click('Back to Snapshots'); await has('Snapshot #122 created successfully');
   await click('Run New Preview'); await has('Utility Preview'); await click('Calculate Preview'); await tab('Snapshots'); await has('Preview Ready');
   assert.equal(await evaluate("document.querySelector('[data-create-snapshot]').dataset.state"), 'ready', 'New Preview replaces the previous confirmation in the form');
@@ -291,7 +393,7 @@ try {
   assert.equal(await evaluate("document.querySelector('[data-create-snapshot]').dataset.state"), 'preview-required');
   assert.equal(await evaluate("document.querySelector('[data-create-snapshot]').innerText.includes('created successfully')"), false);
   assert.equal(count('/api/utility/snapshots', 'POST'), before + 1); assert.equal(await enabled('Create Snapshot'), false);
-  await click('Refresh History'); await has('#935'); assert.equal(count('/api/utility/snapshots', 'POST'), before + 1, 'History reconciles a lost response without replaying POST'); state.snapshotNetworkError = false;
+  await click('Refresh Snapshots'); await has('#935'); assert.equal(count('/api/utility/snapshots', 'POST'), before + 1, 'History reconciles a lost response without replaying POST'); state.snapshotNetworkError = false;
   state.createId = 936; state.snapshotTotal = 432.123456;
   await click('Go to Preview'); await has('Utility Preview'); await click('Calculate Preview'); await tab('Snapshots'); await has('Preview Ready'); await click('Create Snapshot'); await has('Snapshot #936 created successfully');
   assert.equal(await evaluate("[...document.querySelectorAll('[data-create-snapshot] dt')].find(e=>e.innerText==='Total Weighted Utility').nextElementSibling.innerText"), '432.123456', 'Success values come from the confirmed response');
@@ -309,6 +411,7 @@ try {
   state.forbiddenMatrix = true; await session('Merchandiser', '/f03/snapshot/matrix?id=21'); await has('Access denied (403)'); await has('Frozen Configuration'); state.forbiddenMatrix = false;
   checks.push('W2 and both frozen legacy snapshots, unknown scoring version blocked without retry, matrix 403');
 
+  await savedSnapshotUiChecks();
   await session('Store Admin', '/f03/configuration'); await has('Read-only configuration'); assert.equal(await enabled('Save Configuration'), false);
   await tab('Seasons'); await has('Holiday'); assert.equal(await enabled('Add Season'), false); await openSeason('Holiday'); await has('Assigned Products'); assert.equal(await enabled('Assign Product'), false); assert.equal(await evaluate("document.querySelector('[data-season-identity]').querySelectorAll('button').length"),0); assert.equal(await evaluate("(()=>{const rows=[...document.querySelectorAll('.f03-season-list-row')];return rows.length>0&&rows.every(r=>r.querySelectorAll('button').length===1&&r.querySelector('button').innerText==='View')})()"),true); await capture('store-admin-read-only-modal'); await click('Close');
   await tab('Product Weights'); await choose(1); await has('Readiness');
@@ -322,7 +425,7 @@ try {
   await session('Merchandiser'); await has('Save Configuration');
   for (const width of [390, 820]) {
     await cdp.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
-    await tab('Configuration'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('configuration-' + width);
+    await tab('Weight Settings'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('configuration-' + width);
     await tab('Seasons'); await has('Holiday'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('seasons-' + width);
     await click('Add Season'); await capture('season-form-' + width); await aria('Open calendar for Start Date'); await until("Boolean(document.querySelector('.app-calendar:popover-open'))", 'Calendar in Season dialog'); assert.equal(await evaluate("document.querySelector('dialog[open]').contains(document.querySelector('.app-calendar'))"), true); await capture('season-calendar-' + width); await key('Escape'); assert.equal(await evaluate("Boolean(document.querySelector('dialog[open]'))"), true); await click('Cancel');
     await tab('Preview'); await click('Calculate Preview'); await has('Expiry Risk'); assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true); await capture('preview-' + width);
@@ -334,7 +437,7 @@ try {
   checks.push('Store Admin read-only across four tabs; role denial without feature requests; legacy links; System Admin lambdaMax-only policy; responsive 1440/820/390 without page overflow');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []); assert.equal(calls.some(c => c.method === 'PATCH' && c.path.includes('/scores')), false);
   console.log(JSON.stringify({ result: 'PASS (HTTP fixtures only; real E2E not run)', checks, interceptedApiCalls: calls.length, compactListApiMutations, realBackendWrites: 0, artifacts }, null, 2));
-} catch (error) { try { await capture('failure'); } catch {} console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, errors, unexpected, modalDiagnostics: await evaluate("[...document.querySelectorAll('dialog')].map(e=>({label:e.getAttribute('aria-label'),open:e.open,text:e.innerText.slice(-500)}))").catch(()=>null), artifacts }, null, 2)); process.exitCode = 1; }
+} catch (error) { try { await capture('failure'); } catch {} console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, errors, unexpected, pageDiagnostics: await evaluate("({location:location.href,active:document.activeElement?.tagName,text:document.querySelector('main')?.innerText.slice(0,2200)})").catch(()=>null), modalDiagnostics: await evaluate("[...document.querySelectorAll('dialog')].map(e=>({label:e.getAttribute('aria-label'),open:e.open,text:e.innerText.slice(-500)}))").catch(()=>null), artifacts }, null, 2)); process.exitCode = 1; }
 finally {
   if (cdp) { try { await cdp.call('Browser.close'); } catch {} cdp.ws.close(); }
   if (chrome.exitCode === null) await Promise.race([new Promise(r => chrome.once('exit', r)), sleep(2000)]);

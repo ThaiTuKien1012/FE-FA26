@@ -48,3 +48,24 @@
   .f03-planner h1 { font-size: 1.5rem; }
   .f03-table th, .f03-table td { padding: .65rem; }
 }
+
+/* Merchant tables keep their columns stable; cards handle smaller viewports. */
+.f03-data-table { table-layout: fixed; }
+.f03-data-table th, .f03-data-table td { white-space: normal; overflow-wrap: anywhere; padding: .75rem .6rem; }
+.f03-data-table tbody th { background: transparent; font-size: inherit; color: inherit; border-top: 1px solid #eee7df; }
+.f03-merchant .f03-table { table-layout: fixed; }
+.f03-merchant .f03-table th, .f03-merchant .f03-table td { white-space: normal; overflow-wrap: anywhere; }
+
+/* Compact snapshot rows group status, warnings and Details at the right. */
+.f03-snapshot-list { display: grid; gap: .5rem; }
+.f03-snapshot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; min-width: 0; gap: .625rem 1rem; padding: .625rem .875rem; border: 1px solid #e7e2d8; border-radius: .75rem; background: #fff; }
+.f03-snapshot-identity { flex: 1 1 13rem; min-width: 0; overflow-wrap: anywhere; }
+.f03-snapshot-controls { display: flex; flex: 0 0 19rem; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; max-width: 100%; margin-left: auto; }
+.f03-snapshot-status { display: flex; align-items: center; justify-content: center; min-width: 0; }
+.f03-snapshot-controls > button { flex-shrink: 0; }
+@media (max-width: 639px) {
+  .f03-snapshot-controls { display: grid; grid-template-areas: 'status action' 'warning action'; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 1.5rem 1.5rem; flex-basis: 100%; justify-items: start; gap: .25rem .5rem; }
+  .f03-snapshot-status { grid-area: status; }
+  .f03-snapshot-warning { grid-area: warning; }
+  .f03-snapshot-controls > button { grid-area: action; }
+}

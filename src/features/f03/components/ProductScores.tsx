@@ -5,9 +5,14 @@ import { f03Api, type F03PushPage, type F03Scores } from '../f03.api';
 import type { F02Product } from '../../store/store.api';
 import { ProductSelector } from '../../store/components/ProductSelector';
 import { Button, errorMessage, field, Metrics, navigate, Notice, Pager, readable, secondary, Section, Technical, Warnings } from './F03Shared';
+import { StoreExpiryTable } from './UtilityPushTable';
 import { validDate } from '../f03.validation';
+import { MerchantProductScores } from './MerchantProductScores';
 
 export function ProductScores({ readOnly, remember }: { readOnly: boolean; remember: (products: F02Product[]) => void }) {
+  return readOnly ? <ReadOnlyProductScores readOnly remember={remember} /> : <MerchantProductScores remember={remember} />;
+}
+function ReadOnlyProductScores({ readOnly, remember }: { readOnly: boolean; remember: (products: F02Product[]) => void }) {
   const [selected, setSelected] = useState<F02Product | null>(null), [scores, setScores] = useState<F03Scores | null>(null);
   const [refresh, setRefresh] = useState(0), [error, setError] = useState(''), [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -58,9 +63,4 @@ function ExpiryBatches({ product }: { product: F02Product | null }) {
     {result && !loading && <><StoreExpiryTable result={result} names={new Map(product ? [[product.id, product.name]] : [])} /><Warnings warnings={result.warnings} /><p className="mt-3 text-xs text-[#6d7974]">As of {formatDate(result.asOfDate)} · {result.timeZone}</p><Pager page={result} onChange={setPage} label="batches" busy={loading} /></>}
   </Section>;
 }
-export function StoreExpiryTable({ result, names }: { result: F03PushPage; names: Map<number, string> }) {
-  if (!result.items.length) return <p className="rounded-xl bg-[#faf8f5] px-4 py-6 text-sm text-[#6d7974]">No batches are due for push on this date.</p>;
-  const due = (days: number) => days === 0 ? 'Due today' : days < 0 ? `${Math.abs(days)} days overdue` : `In ${days} days`;
-  return <><div className="hidden overflow-x-auto md:block"><table className="f03-table"><caption className="sr-only">Batches due for push</caption><thead><tr>{['Product / Batch', 'Push Day', 'Expiry Date', 'Push Status', 'Remaining Quantity'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{result.items.map(batch => <tr key={batch.batchId}><th scope="row">{names.get(batch.productId) ?? `Product #${batch.productId}`}<small className="block text-[#6d7974]">Batch #{batch.batchId}</small></th><td>{formatDate(batch.pushDay)}</td><td>{formatDate(batch.expiryDate, 'No expiry date')}</td><td>{due(batch.daysToPush)}</td><td>{batch.remainingQuantity}</td></tr>)}</tbody></table></div>
-    <ul aria-label="Push batches" className="grid gap-3 md:hidden">{result.items.map(batch => <li key={batch.batchId} className="rounded-xl border border-[#e7e2d8] p-4 text-sm"><p className="font-semibold">{names.get(batch.productId) ?? `Product #${batch.productId}`} · Batch #{batch.batchId}</p><dl className="mt-3 grid grid-cols-2 gap-3">{[['Push Day', formatDate(batch.pushDay)], ['Expiry Date', formatDate(batch.expiryDate, 'No expiry date')], ['Push Status', due(batch.daysToPush)], ['Remaining Quantity', batch.remainingQuantity]].map(([label, value]) => <div key={label}><dt className="text-xs text-[#6d7974]">{label}</dt><dd className="mt-1">{value}</dd></div>)}</dl></li>)}</ul></>;
-}
+export { StoreExpiryTable } from './UtilityPushTable';
