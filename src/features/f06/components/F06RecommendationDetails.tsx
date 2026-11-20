@@ -5,9 +5,10 @@ import { miningButton, miningDate } from '../../f05/f05.display';
 import type { EligibilityEvidence, RecView } from '../f06.types';
 import type { RecommendationBrowseState, RecommendationBrowser } from '../f06.browse';
 import { F06ReviewForm } from './F06ReviewForm';
+import { friendlyAnalysisText } from '../../f05/f05.presentation';
 import { RecommendationBadge, RecommendationFields, RecommendationProduct, RecommendationRuleSummary, recommendationLabel as label, recommendationPercent as percent, recommendationValue as value, recommendationYesNo as yesNo, recommendationReadiness, recommendationAvailability, recommendationNumber } from './F06ReadShared';
 
-export function F06EligibilityCheck({ title, check, names = {} }: { title: string; check: EligibilityEvidence; names?: Record<number, string> }) {
+export function F06EligibilityCheck({ title, check, names = {}, technical = true }: { title: string; check: EligibilityEvidence; names?: Record<number, string>; technical?: boolean }) {
   return <section className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-semibold">{title}</h4><RecommendationBadge status={check.status} /></div>
     <p className="mt-2 text-sm text-[#57534E]">{recommendationAvailability(check.status)}</p>
@@ -20,7 +21,7 @@ export function F06EligibilityCheck({ title, check, names = {} }: { title: strin
       {product.warnings.length > 0 && <ul className="mt-2 space-y-1 text-xs leading-5 text-amber-900">{product.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
       <details className="mt-2 text-xs text-[#6D7974]"><summary className="cursor-pointer">Expiry details</summary><p className="mt-2">{check.scoringVersion ? 'U_expiry' : 'Legacy expiry priority'}: {value(product.expiryPriorityScore)}{'expiryPushDays' in product && <> · Historical reminder days: {value(product.expiryPushDays)}</>}</p></details>
     </li>)}</ul>
-    <details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer">Technical stock reference</summary><p className="mt-2">Scoring version: {check.scoringVersion ?? 'Legacy V1 (recorded evidence)'}</p><p className="mt-2 break-all">{check.fingerprint}</p></details>
+    {technical && <details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer">Technical stock reference</summary><p className="mt-2">Scoring version: {check.scoringVersion ?? 'Legacy V1 (recorded evidence)'}</p><p className="mt-2 break-all">{check.fingerprint}</p></details>}
   </section>;
 }
 
@@ -28,7 +29,7 @@ function TechnicalEvidence({ compact, children }: { compact: boolean; children: 
   return compact ? <details className="rounded-xl border border-[#E7E2D8] p-4"><summary className="cursor-pointer text-sm font-semibold text-[#356B54]">Technical details</summary><div className="mt-5 space-y-7">{children}</div></details> : <>{children}</>;
 }
 
-export function F06RecommendationDetailContent({ item, names = {}, compact = false }: { compact?: boolean; item: RecView; names?: Record<number, string> }) {
+export function F06RecommendationDetailContent({ item, names = {}, compact = false, technical = true }: { compact?: boolean; technical?: boolean; item: RecView; names?: Record<number, string> }) {
   const confidenceApplies = item.type === 'CROSS_SELL' || item.evidence.confidence !== null;
   const shoppingFields: [string, ReactNode][] = [['Utility Score', compact ? recommendationNumber(item.utility) : value(item.utility)], ['Shopping evidence', label(item.evidence.status)], ['Historical transactions', value(item.evidence.totalTransactions)], ['Bought together (orders)', value(item.evidence.supportCount)], ['Frequency', percent(item.evidence.supportRatio)]];
   if (confidenceApplies) shoppingFields.push(['Starting-product transactions', value(item.evidence.anchorSupportCount)], ['Confidence', percent(item.evidence.confidence)]);
@@ -50,10 +51,10 @@ export function F06RecommendationDetailContent({ item, names = {}, compact = fal
     <section data-evidence-status={item.evidence.status}><h3 className="text-lg font-semibold">Why This Was Suggested</h3><p className="mb-4 mt-2 text-sm leading-6 text-[#6D7974]">This product group came from past shopping patterns. Its Utility Score helps compare suggestions from the same data; it is not revenue, profit, a price or purchase probability.</p>
       <div className="rounded-xl border border-[#E7E2D8] p-4"><RecommendationFields fields={shoppingFields} /></div>
       <p className="mt-3 text-xs leading-5 text-[#6D7974]">Frequency is the share of past transactions containing this group. Confidence, where applicable, describes co-purchases relative to the starting product. These describe past behaviour, not guaranteed future sales. N/A means not available or not applicable.</p>
-      <details className="mt-3 text-sm"><summary className="cursor-pointer font-medium">Full system explanation</summary><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-[#57534E]">{item.explanation.map((line, index) => <li key={index} className="break-words">{line}</li>)}</ul></details>
+      <details className="mt-3 text-sm"><summary className="cursor-pointer font-medium">{technical?'Full system explanation':'Full explanation'}</summary><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-[#57534E]">{item.explanation.map((line, index) => <li key={index} className="break-words">{technical?line:friendlyAnalysisText(line)}</li>)}</ul></details>
     </section>
     <section><h3 className="text-lg font-semibold">Can This Be Used Now?</h3><p className="mb-4 mt-2 text-sm leading-6 text-[#6D7974]">Availability includes product status, sellable stock, expiry and required information. An approved suggestion can become not eligible later.</p>
-      <F06EligibilityCheck title="Current availability" check={item.currentEligibility} names={names} />
+      <F06EligibilityCheck title="Current availability" check={item.currentEligibility} names={names} technical={technical} />
       <div className="my-4"><RecommendationFields fields={[["Inventory changed", yesNo(item.inventoryChanged)]]} /></div>
       <p className="text-xs leading-5 text-[#6D7974]">The check can change with stock, product information or the store date. No inventory is reserved.</p>
     </section>
@@ -65,15 +66,15 @@ export function F06RecommendationDetailContent({ item, names = {}, compact = fal
       ]} /></div></details>
     </section>
     <section><h3 className="text-lg font-semibold">Additional Evidence</h3><p className="mt-2 text-sm leading-6 text-[#6D7974]">Saved analyses and creation-time stock checks explain where this suggestion came from. They are separate from today’s availability.</p>
-      <details className="mt-4 text-sm"><summary className="cursor-pointer font-medium">Availability when created</summary><div className="mt-3"><F06EligibilityCheck title="Availability at creation" check={item.generationEligibility} names={names} /></div></details>
+      <details className="mt-4 text-sm"><summary className="cursor-pointer font-medium">Availability when created</summary><div className="mt-3"><F06EligibilityCheck title="Availability at creation" check={item.generationEligibility} names={names} technical={technical} /></div></details>
       <div className="mt-3 space-y-3">{item.sources.map(source => <details key={`${source.runId}:${source.patternId}`} className="rounded-xl border border-[#E7E2D8] p-4">
         <summary className="cursor-pointer text-sm font-semibold">Mining run #{source.runId} · {source.algorithm === 'HUI_MINER' ? 'HUI-Miner' : source.algorithm} · {formatDate(source.analysisDate)}</summary><div className="mt-4"><RecommendationFields fields={[
           ['Shopping data snapshot', `#${source.snapshotId}`], ['Analysis date', formatDate(source.analysisDate)], ['Product combination', `Pattern #${source.patternId}`], ['Utility Score', value(source.patternUtility)]
-        ]} /><details className="mt-4 text-xs"><summary className="cursor-pointer font-medium">Technical source references</summary><div className="mt-3"><RecommendationFields fields={[
+        ]} />{technical && <details className="mt-4 text-xs"><summary className="cursor-pointer font-medium">Technical source references</summary><div className="mt-3"><RecommendationFields fields={[
           ['Request', `#${source.requestId}`], ['Library version', source.libraryVersion], ['Conversion version', source.conversionVersion], ['Minimum utility mode', source.minUtilMode],
           ['Minimum utility value', value(source.minUtilValue)], ['SPMF threshold', value(source.minUtilSpmf)], ['Effective minimum utility', value(source.effectiveMinUtility)],
           ['Input hash', source.inputHash], ['Source hash', source.sourceHash], ['Matrix hash', source.matrixHash]
-        ]} /></div></details></div></details>)}</div>{!item.sources.length && <p className="mt-2 text-sm text-[#6D7974]">No source records returned.</p>}
+        ]} /></div></details>}</div></details>)}</div>{!item.sources.length && <p className="mt-2 text-sm text-[#6D7974]">No source records returned.</p>}
     </section>
     </TechnicalEvidence>
     <section><h3 className="mb-4 text-lg font-semibold">Review History</h3><RecommendationFields fields={[
@@ -81,7 +82,7 @@ export function F06RecommendationDetailContent({ item, names = {}, compact = fal
     ]} />{!item.reviewHistory.length ? <p className="mt-4 rounded-xl bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">No review decision has been recorded yet.</p> : <ol className="ml-2 mt-5 border-l border-[#E7E2D8]">{item.reviewHistory.map((review, index) => {
       const Icon = review.newStatus === 'APPROVED' ? CheckCircle2 : review.newStatus === 'REJECTED' ? XCircle : Clock3;
       return <li key={`${review.resultingVersion}:${index}`} className="relative pb-6 pl-6 last:pb-0"><span className="absolute -left-2.5 top-0 bg-white"><Icon aria-hidden="true" className="h-5 w-5 text-[#356B54]" /></span>
-        <p className="text-sm font-semibold">{label(review.oldStatus)} → {label(review.newStatus)}</p><p className="mt-2 text-xs text-[#6D7974]">User #{review.reviewedBy} · <time dateTime={review.reviewedAt}>{miningDate(review.reviewedAt)}</time> · Version {review.resultingVersion}</p><p className="mt-3 whitespace-pre-wrap break-words text-sm">{review.reason}</p><details className="mt-3"><summary className="cursor-pointer text-sm font-medium">Stock check at review</summary><div className="mt-3"><F06EligibilityCheck title="Stock at the time of review" check={review.eligibilityCheck} names={names} /></div></details>
+        <p className="text-sm font-semibold">{label(review.oldStatus)} → {label(review.newStatus)}</p><p className="mt-2 text-xs text-[#6D7974]">User #{review.reviewedBy} · <time dateTime={review.reviewedAt}>{miningDate(review.reviewedAt)}</time> · Version {review.resultingVersion}</p><p className="mt-3 whitespace-pre-wrap break-words text-sm">{review.reason}</p><details className="mt-3"><summary className="cursor-pointer text-sm font-medium">Stock check at review</summary><div className="mt-3"><F06EligibilityCheck title="Stock at the time of review" check={review.eligibilityCheck} names={names} technical={technical} /></div></details>
       </li>;
     })}</ol>}</section>
   </div>;
@@ -105,7 +106,7 @@ export function F06RecommendationDetails({ state, workflow }: { state: Recommend
       {state.detailLoading ? <p role="status" className="text-sm text-[#6D7974]">Loading recommendation details...</p> : state.detailError ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.detailError}</p> : state.detail && <>
         {state.namesLoading && <p role="status" className="text-xs text-[#6D7974]">Loading product names...</p>}
         {state.namesUnavailable && <p className="text-xs text-[#6D7974]">Some product names are unavailable. Product references are shown instead.</p>}
-        <F06RecommendationDetailContent compact={state.role === 'Store Admin'} item={state.detail} names={state.names} />
+        <F06RecommendationDetailContent compact={state.role === 'Store Admin'} technical={state.role !== 'Merchandiser'} item={state.detail} names={state.names} />
         <F06ReviewForm key={`${state.detail.recommendationId}:${state.detail.version}`} state={state} workflow={workflow} />
       </>}
     </div>

@@ -276,7 +276,8 @@ async function savedSnapshotUiChecks() {
   assert.deepEqual(await evaluate("Object.fromEntries([...([...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.innerText==='Summary')).querySelectorAll('dt')].filter(e=>['Analysis Date','Total Weighted Utility','Created At'].includes(e.innerText)).map(e=>[e.innerText,e.nextElementSibling.innerText]))"), {'Analysis Date':'05/11/2026','Total Weighted Utility':'242.35554','Created At':'05/11/2026 02:00 UTC'});
   assert.equal(await evaluate('location.search'), '?id=6');
   const warnings = "[...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.innerText==='Snapshot Warnings')";
-  assert.deepEqual(await evaluate('JSON.parse([...' + warnings + ".querySelectorAll('summary')].find(s=>s.innerText==='Original warnings (saved)').nextElementSibling.textContent)"), originals);
+  assert.equal(await evaluate(warnings + ".querySelectorAll('pre').length"), 0, 'No raw warning JSON in Merchandiser details');
+  assert.equal(await evaluate("/Technical Details|Matrix Hash|Source Hash|Original warnings/.test(document.querySelector('main').textContent)"), false, 'No technical dumps in Merchandiser Snapshot Details');
   assert.equal(await evaluate(warnings + ".innerText.includes('Saved status: READY')"), true);
   assert.equal(await evaluate("Boolean(document.querySelector('dialog[open]'))"), false);
   await click('Back to Snapshots'); await has('Snapshot #6');

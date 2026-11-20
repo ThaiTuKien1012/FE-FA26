@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { authService, type AuthUser } from '../../../services/authService';
 import { useMiningLocation, type MiningView } from '../f05.navigation';
 import { miningButton, miningErrorMessage } from '../f05.display';
+import { analysisErrorMessage } from '../f05.presentation';
 import type { RequestView, SnapshotView } from '../f05.types';
 import { MiningHistoryView } from './MiningHistoryView';
 import { SnapshotPicker } from './SnapshotPicker';
@@ -21,8 +22,8 @@ function StoreWorkspace({currentUser}:Props) {
       {merchant&&<button className={miningButton} aria-current={tab==='setup'?'page':undefined} onClick={()=>navigate('setup')}>Run Analysis</button>}
       <button className={miningButton} aria-current={tab==='history'?'page':undefined} onClick={()=>navigate('history')}>Analysis History</button>
     </nav>
-    {receipt&&tab==='history'&&<p role="status" className="rounded-xl bg-[#EDF5F0] p-3 text-sm">Request #{receipt.requestId} accepted · Snapshot #{receipt.snapshotId}. Follow progress below.</p>}
-    {tab==='setup'&&merchant&&<SnapshotPicker canSubmit canCreateSnapshot locked={locked} selected={selected} onSelect={setSelected} errorMessage={miningErrorMessage}/>}
+    {receipt&&tab==='history'&&<p role="status" className="rounded-xl bg-[#EDF5F0] p-3 text-sm">Analysis #{receipt.requestId} accepted. Follow its progress below.</p>}
+    {tab==='setup'&&merchant&&<SnapshotPicker canSubmit canCreateSnapshot locked={locked} selected={selected} onSelect={setSelected} errorMessage={analysisErrorMessage}/>}
     {merchant&&<div hidden={tab!=='setup'}><MiningSubmissionPanel user={currentUser} selected={selected} storeId={currentUser.storeId??null} confirmedStore onLocked={setLocked} onHistory={()=>navigate('history')} onAccepted={request=>{setReceipt(request);setRevision(x=>x+1);navigate('history',null,request.requestId);}}/></div>}
     {tab==='snapshots'&&<SnapshotPicker canSubmit={false} canCreateSnapshot={merchant} locked={false} selected={null} onSelect={()=>{}} errorMessage={miningErrorMessage}/>}
     {tab==='history'&&<MiningHistoryView key={revision} compact={!merchant} requestId={location.requestId} selectionError={location.error} onSelect={id=>navigate('history',null,id)}/>}

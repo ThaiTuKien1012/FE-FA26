@@ -337,7 +337,7 @@ test('workspace RBAC and result actions match all four actors; old drafts never 
     const html=renderToStaticMarkup(createElement(F05WorkspaceView,{currentUser:{...user,role}}));
     if(role==='End-Customer')assert.equal(html,'');
     else if(role==='System Admin'){assert.ok(html.includes('Mining Overview'));}
-    else if(role==='Store Admin'){assert.ok(html.includes('Analysis History'));assert.ok(html.includes('Recent analyses'));assert.equal(html.includes('Run Analysis'),false);assert.equal(html.includes('Request history'),false);assert.equal(html.includes('Run Analysis'),false);}
+    else if(role==='Store Admin'){assert.ok(html.includes('Analysis History'));assert.ok(html.includes('Read-only access'));assert.equal(html.includes('Run Analysis'),false);assert.equal(html.includes('Request history'),false);assert.equal(html.includes('Run Analysis'),false);}
     else {assert.ok(html.includes('Run Analysis'));assert.ok(html.includes('Analysis History'));assert.equal(html.includes('Read-only access'),false);}
   }
   for(const reader of [storeMiningReader,systemMiningReader(1)]){
@@ -346,7 +346,7 @@ test('workspace RBAC and result actions match all four actors; old drafts never 
     assert.equal(html.includes('Open algorithm benchmark'),false);
   }
   for(const status of ['PENDING','RUNNING','FAILED','TIMED_OUT'] as const){
-    const html=renderToStaticMarkup(createElement(MiningPatternsView,{run:runFixture(status),onReadError:()=>{}}));assert.ok(html.includes('Patterns unavailable'));assert.equal(html.includes('<table'),false);
+    const html=renderToStaticMarkup(createElement(MiningPatternsView,{run:runFixture(status),onReadError:()=>{}}));assert.ok(html.includes('Results unavailable'));assert.equal(html.includes('<table'),false);
   }
 });
 

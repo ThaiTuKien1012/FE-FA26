@@ -148,10 +148,10 @@ for(const role of ['System Admin','Store Admin','End-Customer'] as const)test(ro
   assert.equal(data.get(key),JSON.stringify(payload));assert.equal(calls,0);
   const html=renderToStaticMarkup(createElement(MiningSubmissionPanel,{user:{...user,role},storeId:1,selected:snapshot(),confirmedStore:true,onAccepted:()=>{},onLocked:()=>{},onHistory:()=>{}}));assert.equal(html,'');
 });
-test('Merchandiser review has Run Analysis, frozen snapshot fields, and no quota/settings editor',t=>{
+test('Merchandiser review has Run Analysis, selected snapshot identity, and no quota/settings editor',t=>{
   setup(t);storage(t);
   const html=renderToStaticMarkup(createElement(MiningSubmissionPanel,{user:{...user,role:'Merchandiser',storeId:1},storeId:1,selected:snapshot(),confirmedStore:true,onAccepted:()=>{},onLocked:()=>{},onHistory:()=>{}}));
-  for(const label of ['Run Analysis','Sales Period','Analysis Date','Weighted Utility','Algorithm: EFIM'])assert.ok(html.includes(label));
+  for(const label of ['Run Analysis','Snapshot #2 selected','Minimum Utility is managed by System Admin'])assert.ok(html.includes(label));
   assert.equal(/remaining runs|next available run|runs per week|runs per month/i.test(html),false);
   assert.equal(html.includes('Minimum Utility Threshold'),false);
 });

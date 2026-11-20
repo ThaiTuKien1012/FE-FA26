@@ -3,6 +3,7 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import { algorithmName, miningButton, miningDate, miningInput } from '../../f05/f05.display';
 import { MiningStatusBadge } from '../../f05/components/MiningStatusBadge';
 import { MiningConversionDetails } from '../../f05/components/MiningConversionDetails';
+import { analysisRoundingNote } from '../../f05/f05.presentation';
 import type { GenerationState, RecommendationGeneration } from '../f06.generate';
 import { recommendationLabel } from './F06ReadShared';
 
@@ -33,7 +34,7 @@ export function F06RunPicker({ state, workflow }: { state: GenerationState; work
       <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">Request #{state.request.requestId}</h3><button type="button" className={miningButton} disabled={state.runsLoading || state.pending} onClick={() => void workflow.selectRequest(state.request!.requestId)}>Refresh runs</button></div>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm"><span>Request status <MiningStatusBadge friendly kind="request" status={state.request.status} /></span><span>Comparison result <MiningStatusBadge friendly kind="comparison" status={state.request.comparisonStatus} /></span></div>
       <p className="mt-3 text-sm text-[#6D7974]">Snapshot #{state.request.snapshotId} · {formatDateRange(state.request.snapshot.rangeStart, state.request.snapshot.rangeEnd)}</p>
-      <details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer font-medium">Additional source details</summary><MiningConversionDetails value={state.request} /><p className="mt-3 [overflow-wrap:anywhere]">Input hash: {state.request.inputHash}</p><p className="mt-2">SPMF threshold: {state.request.minUtilSpmf}</p></details>
+      {canGenerate ? analysisRoundingNote(state.request) && <p className="mt-3 text-xs text-[#6D7974]">{analysisRoundingNote(state.request)}</p> : <details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer font-medium">Additional source details</summary><MiningConversionDetails value={state.request} /><p className="mt-3 [overflow-wrap:anywhere]">Input hash: {state.request.inputHash}</p><p className="mt-2">SPMF threshold: {state.request.minUtilSpmf}</p></details>}
       <p className="mt-2 text-xs leading-5 text-[#6D7974]">The snapshot is the saved shopping data used for this analysis. A completed run below can still be used if the comparison between algorithms failed.</p>
       {state.runsLoading ? <p role="status" className="mt-4 text-sm text-[#6D7974]">Loading algorithm runs...</p> : state.runsError ?
         <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.runsError}</p> : <>

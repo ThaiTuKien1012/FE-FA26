@@ -129,9 +129,9 @@ export function SnapshotDetails({ id, names }: { id: number; names: Record<numbe
         ['Sales Period', formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)], ['Analysis Date', formatDate(snapshot.asOfDate)],
         ['Total Weighted Utility', utilityNumber(snapshot.totalWeightedUtility)], ['Status', snapshot.status === 'READY' ? 'READY' : readable(snapshot.status)]
       ]} /></Section>
-      <Section title="Snapshot Warnings"><SnapshotWarnings snapshot={snapshot} /></Section>
-      <Section title="Frozen Configuration" subtitle="Read-only settings saved with this snapshot. Current Store settings do not change these values."><FrozenConfiguration configuration={snapshot.configuration} /><MatrixMetadata result={snapshot} /></Section>
-      <Section title="Snapshot Matrix" subtitle="Immutable utility rows saved with this snapshot."><Notice error={matrixError} />{loading && <p role="status">Loading matrix…</p>}{matrixError && !matrixError.includes('Contact your administrator') && <Button className={secondary} onClick={() => setMatrixRefresh(x => x + 1)}>Retry Matrix</Button>}{matrix && <Matrix result={matrix} loadPage={setPage} busy={loading} names={names} />}</Section>
+      <Section title="Snapshot Warnings"><SnapshotWarnings snapshot={snapshot} originals={false} /></Section>
+      <Section title="Frozen Configuration" subtitle="Read-only settings saved with this snapshot. Current Store settings do not change these values."><FrozenConfiguration configuration={snapshot.configuration} technical={false} /></Section>
+      <Section title="Snapshot Matrix" subtitle="Immutable utility rows saved with this snapshot."><Notice error={matrixError} />{loading && <p role="status">Loading matrix…</p>}{matrixError && !matrixError.includes('Contact your administrator') && <Button className={secondary} onClick={() => setMatrixRefresh(x => x + 1)}>Retry Matrix</Button>}{matrix && <Matrix result={matrix} loadPage={setPage} busy={loading} names={names} technical={false} />}</Section>
     </>}
   </div>;
 }

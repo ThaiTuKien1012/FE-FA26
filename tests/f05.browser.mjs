@@ -21,7 +21,7 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
-const state={systemHistoryCount:1,singleStore:false,conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
+const state={systemHistoryCount:1,singleStore:false,conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,snapshotWarnings:[],submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
   constructor(ws){this.ws=ws;ws.addEventListener('message',event=>{
@@ -53,7 +53,9 @@ async function click(text){
   const ok=await evaluate("(()=>{const b=[...document.querySelectorAll('button')].sort((a,b)=>Number(Boolean(b.closest('main')))-Number(Boolean(a.closest('main')))).find(b=>b.getClientRects().length&&b.innerText.replace(/\\s+/g,' ').trim()==="+JSON.stringify(text)+");if(!b||b.disabled)return false;b.click();return true;})()");
   assert.equal(ok,true,'Clickable button: '+text);
 }
-async function submitMining(){await until("[...document.querySelectorAll('main button[type=submit]')].some(e=>e.getClientRects().length&&!e.disabled)",'Mining submit enabled');await evaluate("[...document.querySelectorAll('main button[type=submit]')].find(e=>e.getClientRects().length&&!e.disabled).click()");}
+async function openConfirmation(){await until("[...document.querySelectorAll('main button[type=submit]')].some(e=>e.getClientRects().length&&!e.disabled)",'Mining submit enabled');await evaluate("[...document.querySelectorAll('main button[type=submit]')].find(e=>e.getClientRects().length&&!e.disabled).click()");await until("document.querySelector('dialog[open]')?.innerText.includes('Confirm Analysis')",'Single short confirmation');assert.equal(await evaluate("!!document.querySelector('input[type=checkbox]')"),false);}
+async function submitMining(){await openConfirmation();await evaluate("(()=>{const b=[...document.querySelectorAll('dialog[open] button')].find(e=>e.innerText==='Confirm Run');b.click();b.click();})()");}
+async function noStoreDebug(){assert.equal(await evaluate("/Technical Details|Additional details|Request key|Snapshot hash|Input hash|SPMF|WHOLE_UNIT_HALF_UP|LOSSLESS|NOT_REQUESTED|outputBytes|Java Heap|STORED_LEGACY_V0|009f3ef1-d4ba-4291-9854-b74c6878d26b/i.test(document.querySelector('main').textContent)"),false,'Store views contain no technical dumps, even collapsed');}
 async function input(label,value){
   assert.equal(await evaluate("(()=>{const e=document.querySelector('input[aria-label="+JSON.stringify(label)+"]');if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,"+JSON.stringify(value)+");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"),true,'Input '+label);
 }
@@ -115,7 +117,7 @@ async function paused({requestId,request}){
       code=202;body={...efimRequestFixture(),snapshotId:sent.snapshotId,requestKey:sent.requestKey};}
     }else {
       const storeId=Number(path.match(/\/stores\/(\d+)\//)?.[1]||1);
-      if(path.endsWith('/snapshots'))body=responsePage(storeId===1?Array.from({length:state.snapshotCount},(_,i)=>({...snapshot(),snapshotId:i+2,totalWeightedUtility:898000})):[],url.searchParams);
+      if(path.endsWith('/snapshots'))body=responsePage(storeId===1?Array.from({length:state.snapshotCount},(_,i)=>({...snapshot(),warnings:state.snapshotWarnings,snapshotId:i+2,totalWeightedUtility:898000})):[],url.searchParams);
       else if(/\/requests$/.test(path)){
         if(path==='/api/mining/requests')while(state.storeHistory==='hold')await sleep(20);
         if(state.slowHistory&&storeId===1)await sleep(500);
@@ -129,7 +131,7 @@ async function paused({requestId,request}){
         if(state.compare)body={...body,totalSteps:5,completedSteps:status==='COMPLETED'?5:0,percent:status==='COMPLETED'?100:0,algorithm:status==='PENDING'?null:'HUI_MINER',comparisonStatus:status==='COMPLETED'?'MATCH':'PENDING'};
         if(state.progressError){code=state.progressError;body={error:'Fixture progress unavailable'};}
       }else if(/\/requests\/17$/.test(path)){
-        body={...requestFixture(state.requestReads<2?'PENDING':state.requestReads<3?'RUNNING':'COMPLETED'),algorithms:state.compare?['HUI_MINER','EFIM']:[state.legacySingle?'HUI_MINER':'EFIM'],comparisonStatus:state.compare?(state.requestReads<3?'PENDING':'MATCH'):'NOT_REQUESTED'};
+        body={...requestFixture(state.requestReads<2?'PENDING':state.requestReads<3?'RUNNING':'COMPLETED'),snapshot:{...snapshot(),warnings:state.snapshotWarnings},algorithms:state.compare?['HUI_MINER','EFIM']:[state.legacySingle?'HUI_MINER':'EFIM'],comparisonStatus:state.compare?(state.requestReads<3?'PENDING':'MATCH'):'NOT_REQUESTED'};
       }else if(path.endsWith('/requests/17/runs')){
         const status=state.requestReads<3?'RUNNING':'COMPLETED';
         body=state.compare?[runFixture(status),{...runFixture(status),runId:43,algorithm:'EFIM'}]:[{...runFixture(status),algorithm:state.legacySingle?'HUI_MINER':'EFIM',runtimeMillis:status!=='COMPLETED'||state.missingRuntime?null:242,memoryMiB:status==='COMPLETED'?11.135678:null,patternCount:status==='COMPLETED'?25:null}];
@@ -245,23 +247,25 @@ try{
   checks.push('Store switching preserves global settings and rejects foreign request data');
 
   await session('Merchandiser','/mining?view=setup');await textIncludes('Select Snapshot');await textIncludes('Snapshot #2');
-  state.snapshotCount=11;await click('Refresh snapshots');await textIncludes('Snapshot #11');await click('Next');await textIncludes('Snapshot #12');await textIncludes('Page 2 of 2');assert.ok(state.calls.some(c=>c.path==='/api/mining/snapshots'&&c.search.includes('page=1')));await click('Previous');await textIncludes('Snapshot #2');state.snapshotCount=1;await click('Refresh snapshots');await textIncludes('898000');
+  state.snapshotCount=0;await click('Refresh snapshots');await textIncludes('No READY snapshots');
+  state.snapshotCount=11;await click('Refresh snapshots');await textIncludes('Snapshot #11');await click('Next');await textIncludes('Snapshot #12');await until("document.querySelector('nav[aria-label=\"Snapshot pages\"] [aria-current=page]')?.innerText==='2'",'Snapshot page 2');assert.ok(state.calls.some(c=>c.path==='/api/mining/snapshots'&&c.search.includes('page=1')));await click('Previous');await textIncludes('Snapshot #2');state.snapshotCount=1;await click('Refresh snapshots');await until("document.querySelectorAll('input[name=snapshotId]').length===1",'One compact snapshot');assert.equal(await evaluate("!!document.querySelector('nav[aria-label=\"Snapshot pages\"]')"),false);await noStoreDebug();
   await textIncludes('01/09/2026');await textIncludes('30/09/2026');await textIncludes('27/10/2026');
+  for(const count of [1,8,0]){state.snapshotWarnings=Array(count).fill('MISSING_PUSH_DAY');await click('Refresh snapshots');await until("document.querySelectorAll('input[name=snapshotId]').length===1",'Snapshot loaded');if(count)await textIncludes(count+(count===1?' warning':' warnings'));assert.equal(await evaluate("document.querySelector('[aria-label=\"Snapshot selection\"]').textContent.includes('MISSING_PUSH_DAY')"),false);}state.snapshotWarnings=['MISSING_PUSH_DAY'];
   const storePostBefore=postBodies.length;
-  await evaluate("document.querySelector('input[name=snapshotId]').click()");await evaluate("document.querySelector('input[aria-label=\"Confirm selected snapshot\"]').click()");await capture('merchandiser-run-mining');
+  await evaluate("document.querySelector('input[name=snapshotId]').click()");await openConfirmation();await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until("!document.querySelector('dialog[open]')",'Escape cancels analysis confirmation');assert.equal(postBodies.length,storePostBefore);await openConfirmation();await click('Cancel');assert.equal(postBodies.length,storePostBefore);await capture('merchandiser-run-mining');
   for(const width of [390,820,1440]){await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);if(width===390)assert.equal(await evaluate("document.querySelector('aside').getBoundingClientRect().height<innerHeight/2"),true);await capture('merchandiser-run-'+width);}
   state.submitError={code:409,message:'Configure mining policy before execution'};await submitMining();await textIncludes('Contact a System Admin');assert.equal(postBodies.length,storePostBefore+1);
-  await click('Discard saved attempt');state.submitError={code:400,message:'Product 7 TWU exceeds SPMF int32 capacity'};await evaluate("document.querySelector('input[aria-label=\"Confirm selected snapshot\"]').click()");await submitMining();await textIncludes('TWU exceeds SPMF int32');await click('Discard saved attempt');
-  state.submitError=null;state.failPost=true;await evaluate("document.querySelector('input[aria-label=\"Confirm selected snapshot\"]').click()");await evaluate("(()=>{const b=document.querySelector('main button[type=submit]');b.click();b.click();})()");await textIncludes('Outcome not confirmed');
+  await click('Discard saved attempt');state.submitError={code:400,message:'Product 7 TWU exceeds SPMF int32 capacity'};await submitMining();await textIncludes('Use a smaller sales period');await click('Discard saved attempt');
+  state.submitError=null;state.failPost=true;await submitMining();await textIncludes('Outcome not confirmed');
   assert.equal(postBodies.length,storePostBefore+3,'Double click sends one POST for this intent');
   const unknownBody=postBodies.at(-1),beforeReload=postBodies.length;
   if(initId){await cdp.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});initId=null;}await cdp.call('Page.reload');await textIncludes('Saved submission');assert.equal(postBodies.length,beforeReload);
   await click('Retry same submission');await textIncludes('Analysis History');assert.equal(postBodies.at(-1),unknownBody);assert.deepEqual(Object.keys(JSON.parse(unknownBody)).sort(),['requestKey','snapshotId']);assert.match(JSON.parse(unknownBody).requestKey,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  await textIncludes('Mining completed');await click('View request #17');await textIncludes('Algorithm results');await click('View Patterns');await textIncludes('Not measured');await capture('merchandiser-results');
+  await until("document.querySelector('[aria-label=\"Analysis Progress\"] [role=status]')?.innerText==='Completed'",'Real terminal progress');await click('View Details');await textIncludes('Analysis Results');await click('View Results');await textIncludes('Utility Score');await textIncludes('Product 7');await textIncludes('Snapshot warnings (1)');await evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent.includes('Snapshot warnings')).click()");await textIncludes('Some batches have no Push Day');await noStoreDebug();await capture('merchandiser-results');
   const merchantCalls=state.calls.filter(x=>x.path==='/api/mining/requests'&&x.method==='POST');assert.ok(merchantCalls.length>=3);
-  state.progressOverride={...progressFixture('RUNNING'),stage:'SAVING',completedSteps:1,percent:50};await click('Refresh Details');await textIncludes('Saving mining results');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'50');
-  state.progressOverride={...progressFixture('RUNNING'),attemptNo:2,percent:0};await click('Refresh Details');await textIncludes('Mining in progress');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'0');
-  state.progressOverride={...progressFixture('FAILED'),completedSteps:1,percent:50};await click('Refresh Details');await textIncludes('Mining failed');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'50');
+  state.progressOverride={...progressFixture('RUNNING'),stage:'SAVING',completedSteps:1,percent:50};await click('Refresh Details');await textIncludes('Saving Results');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'50');
+  state.progressOverride={...progressFixture('RUNNING'),attemptNo:2,percent:0};await click('Refresh Details');await textIncludes('Analyzing');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'0');
+  state.progressOverride={...progressFixture('FAILED'),completedSteps:1,percent:50};await click('Refresh Details');await until("document.querySelector('[aria-label=\"Analysis Progress\"] [role=status]')?.innerText==='Failed'",'Real failed progress');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'50');
   state.progressOverride=null;state.requestReads=5;
   checks.push('Merchandiser owns-Store two-field POST, no policy GET, no-policy/numeric errors, uncertain reload retains UUID without POST replay, real DTO percentage including recovery decrease and failure below 100%, results with nullable support');
 
@@ -295,6 +299,7 @@ try{
   await select('Filter by status','pending_verification');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);await select('Filter by status','all');
   const userWrites=()=>state.calls.filter(x=>x.method!=='GET'&&x.path.startsWith('/api/users'));
   const openAccount=async name=>{
+    await cdp.call('Page.bringToFront');
     await evaluate("(()=>{const b=[...document.querySelectorAll('tbody tr')].find(tr=>tr.innerText.includes("+JSON.stringify(name)+"))?.querySelector('button');if(!b)throw Error('Missing account row');b.focus();b.click();})()");
     await until("Boolean(document.querySelector('[role=dialog] input[aria-label=\"Full Name\"]'))",'Account details loaded');
     await until("document.activeElement===document.querySelector('[role=dialog] input[aria-label=\"Full Name\"]')",'Initial account focus');
@@ -460,7 +465,7 @@ try{
   for(const role of ['Merchandiser','Store Admin']){
     state.requestReads=5;const before=state.calls.length;
     await session(role,'/mining?view=history',true);await textIncludes(role==='Store Admin'?'Analysis History':'Product Combination Analysis');
-    if(role==='Store Admin'){await until("!!document.querySelector('button[aria-label=\"View results for analysis #17\"]')",'analysis results');await evaluate("document.querySelector('button[aria-label=\"View results for analysis #17\"]').click()");}else await click('View request #17');await textIncludes('Algorithm results');await textIncludes('01/09/2026');await textIncludes('30/09/2026');await click('View Patterns');await textIncludes('Not measured');
+    await click('View Details');await textIncludes('Analysis Results');await textIncludes('01/09/2026');await textIncludes('30/09/2026');await click('View Results');await textIncludes('Utility Score');await noStoreDebug();
     assert.ok(state.calls.slice(before).filter(x=>!x.path.startsWith('/api/auth/')).every(x=>x.method==='GET'&&(x.path.startsWith('/api/mining/')||x.path.startsWith('/api/products/'))));
     assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),false);
     if(role==='Store Admin'){
@@ -477,10 +482,10 @@ try{
         }
       }
       await click('Close Details');assert.equal(await evaluate("!!document.querySelector('#f05-details-title')"),false);
-      state.storeHistory='empty';await click('Refresh history');await textIncludes('No mining requests were returned');
-      state.storeHistory='error';await click('Refresh history');await textIncludes('Fixture analysis history unavailable');
+      state.storeHistory='empty';await click('Refresh history');await textIncludes('No analyses have been recorded for this store yet.');
+      state.storeHistory='error';await click('Refresh history');await textIncludes('The analysis service is unavailable');
       state.storeHistory='hold';await click('Refresh history');await textIncludes('Loading mining history');
-      state.storeHistory='normal';await until("!!document.querySelector('button[aria-label=\"View results for analysis #17\"]')",'history restored');
+      state.storeHistory='normal';await until("!!document.querySelector('button[aria-label=\"View details for analysis #17\"]')",'history restored');
       state.compare=true;
       await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     }
@@ -494,22 +499,24 @@ try{
     for(const mode of ['LOSSLESS','WHOLE_UNIT_HALF_UP','unknown']) {
       state.conversion=mode;state.emptyPatterns=mode==='WHOLE_UNIT_HALF_UP';state.requestReads=5;
       await session(role,role==='System Admin'?'/admin/mining/history?storeId=1&requestId=17':'/mining?view=history&requestId=17');
-      await textIncludes(role==='System Admin'?'Execution Details':'Algorithm results');
+      await textIncludes(role==='System Admin'?'Execution Details':'Analysis Results');
+      if(role==='System Admin'){
       await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Loaded Additional details');
       await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').closest('details').open=true");
       await textIncludes(mode==='unknown'?'STORED_LEGACY_V0':mode);
       assert.equal(await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').innerText.includes("+JSON.stringify(mode==='LOSSLESS'?'None (exact conversion)':mode==='WHOLE_UNIT_HALF_UP'?'1':'Not recorded')+")"),true,'Correct rounding/null label');
       await textIncludes('Snapshot');await textIncludes('Run #42');
+      }else{await noStoreDebug();if(mode==='WHOLE_UNIT_HALF_UP')await textIncludes('rounded to whole');if(mode==='unknown')await textIncludes('not recorded for this historical analysis');}
       const beforePatterns=state.calls.filter(call=>call.path.endsWith('/patterns')).length;
-      await click(role==='System Admin'?'View run #42':'View Patterns');
+      await click(role==='System Admin'?'View run #42':'View Results');
       if(role==='System Admin') {
         await until("!![...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42'))",'System run detail');
         await evaluate("[...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42')).parentElement.open=true");
         assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,beforePatterns);
         assert.equal(await evaluate("!!document.querySelector('main button[type=submit]')"),false);
       } else {
-        await textIncludes(mode==='WHOLE_UNIT_HALF_UP'?'Zero patterns is a valid mining result':'Discovered Product Combinations');
-        if(mode==='WHOLE_UNIT_HALF_UP') await textIncludes('saved F03 snapshot is unchanged');
+        await textIncludes(mode==='WHOLE_UNIT_HALF_UP'?'Zero product combinations is a valid result':'Product Combinations');
+        if(mode==='WHOLE_UNIT_HALF_UP') await textIncludes('saved snapshot is unchanged');await noStoreDebug();
       }
       const completedReads=state.calls.filter(call=>call.path.endsWith('/progress')).length;await sleep(1650);assert.equal(state.calls.filter(call=>call.path.endsWith('/progress')).length,completedReads,'Terminal stops polling');
       if(mode==='WHOLE_UNIT_HALF_UP') await evaluate("document.querySelectorAll('[aria-label=\"Analysis input conversion\"]').forEach(e=>{const details=e.closest('details');if(details)details.open=true})");
@@ -523,8 +530,8 @@ try{
     }
   }
   state.conversion='WHOLE_UNIT_HALF_UP';state.failedRun=true;state.progressOverride={...progressFixture('FAILED'),percent:50,completedSteps:1};state.requestReads=5;
-  await session('Merchandiser','/mining?view=history&requestId=17');await textIncludes('Mining failed');await textIncludes('Execution time limit exceeded');
-  const patternsBeforeFailure=state.calls.filter(call=>call.path.endsWith('/patterns')).length;await click('View Patterns');await textIncludes('Patterns unavailable');await textIncludes('TIMED_OUT');assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,patternsBeforeFailure);
+  const patternsBeforeFailure=state.calls.filter(call=>call.path.endsWith('/patterns')).length;
+  await session('Merchandiser','/mining?view=history&requestId=17');await until("document.querySelector('[aria-label=\"Analysis Progress\"] [role=status]')?.innerText==='Failed'",'Failed analysis');await textIncludes('took too long and was stopped');await noStoreDebug();assert.equal(await evaluate("!!document.querySelector('button[data-analysis-run]')"),false,'Failed runs cannot open results');assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,patternsBeforeFailure);
   await capture('conversion-failed-run');
   assert.equal(postBodies.length,conversionPosts);assert.equal(state.calls.some(call=>call.path.endsWith('/benchmark')||call.path.includes('/schedules')||call.path==='/api/recommendations/generate'),false);
   state.conversion='legacy';state.emptyPatterns=false;state.failedRun=false;state.progressOverride=null;state.requestReads=5;

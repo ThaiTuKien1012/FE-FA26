@@ -7,7 +7,7 @@ import { field, Metrics, Pager, readable, Technical, warningText, Warnings } fro
 function RowIssues({ issues }: { issues: string[] }) {
   return issues.length ? <details className="text-xs text-amber-900"><summary className="cursor-pointer leading-5"><span className="block font-semibold">Needs Attention</span><span className="underline underline-offset-2">View Issue</span></summary><ul className="mt-2 space-y-2">{issues.map((issue, index) => <li key={index}>{warningText(issue)}</li>)}</ul><p className="mt-2">This warning concerns the product or its saved evidence. It does not remove this historical transaction.</p></details> : <span className="text-xs text-[#6d7974]">—</span>;
 }
-export function UtilityMatrixTable({ result, loadPage, busy, names: supplied = {} }: { result: F03MatrixPage; loadPage: (page: number) => void; busy: boolean; names?: Record<number, string> }) {
+export function UtilityMatrixTable({ result, loadPage, busy, names: supplied = {}, technical = true }: { result: F03MatrixPage; loadPage: (page: number) => void; busy: boolean; names?: Record<number, string>; technical?: boolean }) {
   const names = useUtilityProductNames(result.items.map(row => row.productId), supplied);
   const [sort, setSort] = useState<MatrixSort | null>(null);
   useEffect(() => setSort(null), [result.matrixHash, result.sourceHash]);
@@ -29,8 +29,8 @@ export function UtilityMatrixTable({ result, loadPage, busy, names: supplied = {
       ]} /></div><div className="mt-3"><RowIssues issues={matrixRowWarnings(row, result.warnings)} /></div></li>)}</ul>
     </> : <p className="py-4 text-sm text-[#6d7974]">No utility rows were returned for this page. Preview needs eligible F04 sales transactions in the selected period. Try another sales period or ask a Store Admin to review transaction imports.</p>}
     <Pager hideSingle page={result} onChange={loadPage} label="matrix rows" busy={busy} />
-    <Technical><p>Original evidence is retained. Product names are current catalog labels; IDs identify the saved product. No utility is recalculated.</p>{items.map(row => <details key={`${row.transactionId}:${row.productId}`} className="rounded-lg border border-[#e7e2d8] p-3"><summary className="cursor-pointer">Transaction #{row.transactionId} / Product #{row.productId}</summary><div className="mt-3"><Metrics values={[
+    {technical && <Technical><p>Original evidence is retained. Product names are current catalog labels; IDs identify the saved product. No utility is recalculated.</p>{items.map(row => <details key={`${row.transactionId}:${row.productId}`} className="rounded-lg border border-[#e7e2d8] p-3"><summary className="cursor-pointer">Transaction #{row.transactionId} / Product #{row.productId}</summary><div className="mt-3"><Metrics values={[
       ['Base Utility', utilityNumber(row.baseUtility)], ['Transaction Utility', utilityNumber(row.transactionUtility)], ['Expiry Risk', row.expiryRisk], ['Seasonal Priority', row.seasonWeight], ['Algorithm Item ID', row.algorithmItemId], ['Stock Score (legacy)', row.stockScore], ['Expiry Score (legacy)', row.expiryScore], ['Seasonal Score (legacy)', row.seasonalScore], ['Selected Season', row.seasonId], ['Expiry Status', readable(row.expiryStatus)]
-    ]} /><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(row.expiryEvidence, null, 2)}</pre></div></details>)}</Technical>
+    ]} /><pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(row.expiryEvidence, null, 2)}</pre></div></details>)}</Technical>}
   </div>;
 }

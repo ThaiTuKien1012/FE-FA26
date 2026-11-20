@@ -139,7 +139,7 @@ try {
   await login(); await selectCompleted();
   assert.equal(await page.evaluate("document.querySelector('main h1').parentElement.firstElementChild.tagName"), 'H1', 'Recommendations header starts with the page title');
   assert.equal(await page.evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"), false);
-  await page.evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent==='Additional source details').click()");await has('WHOLE_UNIT_HALF_UP');await has('saved F03 snapshot is unchanged');await has('Comparison result'); await has('Failed'); await capture('merchant-source');
+  assert.equal(await page.evaluate("/Additional source details|Input hash|SPMF threshold|WHOLE_UNIT_HALF_UP/.test(document.querySelector('main').textContent)"),false);await has('rounded to whole');await has('saved snapshot is unchanged');await has('Comparison result'); await has('Failed'); await capture('merchant-source');
   assert.equal(await page.evaluate("document.querySelector('form[aria-label=\"Generate recommendations\"] button[type=submit]').disabled"), false);
   await page.evaluate("document.querySelector('input[type=checkbox][value=BUNDLE]').click()");
   await has('Select at least one recommendation format.');
@@ -153,8 +153,7 @@ try {
   assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-result-title')][0].closest('section').querySelector('details').open"), false, 'Skipped reasons start collapsed');
   await page.evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent.startsWith('Why some suggestions were skipped')).click()");
   await has('This format needs at least two products.');
-  await page.evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent==='Technical reason').click()");
-  await has('PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS');
+  assert.equal(await page.evaluate("/Technical reason|PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS/.test(document.querySelector('#f06-result-title').closest('section').textContent)"), false, 'Skipped reasons use friendly explanations without internal codes');
   await capture('merchant-result'); checks.push('completed run under failed comparison, no types, double submit, real DTO/results');
   const writesBeforeBrowse = calls.filter(call => call.path.endsWith('/generate')).length;
   await click('View Recommendations'); await has('1 matching recommendations');

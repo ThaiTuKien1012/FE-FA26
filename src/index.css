@@ -2,6 +2,7 @@
 @import "./components/common/AppDatePicker.css";
 @import "./features/store/components/F02Table.css";
 @import "./components/common/ProductTableHeader.css";
+@import "./features/f05/components/StoreAnalysis.css";
 
 @layer base {
   :root {

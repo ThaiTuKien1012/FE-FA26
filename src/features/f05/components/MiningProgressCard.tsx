@@ -1,7 +1,15 @@
 import { algorithmName, formatMiningNumber, miningDate } from '../f05.display';
 import type { MiningProgressView } from '../f05.types';
+import { analysisStage } from '../f05.presentation';
 
-export function MiningProgressCard({ progress: p, snapshotId }: { progress: MiningProgressView; snapshotId: number }) {
+export function MiningProgressCard({ progress: p, snapshotId, simple = false }: { progress: MiningProgressView; snapshotId: number; simple?: boolean }) {
+  if (simple) return <section aria-label="Analysis Progress" className="mt-5 border-y border-[#E7E2D8] py-4">
+    <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Analysis Progress</h3><span role="status" className="text-sm font-medium text-[#4B5563]">{analysisStage(p)}</span></div>
+    {p.stage === 'LEGACY' ? <p className="mt-2 text-sm text-[#6D7974]">Detailed progress was not recorded for this historical analysis.</p> : <>
+      <div className="mt-3 flex items-center gap-3"><div role="progressbar" aria-label="Analysis completed work" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p.percent} aria-valuetext={`${p.percent}%, ${analysisStage(p)}`} className="h-2 flex-1 overflow-hidden rounded-full bg-[#E7E2D8]"><div style={{width:p.percent+'%'}} className={'h-full '+(p.status==='FAILED'?'bg-[#9F5144]':'bg-[#356B54]')} /></div><span className="text-sm font-semibold tabular-nums">{p.percent}%</span></div>
+      {(p.status === 'PENDING' || p.status === 'RUNNING') && <p className="mt-2 text-xs text-[#6D7974]">Completed work reported by the service. It may decrease during recovery.</p>}
+    </>}
+  </section>;
   const title = p.stage === 'LEGACY' ? 'Progress details unavailable for this historical request' : p.status === 'FAILED' ? 'Mining failed' : p.status === 'COMPLETED' ? 'Mining completed' : p.stage === 'SAVING' ? 'Saving mining results' : p.stage === 'COMPARING' ? 'Comparing historical runs' : p.status === 'PENDING' || p.stage === 'QUEUED' ? 'Waiting to start' : 'Mining in progress';
   return <section aria-label="Analysis Progress" className="mt-5 border-y border-[#E7E2D8] py-4">
     <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold">Analysis Progress</h3><p role="status" className="mt-1 text-sm text-[#6D7974]">{title}</p></div><span className="text-sm font-semibold tabular-nums">{p.percent}%</span></div>

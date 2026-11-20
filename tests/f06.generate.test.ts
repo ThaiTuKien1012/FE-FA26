@@ -126,7 +126,8 @@ test('successful generation renders actual counts, unique IDs and all skipped re
   const f = setup(t); await select(f.workflow); await f.workflow.generate();
   assert.deepEqual(f.workflow.getSnapshot().result, generation);
   const html = renderToStaticMarkup(createElement(F06GenerationResult, { result: { ...generation, reusedCount: 3 }, types: ['BUNDLE'] }));
-  for (const text of ['Recommendations Created', 'New Suggestions', 'Reused Suggestions', 'Skipped Checks', '#62', '#83', 'This format needs at least two products.', 'PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS']) assert.ok(html.includes(text));
+  for (const text of ['Recommendations Created', 'New Suggestions', 'Reused Suggestions', 'Skipped Checks', '#62', '#83', 'This format needs at least two products.']) assert.ok(html.includes(text));
+  assert.equal(/Technical reason|PATTERN_REQUIRES_AT_LEAST_TWO_PRODUCTS/.test(html), false);
   assert.equal(html.includes('<button'), false);
 });
 test('zero candidates is a successful empty result, including zero-pattern runs with no skips', async t => {

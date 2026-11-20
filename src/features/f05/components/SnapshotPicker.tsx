@@ -7,6 +7,8 @@ import { authService } from '../../../services/authService';
 import { storeMiningReader } from '../f05.reader';
 import type { MiningReader } from '../f05.reader';
 import type { Page, SnapshotView } from '../f05.types';
+import { StoreSnapshotOptions } from './StoreSnapshotOptions';
+import { AnalysisPages } from './AnalysisPages';
 
 const PAGE_SIZE = 10;
 const button = 'rounded-xl border border-[#E7E2D8] bg-white px-4 py-2 text-sm font-semibold text-[#1E3A2F] hover:bg-[#EDF5F0] disabled:cursor-not-allowed disabled:opacity-50';
@@ -76,7 +78,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
           <p className="font-semibold text-[#191C1B]">No READY snapshots found</p>
           {canCreateSnapshot ? <><p className="mt-2">Open F03 Utility Preview, review the utility matrix and create a snapshot before mining.</p><a href={getPathForScreen('f03-preview')} className="mt-3 inline-block font-semibold text-[#1E3A2F] underline underline-offset-4">Open F03 Utility Preview</a></> : <p className="mt-2">Ask this Store's Merchandiser to create a frozen snapshot in F03.</p>}
         </div>
-      ) : data && (
+      ) : data && !system ? <StoreSnapshotOptions items={data.items} selected={selected} locked={locked} canSubmit={canSubmit} onSelect={onSelect} /> : data && (
         <div role={canSubmit ? 'radiogroup' : 'region'} aria-label={canSubmit ? 'Snapshot selection' : 'Frozen snapshots'} tabIndex={canSubmit ? undefined : 0} className={`mt-5 grid max-h-[36rem] gap-4 overflow-y-auto pr-1 ${data.items.length>1?'lg:grid-cols-2':''}`}>
           {data.items.map(snapshot => (
             <article key={snapshot.snapshotId} className={`min-w-0 rounded-xl border p-4 ${selected?.snapshotId === snapshot.snapshotId ? 'border-[#356B54] bg-[#F3F8F4]' : 'border-[#E7E2D8]'}`}>
@@ -102,7 +104,8 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
         </div>
       )}
 
-      {data && <nav aria-label="Snapshot pages" className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#E7E2D8] pt-4 text-sm text-[#6D7974]">
+      {data && !system && <AnalysisPages page={data} label="Snapshot" busy={loading} onPage={changePage} />}
+      {data && system && <nav aria-label="Snapshot pages" className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#E7E2D8] pt-4 text-sm text-[#6D7974]">
         <p>Page {data.page + 1} of {totalPages} · {data.totalElements} snapshots</p>
         <div className="flex gap-2"><button type="button" className={button} disabled={loading || page === 0} onClick={() => changePage(page - 1)}>Previous</button><button type="button" className={button} disabled={loading || page + 1 >= totalPages} onClick={() => changePage(page + 1)}>Next</button></div>
       </nav>}

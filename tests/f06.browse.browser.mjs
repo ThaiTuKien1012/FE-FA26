@@ -61,7 +61,10 @@ async function select(id, value) {
 async function login(role = 'MERCHANDISER', storeId = 1) {
   state.role = role; state.storeId = storeId;
   await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});history.pushState({},'','/recommendations');dispatchEvent(new PopStateEvent('popstate'));})()`);
-  if (role === 'MERCHANDISER') await until("!!document.querySelector('#f06-browse-tab')", 'workspace mounted');
+  if (role === 'MERCHANDISER') {
+    await until("!!document.querySelector('#f06-browse-tab')", 'workspace mounted');
+    await until("document.querySelector('#f06-request')?.options.length>1", 'Generation workspace finished initial source loading');
+  }
   if (role === 'STORE_ADMIN') await until("!!document.querySelector('#f06-dashboard-title')", 'Store Admin list mounted');
 }
 async function dashboard() {
