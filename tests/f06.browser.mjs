@@ -61,11 +61,16 @@ async function click(label) {
   assert.equal(clicked, true, 'Clickable button: ' + label);
 }
 async function login(role = 'MERCHANDISER', storeId = 1) {
-  state.role = role; state.storeId = storeId;
+  state.role = role; state.storeId = storeId;const landingStart=calls.length;
   await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});history.pushState({},'','/recommendations');dispatchEvent(new PopStateEvent('popstate'));})()`);
   if (role === 'STORE_ADMIN') await until("!!document.querySelector('#f06-dashboard-title')", 'Store Admin opens recommendations directly');
   if (role === 'MERCHANDISER') {
-    await until("!!document.querySelector('#f06-source-title')", 'F06 workspace mounted');
+    await until("!!document.querySelector('#f06-dashboard-title')", 'Recommendations are visible before generation');
+    await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Generate New')",'Open generation');
+    assert.equal(calls.slice(landingStart).some(c=>c.path.startsWith('/api/mining/')||c.path.endsWith('/generate')),false,'Landing never requires mining or generation');
+    await page.evaluate("document.querySelector('#f06-generate-tab').focus()");
+    await click('Generate New');
+    await until("!!document.querySelector('#f06-source-title')", 'F06 generation dialog mounted');
     if (!state.holdHistory) await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Refresh requests'&&!b.disabled)", 'source history loaded');
   }
 }
@@ -104,7 +109,7 @@ async function fixture({ requestId, request }) {
   else if (url.pathname === '/api/mining/runs/42') body = run;
   else if (/^\/api\/products\/\d+$/.test(url.pathname)) body = { id: Number(url.pathname.split('/').at(-1)), name: url.pathname.endsWith('/31') ? 'Fixture milk' : 'Fixture bread' };
   else if (url.pathname === '/api/recommendations/config') body = policy;
-  else if (url.pathname === '/api/recommendations') body = { items: [recommendation()], page: 0, pageSize: 20, totalElements: 1, ordering: 'CREATED_DESC' };
+  else if (url.pathname === '/api/recommendations') body = { items: [recommendation()], page: 0, pageSize: 20, totalElements: 1, ordering:url.searchParams.has('miningRunId')?'RANKED_WITHIN_SOURCE_RUN':'CREATED_DESC' };
   else if (url.pathname === '/api/recommendations/generate') {
     assert.equal(request.method, 'POST');
     const input = JSON.parse(request.postData); assert.equal(input.miningRunId, 42);
@@ -112,7 +117,7 @@ async function fixture({ requestId, request }) {
     assert.equal(new Set(input.types).size, input.types.length);
     while (state.holdWrite && !closing) await sleep(20);
     if (state.mode === 'conflict') { responseCode = 409; body = { error: 'Frozen mining source is inconsistent or unavailable' }; }
-    else body = state.mode === 'empty' ? { ...generation, createdCount: 0, reusedCount: 0, recommendationIds: [], skipped: [] } : generation;
+    else body = state.mode === 'empty' ? { ...generation, createdCount: 0, reusedCount: 0, recommendationIds: [], skipped: [] } : state.mode==='reused'?{...generation,createdCount:0,reusedCount:1}:generation;
   } else if (url.pathname === '/api/products') body = { content: [], page: 0, pageSize: 20, totalElements: 0, totalPages: 0 };
   else if (url.pathname === '/api/categories' || url.pathname === '/api/system/stores') body = [];
   else if (url.pathname === '/api/system/mining/config') body = { version: 0, algorithm: null, minUtilMode: null, minUtilValue: null, changedBy: null, changedAt: null };
@@ -139,16 +144,31 @@ try {
   await login(); await selectCompleted();
   assert.equal(await page.evaluate("document.querySelector('main h1').parentElement.firstElementChild.tagName"), 'H1', 'Recommendations header starts with the page title');
   assert.equal(await page.evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"), false);
-  assert.equal(await page.evaluate("/Additional source details|Input hash|SPMF threshold|WHOLE_UNIT_HALF_UP/.test(document.querySelector('main').textContent)"),false);await has('rounded to whole');await has('saved snapshot is unchanged');await has('Comparison result'); await has('Failed'); await capture('merchant-source');
+  await has("A product group may qualify for more than one recommendation type.");
+  await has('some selected types may produce no suggestions');
+  for(const description of ['Suggest groups of products to offer together.','Suggest additional products based on what a customer buys.','Find product groups that customers often purchase together.','Identify products or groups worth considering for promotion.'])await has(description);
+  await page.evaluate("[...document.querySelectorAll('#f06-generate-form summary')].find(e=>e.textContent==='How Frequently Bought Together qualifies').click()");
+  assert.equal(await page.evaluate("document.querySelector('input[value=FBT]').checked"),false,'Expanding qualification does not toggle its checkbox');
+  await has('2 shared orders and 5%');
+  await page.evaluate("document.querySelector('input[value=FBT]').focus()");
+  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:' ',code:'Space',windowsVirtualKeyCode:32});
+  await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
+  await until("document.querySelector('input[value=FBT]').checked",'Type checkbox supports Space');
+  await page.evaluate("for(const type of ['CROSS_SELL','BANNER'])document.querySelector('input[value='+type+']').click()");
+  assert.equal(await page.evaluate("document.querySelectorAll('#f06-generate-form input[type=checkbox]:checked').length"),4,'All four types can be selected together');
+  await page.evaluate("for(const type of ['CROSS_SELL','FBT','BANNER'])document.querySelector('input[value='+type+']').click()");
+  checks.push('four practical type descriptions, multiple checkbox selection/Space, loaded qualification policy, expandable information without changing selection');
+  assert.equal(await page.evaluate("/Additional source details|Input hash|SPMF threshold|WHOLE_UNIT_HALF_UP/.test(document.querySelector('main').textContent)"),false);await has('rounded to whole');await has('saved snapshot is unchanged');await has('Completed'); await capture('merchant-source');
   assert.equal(await page.evaluate("document.querySelector('form[aria-label=\"Generate recommendations\"] button[type=submit]').disabled"), false);
   await page.evaluate("document.querySelector('input[type=checkbox][value=BUNDLE]').click()");
   await has('Select at least one recommendation format.');
-  assert.equal(await page.evaluate("document.querySelector('form button[type=submit]').disabled"), true);
+  assert.equal(await page.evaluate("document.querySelector('form[aria-label=\"Generate recommendations\"] button[type=submit]').disabled"), true);
   await page.evaluate("document.querySelector('input[type=checkbox][value=BUNDLE]').click()");
   state.holdWrite = true;
   await page.evaluate("(()=>{const form=document.querySelector('form[aria-label=\"Generate recommendations\"]');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");
   await has('Generating recommendations...');
   await sleep(150); assert.equal(calls.filter(call => call.path.endsWith('/generate')).length, 1);
+  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});assert.equal(await page.evaluate("document.querySelector('#f06-library-tab').disabled&&document.querySelector('#f06-generate-tab').getAttribute('aria-selected')==='true'"),true,'Pending generation keeps its tab and cannot be discarded');
   state.holdWrite = false; await has('Recommendations Created'); await has('#62');
   assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-result-title')][0].closest('section').querySelector('details').open"), false, 'Skipped reasons start collapsed');
   await page.evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent.startsWith('Why some suggestions were skipped')).click()");
@@ -157,14 +177,15 @@ try {
   await capture('merchant-result'); checks.push('completed run under failed comparison, no types, double submit, real DTO/results');
   const writesBeforeBrowse = calls.filter(call => call.path.endsWith('/generate')).length;
   await click('View Recommendations'); await has('1 matching recommendations');
-  assert.equal(await page.evaluate("document.activeElement.id"), 'f06-browse-tab');
+  assert.equal(await page.evaluate("document.querySelector('#f06-library-tab').getAttribute('aria-selected')"),'true');
   assert.equal(calls.filter(call => call.path.endsWith('/generate')).length, writesBeforeBrowse);
-  await page.evaluate("document.querySelector('#f06-generate-tab').click()");
+  await click('Generate New');await selectCompleted();
   checks.push('View Recommendations opens Browse without another mutation and restores Create state');
 
   state.mode = 'empty'; await click('Generate recommendations'); await has('No recommendations were returned.');
   assert.equal(await page.evaluate("!!document.querySelector('#f06-result-title')"), true);
   checks.push('zero candidates is a successful empty result');
+  state.mode='reused';await click('Generate recommendations');await has('Existing Suggestions Reused');assert.equal(await page.evaluate("document.querySelector('#f06-result-title').closest('section').innerText.includes('existing review decisions')"),true);
   state.mode = 'conflict'; await click('Generate recommendations'); await has('Frozen mining source is inconsistent or unavailable');
   const writes = calls.filter(call => call.path.endsWith('/generate')).length;
   await sleep(250); assert.equal(calls.filter(call => call.path.endsWith('/generate')).length, writes);
@@ -178,10 +199,10 @@ try {
   checks.push('unfinished source is disabled; empty Store history');
   state.noRequests = false; state.runStatus = 'COMPLETED';
   const beforeStore = calls.length;
-  await login('STORE_ADMIN'); await has('Monitor product suggestions and their current status.');
+  await login('STORE_ADMIN'); await has("Explore product suggestions and manage review decisions.");
   assert.equal(await page.evaluate("!!document.querySelector('#f06-generate-tab')"), false);
   assert.equal(calls.slice(beforeStore).some(c => c.path.startsWith('/api/mining/') || c.path === '/api/recommendations/config'), false, 'Store Admin does not load generation sources or Store Rules');
-  assert.equal(await page.evaluate("!!document.querySelector('form[aria-label=\"Generate recommendations\"]')"), false);
+  assert.equal(await page.evaluate("!!document.querySelector('#f06-generate-tab')"),false);
   await capture('store-admin'); checks.push('Store Admin reads without Generate');
   for (const role of ['SYSTEM_ADMIN', 'END_CUSTOMER']) {
     await login(role); await until("!document.querySelector('#f06-source-title')", role + ' restricted');
@@ -190,7 +211,7 @@ try {
   checks.push('System Admin and End-Customer direct-route and sidebar restrictions');
 
   await login(); state.holdHistory = true; await click('Refresh requests');
-  await has('Loading mining requests...'); await login('MERCHANDISER', 2);
+  await has('Loading saved analyses...'); await login('MERCHANDISER', 2);
   state.noRequests = true; state.holdHistory = false; await has('No mining requests are available');
   assert.equal(await page.evaluate("!!document.querySelector('input[name=\"f06-run\"]')"), false);
   checks.push('session/Store change clears old source data during loading');
@@ -199,7 +220,8 @@ try {
   await page.call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await capture('mobile');
   assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true, 'No horizontal page overflow on mobile');
-  checks.push('390px responsive layout');
+  await page.evaluate("document.querySelector('#f06-generate-tab').focus()");await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowLeft',code:'ArrowLeft',windowsVirtualKeyCode:37});await until("document.querySelector('#f06-library-tab').getAttribute('aria-selected')==='true'",'Keyboard opens Library');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await until("document.querySelector('#f06-generate-tab').getAttribute('aria-selected')==='true'",'Keyboard returns to Generate New');assert.equal(await page.evaluate("document.querySelector('input[name=\"f06-run\"]').checked"),true,'Tab switching keeps selected source');
+  checks.push('390px responsive layout, native dialog focus and safe Escape');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);
   console.log(JSON.stringify({ result: 'PASS (controlled browser fixtures)', checks, interceptedApiCalls: calls.length, realBackendWrites: 0, artifacts }, null, 2));
 } catch (error) {

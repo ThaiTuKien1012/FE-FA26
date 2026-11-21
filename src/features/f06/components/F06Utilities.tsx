@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import { miningButton, miningInput, miningPrimaryButton, miningDate } from '../../f05/f05.display';
 import { parseMiningId } from '../../f05/f05.numbers';
 import { RecommendationExpiry, RecommendationRules, type RuleInputs } from '../f06.settings';
+import { F06Pages } from './F06Pages';
+import { friendlyAnalysisText } from '../../f05/f05.presentation';
 import { RecommendationProduct, RecommendationRuleSummary, recommendationYesNo } from './F06ReadShared';
 
 function Panel({ title, busy = false, onClose, children }: { title: string; busy?: boolean; onClose: () => void; children: ReactNode }) {
@@ -14,15 +16,15 @@ function Panel({ title, busy = false, onClose, children }: { title: string; busy
     node?.showModal(); document.body.style.overflow = 'hidden';
     return () => { node?.close(); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); };
   }, []);
-  return <dialog ref={dialog} aria-label={title} aria-modal="true" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full max-w-3xl overflow-y-auto border-l border-[#E7E2D8] bg-white p-0 text-[#191C1B] shadow-xl backdrop:bg-black/30">
+  return <dialog ref={dialog} aria-label={title} aria-modal="true" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} className="fixed inset-0 m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-3xl overflow-y-auto rounded-2xl border border-[#E7E2D8] bg-white p-0 text-[#191C1B] shadow-xl backdrop:bg-black/30">
     <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#E7E2D8] bg-white p-5 sm:p-6"><h2 className="text-xl font-semibold">{title}</h2><button type="button" autoFocus disabled={busy} aria-label={`Close ${title}`} onClick={onClose} className="rounded-lg p-2 hover:bg-[#EDF5F0] focus-visible:outline-2 disabled:opacity-50"><X aria-hidden="true" className="h-5 w-5" /></button></header>
     <div className="space-y-5 p-5 sm:p-6">{children}</div>
   </dialog>;
 }
 const fields: { key: keyof RuleInputs; label: string; help: string; decimal?: boolean }[] = [
   { key: 'maxBundleSize', label: 'Maximum Bundle Size', help: 'Whole number from 2 to 256 products.' },
-  { key: 'minSupportCount', label: 'Minimum Support Count', help: 'At least 1 historical transaction; whole number.' },
-  { key: 'supportPercent', label: 'Minimum Support Frequency (%)', help: '0–100%. Up to four percentage decimal places.', decimal: true },
+  { key: 'minSupportCount', label: 'Minimum Shared Orders', help: 'At least 1 historical transaction; whole number.' },
+  { key: 'supportPercent', label: 'Minimum Shared Orders (%)', help: '0–100%. Up to four percentage decimal places.', decimal: true },
   { key: 'confidencePercent', label: 'Minimum Cross-sell Confidence (%)', help: '0–100%. Up to four percentage decimal places.', decimal: true },
   { key: 'minimumSellableQuantity', label: 'Minimum Sellable Quantity', help: 'At least 1 sellable unit per product; whole number.' }
 ];
@@ -63,6 +65,7 @@ export function F06ExpiryPanel({ onClose }: { onClose: () => void }) {
   const data = state.data;
   return <Panel title="Expiry Alerts" onClose={onClose}>
     <p className="text-sm leading-6 text-[#6D7974]">Batch Push Day alerts for your Store, independent of mining. An alert does not by itself mean a product is unsellable. It does not change inventory or create promotions.</p>
+    <p className="text-xs leading-5 text-[#6D7974]">Days to Push is relative to the batch Push Day, not the expiry date. Zero means today; negative values mean the Push Day has passed.</p>
     <form aria-label="Expiry alert filters" onSubmit={event => { event.preventDefault(); try { const id = product.trim() ? parseMiningId(product.trim()) : undefined; setInputError(''); void workflow.applyFilter(id, Number(size)); } catch (error) { setInputError(error instanceof Error ? error.message : 'Check the product ID.'); } }}>
       <div className="grid gap-3 sm:grid-cols-2"><label htmlFor="f06-expiry-product" className="text-sm font-semibold">Product ID<input id="f06-expiry-product" inputMode="numeric" value={product} onChange={event => setProduct(event.target.value)} placeholder="All products" className={miningInput} /></label><label htmlFor="f06-expiry-size" className="text-sm font-semibold">Items per page<select id="f06-expiry-size" value={size} onChange={event => setSize(event.target.value)} className={miningInput}>{[10, 20, 50, 100].map(value => <option key={value}>{value}</option>)}</select></label></div>
       <div className="mt-4 flex flex-wrap gap-2"><button type="submit" className={miningPrimaryButton}>Apply Expiry Filters</button><button type="button" className={miningButton} onClick={() => void workflow.applyFilter()}>Reset Expiry Filters</button><button type="button" className={miningButton} disabled={state.loading} onClick={() => void workflow.refresh()}>Refresh Alerts</button></div>
@@ -72,14 +75,13 @@ export function F06ExpiryPanel({ onClose }: { onClose: () => void }) {
     {state.error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.error}</p>}
     {data && <>
       <p className="text-xs leading-5 text-[#6D7974]">Store date {formatDate(data.asOfDate)} · {data.timeZone}<br />Checked {miningDate(data.checkedAt)}</p>
-      {data.warnings.length > 0 && <ul aria-label="Expiry warnings" className="space-y-1 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{data.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
+      {data.warnings.length > 0 && <ul aria-label="Expiry warnings" className="space-y-1 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{data.warnings.map((warning, index) => <li key={index}>{friendlyAnalysisText(warning)}</li>)}</ul>}
       {!data.items.length ? <p className="rounded-xl bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">No expiry alerts match these filters. Only batches returned by the current Store Push Day check are shown. Check the returned warnings.</p> : <ul aria-label="Expiry alert batches" className="grid gap-4 sm:grid-cols-2">{data.items.map(batch => <li key={`${batch.productId}:${batch.batchId}`} className="min-w-0 rounded-xl border border-[#E7E2D8] p-4">
         <h3 className="break-words text-sm"><RecommendationProduct id={batch.productId} names={state.names} /></h3><p className="mt-1 text-xs text-[#6D7974]">Batch #{batch.batchId}</p>
         <dl className="mt-3 space-y-2 text-sm"><div><dt className="text-xs text-[#6D7974]">Push Day</dt><dd><time dateTime={batch.pushDay}>{formatDate(batch.pushDay)}</time></dd></div><div><dt className="text-xs text-[#6D7974]">Expiry date</dt><dd>{batch.expiryDate === null ? 'N/A' : <time dateTime={batch.expiryDate}>{formatDate(batch.expiryDate)}</time>}</dd></div><div><dt className="text-xs text-[#6D7974]">Days to Push</dt><dd>{batch.daysToPush}</dd></div><div><dt className="text-xs text-[#6D7974]">Remaining quantity</dt><dd>{batch.remainingQuantity}</dd></div><div><dt className="text-xs text-[#6D7974]">Push required</dt><dd>{recommendationYesNo(batch.pushRequired)}</dd></div></dl>
-        {batch.warnings.length > 0 && <ul className="mt-3 space-y-1 text-xs text-amber-900">{batch.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
+        {batch.warnings.length > 0 && <ul className="mt-3 space-y-1 text-xs text-amber-900">{batch.warnings.map((warning, index) => <li key={index}>{friendlyAnalysisText(warning)}</li>)}</ul>}
         <p className="mt-3 text-xs text-[#6D7974]">Checked {miningDate(batch.checkedAt)}</p>
       </li>)}</ul>}
-      <nav aria-label="Expiry alert pages" className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#6D7974]"><span>{data.totalElements} batches · Page {data.page + 1} of {Math.max(1, Math.ceil(data.totalElements / data.pageSize))}</span><div className="flex gap-2"><button type="button" disabled={data.page === 0} className={miningButton} onClick={() => void workflow.setPage(data.page - 1)}>Previous alerts</button><button type="button" disabled={(data.page + 1) * data.pageSize >= data.totalElements} className={miningButton} onClick={() => void workflow.setPage(data.page + 1)}>Next alerts</button></div></nav>
-    </>}
+      <F06Pages data={data} label="alerts" busy={state.loading} onPage={page=>void workflow.setPage(page)} />    </>}
   </Panel>;
 }

@@ -1,5 +1,6 @@
 import type { RecExpiryPage, RecGenerationResult, RecPage, RecPolicy, RecView } from './f06.types';
 import { INT32_MAX, REC_TYPES, REVIEW_STATUSES } from './f06.validation';
+import { ExactRecommendationNumber } from './f06.numbers';
 
 // Shape/number checks only. Business evidence, eligibility and ranking belong to
 // the backend; never derive or repair any returned field here.
@@ -15,7 +16,7 @@ const id = integer(1);
 const int32Id = integer(1, INT32_MAX);
 const count = integer(0);
 const int32Count = integer(0, INT32_MAX);
-const decimal: Check = value => typeof value === 'number' && Number.isFinite(value);
+const decimal: Check = value => typeof value === 'number' && Number.isFinite(value) || value instanceof ExactRecommendationNumber;
 const oneOf = (values: readonly string[]): Check => value => typeof value === 'string' && values.includes(value);
 const strings = array(text);
 const recType = oneOf(REC_TYPES);

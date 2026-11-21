@@ -51,7 +51,7 @@ async function until(expression, label) {
   while (Date.now() < end) { if (await page.evaluate(expression)) return; await sleep(40); }
   throw new Error('UI timeout: ' + label);
 }
-const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)})`, text);
+const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)}) || [...document.querySelectorAll(".f02-page-position")].some(e=>e.textContent===${JSON.stringify(text)})`, text);
 async function click(label) {
   assert.equal(await page.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}&&!b.closest('[hidden]'));if(!b||b.disabled)return false;b.click();return true;})()`), true, 'Clickable: ' + label);
 }
@@ -61,11 +61,11 @@ async function select(id, value) {
 async function login(role = 'MERCHANDISER', storeId = 1) {
   state.role = role; state.storeId = storeId;
   await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});history.pushState({},'','/recommendations');dispatchEvent(new PopStateEvent('popstate'));})()`);
-  if (role === 'MERCHANDISER') await until("!!document.querySelector('#f06-browse-tab')", 'workspace mounted');
+  if (role === 'MERCHANDISER') await until("!!document.querySelector('#f06-dashboard-title')", 'workspace mounted');
   if (role === 'STORE_ADMIN') await until("!!document.querySelector('#f06-dashboard-title')", 'Store Admin list mounted');
 }
 async function dashboard() {
-  await page.evaluate("document.querySelector('#f06-browse-tab')?.click()");
+
   await until("!!document.querySelector('#f06-dashboard-title')", 'dashboard mounted');
 }
 async function openDetails(id) {
@@ -94,7 +94,7 @@ async function fixture({ requestId, request }) {
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F06 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: state.storeId, status: 'ACTIVE', emailVerified: true };
   else if (path === '/api/recommendations') {
     const p = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
-    body = { items: [item()], page: p, pageSize: size, totalElements: 45, ordering: 'CREATED_DESC' };
+    body = { items: [item()], page: p, pageSize: size, totalElements: 45, ordering:url.searchParams.has('miningRunId')?'RANKED_WITHIN_SOURCE_RUN':'CREATED_DESC' };
   } else if (/^\/api\/recommendations\/\d+$/.test(path)) body = item(Number(path.split('/').at(-1)));
   else if (/^\/api\/recommendations\/\d+\/(approve|reject)$/.test(path)) {
     assert.equal(request.method, 'POST'); assert.equal(state.role, 'MERCHANDISER');
@@ -130,7 +130,9 @@ async function fixture({ requestId, request }) {
   else if (path === '/api/system/mining/config') body = { version: 0, algorithm: null, minUtilMode: null, minUtilValue: null, changedBy: null, changedAt: null };
   else if (path === '/api/utility/config') body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 1, beta: 1, gamma: 1, lambda: 0.1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: 0.5, version: 1 }, lambdaValid: true };
   else { unexpected.push(path); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
-  await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(body)).toString('base64') });
+  // Source-derived BigDecimal regression, injected as raw JSON tokens before parsing.
+  const wire=JSON.stringify(body).replaceAll('"expiryPriorityScore":null','"expiryPriorityScore":0.692307692307692308').replaceAll('40.123456','1234567890123.123456');
+  await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(wire).toString('base64') });
 }
 async function close(title) { await page.evaluate('document.querySelector('+JSON.stringify('button[aria-label="Close '+title+'"]')+').click()'); await until("!document.querySelector('dialog')", 'panel closed'); }
 async function prepare(action) { await select('f06-review-reason', 'Fixture review decision'); await click(action+' Recommendation'); await has('Confirm '+(action === 'Approve' ? 'approval' : 'rejection')); }
@@ -149,11 +151,11 @@ try {
   await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1080,deviceScaleFactor:1,mobile:false});
   await page.call('Page.navigate',{url:origin+'/login'});
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')",'session module');
-  await login(); await until("!!document.querySelector('#f06-request')",'source picker'); await select('f06-request','17');
+  await login();await until("!!document.querySelector('#f06-generate-tab')",'Merchandiser generation action ready');await click('Generate New');await until("!!document.querySelector('#f06-request')",'source picker'); await select('f06-request','17');
   await until("!!document.querySelector('input[name=\"f06-run\"]')",'completed run');
   await page.evaluate("document.querySelector('input[name=\"f06-run\"]').click()");
   await click('Generate recommendations'); await has('Recommendations Created'); await click('View Recommendations');
-  await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Review this recommendation');await has('Autumn fixture season');await has('31/10/2026');
+  await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Review this recommendation');await until("document.querySelector('dialog')?.textContent.includes('0.692307692307692308')",'Exact expiry score retained in collapsed details');await has('1234567890123.123456');await has('Autumn fixture season');await has('31/10/2026');
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].find(b=>b.textContent==='Approve Recommendation').disabled"),true);
   await prepare('Approve'); assert.equal(writes().length,0);
   state.hold=true; await click('Confirm Approval'); await has('Saving decision...');
@@ -161,7 +163,7 @@ try {
   state.hold=false; await has('Recommendation approved'); await has('Fixture review decision');
   assert.equal(writes().length,1); assert.deepEqual(writes()[0].payload,{expectedVersion:1,reason:'Fixture review decision'});
   assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false);
-  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').textContent"),'Ready to use');
+  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').getAttribute('data-readiness')"),'ready');
   await capture('review-approved'); await close('recommendation details'); await has('Page 2 of 3');
   checks.push('AD05 completed source → generate → browse → confirm approve → backend review history; page retained; duplicate blocked');
 
@@ -171,9 +173,9 @@ try {
   const afterConflict=writes().length;await sleep(200);assert.equal(writes().length,afterConflict);assert.equal(await page.evaluate("!!document.querySelector('[aria-label=\"Confirm recommendation review\"]')"),false);
   state.mode='normal';await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');assert.equal(writes().at(-1).payload.expectedVersion,6);await close('recommendation details');
   state.review='PENDING_REVIEW';state.version=9;state.eligibility='ELIGIBLE';state.mode='lost';await openDetails(62);await has('Review this recommendation');await prepare('Approve');await click('Confirm Approval');await has('not confirmed');
-  await until("!document.querySelector('#f06-review-reason')",'reconciled final approval');assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').textContent"),'Ready to use');
+  await until("!document.querySelector('#f06-review-reason')",'reconciled final approval');assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').getAttribute('data-readiness')"),'ready');
   const afterLost=writes().length;await sleep(200);assert.equal(writes().length,afterLost);
-  state.eligibility='INELIGIBLE';await click('Refresh details');await until("document.querySelector('dialog [data-readiness]')?.textContent==='Not ready'",'approved but unready');await close('recommendation details');
+  state.eligibility='INELIGIBLE';await click('Refresh details');await until("document.querySelector('dialog [data-readiness]')?.getAttribute('data-readiness')==='not-ready'",'approved but unready');await close('recommendation details');
   checks.push('ineligible rejection, needs-recheck guard, 409 inventory reconciliation, lost-response GET, approved becoming not ready');
 
   await click('Store Rules');await has('Read-only access. Store Admin manages these rules.');
@@ -185,8 +187,8 @@ try {
   await select('f06-rule-maxBundleSize','9');state.configMode='conflict';await click('Save Changes');await has('Current rules · Version 3');
   assert.equal(await page.evaluate("document.querySelector('#f06-rule-maxBundleSize').value"),'9');const puts=calls.filter(c=>c.method==='PUT').length;
   await click('Keep My Edits');assert.equal(calls.filter(c=>c.method==='PUT').length,puts);state.configMode='normal';await click('Save Changes');await has('Rules version 4');
-  await capture('store-rules');await close('Store Rules');await openDetails(62);await has('Recommendation Overview');
-  await page.evaluate("[...document.querySelectorAll('dialog summary')].find(e=>e.textContent==='Technical details').click()");await has('Rules Applied');
+  await capture('store-rules');await close('Store Rules');await openDetails(62);await has('Products');
+  await page.evaluate("[...document.querySelectorAll('dialog summary')].find(e=>e.textContent==='Source Details').click()");await has('Rules Applied');
   assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('4 products')"),true,'Existing recommendation shows captured max bundle size, not newly saved 9');
   assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false);await close('recommendation details');
   checks.push('Store Admin full numeric config PUT, exact percentages, validation, explicit 409 comparison; Merchant read-only; captured rules unchanged');

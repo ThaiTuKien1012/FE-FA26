@@ -1,10 +1,11 @@
-/** Wire numbers remain JSON numbers. The transport rejects unsafe integers and
- * decimals whose value would change on a JSON round trip; it never rounds them.
+import type { ExactRecommendationNumber } from './f06.numbers';
+/** Wire numbers remain JSON numbers. Decimal fields preserve their exact digits
+ * when number cannot round-trip them; IDs/counts still require safe integers.
  * Dates are ISO dates; timestamps are ISO-8601 instants supplied by the server.
  */
 export type Int32 = number;
 export type Int64 = number;
-export type Decimal = number;
+export type Decimal = number | ExactRecommendationNumber;
 export type RecType = 'BUNDLE' | 'CROSS_SELL' | 'FBT' | 'BANNER';
 export type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
 export type EligibilityStatus = 'ELIGIBLE' | 'NEEDS_RECHECK' | 'INELIGIBLE';

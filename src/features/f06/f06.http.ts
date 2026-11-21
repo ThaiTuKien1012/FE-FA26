@@ -1,5 +1,5 @@
 import { authService } from '../../services/authService';
-import { parseSafeMiningJson } from '../f05/f05.numbers';
+import { parseRecommendationJson } from './f06.numbers';
 
 export class F06ApiError extends Error {
   constructor(public readonly status: number | null, message: string) {
@@ -48,7 +48,7 @@ export async function recommendationRequest<T>(path: string, init: RequestInit =
   init.signal?.throwIfAborted();
   assertRecommendationSession(session);
   let data: unknown;
-  try { data = response.ok ? parseSafeMiningJson(body) : JSON.parse(body); }
+  try { data = response.ok ? parseRecommendationJson(body) : JSON.parse(body); }
   catch (error) {
     if (response.ok) throw new F06ApiError(response.status, error instanceof Error ? error.message : 'Invalid recommendation JSON.');
   }

@@ -19,7 +19,7 @@ test('W2 current eligibility accepts products without expiryPushDays and preserv
   assert.equal('expiryPushDays' in item.currentEligibility.products[0], false);
   assert.equal(item.currentEligibility.products[0].expiryPriorityScore, null);
   const html = renderToStaticMarkup(createElement(F06EligibilityCheck, { title: 'Current', check: item.currentEligibility }));
-  assert.match(html, /U_expiry.*N\/A/);
+  assert.match(html, /Expiry risk score.*N\/A/);
   assert.match(html, /W2_EXPIRY_SEASON_V1/);
   assert.doesNotMatch(html, /Reminder days|Historical reminder days/);
 });
@@ -81,7 +81,7 @@ test('season warning displays backend names/dates without changing readiness or 
   const before = JSON.stringify(item);
   assert.equal(isRecView(item), true);
   const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item }));
-  for (const text of ['Season ended', 'Autumn sale', '31/10/2026', 'Backend frozen-season explanation', 'Ready to use']) assert.ok(html.includes(text));
+  for (const text of ['Season ended', 'Autumn sale', '31/10/2026', 'Backend frozen-season explanation', 'Approved and currently available']) assert.ok(html.includes(text));
   assert.equal(JSON.stringify(item), before);
   const list = renderToStaticMarkup(createElement(F06RecommendationTable, { data: { items: [item], page: 0, pageSize: 20, totalElements: 1, ordering: 'CREATED_DESC' }, onOpen: () => {} }));
   assert.ok(list.includes('Season ended'));

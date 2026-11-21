@@ -72,7 +72,7 @@ for (const role of ['System Admin', 'End-Customer'] as const) test(`${role} cann
   await f.workflow.generate();
   assert.equal(f.requests.mock.callCount(), 0); assert.equal(f.config.mock.callCount(), 0); assert.equal(f.submit.mock.callCount(), 0);
   const html = renderToStaticMarkup(createElement(F06WorkspaceView));
-  assert.ok(html.includes('authorized account')); assert.equal(html.includes('<form'), false);
+  assert.equal(html,''); assert.equal(html.includes('<form'), false);
 });
 test('Store Admin retains source/policy access but opens the recommendation list without generation controls', async t => {
   const f = setup(t, 'Store Admin'); await select(f.workflow);
@@ -80,9 +80,9 @@ test('Store Admin retains source/policy access but opens the recommendation list
   assert.equal(f.requests.mock.callCount(), 1); assert.equal(f.config.mock.callCount(), 1);
   assert.equal(f.workflow.getSnapshot().selectedRunId, null); assert.equal(f.submit.mock.callCount(), 0);
   const html = renderToStaticMarkup(createElement(F06WorkspaceView));
-  assert.ok(html.includes('Monitor product suggestions and their current status.'));
+  assert.ok(html.includes('Explore product suggestions and manage review decisions.'));
   assert.ok(html.includes('f06-dashboard-title')); assert.equal(html.includes('f06-generate-tab'), false);
-  assert.equal(html.includes('Store Rules'), false); assert.equal(html.includes('f06-filter-snapshot'), false);
+  assert.equal(html.includes('Store Rules'), false); assert.ok(html.includes('f06-filter-snapshot'));
   assert.ok(html.includes('Recommendation filters')); assert.equal(html.includes('Generate recommendations'), false);
 });
 test('empty request history and no completed runs get explicit empty states', async t => {
@@ -112,7 +112,7 @@ test('COMPLETED run under FAILED request/comparison remains selectable; statuses
   assert.equal(f.submit.mock.callCount(), 1);
   assert.deepEqual(f.submit.mock.calls[0].arguments[0], { miningRunId: 42, types: ['BUNDLE'] });
   const html = renderToStaticMarkup(createElement(F06RunPicker, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
-  assert.ok(html.includes('request status: FAILED')); assert.ok(html.includes('comparison status: FAILED')); assert.ok(html.includes('run status: COMPLETED'));
+  assert.ok(html.includes('run status: COMPLETED'));assert.equal(html.includes('comparison status:'),false);
 });
 test('no selected types blocks submission; toggling never produces duplicates', async t => {
   const f = setup(t); await select(f.workflow);
