@@ -1,3 +1,4 @@
+import { decimalText, type F03Decimal } from './f03.decimal';
 import type { F03Config, F03MatrixPage, F03Policy, SeasonRequest } from './f03.api';
 
 export type SalesPeriod = { rangeStart: string; rangeEnd: string; asOfDate: string };
@@ -10,15 +11,10 @@ export function millionths(value: string): bigint | null {
 }
 export function validScore(value: string): boolean { const n = millionths(value); return n !== null && n <= 1000000n; }
 // Expand JSON numbers for exact millionths comparisons, including large policy limits.
-export function decimalNumber(value: number): string {
-  const text = String(value); if (!text.includes('e')) return text;
-  const [mantissa, exponent] = text.split('e'), [whole, fraction = ''] = mantissa.split('.');
-  const digits = whole + fraction, point = whole.length + Number(exponent);
-  return point <= 0 ? `0.${'0'.repeat(-point)}${digits}` : point >= digits.length ? digits + '0'.repeat(point - digits.length) : `${digits.slice(0, point)}.${digits.slice(point)}`;
-}
+export const decimalNumber = (value: F03Decimal): string => decimalText(value);
 export function validLambda(value: string): boolean {
-  const exact = millionths(value), numeric = Number(value);
-  return value.split('.')[0].replace(/^0+/, '').length <= 24 && exact !== null && Number.isFinite(numeric) && millionths(decimalNumber(numeric)) === exact;
+  const exact = millionths(value);
+  return value.split('.')[0].replace(/^0+/, '').length <= 24 && exact !== null;
 }
 export function enabledTotal(draft: Pick<ConfigDraft, 'alpha' | 'beta'>): bigint { return (millionths(draft.alpha) ?? 0n) + (millionths(draft.beta) ?? 0n); }
 export function configErrors(draft: ConfigDraft, policy: F03Policy): string[] {

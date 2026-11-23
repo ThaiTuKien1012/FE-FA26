@@ -1,7 +1,7 @@
 import { formatDate, formatDateRange, formatUtcDateTime } from '../../../utils/dateTime';
 import { useEffect, useRef, useState } from 'react';
 import { CircleCheck } from 'lucide-react';
-import { f03Api, type F03Snapshot, type F03SnapshotPage } from '../f03.api';
+import { f03Api, type F03ExactSnapshot as F03Snapshot, type F03SnapshotPage } from '../f03.api';
 import { utilityNumber } from '../f03.presentation';
 import { previewEligible } from '../f03.validation';
 import { BackToSnapshots, Button, errorMessage, Metrics, navigate, Notice, Pager, primary, readable, secondary, Section, Warnings } from './F03Shared';
@@ -52,7 +52,7 @@ export function UtilitySnapshots({ flow, readOnly, invalidate, isCurrent, active
           <Metrics values={[
             ['Selected Sales Period', formatDateRange(flow.dates.rangeStart, flow.dates.rangeEnd)], ['Analysis Date', formatDate(flow.dates.asOfDate)],
             ['Preview Status', saving ? 'Creating snapshot…' : eligible ? 'Preview Ready' : 'Preview required'],
-            ...(eligible && flow.preview ? [['Matrix Row Count', flow.preview.totalElements], ['Total Weighted Utility', flow.preview.totalWeightedUtility]] as [string, number | null][] : [])
+            ...(eligible && flow.preview ? [['Matrix Row Count', flow.preview.totalElements], ['Total Weighted Utility', flow.preview.totalWeightedUtility]] as [string, string | number | null][] : [])
           ]} />
           <div>
             {!eligible && !saving && <p className="mb-3 text-sm text-[#6d7974]">Calculate a Preview before creating a snapshot.</p>}

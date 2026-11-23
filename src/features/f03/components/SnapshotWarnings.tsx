@@ -1,4 +1,4 @@
-import type { F03Snapshot } from '../f03.api';
+import type { F03ExactSnapshot as F03Snapshot } from '../f03.api';
 import { useUtilityProductNames } from '../f03.products';
 import { groupSnapshotWarnings, snapshotWarningExplanation, snapshotWarningProductId } from '../f03.snapshot-warnings';
 

@@ -15,6 +15,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 let fixtureRole, cdp, initId;
 const calls = [], unexpected = [], errors = [], checks = [];
 let compactListApiMutations = 0;
+let precisionFixture = false;
 const state = { singleMatrix:false,catalogUnavailable:false,config: structuredClone(configView), seasons: [structuredClone(season)], memberships: new Map([[1, []]]), seasonConflict: false, seasonDelay: 0, duplicate: false, deleteConflict: false, assignError: false, assignExisting: false, scores: structuredClone(scores), scoreDelay: 0, expiryEmpty: false, expiryError: false, historyEmpty: false, historyError: false, created: false, empty: false, ready: true, warnings: [], previewDelay: 0, createDelay: 0, snapshotError: false, snapshotNetworkError: false, createId: 122, createdCount: 0, lastCreatedSnapshot: null, snapshotTotal: null, previewError: false, configError: false, forbiddenMatrix: false, matrixMode: 'W2', unsupported: false };
 class CDP {
   next = 0; pending = new Map(); listeners = new Map();
@@ -358,7 +359,7 @@ async function paused({ requestId, request }) {
     else if (path === '/api/mining/requests') body = { items: [], page, pageSize: size, totalElements: 0 };
     else if (path === '/api/system/utility/lambda-policy') { if (method === 'PUT') { state.config.lambdaPolicy = { ...state.config.lambdaPolicy, ...payload, version: state.config.lambdaPolicy.version + 1 }; } body = state.config.lambdaPolicy; }
     else { unexpected.push({ path, method }); code = 500; body = { error: 'Unexpected API blocked by fixtures' }; }
-    await cdp.call('Fetch.fulfillRequest', { requestId, responseCode: code, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], ...(emptyBody ? {} : { body: Buffer.from(JSON.stringify(body)).toString('base64') }) });
+    await cdp.call('Fetch.fulfillRequest', { requestId, responseCode: code, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], ...(emptyBody ? {} : { body: Buffer.from(precisionFixture ? JSON.stringify(body).replace(/("totalWeightedUtility":)[-\d.eE+]+/g,'$1'+'12345678901.123456').replace(/("expiryRisk":)[-\d.eE+]+/g,'$1'+'0.333333333333333333') : JSON.stringify(body)).toString('base64') }) });
   } catch (e) { if (!/Invalid InterceptionId|Invalid Fetch|No resource|closed/.test(e.message)) { errors.push(e.stack); try { await cdp.call('Fetch.fulfillRequest', { requestId, responseCode: 500 }); } catch {} } }
 }
 try {
@@ -517,7 +518,7 @@ try {
   state.previewError = true; await click('Calculate Preview'); await has('Priority Strength exceeds Lambda Policy'); await has('Review Configuration'); state.previewError = false;
   state.empty = true; await click('Calculate Preview'); await has('No utility rows'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); state.empty = false;
   await tab('Preview'); state.ready = false; await click('Calculate Preview'); await has('Not Ready'); await tab('Snapshots'); assert.equal(await enabled('Create Snapshot'), false); state.ready = true;
-  await tab('Preview'); state.warnings = ['MISSING_PUSH_DAY', 'SLOW_MOVING_NO_RECENT_SALES']; await click('Calculate Preview'); await has('Expiry Risk');await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('View All')).parentElement.open=true"); await has('No recent sales'); await pageNext('matrix rows'); await has('Page 2 of 2'); await capture('preview-1440');
+  await tab('Preview'); state.warnings = ['MISSING_PUSH_DAY', 'SLOW_MOVING_NO_RECENT_SALES']; await click('Calculate Preview'); await has('Expiry Risk');await until("[...document.querySelectorAll('details > summary')].some(e=>e.innerText.includes('View All'))",'Preview warning summary loaded');await evaluate("[...document.querySelectorAll('details > summary')].find(e=>e.innerText.includes('View All')).parentElement.open=true"); await has('No recent sales'); await pageNext('matrix rows'); await has('Page 2 of 2'); await capture('preview-1440');
   await tab('Snapshots'); await has('Preview Ready');
   assert.equal(await evaluate("document.querySelector('[data-create-snapshot]').dataset.state"), 'ready');
   assert.equal(await enabled('Review Preview'), true); assert.equal(await enabled('Create Snapshot'), true);
@@ -585,6 +586,12 @@ try {
   await session('System Admin', '/admin/lambda-policy'); await has('Priority Strength Policy'); assert.equal(await evaluate("!!document.querySelector('input[aria-label=\"Minimum Lambda\"]')"), false);
   await input('Maximum Priority Strength (λ)', '0.4'); await click('Save Policy'); await has('Priority Strength Policy updated'); assert.deepEqual(JSON.parse(calls.findLast(c => c.path === '/api/system/utility/lambda-policy' && c.method === 'PUT').body), { lambdaMax: 0.4 }); await capture('lambda-policy-390');
   checks.push('Store Admin read-only across four tabs; role denial without feature requests; legacy links; System Admin lambdaMax-only policy; responsive 1440/820/390 without page overflow');
+  precisionFixture = true; state.matrixMode = 'W2'; state.forbiddenMatrix = false; state.unsupported = false;
+  const beforePrecisionWrites = calls.filter(c=>c.method !== 'GET' && !c.path.startsWith('/api/auth/')).length;
+  await session('Merchandiser', '/f03/snapshot/detail?id=21'); await has('12,345,678,901.123456'); await has('0.333333333333333333');
+  await session('Store Admin', '/f03/snapshots'); await has('12,345,678,901.123456');
+  assert.equal(calls.filter(c=>c.method !== 'GET' && !c.path.startsWith('/api/auth/')).length,beforePrecisionWrites);
+  checks.push('Raw numeric JSON: scale-6 utility and scale-18 risk retain exact digits in frozen Snapshot/Matrix and read-only history; no feature mutations');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []); assert.equal(calls.some(c => c.method === 'PATCH' && c.path.includes('/scores')), false);
   console.log(JSON.stringify({ result: 'PASS (HTTP fixtures only; real E2E not run)', checks, interceptedApiCalls: calls.length, compactListApiMutations, realBackendWrites: 0, artifacts }, null, 2));
 } catch (error) { try { await capture('failure'); } catch {} console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, errors, unexpected, pageDiagnostics: await evaluate("({location:location.href,active:document.activeElement?.tagName,text:document.querySelector('main')?.innerText.slice(0,2200)})").catch(()=>null), modalDiagnostics: await evaluate("[...document.querySelectorAll('dialog')].map(e=>({label:e.getAttribute('aria-label'),open:e.open,text:e.innerText.slice(-500)}))").catch(()=>null), artifacts }, null, 2)); process.exitCode = 1; }

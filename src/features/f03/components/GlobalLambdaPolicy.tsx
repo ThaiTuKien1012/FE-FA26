@@ -13,7 +13,7 @@ export function GlobalLambdaPolicy() {
     if (busy.current || !policy) return;
     if (!validLambda(maximum)) { setError('Enter a non-negative Maximum Priority Strength with at most 24 integer digits and 6 decimal places, without loss of numeric precision.'); return; }
     const ticket = version.current; busy.current = true; setSaving(true); setError(''); setNotice('');
-    try { const result = await f03Api.updatePolicy({ lambdaMax: Number(maximum) }); if (ticket !== version.current) return; setPolicy(result); setMaximum(decimalNumber(result.lambdaMax)); setNotice('Priority Strength Policy updated.'); }
+    try { const result = await f03Api.updatePolicy({ lambdaMax: maximum }); if (ticket !== version.current) return; setPolicy(result); setMaximum(decimalNumber(result.lambdaMax)); setNotice('Priority Strength Policy updated.'); }
     catch (e) { if (ticket === version.current) setError(errorMessage(e, 'Unable to update policy.')); }
     finally { busy.current = false; if (ticket === version.current) setSaving(false); }
   };

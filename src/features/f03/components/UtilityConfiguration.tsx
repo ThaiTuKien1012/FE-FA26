@@ -33,7 +33,7 @@ export function UtilityConfiguration({ readOnly, invalidate, onDraftState }: { r
     if (busy.current || readOnly || !draft || errors.length) return;
     const ticket = version.current; busy.current = true; setSaving(true); setError(''); setNotice('');
     invalidate('Configuration was submitted. Calculate Preview again using saved settings.');
-    try { const result = await f03Api.updateConfig({ alpha: Number(draft.alpha), beta: Number(draft.beta), lambda: Number(draft.lambda), salesWindowDays: Number(draft.salesWindowDays) }); if (ticket !== version.current) return; setView(result); setDraft(draftFromConfig(result.config)); setNotice(`Configuration version ${result.config.version} saved.`); }
+    try { const result = await f03Api.updateConfig({ alpha: draft.alpha, beta: draft.beta, lambda: draft.lambda, salesWindowDays: Number(draft.salesWindowDays) }); if (ticket !== version.current) return; setView(result); setDraft(draftFromConfig(result.config)); setNotice(`Configuration version ${result.config.version} saved.`); }
     catch (e) { if (ticket === version.current) setError(errorMessage(e, 'Unable to save configuration.')); }
     finally { invalidate('Configuration submission finished. Calculate Preview using the latest saved settings.'); busy.current = false; if (ticket === version.current) setSaving(false); }
   };

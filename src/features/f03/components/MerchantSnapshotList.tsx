@@ -1,5 +1,5 @@
 import { formatDate, formatDateRange } from '../../../utils/dateTime';
-import type { F03Snapshot } from '../f03.api';
+import type { F03ExactSnapshot as F03Snapshot } from '../f03.api';
 import { utilityNumber } from '../f03.presentation';
 import { Button, navigate, secondary } from './F03Shared';
 

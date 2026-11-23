@@ -1,4 +1,4 @@
-import type { F03Snapshot } from '../f03.api';
+import type { F03ExactSnapshot as F03Snapshot } from '../f03.api';
 import { utilityNumber } from '../f03.presentation';
 import { formatDate, formatDateRange, formatUtcDateTime } from '../../../utils/dateTime';
 import { Button, Metrics, secondary, Section } from './F03Shared';

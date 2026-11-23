@@ -33,7 +33,8 @@ test('W2 alpha + beta use exact millionths; complementary editing preserves six 
 test('Lambda boundaries, finite numeric precision and sales window follow live W2 constraints', () => {
   for (const lambda of ['0', '0.5', '0.123456']) assert.deepEqual(configErrors({ ...draft(), lambda }, configView.lambdaPolicy), []);
   for (const lambda of ['', '-0.1', '0.500001', '0.1234567', 'NaN', 'Infinity', '1e-3']) assert.ok(configErrors({ ...draft(), lambda }, configView.lambdaPolicy).length);
-  for (const lambda of ['9007199254740993', '999999999999999999999999', '1000000000000000000000000']) assert.equal(validLambda(lambda), false);
+  assert.equal(validLambda('1000000000000000000000000'), false);
+  for (const lambda of ['9007199254740993', '999999999999999999999999']) assert.equal(validLambda(lambda), true);
   assert.equal(validLambda('100000000000000000000000'), true);
   for (const salesWindowDays of ['0', '366', '1.5', '', 'NaN']) assert.ok(configErrors({ ...draft(), salesWindowDays }, configView.lambdaPolicy).length);
   for (const salesWindowDays of ['1', '365']) assert.deepEqual(configErrors({ ...draft(), salesWindowDays }, configView.lambdaPolicy), []);

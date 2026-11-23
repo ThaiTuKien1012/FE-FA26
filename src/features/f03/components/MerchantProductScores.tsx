@@ -1,3 +1,4 @@
+import type { F03Decimal } from '../f03.decimal';
 import { useEffect, useState } from 'react';
 import { AppDatePicker } from '../../../components/common/AppDatePicker';
 import { formatDate, formatDateRange } from '../../../utils/dateTime';
@@ -51,7 +52,7 @@ export function ProductPriorityContent({ scores, onManageSeasons }: { scores: F0
           ['Expiry Risk', scores.expiryRisk, 'Share of eligible stock at risk of remaining unsold by its Push Day.'],
           ['Seasonal Priority', scores.seasonWeight, 'Priority from the active season selected for this product.'],
           ['Priority Multiplier', scores.weightValue, 'Multiplier used for weighted utility. This is not revenue or profit.']
-        ].map(([label, number, help]) => <section key={String(label)} className="min-w-0 rounded-xl border border-[#e7e2d8] bg-[#faf8f5] p-4"><h3 className="text-sm font-semibold">{label}</h3><p className="mt-2 break-words text-xl font-semibold tabular-nums">{utilityNumber(number as number | null)}</p><p className="mt-2 text-xs leading-relaxed text-[#6d7974]">{help}</p></section>)}</div>
+        ].map(([label, number, help]) => <section key={String(label)} className="min-w-0 rounded-xl border border-[#e7e2d8] bg-[#faf8f5] p-4"><h3 className="text-sm font-semibold">{label}</h3><p className="mt-2 break-words text-xl font-semibold tabular-nums">{utilityNumber(number as F03Decimal | null)}</p><p className="mt-2 text-xs leading-relaxed text-[#6d7974]">{help}</p></section>)}</div>
         <div className="mt-5"><Metrics values={[
           ['Selected Season', scores.seasonId === null ? 'No active season' : scores.activeSeasons.find(season => season.seasonId === scores.seasonId)?.name ?? `Season #${scores.seasonId}`],
           ['Readiness', scores.ready ? 'Ready' : 'Unavailable'], ['Analysis Date', formatDate(scores.asOfDate)]

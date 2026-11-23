@@ -1,5 +1,5 @@
 import { formatDate, formatDateRange } from '../../../utils/dateTime';
-import { isFrozenV2, type F03FrozenConfiguration, type F03MatrixPage, type F03Snapshot } from '../f03.api';
+import { isFrozenV2, type F03FrozenConfiguration, type F03MatrixPage, type F03ExactSnapshot as F03Snapshot } from '../f03.api';
 import { Metrics, Pager, readable, Technical, Warnings } from './F03Shared';
 
 export function FrozenConfiguration({ configuration, technical = true }: { configuration?: F03FrozenConfiguration | null; technical?: boolean }) {

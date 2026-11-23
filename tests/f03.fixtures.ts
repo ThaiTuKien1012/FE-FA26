@@ -21,6 +21,7 @@ export function matrix(page = 0): F03MatrixPage {
 }
 export function snapshot(id = 21): F03Snapshot {
   const result = matrix();
+  if (typeof result.totalWeightedUtility !== "number") throw new Error("This shared fixture uses a safe numeric total.");
   return { snapshotId: id, storeId: 1, createdBy: 2, rangeStart: '2026-10-01', rangeEnd: '2026-10-31', asOfDate: '2026-11-05',
     configuration: result.configuration, sourceHash: result.sourceHash, matrixHash: result.matrixHash, totalWeightedUtility: result.totalWeightedUtility!, roundingScale: 6, status: 'READY', createdAt: '2026-11-05T02:00:00Z', warnings: [] };
 }

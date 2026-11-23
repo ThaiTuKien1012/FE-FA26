@@ -1,8 +1,9 @@
+import { compareDecimal, formatDecimal, type F03Decimal } from './f03.decimal';
 import type { F03Config, F03MatrixItem, F03MatrixPage } from './f03.api';
 import { isFefoEvidence } from './f03.api';
 import { decimalNumber, millionths, type ConfigDraft } from './f03.validation';
 
-export const utilityNumber = (value: number | null | undefined) => value == null ? 'Unavailable' : value.toLocaleString('en-GB', { maximumFractionDigits: 20 });
+export const utilityNumber = (value: F03Decimal | null | undefined) => value == null ? 'Unavailable' : formatDecimal(value);
 export function configDraftDirty(draft: ConfigDraft, saved: F03Config): boolean {
   return (['alpha', 'beta', 'lambda'] as const).some(key => millionths(draft[key]) !== millionths(decimalNumber(saved[key])))
     || !/^\d+$/.test(draft.salesWindowDays) || Number(draft.salesWindowDays) !== saved.salesWindowDays;
@@ -39,7 +40,7 @@ export function sortMatrix(result: F03MatrixPage, sort: MatrixSort | null, names
   return result.items.map((row, index) => ({ row, index })).sort((a, b) => {
     const x = a.row[sort.key], y = b.row[sort.key];
     if (x == null || y == null) return x == null && y == null ? a.index - b.index : x == null ? 1 : -1;
-    const compared = sort.key === 'productId' ? (names[x] ?? `Product #${x}`).localeCompare(names[y] ?? `Product #${y}`, 'en', { numeric: true }) : x - y;
+    const compared = sort.key === 'productId' ? (names[Number(x)] ?? `Product #${x}`).localeCompare(names[Number(y)] ?? `Product #${y}`, 'en', { numeric: true }) : compareDecimal(x, y);
     return (sort.direction === 'asc' ? compared : -compared) || a.index - b.index;
   }).map(({ row }) => row);
 }
