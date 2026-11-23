@@ -1,0 +1,8 @@
+.f05-snapshot-option { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .75rem 1rem; min-width: 0; padding: .75rem 1rem; border-width: 1px; border-radius: .75rem; }
+.f05-store-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; font-size: 13px; }
+.f05-store-table th, .f05-store-table td { padding: .75rem .625rem; overflow-wrap: anywhere; vertical-align: middle; }
+.f05-store-table thead th { color: #4b5563; font-weight: 600; background: #faf8f5; }
+.f05-store-table tbody td, .f05-store-table tbody th { border-top: 1px solid #eee7df; }
+.f05-store-table tbody th { font-weight: 600; }
+.f05-view-details { padding: .5rem .625rem; font-size: 12px; white-space: nowrap; }
+@media (max-width: 639px) { .f05-snapshot-option { grid-template-columns: minmax(0, 1fr) auto; } .f05-snapshot-option > p { grid-row: 2; } .f05-snapshot-option > :last-child { grid-column: 2; grid-row: 1 / 3; } }

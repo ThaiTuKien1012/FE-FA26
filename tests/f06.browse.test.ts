@@ -10,6 +10,7 @@ import { RecommendationBrowser, readRecommendationProductNames } from '../src/fe
 import type { RecListParams, RecPage, RecView } from '../src/features/f06/f06.types';
 import { F06RecommendationTable } from '../src/features/f06/components/F06RecommendationTable';
 import { F06RecommendationDetailContent } from '../src/features/f06/components/F06RecommendationDetails';
+import { F06RecommendationOptions } from '../src/features/f06/components/F06RecommendationGroupDetails';
 import { F06DashboardContent } from '../src/features/f06/components/F06DashboardView';
 import { RecommendationBadge, RecommendationProduct, recommendationPercent, recommendationValue, recommendationReadiness, recommendationNumber } from '../src/features/f06/components/F06ReadShared';
 import { eligibility, recommendation } from './f06.fixtures';
@@ -47,15 +48,31 @@ function setup(t: TestContext, role: AuthUser['role'] = 'Merchandiser') {
 const table = (data: RecPage) => renderToStaticMarkup(createElement(F06RecommendationTable, { data, onOpen: () => {} }));
 const content = (item: RecView) => renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item }));
 
-test('history list succeeds in backend order without a rank column, fabricated KPIs or product fetches', async t => {
+test('history list succeeds in backend order without a rank column or fabricated KPIs, with cached product names', async t => {
   const f = setup(t); const items = [recommendation({ recommendationId: 80, utility: 1 }), recommendation({ recommendationId: 62, utility: 999 })];
   f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, items));
   f.workflow.start(); await flush();
   assert.deepEqual(f.workflow.getSnapshot().list?.items, items);
-  assert.equal(f.list.mock.calls[0].arguments[0]?.miningRunId, undefined); assert.equal(f.products.mock.callCount(), 0);
+  assert.equal(f.list.mock.calls[0].arguments[0]?.miningRunId, undefined); assert.equal(f.products.mock.callCount(), 2);
   const html = table(f.workflow.getSnapshot().list!);
   assert.ok(html.indexOf('#80') < html.indexOf('#62')); assert.equal(html.includes('>Rank<'), false);
-  for (const label of ['Utility Score', 'Review', 'Availability / Readiness', 'Why Suggested', 'View Details']) assert.ok(html.includes(label));
+  for (const label of ['Historical utility','Bought together']) assert.ok(html.includes(label));
+  const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items,onSelect:()=>{}}));
+  for(const label of ['Needs review','Available','View Details'])assert.ok(options.includes(label));
+});
+test('opening group candidates retains cached product images; explicit refresh reloads them and session change clears them', async t => {
+  const f=setup(t);
+  f.products.mock.mockImplementation(async (input:RequestInfo|URL)=>{
+    const id=Number(String(input).split('/').at(-1));return Response.json({id,name:'Product '+id,imageUrl:'/api/products/'+id+'/image'});
+  });
+  f.workflow.start();await flush();
+  const images={31:'/api/products/31/image',32:'/api/products/32/image'};
+  assert.deepEqual(f.workflow.getSnapshot().images,images);
+  await f.workflow.openDetail(62);await f.workflow.openDetail(63);
+  assert.deepEqual(f.workflow.getSnapshot().images,images);assert.equal(f.products.mock.callCount(),2);
+  await f.workflow.openDetail(63,false,true);
+  assert.deepEqual(f.workflow.getSnapshot().images,images);assert.equal(f.products.mock.callCount(),4);
+  f.change(null,'logged-out');assert.deepEqual(f.workflow.getSnapshot().images,{});
 });
 for (const role of ['Merchandiser', 'Store Admin'] as const) test(`${role} selects a completed F05 run even with failed request comparison and reads server ranks`, async t => {
   const f = setup(t, role); f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, [recommendation({ rank: params.miningRunId ? 21 : null })]));
@@ -123,14 +140,14 @@ test('null evidence/expiry scores show N/A while real zero remains zero', t => {
   setup(t); const item = recommendation({ utility: 0, type: 'CROSS_SELL', anchorProductId: 31, evidence: { totalTransactions: 0, supportCount: null, supportRatio: null, anchorSupportCount: null, confidence: null, status: 'EVIDENCE_UNAVAILABLE' } });
   const html = content(item);
   assert.match(html, /Confidence<\/dt><dd[^>]*>N\/A<\/dd>/); assert.match(html, /Bought together \(orders\)<\/dt><dd[^>]*>N\/A<\/dd>/);
-  assert.match(html, /Utility Score<\/dt><dd[^>]*>0<\/dd>/); assert.ok(html.includes('Shopping evidence unavailable'));
+  assert.match(html, /Historical utility<\/dt><dd[^>]*>0<\/dd>/); assert.ok(html.includes('Shopping evidence unavailable'));
 });
 test('CROSS_SELL targets exclude anchor; API product names are rendered as escaped text', t => {
   setup(t); const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, {
     item: recommendation({ type: 'CROSS_SELL', anchorProductId: 31 }), names: { 31: 'Anchor', 32: '<script>not markup</script>' }
   }));
   const targets = html.match(/<ul aria-label="Suggested cross-sell targets"[^>]*>(.*?)<\/ul>/s)![1];
-  assert.equal(targets.includes('#31'), false); assert.ok(targets.includes('#32')); assert.ok(targets.includes('&lt;script&gt;'));
+  assert.equal(targets.includes('#31'), false); assert.equal(targets.includes('#32'),false); assert.ok(targets.includes('&lt;script&gt;'));
 });
 test('approved can be unready with changed eligibility; refresh uses the new detail response without recomputing', async t => {
   const f = setup(t); f.workflow.start(); await flush(); await f.workflow.openDetail(62);
@@ -139,7 +156,7 @@ test('approved can be unready with changed eligibility; refresh uses the new det
   f.detail.mock.mockImplementation(async () => item); await f.workflow.openDetail(62);
   assert.deepEqual(f.workflow.getSnapshot().detail, item); const html = content(item);
   assert.ok(html.includes('APPROVED')); assert.ok(html.includes('INELIGIBLE'));
-  assert.match(html, /data-readiness="not-ready"[^>]*>Not ready<\/dd>/); assert.match(html, /Inventory changed<\/dt><dd[^>]*>Yes<\/dd>/);
+  assert.ok(html.includes('data-readiness="not-ready"')); assert.match(html, /Availability check changed<\/dt><dd[^>]*>Yes<\/dd>/);
   assert.ok(html.includes('Historical decision')); assert.ok(html.includes('Stock at the time of review'));
   assert.equal(html.includes('<button'), false);
 });
@@ -211,29 +228,29 @@ test('business percentages preserve backend decimal values without floating poin
 });
 test('status wording distinguishes review, current usability and readiness without changing backend fields', t => {
   setup(t);
-  for (const [status, wording] of [['ELIGIBLE', 'Eligible'], ['INELIGIBLE', 'Not eligible'], ['NEEDS_RECHECK', 'Needs recheck'], ['PENDING_REVIEW', 'Pending review']]) {
+  for (const [status, wording] of [['ELIGIBLE', 'Available'], ['INELIGIBLE', 'Unavailable'], ['NEEDS_RECHECK', 'Needs checking'], ['PENDING_REVIEW', 'Needs review']]) {
     const html = renderToStaticMarkup(createElement(RecommendationBadge, { status }));
     assert.ok(html.includes(`data-status="${status}"`)); assert.equal(html.replace(/<[^>]*>/g, ''), wording);
   }
   const item = recommendation({ reviewStatus: 'APPROVED', readyForConsumption: false, currentEligibility: eligibility('INELIGIBLE') });
   const before = JSON.stringify(item); const html = content(item);
-  assert.ok(html.includes('Approved')); assert.ok(html.includes('Not eligible'));
-  assert.match(html, /data-readiness="not-ready"[^>]*>Not ready<\/dd>/);
-  assert.ok(html.includes('Ready to use means approved and still eligible'));
+  assert.ok(html.includes('Approved')); assert.ok(html.includes('Unavailable'));
+  assert.ok(html.includes('data-readiness="not-ready"'));
+  assert.ok(html.includes('Approval does not publish a promotion or reserve stock'));
   assert.equal(JSON.stringify(item), before, 'presentation never changes API evidence or eligibility');
 });
 test('available product names precede IDs and unknown products retain a clear reference', () => {
   const named = renderToStaticMarkup(createElement(RecommendationProduct, { id: 31, names: { 31: 'Fresh milk' } }));
-  assert.ok(named.indexOf('Fresh milk') < named.indexOf('#31'));
+  assert.ok(named.includes('Fresh milk'));assert.equal(named.includes('#31'),false);
   assert.ok(renderToStaticMarkup(createElement(RecommendationProduct, { id: 31 })).includes('Product #31'));
   assert.equal(renderToStaticMarkup(createElement(RecommendationProduct, { id: null })), 'N/A');
 });
 test('friendly filter options keep exact backend enum values and the drawer keeps six clear sections', t => {
   const f = setup(t); const html = renderToStaticMarkup(createElement(F06DashboardContent, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
   assert.ok(html.includes('value="APPROVED">Approved</option>')); assert.ok(html.includes('value="CROSS_SELL">Cross-sell</option>'));
-  assert.ok(html.includes('Items per page')); assert.ok(html.includes('Ranked by Mining Run'));
+  assert.ok(html.includes('Items per page')); assert.ok(html.includes('f06-analysis-scope'));
   const detail = content(recommendation());
-  for (const title of ['Recommendation Overview', 'Why This Was Suggested', 'Can This Be Used Now?', 'Rules Applied', 'Additional Evidence', 'Review History']) assert.ok(detail.includes(title));
+  for (const title of ['Products', 'Why this was suggested', 'Availability', 'Rules Applied', 'Additional Evidence', 'Review History']) assert.ok(detail.includes(title));
 });
 
 test('not-ready wording follows review and availability without replacing the server readiness flag', () => {
@@ -243,16 +260,20 @@ test('not-ready wording follows review and availability without replacing the se
   assert.match(check('PENDING_REVIEW', 'INELIGIBLE'), /^Awaiting approval; current selling conditions are not met/);
   assert.match(check('APPROVED', 'NEEDS_RECHECK'), /^Approved; product availability needs a recheck/);
   assert.match(check('REJECTED', 'ELIGIBLE'), /^Rejected/);
-  assert.match(check('APPROVED', 'ELIGIBLE'), /^Not ready according to the latest check/);
-  assert.equal(recommendationReadiness(recommendation({ readyForConsumption: true })), 'Approved and currently eligible.');
+  assert.match(check('APPROVED', 'ELIGIBLE'), /^Readiness could not be confirmed/);
+  assert.equal(recommendationReadiness(recommendation({ readyForConsumption: true })), 'Approved and currently available. Recheck availability at the time of use.');
 });
 test('mobile cards preserve important data and confidence is only shown when applicable', () => {
   const bundle = recommendation({ reviewStatus: 'PENDING_REVIEW', currentEligibility: eligibility() });
   const html = table(resultPage({}, [bundle]));
-  assert.ok(html.includes('aria-label="Product recommendation cards"')); assert.ok(html.includes('xl:hidden'));
-  for (const text of ['Product #31', 'Utility Score', 'Bought together in 2 orders', '33.3333%', 'Pending review', 'Awaiting approval', 'View Details']) assert.ok(html.includes(text));
+  assert.ok(html.includes('aria-label="Product recommendation cards"')); assert.ok(html.includes('data-product-group'));
+  for (const text of ['Product #31', 'Historical utility', '2 orders', '33.3333%']) assert.ok(html.includes(text));
+  assert.equal(/data-status=|View Details|Awaiting approval/.test(html),false);
+  const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items:[bundle],onSelect:()=>{}}));
+  assert.ok(options.includes('Needs review'));assert.ok(options.includes('View Details'));
   assert.equal(content(bundle).includes('>Confidence</dt>'), false);
-  assert.ok(content(recommendation({ type: 'CROSS_SELL' })).includes('>Confidence</dt>'));
+  assert.ok(content(recommendation({ type: 'CROSS_SELL', anchorProductId: 31 })).includes('>Confidence</dt>'));
+  assert.equal(content(recommendation({ type: 'CROSS_SELL', anchorProductId: null })).includes('>Confidence</dt>'), false);
 });
 
 test('Store Admin list stays focused on business status and preserves backend evidence', t => {
@@ -260,19 +281,20 @@ test('Store Admin list stays focused on business status and preserves backend ev
   const item = recommendation({ reviewStatus: 'APPROVED', currentEligibility: eligibility('INELIGIBLE'), readyForConsumption: false });
   const original = JSON.stringify(item);
   const html = renderToStaticMarkup(createElement(F06RecommendationTable, { data: resultPage({}, [item]), compact: true, onOpen: () => {} }));
-  for (const text of ['Utility Score', 'Approved', 'Not eligible', 'Not ready', 'Bought together', '2 orders']) assert.ok(html.includes(text));
-  assert.equal(html.includes('Snapshot #'), false);
+  for (const text of ['Historical utility', 'Bought together', '2 orders']) assert.ok(html.includes(text));
+  assert.ok(html.includes('Snapshot #'));
+  assert.equal(/Approved|Unavailable/.test(html),false);const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items:[item],onSelect:()=>{}}));assert.ok(options.includes('Approved'));assert.ok(options.includes('Unavailable'));
   const dashboard = renderToStaticMarkup(createElement(F06DashboardContent, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
-  for (const id of ['f06-filter-snapshot', 'f06-filter-size', 'Recommendation ordering', 'Ranked by Mining Run']) assert.equal(dashboard.includes(id), false);
+  for(const id of ['f06-filter-snapshot','f06-filter-size','f06-analysis-scope'])assert.ok(dashboard.includes(id));assert.equal(dashboard.includes('Generate New'),false);
   assert.ok(dashboard.includes('f06-filter-type')); assert.ok(dashboard.includes('f06-filter-review'));
   assert.equal(JSON.stringify(item), original);
 });
 
-test('Store Admin drawer retains provenance inside closed Technical details and visible review history', () => {
+test('Store Admin drawer retains provenance inside closed Source Details and visible review history', () => {
   const item = recommendation();
   const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item, compact: true }));
-  assert.match(html, /<details[^>]*><summary[^>]*>Technical details<\/summary>/);
-  assert.ok(html.includes('Utility Score')); assert.ok(html.includes('Review History'));
+  assert.match(html, /<details[^>]*><summary[^>]*>Source Details<\/summary>/);
+  assert.ok(html.includes('Historical utility')); assert.ok(html.includes('Review History'));
   for (const text of ['Rules Applied', 'Input hash', 'Matrix hash', 'Availability when created']) assert.ok(html.includes(text));
 });
 

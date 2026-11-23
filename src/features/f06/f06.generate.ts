@@ -1,5 +1,6 @@
 import { authService, type AuthUser } from '../../services/authService';
 import { f05Api, F05ApiError } from '../f05/f05.api';
+import { sameMiningInput } from '../f05/f05.conversion';
 import type { Page, RequestView, RunView } from '../f05/f05.types';
 import { f06Api, F06ApiError } from './f06.api';
 import type { RecGenerationResult, RecPolicy, RecType } from './f06.types';
@@ -125,7 +126,7 @@ export class RecommendationGeneration {
       const [request, runs] = await Promise.all([f05Api.getRequest(requestId, controller.signal), f05Api.listRuns(requestId, controller.signal)]);
       if (!this.current(controller, scope)) return;
       if (request.storeId !== selected.storeId || request.snapshotId !== selected.snapshotId ||
-          runs.some(run => run.storeId !== request.storeId || run.snapshotId !== request.snapshotId)) {
+          runs.some(run => run.requestId !== request.requestId || run.storeId !== request.storeId || run.snapshotId !== request.snapshotId || !request.algorithms.includes(run.algorithm) || !sameMiningInput(request, run))) {
         throw new F06ApiError(200, 'Mismatched mining source was rejected. Refresh requests.');
       }
       this.update({ request, runs, runsLoading: false });

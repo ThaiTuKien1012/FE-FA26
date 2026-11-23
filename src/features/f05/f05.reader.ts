@@ -1,6 +1,6 @@
 import { f05Api } from './f05.api';
 import { f05SystemApi } from './f05.system.api';
-import type { BenchmarkView, Page, RequestView, RunView, SnapshotView } from './f05.types';
+import type { MiningProgressView, Page, RequestView, RunView, SnapshotView } from './f05.types';
 
 export interface MiningReader {
   scopeKey: string;
@@ -10,7 +10,7 @@ export interface MiningReader {
   getRequest(requestId: number, signal?: AbortSignal): Promise<RequestView>;
   listRuns(requestId: number, signal?: AbortSignal): Promise<RunView[]>;
   getRun?(runId: number, signal?: AbortSignal): Promise<RunView>;
-  getBenchmark?(runId: number, signal?: AbortSignal): Promise<BenchmarkView>;
+  getProgress(requestId: number, signal?: AbortSignal): Promise<MiningProgressView>;
 }
 export const storeMiningReader: MiningReader = {
   kind:'store', scopeKey:'own-store',
@@ -18,7 +18,8 @@ export const storeMiningReader: MiningReader = {
   listRequests:(...args)=>f05Api.listRequests(...args),
   getRequest:(...args)=>f05Api.getRequest(...args),
   listRuns:(...args)=>f05Api.listRuns(...args),
-  getRun:(...args)=>f05Api.getRun(...args)
+  getRun:(...args)=>f05Api.getRun(...args),
+  getProgress:(...args)=>f05Api.getProgress(...args)
 };
 export function systemMiningReader(storeId: number): MiningReader {
   return {
@@ -28,6 +29,6 @@ export function systemMiningReader(storeId: number): MiningReader {
     getRequest:(...args)=>f05SystemApi.getRequest(storeId,...args),
     listRuns:(...args)=>f05SystemApi.listRuns(storeId,...args),
     // There is no administrative GET run endpoint. Details come from the run list.
-    getBenchmark:(...args)=>f05SystemApi.getBenchmark(storeId,...args)
+    getProgress:(...args)=>f05SystemApi.getProgress(storeId,...args)
   };
 }

@@ -6,7 +6,8 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join, dirname, basename } from 'node:path';
-import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture } from './f05.fixtures.ts';
+import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture, progressFixture, efimRequestFixture, conversionRequestFixture, conversionRunFixture } from './f05.fixtures.ts';
+import { configView as weightConfig } from './f03.fixtures.ts';
 
 const origin=process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const chrome=process.env.F05_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -20,7 +21,8 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
-const state={storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,policy:{lambdaMin:0,lambdaMax:0.5,version:1},config:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
+let precisionFixture=false;
+const state={systemHistoryCount:1,singleStore:false,conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,snapshotWarnings:[],submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
   constructor(ws){this.ws=ws;ws.addEventListener('message',event=>{
@@ -29,7 +31,7 @@ class CDP {
     else for(const callback of this.listeners.get(data.method)||[])void callback(data.params);
   });}
   call(method,params={}){return new Promise((resolve,reject)=>{
-    const id=++this.id;const timer=setTimeout(()=>{this.pending.delete(id);reject(new Error('CDP timeout: '+method));},10000);
+    const id=++this.id;const timer=setTimeout(()=>{this.pending.delete(id);reject(new Error('CDP timeout: '+method));},method==='Page.captureScreenshot'?30000:10000);
     this.pending.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
     this.ws.send(JSON.stringify({id,method,params}));
   });}
@@ -52,6 +54,9 @@ async function click(text){
   const ok=await evaluate("(()=>{const b=[...document.querySelectorAll('button')].sort((a,b)=>Number(Boolean(b.closest('main')))-Number(Boolean(a.closest('main')))).find(b=>b.getClientRects().length&&b.innerText.replace(/\\s+/g,' ').trim()==="+JSON.stringify(text)+");if(!b||b.disabled)return false;b.click();return true;})()");
   assert.equal(ok,true,'Clickable button: '+text);
 }
+async function openConfirmation(){await until("[...document.querySelectorAll('main button[type=submit]')].some(e=>e.getClientRects().length&&!e.disabled)",'Mining submit enabled');await evaluate("[...document.querySelectorAll('main button[type=submit]')].find(e=>e.getClientRects().length&&!e.disabled).click()");await until("document.querySelector('dialog[open]')?.innerText.includes('Confirm Analysis')",'Single short confirmation');assert.equal(await evaluate("!!document.querySelector('input[type=checkbox]')"),false);}
+async function submitMining(){await openConfirmation();await evaluate("(()=>{const b=[...document.querySelectorAll('dialog[open] button')].find(e=>e.innerText==='Confirm Run');b.click();b.click();})()");}
+async function noStoreDebug(){assert.equal(await evaluate("/Technical Details|Additional details|Request key|Snapshot hash|Input hash|SPMF|WHOLE_UNIT_HALF_UP|LOSSLESS|NOT_REQUESTED|outputBytes|Java Heap|STORED_LEGACY_V0|009f3ef1-d4ba-4291-9854-b74c6878d26b/i.test(document.querySelector('main').textContent)"),false,'Store views contain no technical dumps, even collapsed');}
 async function input(label,value){
   assert.equal(await evaluate("(()=>{const e=document.querySelector('input[aria-label="+JSON.stringify(label)+"]');if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,"+JSON.stringify(value)+");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"),true,'Input '+label);
 }
@@ -62,13 +67,18 @@ async function session(role,url='/mining',legacy=false){
     (legacy?"sessionStorage.setItem('paspm:f05:pending:"+encodeURIComponent(user.id)+"',"+JSON.stringify(JSON.stringify({requestKey:payload.requestKey,snapshotId:2,algorithms:['EFIM'],minUtilValue:30}))+ ");":"");
   initId=(await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:code})).identifier;
   await cdp.call('Page.navigate',{url:origin+url});
+  await until("document.readyState!=='loading'&&document.getElementById('root')?.childElementCount>0",'New session document rendered',20000);
 }
-function responsePage(items,query){return {items,page:Number(query.get('page')||0),pageSize:Number(query.get('pageSize')||20),totalElements:items.length};}
+function responsePage(items,query){const page=Number(query.get('page')||0),pageSize=Number(query.get('pageSize')||20);return {items:items.slice(page*pageSize,(page+1)*pageSize),page,pageSize,totalElements:items.length};}
 async function paused({requestId,request}){
   const url=new URL(request.url),path=url.pathname,method=request.method;
   state.calls.push({method,path,search:url.search,body:request.postData??null});
   let body,code=200;
   try {
+    assert.equal(fixtureRole==='System Admin'&&path.startsWith('/api/mining/'),false,'System Admin must use System-scoped mining endpoints');
+    assert.equal(method==='POST'&&path==='/api/system/mining/requests',false,'Temporary Frontend policy forbids System manual analysis');
+    assert.equal(fixtureRole==='System Admin'&&/\/(patterns|benchmark)$/.test(path),false,'System monitoring must never read raw patterns or benchmarks');
+    assert.equal(fixtureRole==='Merchandiser'&&path==='/api/system/mining/config',false,'Merchandiser must not read System policy');
     if (path === '/api/auth/refresh') {
       body = { accessToken: 'browser-test-only-token', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-csrf' };
     } else if (path === '/api/auth/logout') {
@@ -88,10 +98,10 @@ async function paused({requestId,request}){
     }
     else if(path==='/api/roles')body=[{code:'SYSTEM_ADMIN',display_name:'System Admin'},{code:'STORE_ADMIN',display_name:'Store Admin'},{code:'MERCHANDISER',display_name:'Merchandiser'},{code:'END_CUSTOMER',display_name:'End-Customer'}];
     else if(path==='/api/system/utility/lambda-policy'){
-      if(method==='PUT'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['lambdaMax','lambdaMin']);state.policy={...sent,version:state.policy.version+1};}body=state.policy;
+      if(method==='PUT'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['lambdaMax']);state.policy={...state.policy,...sent,version:state.policy.version+1};}body=state.policy;
     }
-    else if(path==='/api/utility/config')body={config:{...snapshot().configuration.config,alpha:0.5,beta:0.2,gamma:0.3},lambdaPolicy:state.policy,lambdaValid:true};
-    else if(path==='/api/system/stores')body=responsePage([{storeId:1,name:'Store A'},{storeId:2,name:'Store B'}],url.searchParams);
+    else if(path==='/api/utility/config')body={...structuredClone(weightConfig),lambdaPolicy:state.policy};
+    else if(path==='/api/system/stores')body=responsePage(state.singleStore?[{storeId:1,name:'Store A'}]:[{storeId:1,name:'Store A'},{storeId:2,name:'Store B'}],url.searchParams);
     else if(path==='/api/system/mining/config'){
       if(method==='PUT'){
         const sent=JSON.parse(request.postData);
@@ -99,41 +109,60 @@ async function paused({requestId,request}){
         else {assert.equal(sent.expectedVersion,state.config.version);state.config={...configuration,...sent,version:state.config.version+1};delete state.config.expectedVersion;body=state.config;}
         await sleep(120);
       }else {while(state.holdConfig)await sleep(20);body=state.config;}
-    }else if(path==='/api/system/mining/requests'&&method==='POST'){
+    }else if((path==='/api/system/mining/requests'||path==='/api/mining/requests')&&method==='POST'){
       const sent=JSON.parse(request.postData);postBodies.push(request.postData);
-      assert.deepEqual(Object.keys(sent).sort(),['compareAlgorithms','requestKey','snapshotId','storeId']);
-      state.compare=sent.compareAlgorithms;state.hasRequest=true;
+      assert.deepEqual(Object.keys(sent).sort(),path.startsWith('/api/system/')?['requestKey','snapshotId','storeId']:['requestKey','snapshotId']);if(path==='/api/mining/requests')assert.equal(fixtureRole,'Merchandiser');
+      state.compare=false;state.hasRequest=true;state.requestReads=0;
+      if(state.submitError){code=state.submitError.code;body={error:state.submitError.message};}else {
       if(state.failPost){state.failPost=false;await cdp.call('Fetch.failRequest',{requestId,errorReason:'ConnectionReset'});return;}
-      code=202;body={...requestFixture(),requestKey:sent.requestKey,algorithms:sent.compareAlgorithms?['HUI_MINER','EFIM']:[state.config.algorithm]};
+      code=202;body={...efimRequestFixture(),snapshotId:sent.snapshotId,requestKey:sent.requestKey};}
     }else {
       const storeId=Number(path.match(/\/stores\/(\d+)\//)?.[1]||1);
-      if(path.endsWith('/snapshots'))body=responsePage(storeId===1?[{...snapshot(),totalWeightedUtility:898000}]:[],url.searchParams);
+      if(path.endsWith('/snapshots'))body=responsePage(storeId===1?Array.from({length:state.snapshotCount},(_,i)=>({...snapshot(),warnings:state.snapshotWarnings,snapshotId:i+2,totalWeightedUtility:898000})):[],url.searchParams);
       else if(/\/requests$/.test(path)){
         if(path==='/api/mining/requests')while(state.storeHistory==='hold')await sleep(20);
         if(state.slowHistory&&storeId===1)await sleep(500);
-        body=responsePage((storeId===1||state.mismatchStore2)&&state.hasRequest?[requestFixture('COMPLETED')]:[],url.searchParams);
+        body=responsePage((storeId===1||state.mismatchStore2)&&state.hasRequest?(fixtureRole==='System Admin'?Array.from({length:state.systemHistoryCount},(_,index)=>({...requestFixture('COMPLETED'),requestId:17+state.systemHistoryCount-1-index})):[requestFixture('COMPLETED')]):[],url.searchParams);
         if(path==='/api/mining/requests'&&state.storeHistory==='empty')body=responsePage([],url.searchParams);
         if(path==='/api/mining/requests'&&state.storeHistory==='error'){code=503;body={error:'Fixture analysis history unavailable'};}
-      }else if(/\/requests\/17$/.test(path)){
+      }else if(/\/requests\/17\/progress$/.test(path)){
         state.requestReads++;
-        body={...requestFixture(state.requestReads<2?'PENDING':state.requestReads<3?'RUNNING':'COMPLETED'),algorithms:state.compare?['HUI_MINER','EFIM']:[state.config.algorithm],comparisonStatus:state.compare?(state.requestReads<3?'PENDING':'MATCH'):'NOT_REQUESTED'};
+        const status=state.requestReads<2?'PENDING':state.requestReads<3?'RUNNING':'COMPLETED';
+        body=state.progressOverride??progressFixture(status,storeId);
+        if(state.compare)body={...body,totalSteps:5,completedSteps:status==='COMPLETED'?5:0,percent:status==='COMPLETED'?100:0,algorithm:status==='PENDING'?null:'HUI_MINER',comparisonStatus:status==='COMPLETED'?'MATCH':'PENDING'};
+        if(state.progressError){code=state.progressError;body={error:'Fixture progress unavailable'};}
+      }else if(/\/requests\/17$/.test(path)){
+        body={...requestFixture(state.requestReads<2?'PENDING':state.requestReads<3?'RUNNING':'COMPLETED'),snapshot:{...snapshot(),warnings:state.snapshotWarnings},algorithms:state.compare?['HUI_MINER','EFIM']:[state.legacySingle?'HUI_MINER':'EFIM'],comparisonStatus:state.compare?(state.requestReads<3?'PENDING':'MATCH'):'NOT_REQUESTED'};
       }else if(path.endsWith('/requests/17/runs')){
         const status=state.requestReads<3?'RUNNING':'COMPLETED';
-        body=state.compare?[runFixture(status),{...runFixture(status),runId:43,algorithm:'EFIM'}]:[{...runFixture(status),algorithm:state.config.algorithm}];
-      }else if(/\/runs\/(42|43)\/benchmark$/.test(path)){body=benchmarkFixture(path.includes('/43/')?'EFIM':state.compare?'HUI_MINER':state.config.algorithm);body.run.runId=Number(path.match(/\/runs\/(\d+)/)[1]);body.run.runtimeMillis=state.missingRuntime?null:body.run.algorithm==='EFIM'?242:289;body.run.memoryMiB=11.135678;body.run.patternCount=25;body.comparisonStatus=state.compare?'MATCH':'NOT_REQUESTED';}
+        body=state.compare?[runFixture(status),{...runFixture(status),runId:43,algorithm:'EFIM'}]:[{...runFixture(status),algorithm:state.legacySingle?'HUI_MINER':'EFIM',runtimeMillis:status!=='COMPLETED'||state.missingRuntime?null:242,memoryMiB:status==='COMPLETED'?11.135678:null,patternCount:status==='COMPLETED'?25:null}];
+      }
       else if(path.endsWith('/runs/42/patterns'))body=responsePage([{patternId:91,runId:42,productIds:[7,2],utility:12.123456,utilitySpmf:12,patternSize:2,supportCount:null}],url.searchParams);
-      else if(path.endsWith('/runs/42'))body=runFixture('COMPLETED');
+      else if(path.endsWith('/runs/42'))body={...runFixture('COMPLETED'),algorithm:state.compare||state.legacySingle?'HUI_MINER':'EFIM'};
+      else if(/^\/api\/products\/\d+$/.test(path))body={id:Number(path.split('/').at(-1)),name:'Product '+path.split('/').at(-1)};
       else {unexpected.push({method,path});code=500;body={error:'Unexpected test API route'};}
     }
-    await cdp.call('Fetch.fulfillRequest',{requestId,responseCode:code,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(body)).toString('base64')});
+    if (code < 300 && state.conversion !== 'legacy') {
+      const decorate = row => {
+        if (!row || typeof row !== 'object' || typeof row.conversionVersion !== 'string') return row;
+        const metadata = state.conversion === 'unknown' ? { conversionMode:null,roundingUnit:null,conversionVersion:'STORED_LEGACY_V0' } : (() => {
+          const expected = row.runId ? conversionRunFixture(state.conversion, row.status, row.storeId) : conversionRequestFixture(state.conversion, row.status, row.storeId);
+          return Object.fromEntries(['conversionMode','roundingUnit','conversionVersion','minUtilSpmf',...(row.runId?[]:['effectiveMinUtility','utilityScale','divisor','totalScaledUtility'])].map(key=>[key,expected[key]]));
+        })();
+        return {...row,...metadata,...(row.runId && state.emptyPatterns && row.status==='COMPLETED'?{patternCount:0}:{}),...(state.failedRun?row.runId?{status:'TIMED_OUT',failureCode:'TIMED_OUT',failureMessage:'Execution time limit exceeded',patternCount:null}:{status:'FAILED'}:{})};
+      };
+      body=Array.isArray(body)?body.map(decorate):body?.items?{...body,items:body.items.map(decorate)}:decorate(body);
+      if(path.endsWith('/runs/42/patterns')) body=state.emptyPatterns?responsePage([],url.searchParams):responsePage([{patternId:91,runId:42,productIds:[7,2],utility:state.conversion==='WHOLE_UNIT_HALF_UP'?12:12.123456,utilitySpmf:state.conversion==='WHOLE_UNIT_HALF_UP'?12:12123456,patternSize:2,supportCount:null}],url.searchParams);
+    }
+    await cdp.call('Fetch.fulfillRequest',{requestId,responseCode:code,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(precisionFixture ? JSON.stringify(body).replace(/("utility":)[-\d.eE+]+/g,'$1'+'12345678901.123456').replace(/("totalWeightedUtility":)[-\d.eE+]+/g,'$1'+'12345678901.123456').replace(/("totalScaledUtility":)[-\d.eE+]+/g,'$1'+'9223372036854775807').replace(/("divisor":)[-\d.eE+]+/g,'$1'+'9007199254740993').replace(/("runtimeMillis":)[-\d.eE+]+/g,'$1'+'9007199254740993') : JSON.stringify(body)).toString('base64')});
   }catch(e){
     // Cancelled reads during navigation can no longer be fulfilled.
     if(!/Invalid InterceptionId|Invalid Fetch|No resource|Session closed|Target closed/.test(e.message))browserErrors.push(e.message);
     try{await cdp.call('Fetch.failRequest',{requestId,errorReason:'Aborted'});}catch{}
   }
 }
-const artifactDirectory=mkdtempSync(join(base,'paspm-f05-redesign-preview-'));
-async function capture(name){await sleep(100);const shot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:!(/^(add-account|edit-)/.test(name))});writeFileSync(join(artifactDirectory,name+'.png'),Buffer.from(shot.data,'base64'));}
+const artifactDirectory=process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base,'paspm-f05-redesign-preview-'));
+async function capture(name){assert.equal(await evaluate("/remaining runs|next available run|runs per week|runs per month/i.test(document.querySelector('main')?.innerText||'')"),false,'No invented quota UI');if (!artifactDirectory) return;await sleep(100);const shot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:!(/^(add-account|edit-)/.test(name))});writeFileSync(join(artifactDirectory,name+'.png'),Buffer.from(shot.data,'base64'));}
 async function select(label,value){assert.equal(await evaluate("(()=>{const e=document.querySelector('select[aria-label="+JSON.stringify(label)+"]');if(!e||e.disabled)return false;e.value="+JSON.stringify(value)+";e.dispatchEvent(new Event('change',{bubbles:true}));return true;})()"),true,'Select '+label);}
 const checks=[];
 try{
@@ -148,87 +177,106 @@ try{
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
 
 
+  if(process.env.F05_CONVERSION_ONLY !== 'true') {
   await session(null,'/admin/lambda-policy');await textIncludes('Sign in to the system');await session(null);await textIncludes('Sign in to the system');checks.push('guest direct routes return Login');
   state.holdConfig=true;await session('System Admin');await textIncludes('Loading...');
-  state.holdConfig=false;await expectRoute('/admin/overview','Dashboard');await textIncludes('No global mining configuration');
-  assert.equal(await evaluate("document.querySelectorAll('main form,main input').length"),0);
+  state.holdConfig=false;await expectRoute('/admin/overview','Mining Overview');await textIncludes("Mining settings haven't been configured yet.");
+  assert.equal(await evaluate("[...document.querySelectorAll('main form,main input')].filter(e=>e.getClientRects().length).length"),0);
   assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),false);
   assert.equal(await evaluate("(()=>{const a=document.getElementById('dashboard-global-config'),b=document.getElementById('mining-stores-title');return Boolean(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING);})()"),true);
-  await click('Algorithm Configuration');await textIncludes('Configuration Version 0');
+  await click('Mining Settings');await textIncludes('Configuration Version 0');
   for(const invalid of ['0','101','0.1234567','9007199254740993']){
-    await input('Minimum Utility Threshold',invalid);await click('Save Configuration');
+    await input('Minimum Utility Value',invalid);await click('Save Settings');
     await until("document.querySelector('main [role=alert]')!==null",'invalid minimum utility');
   }
   assert.equal(state.calls.filter(x=>x.method==='PUT').length,0);
-  await input('Minimum Utility Threshold','0.5');await click('Save Configuration');await textIncludes('Configuration version 1 saved');
+  await input('Minimum Utility Value','0.5');await click('Save Settings');await textIncludes('Settings saved');
   const savedWrites=state.calls.filter(x=>x.method==='PUT').length;
   assert.equal(await evaluate("document.querySelector('main button[type=submit]').disabled"),true);
-  await input('Minimum Utility Threshold','1');await sleep(150);
+  await input('Minimum Utility Value','1');await sleep(150);
   assert.equal(state.calls.filter(x=>x.method==='PUT').length,savedWrites);
-  await click('Reset Changes');assert.equal(await evaluate("document.querySelector('input[aria-label=\"Minimum Utility Threshold\"]').value"),'0.5');
-  state.conflict=true;await input('Minimum Utility Threshold','1');await click('Save Configuration');await textIncludes('HTTP 409');
+  await click('Discard Changes');assert.equal(await evaluate("document.querySelector('input[aria-label=\"Minimum Utility Value\"]').value"),'0.5');
+  state.conflict=true;await input('Minimum Utility Value','1');await click('Save Settings');await textIncludes('HTTP 409');
   const configReads=state.calls.filter(x=>x.path==='/api/system/mining/config'&&x.method==='GET').length;
   await sleep(250);assert.equal(state.calls.filter(x=>x.path==='/api/system/mining/config'&&x.method==='GET').length,configReads);
   assert.equal(await evaluate("document.querySelector('main button[type=submit]').disabled"),true);
-  await click('Refresh configuration');await textIncludes('Configuration Version 1');
+  await click('Refresh Configuration');await textIncludes('Configuration Version 1');
   checks.push('global configuration loading/version zero, string validation, no-op Save, draft Reset and 409 manual recovery');
 
-  await click('Run Mining');await expectRoute('/admin/mining/run','Run Mining');await textIncludes('Select a snapshot to continue.');
-  await textIncludes('Store A');await click('Store A #1');await textIncludes('Available Snapshots');await textIncludes('898,000');
-  assert.equal(await evaluate("document.querySelector('article details')?.textContent.includes('Scoring Version: v1.2')"),true);
-  await evaluate("document.querySelector('input[name=snapshotId]').click()");
-  await evaluate("(()=>{const e=document.querySelector('input[aria-label=\"Compare HUI-Miner and EFIM\"]');if(!e.checked)e.click();})()");
-  await evaluate("(()=>{const b=[...document.querySelectorAll('main button')].find(b=>b.innerText.replace(/\\s+/g,' ').trim()==='Run Mining');b.click();b.click();})()");
-  await textIncludes('Could not connect to the mining service');assert.equal(postBodies.length,1);
-  assert.equal(await evaluate("[...document.querySelectorAll('[aria-label=\"Store selection\"] button')].every(b=>b.disabled)"),true);
-  await click('Mining History');await expectRoute('/admin/mining/history','Mining History');await click('Run Mining');
-  await click('Retry same submission');await expectRoute('/admin/mining/history','Mining History');await textIncludes('Algorithm Runs');
-  assert.equal(postBodies.length,2);assert.equal(postBodies[0],postBodies[1]);
-  assert.equal(JSON.parse(postBodies[0]).compareAlgorithms,true);
-  assert.match(JSON.parse(postBodies[0]).requestKey,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  checks.push('snapshot selection, locked pending submission, double click and byte-for-byte UUID retry preserved');
+  // Monitoring UI: no Store means no Store request read, and empty history has no pager.
+  const noStoreStart=state.calls.length;await session('System Admin','/admin/mining/history');await textIncludes('Select a store to view its mining history.');
+  assert.equal(state.calls.slice(noStoreStart).some(c=>/\/mining\/stores\/\d+\/requests/.test(c.path)),false);
+  state.hasRequest=true;state.systemHistoryCount=0;await click('Store A #1');await textIncludes('No analyses have been recorded for this store yet.');
+  assert.equal(await evaluate(`!!document.querySelector('[aria-label="Mining history pages"]')`),false);
+  state.systemHistoryCount=45;await click('Refresh history');await textIncludes('Page 1 of 3');await click('Next analyses');await textIncludes('Page 2 of 3');await click('Next analyses');await textIncludes('Page 3 of 3');
+  assert.equal(await evaluate('new URLSearchParams(location.search).get("storeId")'),'1');
+  await evaluate(`document.querySelector('button[aria-label="View details for analysis #17"]').click()`);await textIncludes('Analysis Details #17');await textIncludes('Execution Details');
+  await click('Close analysis details');await textIncludes('Page 3 of 3');
+  state.singleStore=true;await session('System Admin','/admin/overview?storeId=1');await textIncludes('Selected store');
+  assert.equal(await evaluate(`document.querySelector('[aria-label="Store selection"]').querySelectorAll("button").length`),0);
+  await click('Refresh Overview');await textIncludes('Recent Analyses');assert.equal(await evaluate('new URLSearchParams(location.search).get("storeId")'),'1');
+  state.singleStore=false;state.systemHistoryCount=1;state.hasRequest=false;
+  checks.push('System History without Store performs no Store read; empty pager hidden; 45 analyses paginate and retain page/Store through details; single selected Store has no redundant selection action; Overview refresh retains Store');
 
-  await click('View run #42');await click('Open algorithm benchmark');await expectRoute('/admin/benchmark','Algorithm Benchmark');
-  await textIncludes('EFIM completed 47 ms faster in this test');await textIncludes('11.14 MiB');
-  assert.equal(await evaluate("[...document.querySelectorAll('main button')].some(b=>/Review .*as active|Choose Default|Set Active|Apply Algorithm|Auto Select|Run #4[23]/.test(b.innerText))"),false);
-  assert.equal(await evaluate("document.querySelectorAll('main details').length"),1);
-  const writesBeforeBenchmark=state.calls.filter(x=>x.method!=='GET').length;
-  await click('Refresh comparison');await textIncludes('EFIM completed 47 ms faster in this test');
-  assert.equal(state.calls.filter(x=>x.method!=='GET').length,writesBeforeBenchmark);
-  await capture('benchmark-desktop');
-  state.missingRuntime=true;await click('Refresh comparison');await textIncludes('Not measured');
-  assert.equal(await evaluate(visibleText+".includes('47 ms faster')"),false);
-  state.missingRuntime=false;await click('Refresh comparison');await textIncludes('47 ms faster');
-  await session('System Admin','/admin/benchmark?storeId=1&requestId=17&runId=999');await textIncludes('This run does not belong');
-  await session('System Admin','/admin/benchmark?storeId=1&requestId=17&runId=43');await textIncludes('47 ms faster');
-  checks.push('Benchmark is read-only; compatible per-test summary, nullable metrics and run deep links checked');
+  // Existing records are test-only reads; administrative navigation must never POST.
+  state.hasRequest=true;state.compare=false;state.requestReads=0;
+  const systemPosts=postBodies.length;
+  for(const url of ['/admin/mining/run?storeId=1','/admin/overview?view=setup&storeId=1','/admin/mining/history?view=setup&storeId=1','/mining?view=setup&storeId=1']){
+    await session('System Admin',url);await expectRoute('/admin/overview','Mining Overview');
+    assert.equal(await evaluate(visibleText+".includes('Run Analysis')||"+visibleText+".includes('Run Mining')"),false);
+    assert.equal(await evaluate("!!document.querySelector('main button[type=submit]')"),false);
+  }
+  // Legacy System drafts stay untouched and are never restored/replayed by this role.
+  const legacyKey='paspm:f05:efim:v3:System%20Admin:1:store:1';
+  await evaluate('sessionStorage.setItem('+JSON.stringify(legacyKey)+',"legacy-pending")');
+  await cdp.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});initId=null;await cdp.call('Page.reload');await textIncludes('Mining Overview');
+  assert.equal(await evaluate('sessionStorage.getItem('+JSON.stringify(legacyKey)+')'),'legacy-pending');
+  assert.equal(postBodies.length,systemPosts);
+  await click('Store A #1');await textIncludes('Recent Analyses');await capture('system-dashboard');
+  await click('View Details');await textIncludes('Execution Details');await textIncludes('Mining in progress');await capture('progress-running');await textIncludes('Mining completed');await capture('progress-completed');
+  await click('View run #42');await textIncludes('Run #42');assert.equal(await evaluate(visibleText+".includes('Open algorithm benchmark')"),false);
+  const benchmarkCalls=()=>state.calls.filter(x=>x.path.endsWith('/benchmark')).length;assert.equal(benchmarkCalls(),0);
+  await session('System Admin','/admin/benchmark?storeId=1&requestId=17&runId=42');await expectRoute('/admin/mining/history','Mining History');await textIncludes('Execution Details');
+  assert.equal(await evaluate('location.search.includes("storeId=1")&&location.search.includes("requestId=17")'),true);assert.equal(benchmarkCalls(),0);assert.equal(postBodies.length,systemPosts);
+  checks.push('System Admin has no Run action or submit form; all legacy run URLs redirect without POST, old pending drafts remain untouched; Dashboard/History/progress/run metrics remain available');
+  await click('Mining Settings');await textIncludes('Current Mining Settings');await capture('system-mining-configuration');
+  assert.equal(await evaluate("!!document.querySelector('select[aria-label=\"Default Algorithm\"]')"),false);
+  await input('Minimum Utility Value','1');await click('Save Settings');await textIncludes('Settings saved');
+  await click('Mining Overview');await click('Store A #1');await textIncludes('Recent Analyses');const globalBefore=JSON.stringify(state.config);
+  await click('Store B #2');await textIncludes('No analyses have been recorded for this store yet.');assert.equal(JSON.stringify(state.config),globalBefore);
+  state.mismatchStore2=true;await click('Refresh Overview');await textIncludes('invalid or mismatched page');state.mismatchStore2=false;
+  checks.push('Store switching preserves global settings and rejects foreign request data');
 
-  await click('Algorithm Configuration');await textIncludes('Current System Configuration');
-  await select('Default Algorithm','EFIM');await click('Save Configuration');await textIncludes('Configuration version 2 saved');
-  assert.equal(state.config.algorithm,'EFIM');
-  await click('Dashboard');await click('Store A #1');await textIncludes('Recent Mining Activity');
-  const globalBefore=JSON.stringify(state.config);
-  await click('Store B #2');await textIncludes('This store has no mining requests yet');
-  assert.equal(JSON.stringify(state.config),globalBefore);
-  state.mismatchStore2=true;await click('Refresh dashboard');await textIncludes('invalid or mismatched page');state.mismatchStore2=false;
-  await click('Run Mining');await textIncludes('No READY snapshots found');
-  assert.equal(await evaluate("document.querySelector('main button[type=submit]').disabled"),true);
-  await click('Store A #1');await textIncludes('Snapshot #2');await evaluate("document.querySelector('input[name=snapshotId]').click()");
-  await evaluate("(()=>{const e=document.querySelector('input[aria-label=\"Compare HUI-Miner and EFIM\"]');if(e.checked)e.click();})()");
-  await click('Run Mining');await expectRoute('/admin/mining/history','Mining History');await textIncludes('Algorithm Runs');
-  assert.equal(postBodies.length,3);assert.equal(JSON.parse(postBodies[2]).compareAlgorithms,false);
-  assert.notEqual(JSON.parse(postBodies[2]).requestKey,JSON.parse(postBodies[0]).requestKey);
-  await click('View run #42');await click('Open algorithm benchmark');await textIncludes('This request used one algorithm');
-  assert.equal(await evaluate(visibleText+".includes('ms faster')"),false);
-  checks.push('Store switching keeps global settings; foreign data rejected; empty snapshot disabled; single algorithm remains supported');
+  await session('Merchandiser','/mining?view=setup');await textIncludes('Select Snapshot');await textIncludes('Snapshot #2');
+  state.snapshotCount=0;await click('Refresh snapshots');await textIncludes('No READY snapshots');
+  state.snapshotCount=11;await click('Refresh snapshots');await textIncludes('Snapshot #11');await click('Next');await textIncludes('Snapshot #12');await until("document.querySelector('nav[aria-label=\"Snapshot pages\"] [aria-current=page]')?.innerText==='2'",'Snapshot page 2');assert.ok(state.calls.some(c=>c.path==='/api/mining/snapshots'&&c.search.includes('page=1')));await click('Previous');await textIncludes('Snapshot #2');state.snapshotCount=1;await click('Refresh snapshots');await until("document.querySelectorAll('input[name=snapshotId]').length===1",'One compact snapshot');assert.equal(await evaluate("!!document.querySelector('nav[aria-label=\"Snapshot pages\"]')"),false);await noStoreDebug();
+  await textIncludes('01/09/2026');await textIncludes('30/09/2026');await textIncludes('27/10/2026');
+  for(const count of [1,8,0]){state.snapshotWarnings=Array(count).fill('MISSING_PUSH_DAY');await click('Refresh snapshots');await until("document.querySelectorAll('input[name=snapshotId]').length===1",'Snapshot loaded');if(count)await textIncludes(count+(count===1?' warning':' warnings'));assert.equal(await evaluate("document.querySelector('[aria-label=\"Snapshot selection\"]').textContent.includes('MISSING_PUSH_DAY')"),false);}state.snapshotWarnings=['MISSING_PUSH_DAY'];
+  const storePostBefore=postBodies.length;
+  await evaluate("document.querySelector('input[name=snapshotId]').click()");await openConfirmation();await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until("!document.querySelector('dialog[open]')",'Escape cancels analysis confirmation');assert.equal(postBodies.length,storePostBefore);await openConfirmation();await click('Cancel');assert.equal(postBodies.length,storePostBefore);await capture('merchandiser-run-mining');
+  for(const width of [390,820,1440]){await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);if(width===390)assert.equal(await evaluate("document.querySelector('aside').getBoundingClientRect().height<innerHeight/2"),true);await capture('merchandiser-run-'+width);}
+  state.submitError={code:409,message:'Configure mining policy before execution'};await submitMining();await textIncludes('Contact a System Admin');assert.equal(postBodies.length,storePostBefore+1);
+  await click('Discard saved attempt');state.submitError={code:400,message:'Product 7 TWU exceeds SPMF int32 capacity'};await submitMining();await textIncludes('Use a smaller sales period');await click('Discard saved attempt');
+  state.submitError=null;state.failPost=true;await submitMining();await textIncludes('Outcome not confirmed');
+  assert.equal(postBodies.length,storePostBefore+3,'Double click sends one POST for this intent');
+  const unknownBody=postBodies.at(-1),beforeReload=postBodies.length;
+  if(initId){await cdp.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:initId});initId=null;}await cdp.call('Page.reload');await textIncludes('Saved submission');assert.equal(postBodies.length,beforeReload);
+  await click('Retry same submission');await textIncludes('Analysis History');assert.equal(postBodies.at(-1),unknownBody);assert.deepEqual(Object.keys(JSON.parse(unknownBody)).sort(),['requestKey','snapshotId']);assert.match(JSON.parse(unknownBody).requestKey,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  await until("document.querySelector('[aria-label=\"Analysis Progress\"] [role=status]')?.innerText==='Completed'",'Real terminal progress');await click('View Details');await textIncludes('Analysis Results');await click('View Results');await textIncludes('Utility Score');await textIncludes('Product 7');await textIncludes('Snapshot warnings (1)');await evaluate("[...document.querySelectorAll('summary')].find(e=>e.textContent.includes('Snapshot warnings')).click()");await textIncludes('Some batches have no Push Day');await noStoreDebug();await capture('merchandiser-results');
+  const merchantCalls=state.calls.filter(x=>x.path==='/api/mining/requests'&&x.method==='POST');assert.ok(merchantCalls.length>=3);
+  state.progressOverride={...progressFixture('RUNNING'),stage:'SAVING',completedSteps:1,percent:50};await click('Refresh Details');await textIncludes('Saving Results');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'50');
+  state.progressOverride={...progressFixture('RUNNING'),attemptNo:2,percent:0};await click('Refresh Details');await textIncludes('Analyzing');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'0');
+  state.progressOverride={...progressFixture('FAILED'),completedSteps:1,percent:50};await click('Refresh Details');await until("document.querySelector('[aria-label=\"Analysis Progress\"] [role=status]')?.innerText==='Failed'",'Real failed progress');assert.equal(await evaluate("document.querySelector('[role=progressbar]').getAttribute('aria-valuenow')"),'50');
+  state.progressOverride=null;state.requestReads=5;
+  checks.push('Merchandiser owns-Store two-field POST, no policy GET, no-policy/numeric errors, uncertain reload retains UUID without POST replay, real DTO percentage including recovery decrease and failure below 100%, results with nullable support');
 
-  await click('Lambda Policy');await textIncludes('Current Lambda Range');await textIncludes('Before saving');
+  await session('System Admin','/admin/lambda-policy');await textIncludes('Current Priority Strength Policy');await click('Priority Strength Policy');await textIncludes('Current Priority Strength Policy');await textIncludes('Lowering this limit');
   assert.ok(state.calls.some(x=>x.path==='/api/system/utility/lambda-policy'));
-  await input('Maximum Lambda','0.7');await click('Save Policy');await textIncludes('Lambda policy updated');
-  assert.deepEqual(state.policy,{lambdaMin:0,lambdaMax:0.7,version:2});
+  await input('Maximum Priority Strength (λ)','0.7');await click('Save Policy');await textIncludes('Priority Strength Policy updated');
+  assert.deepEqual(state.policy,{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.7,version:2});
   assert.equal(state.calls.some(x=>x.path==='/api/utility/config'),false);
   await capture('lambda-desktop');
-  checks.push('Lambda global range, helper text, warning and existing GET/PUT contract preserved');
+  checks.push('W2 Lambda global range, helper text, warning and lambdaMax-only GET/PUT contract');
 
   state.usersError=true;await click('Users & Roles');await textIncludes('Accounts could not be loaded');
   assert.equal(await evaluate("document.querySelector('[data-account-statistics]').innerText.includes('Account data unavailable')"),true);
@@ -252,6 +300,7 @@ try{
   await select('Filter by status','pending_verification');assert.equal(await evaluate("document.querySelectorAll('tbody tr button').length"),1);await select('Filter by status','all');
   const userWrites=()=>state.calls.filter(x=>x.method!=='GET'&&x.path.startsWith('/api/users'));
   const openAccount=async name=>{
+    await cdp.call('Page.bringToFront');
     await evaluate("(()=>{const b=[...document.querySelectorAll('tbody tr')].find(tr=>tr.innerText.includes("+JSON.stringify(name)+"))?.querySelector('button');if(!b)throw Error('Missing account row');b.focus();b.click();})()");
     await until("Boolean(document.querySelector('[role=dialog] input[aria-label=\"Full Name\"]'))",'Account details loaded');
     await until("document.activeElement===document.querySelector('[role=dialog] input[aria-label=\"Full Name\"]')",'Initial account focus');
@@ -386,13 +435,13 @@ try{
 
   state.compare=true;state.requestReads=5;
   const pages=[
-    ['/admin/overview?storeId=1','Recent Mining Activity','dashboard'],
-    ['/admin/setup?storeId=1','Update Configuration','configuration'],
-    ['/admin/mining/run?storeId=1','Available Snapshots','run'],
-    ['/admin/mining/history?storeId=1&requestId=17','Algorithm Runs','history'],
-    ['/admin/benchmark?storeId=1&requestId=17&runId=42','47 ms faster','benchmark'],
+    ['/admin/overview?storeId=1','Recent Analyses','dashboard'],
+    ['/admin/setup?storeId=1','Edit Mining Settings','configuration'],
+    ['/admin/mining/run?storeId=1','Recent Analyses','legacy-run-dashboard'],
+    ['/admin/mining/history?storeId=1&requestId=17','Execution Details','history'],
+    ['/admin/benchmark?storeId=1&requestId=17&runId=42','Execution Details','legacy-history'],
     ['/admin/users','User Management','users'],
-    ['/admin/lambda-policy','Current Lambda Range','lambda']
+    ['/admin/lambda-policy','Current Priority Strength Policy','lambda']
   ];
   for(const width of [1440,1024,820,390]){
     await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
@@ -412,18 +461,18 @@ try{
     }
   }
   await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
-  checks.push('all seven System Admin pages: desktop/tablet/mobile overflow, one heading and no breadcrumbs');
+  checks.push('System Admin management and legacy redirects: desktop/tablet/mobile overflow, one heading and no breadcrumbs');
 
   for(const role of ['Merchandiser','Store Admin']){
     state.requestReads=5;const before=state.calls.length;
-    await session(role,'/mining?view=history',true);await textIncludes(role==='Store Admin'?'Mining Results':'Read-only access');
-    if(role==='Store Admin'){await until("!!document.querySelector('button[aria-label=\"View results for analysis #17\"]')",'analysis results');await evaluate("document.querySelector('button[aria-label=\"View results for analysis #17\"]').click()");}else await click('View request #17');await textIncludes(role==='Store Admin'?'Algorithm results':'Algorithm runs');await click(role==='Store Admin'?'View Patterns':'View run #42');if(role!=='Store Admin')await click('Show patterns');await textIncludes('Not measured');
-    assert.ok(state.calls.slice(before).filter(x=>!x.path.startsWith('/api/auth/')).every(x=>x.method==='GET'&&x.path.startsWith('/api/mining/')));
+    await session(role,'/mining?view=history',true);await textIncludes(role==='Store Admin'?'Analysis History':'Product Combination Analysis');
+    await click('View Details');await textIncludes('Analysis Results');await textIncludes('01/09/2026');await textIncludes('30/09/2026');await click('View Results');await textIncludes('Utility Score');await noStoreDebug();
+    assert.ok(state.calls.slice(before).filter(x=>!x.path.startsWith('/api/auth/')).every(x=>x.method==='GET'&&(x.path.startsWith('/api/mining/')||x.path.startsWith('/api/products/'))));
     assert.equal(await evaluate("Boolean(document.querySelector('nav[aria-label=Breadcrumb]'))"),false);
     if(role==='Store Admin'){
-      assert.equal(await evaluate("!!document.querySelector('nav[aria-label=\"Mining workspace\"]')"),false);
+      assert.equal(await evaluate("[...document.querySelectorAll('nav[aria-label=\"Mining workspace\"] button')].some(e=>e.innerText==='Run Analysis')"),false);
       for(const count of [2,1]){
-        state.compare=count===2;state.config.algorithm='HUI_MINER';await click('Refresh Details');
+        state.compare=count===2;state.legacySingle=true;await click('Refresh Details');
         await until("document.querySelectorAll('[data-store-run-grid] article').length==="+count,'Store run count');
         for(const width of [1440,768,390]){
           await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
@@ -434,30 +483,89 @@ try{
         }
       }
       await click('Close Details');assert.equal(await evaluate("!!document.querySelector('#f05-details-title')"),false);
-      state.storeHistory='empty';await click('Refresh history');await textIncludes('No mining requests were returned');
-      state.storeHistory='error';await click('Refresh history');await textIncludes('Fixture analysis history unavailable');
-      state.storeHistory='hold';await click('Refresh history');await textIncludes('Loading mining history');
-      state.storeHistory='normal';await until("!!document.querySelector('button[aria-label=\"View results for analysis #17\"]')",'history restored');
+      state.storeHistory='empty';await click('Refresh history');await textIncludes('No analyses have been recorded for this store yet.');
+      state.storeHistory='error';await click('Refresh history');await textIncludes('The analysis service is unavailable');
+      state.storeHistory='hold';await click('Refresh history');await textIncludes('Loading analysis history');
+      state.storeHistory='normal';await until("!!document.querySelector('button[aria-label=\"View details for analysis #17\"]')",'history restored');
       state.compare=true;
       await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     }
   }
+
+  }
+  // New conversion modes are read-only fixtures; no mining or recommendation POST.
+  const conversionPosts=postBodies.length;
+  state.compare=false;state.legacySingle=false;state.hasRequest=true;state.storeHistory='normal';
+  for(const role of ['System Admin','Merchandiser','Store Admin']) {
+    for(const mode of ['LOSSLESS','WHOLE_UNIT_HALF_UP','unknown']) {
+      state.conversion=mode;state.emptyPatterns=mode==='WHOLE_UNIT_HALF_UP';state.requestReads=5;
+      await session(role,role==='System Admin'?'/admin/mining/history?storeId=1&requestId=17':'/mining?view=history&requestId=17');
+      await textIncludes(role==='System Admin'?'Execution Details':'Analysis Results');
+      if(role==='System Admin'){
+      await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Loaded Additional details');
+      await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').closest('details').open=true");
+      await textIncludes(mode==='unknown'?'STORED_LEGACY_V0':mode);
+      assert.equal(await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').innerText.includes("+JSON.stringify(mode==='LOSSLESS'?'None (exact conversion)':mode==='WHOLE_UNIT_HALF_UP'?'1':'Not recorded')+")"),true,'Correct rounding/null label');
+      await textIncludes('Snapshot');await textIncludes('Run #42');
+      }else{await noStoreDebug();if(mode==='WHOLE_UNIT_HALF_UP')await textIncludes('rounded to whole');if(mode==='unknown')await textIncludes('not recorded for this historical analysis');}
+      const beforePatterns=state.calls.filter(call=>call.path.endsWith('/patterns')).length;
+      await click(role==='System Admin'?'View run #42':'View Results');
+      if(role==='System Admin') {
+        await until("!![...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42'))",'System run detail');
+        await evaluate("[...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42')).parentElement.open=true");
+        assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,beforePatterns);
+        assert.equal(await evaluate("!!document.querySelector('main button[type=submit]')"),false);
+      } else {
+        await textIncludes(mode==='WHOLE_UNIT_HALF_UP'?'Zero product combinations is a valid result':'Product Combinations');
+        if(mode==='WHOLE_UNIT_HALF_UP') await textIncludes('saved snapshot is unchanged');await noStoreDebug();
+      }
+      const completedReads=state.calls.filter(call=>call.path.endsWith('/progress')).length;await sleep(1650);assert.equal(state.calls.filter(call=>call.path.endsWith('/progress')).length,completedReads,'Terminal stops polling');
+      if(mode==='WHOLE_UNIT_HALF_UP') await evaluate("document.querySelectorAll('[aria-label=\"Analysis input conversion\"]').forEach(e=>{const details=e.closest('details');if(details)details.open=true})");
+      if(mode==='WHOLE_UNIT_HALF_UP') for(const width of [1440,820,390]) {
+        await cdp.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
+        assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Conversion details fit '+role+' '+width);
+        assert.equal(await evaluate("[...document.querySelectorAll('[aria-label=\"Analysis input conversion\"]')].every(e=>!e.closest('[role=alert]'))"),true,'Accepted fallback is not a warning');
+        await capture('conversion-'+role.toLowerCase().replaceAll(' ','-')+'-'+width);
+      }
+      await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+    }
+  }
+  state.conversion='WHOLE_UNIT_HALF_UP';state.failedRun=true;state.progressOverride={...progressFixture('FAILED'),percent:50,completedSteps:1};state.requestReads=5;
+  const patternsBeforeFailure=state.calls.filter(call=>call.path.endsWith('/patterns')).length;
+  await session('Merchandiser','/mining?view=history&requestId=17');await until("document.querySelector('[aria-label=\"Analysis Progress\"] [role=status]')?.innerText==='Failed'",'Failed analysis');await textIncludes('took too long and was stopped');await noStoreDebug();assert.equal(await evaluate("!!document.querySelector('button[data-analysis-run]')"),false,'Failed runs cannot open results');assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,patternsBeforeFailure);
+  await capture('conversion-failed-run');
+  assert.equal(postBodies.length,conversionPosts);assert.equal(state.calls.some(call=>call.path.endsWith('/benchmark')||call.path.includes('/schedules')||call.path==='/api/recommendations/generate'),false);
+  state.conversion='legacy';state.emptyPatterns=false;state.failedRun=false;state.progressOverride=null;state.requestReads=5;
+  checks.push('LOSSLESS/WHOLE_UNIT_HALF_UP/unknown-null Request and Run details for all 3 roles; accepted fallback neutral, exact snapshot kept, terminal poll stop, completed empty patterns, timed-out failure blocked; 1440/820/390 screenshots; no mining/F06/scheduler/benchmark POST');
+
+  precisionFixture=true;state.conversion='LOSSLESS';state.requestReads=5;state.hasRequest=true;state.emptyPatterns=false;
+  const beforePrecisionPosts=postBodies.length;
+  await session('Merchandiser','/mining?view=history&requestId=17');await textIncludes('Analysis Results');await click('View Results');await textIncludes('12,345,678,901.123456');
+  await session('System Admin','/admin/mining/history?storeId=1&requestId=17');await textIncludes('Execution Details');
+  await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Precision details loaded');
+  await evaluate("document.querySelectorAll('main details').forEach(e=>e.open=true)");
+  await textIncludes('9,223,372,036,854,775,807');await textIncludes('9,007,199,254,740,993');
+  assert.equal(postBodies.length,beforePrecisionPosts);precisionFixture=false;state.conversion='legacy';
+  checks.push('Raw numeric precision: exact BigDecimal Pattern results, int64 divisor/scaled total/runtime, completed history and no Mining replay');
   await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
   const featureCalls=()=>state.calls.filter(c=>!c.path.startsWith('/api/auth/')).length;const beforeCustomer=featureCalls();await session('End-Customer');await textIncludes('Access Restricted');assert.equal(featureCalls(),beforeCustomer);
   await session('Store Admin','/admin/setup');await textIncludes('Access Restricted');
-  await session('System Admin','/admin/api-connections');await expectRoute('/admin/overview','Dashboard');
+  await session('System Admin','/admin/api-connections');await expectRoute('/admin/overview','Mining Overview');
   assert.equal(state.calls.some(x=>/connection/i.test(x.path)),false);
-  await click('Run Mining');await click('Algorithm Configuration');await evaluate('history.back()');await expectRoute('/admin/mining/run','Run Mining');await evaluate('history.forward()');await expectRoute('/admin/setup','Algorithm Configuration');
+  await click('Mining History');await click('Mining Settings');await evaluate('history.back()');await expectRoute('/admin/mining/history','Mining History');await evaluate('history.forward()');await expectRoute('/admin/setup','Mining Settings');
   await evaluate("document.querySelector('button[aria-label=\"Account menu\"]').click()");await click('Sign out');await textIncludes('Sign in to the system');
-  checks.push('Store/Merch read-only F05, Merch F03 permissions, Customer/admin isolation, back/forward and Logout preserved');
+  checks.push('Store Admin read-only and legacy HUI/dual-run rendering; Merchandiser reads and F03 permissions; Customer/admin isolation, back/forward and Logout preserved');
 
+  assert.equal(state.calls.some(x=>x.path.endsWith('/benchmark')),false);
+  assert.equal(state.calls.some(x=>x.method==='POST'&&x.path==='/api/system/mining/requests'),false);
+  assert.equal(state.calls.some(x=>/quota|usage-limit|remaining-runs/i.test(x.path)),false);
   assert.deepEqual(unexpected,[]);assert.deepEqual(browserErrors,[]);
-  assert.ok(state.calls.filter(x=>x.method!=='GET').every(x=>x.path==='/api/auth/refresh'||x.path==='/api/auth/logout'||x.path==='/api/system/mining/config'||x.path==='/api/system/mining/requests'||x.path==='/api/system/utility/lambda-policy'||/^\/api\/users(?:\/\d+(?:\/role|\/status)?)?$/.test(x.path)));
+  assert.ok(state.calls.filter(x=>x.method!=='GET').every(x=>x.path==='/api/auth/refresh'||x.path==='/api/auth/logout'||x.path==='/api/system/mining/config'||x.path==='/api/mining/requests'||x.path==='/api/system/utility/lambda-policy'||/^\/api\/users(?:\/\d+(?:\/role|\/status)?)?$/.test(x.path)));
   console.log(JSON.stringify({result:'PASS (test-only HTTP fixtures)',checks,interceptedApiCalls:state.calls.length,manualPosts:postBodies.length,realBackendWrites:0,artifactDirectory},null,2));
 }catch(e){
   try{await capture('failure');}catch{}
-  console.log(JSON.stringify({result:'FAIL',error:e.stack,browserErrors,unexpected,checks,artifactDirectory},null,2));
+  console.log(JSON.stringify({result:'FAIL',error:e.stack,browserErrors,unexpected,checks,diagnostics:await evaluate("({url:location.href,ready:document.readyState,root:document.getElementById('root')?.innerText.slice(0,300)})").catch(()=>null),artifactDirectory},null,2));
   process.exitCode=1;
 }finally{
   state.storeHistory='normal';

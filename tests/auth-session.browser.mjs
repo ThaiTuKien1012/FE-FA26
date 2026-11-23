@@ -9,7 +9,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
 const profile = mkdtempSync(join(base, 'paspm-session-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-session-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-session-preview-'));
 const chrome = spawn(process.env.SESSION_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 class CDP {
@@ -74,6 +74,7 @@ async function input(page, selector, value) {
   await page.evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
 }
 async function capture(page, name) {
+  if (!artifacts) return;
   const shot = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64'));
 }
@@ -111,11 +112,11 @@ async function fixture(page, { requestId, request }) {
       body = { message: 'Logged out' };
       if (code === 200) headers.push({ name: 'Set-Cookie', value: 'PASPM-CSRF=; Max-Age=0; Path=/' }, { name: 'Set-Cookie', value: 'PASPM-REFRESH=; Max-Age=0; HttpOnly; Path=/' });
     } else if (path === '/api/utility/config') {
-      body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 0.5, beta: 0.3, gamma: 0.2, lambda: 0.1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: 0.5, version: 1 }, lambdaValid: true };
+      body = { config: { alpha: 0.6, beta: 0.4, lambda: 0.1, salesWindowDays: 30, version: 1, scoringVersion: 'W2_EXPIRY_SEASON_V1' }, lambdaPolicy: { lambdaMax: 0.5, version: 1, scoringVersion: 'W2_EXPIRY_SEASON_V1' }, lambdaValid: true };
     } else if (path === '/api/products') body = { content: [], page: 0, pageSize: Number(url.searchParams.get('pageSize') || 20), totalElements: 0, totalPages: 0 };
     else if (path === '/api/categories') body = [];
     else if (path === '/api/system/mining/config') body = { version: 0, algorithm: null, minUtilMode: null, minUtilValue: null, changedBy: null, changedAt: null };
-    else if (path === '/api/system/utility/lambda-policy') body = { lambdaMin: 0, lambdaMax: 0.5, version: 1 };
+    else if (path === '/api/system/utility/lambda-policy') body = { lambdaMax: 0.5, version: 1, scoringVersion: 'W2_EXPIRY_SEASON_V1' };
     else if (path === '/api/system/mining/stores') body = { items: [], page: 0, pageSize: 20, totalElements: 0 };
     else { unexpected.push(path); code = 599; body = { error: 'Unconfigured fixture endpoint' }; }
   } catch (error) { errors.push(error.message); code = 599; body = { error: 'Fixture assertion failed' }; }
@@ -147,7 +148,7 @@ async function reload(page) {
   await until(page, `window.fixtureDocumentId&&window.fixtureDocumentId!==${JSON.stringify(previous)}&&performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')`, 'new document loaded');
 }
 async function authenticated(page) {
-  if (process.argv.includes('--production')) { await has(page, 'Utility Configuration'); return; }
+  if (process.argv.includes('--production')) { await has(page, 'Weight Settings'); return; }
   await until(page, "performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module loaded');
   await until(page, `(async()=>${session}.getSnapshot().status==='authenticated')()`, 'authenticated');
 }
@@ -167,7 +168,7 @@ try {
   assert.ok(existsSync(join(profile, 'DevToolsActivePort')), 'Chrome started');
   const [portText, browserPath] = readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').trim().split(/\r?\n/); port = Number(portText);
   browser = await connect('ws://127.0.0.1:' + port + browserPath); first = await newPage();
-  await navigate(first, '/login'); await emailLogin(first); await has(first, 'Utility Configuration');
+  await navigate(first, '/login'); await emailLogin(first); await has(first, 'Weight Settings');
   assert.equal(await first.evaluate("localStorage.getItem('retailspace_auth_token')"), null);
   assert.equal(await first.evaluate("document.cookie.includes('PASPM-REFRESH')"), false);
   checks.push('email login, /me validation, memory-only credentials and HttpOnly refresh cookie');
@@ -186,7 +187,7 @@ try {
     checks.push('actual production bundle ignores test flag=true at 61s; original expiry-driven popup and real request pipeline remain intact');
   } else if (process.argv.includes('--fast')) {
     const expiry = await first.evaluate(`(async()=>${session}.getSnapshot().expiresAt)()`);
-    await input(first, 'input[aria-label="Stock Importance"]', '0.4');
+    await input(first, 'input[aria-label="Expiry Importance"]', '0.4');
     await sleep(31000);
     assert.equal(await first.evaluate(`(async()=>${session}.isInactive())()`), true, 'start Vite with VITE_SESSION_TIMEOUT_TEST=true for --fast');
     assert.equal(await first.evaluate("!!document.querySelector('dialog')"), false);
@@ -208,7 +209,7 @@ try {
     assert.equal(await first.evaluate("document.querySelector('dialog').open"), true, 'dialog waits for backend confirmation');
     state.holdRefresh = false;
     await until(first, "!document.querySelector('dialog')", 'successful refresh closes the fast prompt');
-    assert.equal(await first.evaluate("document.querySelector('input[aria-label=\"Stock Importance\"]').value"), '0.4');
+    assert.equal(await first.evaluate("document.querySelector('input[aria-label=\"Expiry Importance\"]').value"), '0.4');
     await sleep(1200); assert.equal(await first.evaluate("!!document.querySelector('dialog')"), false);
     checks.push('DEV real timers: 30s inactive, 60s prompt after last activity; unchanged expiry; single refresh; confirmed close; draft preserved; no immediate repeat');
 
@@ -228,7 +229,7 @@ try {
     await click(first, 'Sign out'); await has(first, 'Signed out successfully.');
     checks.push('DEV network failure keeps prompt/draft; recovery works; cross-tab refresh coordination and existing logout preserved');
   } else {
-  await input(first, 'input[aria-label="Stock Importance"]', '0.4');
+  await input(first, 'input[aria-label="Expiry Importance"]', '0.4');
   const beforeIdle = calls.length; await idle(first);
   assert.equal(calls.length, beforeIdle, 'inactive users never refresh automatically');
   assert.equal(await first.evaluate("document.activeElement?.innerText"), 'Stay signed in');
@@ -248,10 +249,10 @@ try {
   const rotations = calls.filter(c => c.path.endsWith('/refresh')).length;
   await click(first, 'Stay signed in'); await until(first, "!document.querySelector('dialog')", 'prompt closed');
   assert.equal(calls.filter(c => c.path.endsWith('/refresh')).length, rotations + 1);
-  assert.equal(await first.evaluate("document.querySelector('input[aria-label=\"Stock Importance\"]').value"), '0.4');
+  assert.equal(await first.evaluate("document.querySelector('input[aria-label=\"Expiry Importance\"]').value"), '0.4');
   checks.push('inactivity only near expiry, sticky dialog, Escape/focus containment, 1440/1024/820/390px, refresh preserves unsaved draft');
 
-  await reload(first); await authenticated(first); await has(first, 'Utility Configuration');
+  await reload(first); await authenticated(first); await has(first, 'Weight Settings');
   checks.push('browser reload recovers via cookies and validates /me before protected UI');
   const secondTarget = await browser.call('Target.createTarget', { url: 'about:blank' });
   const second = await newPage(secondTarget.targetId); const beforeSecond = calls.filter(c => c.path.endsWith('/refresh')).length;

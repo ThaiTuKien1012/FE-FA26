@@ -73,6 +73,7 @@ export type ActiveNavScreen =
   | 'f03-utility'
   | 'f03-expiry-window'
   | 'f03-configuration'
+  | 'f03-seasons'
   | 'f03-product-scores'
   | 'f03-preview'
   | 'f03-snapshot'

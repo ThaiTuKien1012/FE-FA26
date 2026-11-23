@@ -1,3 +1,4 @@
+import { formatTime } from '../../../utils/dateTime';
 import React, { useState } from 'react';
 import { ApiConnection, HttpMethod, AuthType, initialConnections } from '../../../types/integrations';
 import { X, CheckCircle2, RotateCw } from 'lucide-react';
@@ -55,7 +56,7 @@ export const ApiConnectionsView: React.FC = () => {
       setTestResult({
         status: 'Passed (200 OK)',
         verificationStatus: 'Verified Safe Handshake',
-        timestamp: new Date().toLocaleTimeString()
+        timestamp: formatTime(new Date(), true)
       });
     }, 900);
   };

@@ -416,7 +416,7 @@ export const ReviewApproveGroupView: React.FC<ReviewApproveGroupViewProps> = ({
                         <span className="font-mono">{group.sourceMiningRun}</span>
                       </span>
                       <span className="text-[11px] text-[#707973] mt-0.5">
-                        Oct 14, 2026 • 04:18 CET
+                        14 Oct 2026 · 04:18 CET
                       </span>
                     </div>
                   </div>

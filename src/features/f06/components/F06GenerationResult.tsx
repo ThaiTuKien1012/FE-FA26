@@ -30,10 +30,10 @@ export function F06GenerationResult({ result, types, onViewRecommendations }: { 
         <thead className="sticky top-0 bg-[#FAF8F5] text-xs text-[#6D7974]"><tr>{['Product combination', 'Format', 'Starting product', 'Why it was not used'].map(label => <th scope="col" key={label} className="p-3 font-semibold">{label}</th>)}</tr></thead>
         <tbody>{result.skipped.map((item, index) => <tr key={`${item.patternId}:${item.type}:${item.anchorProductId}:${index}`} className="border-t border-[#E7E2D8] align-top">
           <td className="p-3">Pattern #{item.patternId}</td><td className="p-3">{recommendationLabel(item.type)}</td><td className="p-3">{item.anchorProductId === null ? 'N/A' : `Product #${item.anchorProductId}`}</td>
-          <td className="min-w-56 p-3">{skippedReason[item.reason] || item.reason.replace(/_/g, ' ').toLowerCase()}<details className="mt-2 text-xs text-[#6D7974]"><summary className="cursor-pointer">Technical reason</summary><p className="mt-2 break-words">{item.reason}</p></details></td>
+          <td className="min-w-56 p-3">{skippedReason[item.reason] || item.reason.replace(/_/g, ' ').toLowerCase()}</td>
         </tr>)}</tbody>
       </table></div>
     </details> : <p className="mt-4 text-sm text-[#6D7974]">No patterns were skipped.</p>}
-    <details className="mt-4 text-xs text-[#6D7974]"><summary className="cursor-pointer">Run and rule references</summary><p className="mt-2">Run #{result.miningRunId} · Snapshot #{result.snapshotId} · Rules version {result.policyVersion}</p><p className="mt-1 break-words">{types.map(recommendationLabel).join(', ')} · {result.ruleVersion}</p></details>
+    <details className="mt-4 text-xs text-[#6D7974]"><summary className="cursor-pointer">Run and rule references</summary><p className="mt-2">Run #{result.miningRunId} · Snapshot #{result.snapshotId} · Rules version {result.policyVersion}</p><p className="mt-1 break-words">{types.map(recommendationLabel).join(', ')}</p></details>
   </section>;
 }

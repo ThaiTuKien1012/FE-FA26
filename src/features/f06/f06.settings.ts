@@ -1,7 +1,7 @@
 import { authService, type AuthUser } from '../../services/authService';
 import { f06Api, F06ApiError } from './f06.api';
 import { readRecommendationProductNames, recommendationReadError } from './f06.browse';
-import type { RecExpiryPage, RecPolicy, RecPolicyRequest } from './f06.types';
+import type { Decimal, RecExpiryPage, RecPolicy, RecPolicyRequest } from './f06.types';
 import { INT32_MAX, recommendationInteger, validatePolicy } from './f06.validation';
 
 type Role = AuthUser['role'] | null;
@@ -55,7 +55,7 @@ export function parseRulePercentage(input: string, name: string): number {
   if (tail.length > 6) throw new F06ApiError(400, `${name} supports at most four percentage decimal places (six in the backend ratio). No rounding was applied.`);
   return Number(`${padded.slice(0, -2)}${tail ? '.' + tail : ''}`);
 }
-function ratioPercent(value: number) {
+function ratioPercent(value: Decimal) {
   const [whole, fraction = ''] = String(value).split('.');
   const integer = String(BigInt(whole) * 100n + BigInt((fraction + '00').slice(0, 2)));
   const tail = fraction.slice(2).replace(/0+$/, ''); return integer + (tail ? '.' + tail : '');

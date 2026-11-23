@@ -80,7 +80,7 @@ test('rules clear draft and ignore late PUT after session changes', async t => {
 test('expiry uses only supported filters and pagination, independent of mining and Store date', async t => {
   const f = setup(t, 'Merchandiser'), flow = await alerts(t); await flow.applyFilter(31, 10); await flow.setPage(1);
   assert.deepEqual(f.expiry.mock.calls.at(-1)!.arguments[0], { productId: 31, page: 1, pageSize: 10 });
-  const data = flow.getSnapshot().data!; assert.equal(data.timeZone, 'Asia/Ho_Chi_Minh'); assert.equal(data.asOfDate, '2026-11-07'); assert.equal(data.items[0].daysRemaining, 5); assert.equal(data.items[0].remainingQuantity, 10);
+  const data = flow.getSnapshot().data!; assert.equal(data.timeZone, 'Asia/Ho_Chi_Minh'); assert.equal(data.asOfDate, '2026-11-07'); assert.equal(data.items[0].daysToPush, -2); assert.equal(data.items[0].remainingQuantity, 10);
   await flow.applyFilter(); assert.deepEqual(f.expiry.mock.calls.at(-1)!.arguments[0], { page: 0, pageSize: 20 });
 });
 test('expiry invalid IDs/page sizes do not send requests', async t => {

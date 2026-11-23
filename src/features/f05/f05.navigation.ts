@@ -5,23 +5,25 @@ import { parseMiningId } from './f05.numbers';
 
 export type MiningView = 'dashboard' | 'configuration' | 'setup' | 'history' | 'benchmark' | 'snapshots';
 export const SYSTEM_MINING_NAV = [
-  {screen:'overview',view:'dashboard',label:'Dashboard'},
-  {screen:'setup',view:'configuration',label:'Algorithm Configuration'},
-  {screen:'admin-run-mining',view:'setup',label:'Run Mining'},
-  {screen:'admin-mining-history',view:'history',label:'Mining History'},
-  {screen:'benchmark',view:'benchmark',label:'Algorithm Benchmark'}
+  {screen:'overview',view:'dashboard',label:'Mining Overview'},
+  {screen:'setup',view:'configuration',label:'Mining Settings'},
+  {screen:'admin-mining-history',view:'history',label:'Mining History'}
 ] as const;
 export function isSystemMiningScreen(screen:ActiveNavScreen) {
-  return SYSTEM_MINING_NAV.some(item=>item.screen===screen) || ['f05-mining','results','failure'].includes(screen);
+  return SYSTEM_MINING_NAV.some(item=>item.screen===screen) || ['admin-run-mining','f05-mining','results','failure','benchmark'].includes(screen);
 }
 export function systemMiningView(screen:ActiveNavScreen):MiningView {
   return SYSTEM_MINING_NAV.find(item=>item.screen===screen)?.view??'history';
 }
 export function resolveSystemScreen(screen:ActiveNavScreen,search=''):ActiveNavScreen {
+  if(screen==='admin-run-mining')return 'overview';
+  if(screen==='benchmark')return 'admin-mining-history';
   if(screen==='api-connections')return 'overview';
   if(screen==='f03-configuration')return 'lambda-policy';
   const oldView=new URLSearchParams(search).get('view');
   if(isSystemMiningScreen(screen) && oldView){
+    if(oldView==='setup'||oldView==='snapshots')return 'overview';
+    if(oldView==='benchmark')return 'admin-mining-history';
     const mapped=SYSTEM_MINING_NAV.find(item=>item.view===oldView);
     if(mapped)return mapped.screen;
   }
@@ -30,23 +32,22 @@ export function resolveSystemScreen(screen:ActiveNavScreen,search=''):ActiveNavS
   return screen;
 }
 export function systemScreenUrl(screen:ActiveNavScreen,search='') {
+  if(screen==='admin-run-mining')screen='overview';
+  if(screen==='benchmark')screen='admin-mining-history';
   const query=new URLSearchParams(search);
   const result=new URLSearchParams();
   const store=query.get('storeId');
   if(store)result.set('storeId',store);
-  if(screen==='admin-mining-history'||screen==='benchmark'){
+  if(screen==='admin-mining-history'){
     for(const key of ['requestId','runId']){const value=query.get(key);if(value)result.set(key,value);}
   }
-  if(screen==='setup'){
-    const algorithm=query.get('algorithm');
-    if(algorithm==='HUI_MINER'||algorithm==='EFIM')result.set('algorithm',algorithm);
-  }
+
   return getPathForScreen(screen)+(result.size?'?'+result.toString():'');
 }
 export function readMiningLocation(system:boolean,initialView:MiningView) {
   const query=new URLSearchParams(typeof window==='undefined'?'':window.location.search);
-  let view=initialView;
-  if(!system){if(query.get('view')==='snapshots'||query.get('view')==='setup')view='snapshots';else view='history';}
+  let view=initialView==='benchmark'?'history':system&&(initialView==='setup'||initialView==='snapshots')?'dashboard':initialView;
+  if(!system){const requested=query.get('view');if(requested==='setup'||requested==='snapshots'||requested==='history')view=requested;else if(requested)view='history';}
   try {
     const storeId=system&&query.has('storeId')?parseMiningId(query.get('storeId')!):null;
     if(storeId!==null&&storeId>2147483647)throw new Error('Store ID must be a positive int32.');

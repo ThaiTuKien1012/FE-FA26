@@ -15,7 +15,7 @@ export function recommendationFields(value: unknown, allowed: readonly string[])
   }
 }
 /** Validate fractional units without multiplying binary floating-point values. */
-function ratio(value: number, name: string): void {
+function ratio(value: RecPolicyRequest['minSupportRatio'], name: string): void {
   if (typeof value !== 'number' || !/^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/.test(String(value))) {
     throw new F06ApiError(400, `${name} must be in 0..1 with at most six fractional digits.`);
   }

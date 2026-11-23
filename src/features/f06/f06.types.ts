@@ -1,10 +1,11 @@
-/** Wire numbers remain JSON numbers. The transport rejects unsafe integers and
- * decimals whose value would change on a JSON round trip; it never rounds them.
+import type { ExactRecommendationNumber } from './f06.numbers';
+/** Wire numbers remain JSON numbers. Decimal fields preserve their exact digits
+ * when number cannot round-trip them; IDs/counts still require safe integers.
  * Dates are ISO dates; timestamps are ISO-8601 instants supplied by the server.
  */
 export type Int32 = number;
 export type Int64 = number;
-export type Decimal = number;
+export type Decimal = number | ExactRecommendationNumber;
 export type RecType = 'BUNDLE' | 'CROSS_SELL' | 'FBT' | 'BANNER';
 export type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
 export type EligibilityStatus = 'ELIGIBLE' | 'NEEDS_RECHECK' | 'INELIGIBLE';
@@ -42,6 +43,8 @@ export interface RecProductEligibility {
   warnings: string[];
 }
 export interface RecEligibility {
+  /** Absent/null only for immutable, pre-W2 evidence. */
+  scoringVersion?: null;
   status: EligibilityStatus;
   products: RecProductEligibility[];
   checkedAt: string;
@@ -50,6 +53,13 @@ export interface RecEligibility {
   warnings: string[];
   fingerprint: string;
 }
+export type ProductEligibilityV2 = Omit<RecProductEligibility, 'expiryPushDays'>;
+export interface EligibilityV2 extends Omit<RecEligibility, 'products' | 'scoringVersion'> {
+  scoringVersion: 'W2_EXPIRY_SEASON_V1';
+  products: ProductEligibilityV2[];
+}
+export type EligibilityEvidence = RecEligibility | EligibilityV2;
+export interface EndedSeason { seasonId: Int32; name: string; endDate: string; }
 export interface RecSource {
   runId: Int64;
   patternId: Int64;
@@ -91,7 +101,7 @@ export interface RecReview {
   reviewedAt: string;
   reason: string;
   resultingVersion: Int64;
-  eligibilityCheck: RecEligibility;
+  eligibilityCheck: EligibilityEvidence;
 }
 export interface RecView {
   recommendationId: Int64;
@@ -106,8 +116,10 @@ export interface RecView {
   ruleVersion: string;
   policy: RecPolicy;
   evidence: RecTransactionEvidence;
-  generationEligibility: RecEligibility;
-  currentEligibility: RecEligibility;
+  generationEligibility: EligibilityEvidence;
+  currentEligibility: EligibilityV2;
+  seasonEnded: boolean;
+  endedSeasons: EndedSeason[];
   inventoryChanged: boolean;
   readyForConsumption: boolean;
   sources: RecSource[];
@@ -130,13 +142,12 @@ export interface RecPage {
 export interface RecExpiryBatch {
   productId: Int32;
   batchId: Int32;
-  expiryDate: string;
-  daysRemaining: Int64;
+  pushDay: string;
+  expiryDate: string | null;
+  daysToPush: Int64;
   remainingQuantity: Int64;
-  expiryPushDays: Int32;
   pushRequired: boolean;
   checkedAt: string;
-  status: string;
   warnings: string[];
 }
 export interface RecExpiryPage {

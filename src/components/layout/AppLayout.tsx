@@ -70,7 +70,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isStoreAdmin = role === 'Store Admin';
   const isMerchandiser = role === 'Merchandiser';
   const isCustomer = role === 'End-Customer';
-  const compactPlanner = currentScreen.startsWith('f03-') && !isSystemAdmin;
+  const compactPlanner = !isSystemAdmin && (currentScreen.startsWith('f03-') || currentScreen === 'f05-mining' && (isStoreAdmin || isMerchandiser));
   const [plannerNavOpen, setPlannerNavOpen] = useState(false);
   useEffect(() => { setPlannerNavOpen(false); }, [currentScreen]);
 
@@ -124,7 +124,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <>
                 <SidebarSection title="PRODUCT ANALYTICS">
                   <SidebarItem screen="f03-utility" label="Utility Planner" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
-                  <SidebarItem screen="f05-mining" label="High Utility Mining" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f05-mining" label="Product Combination Analysis" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                   <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
                 </SidebarSection>
                 <SidebarSection title="TRANSACTION REVIEW">
@@ -147,8 +147,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   {currentUser && <SidebarItem screen="f04-transactions" label="Sales Transactions" icon={ReceiptText} active={currentScreen === 'f04-transactions'} onNavigate={onNavigate} />}
                 </SidebarSection>
                 <SidebarSection title="PRODUCT ANALYTICS">
-                  <SidebarItem screen="f03-product-scores" label="Product Scores" icon={SlidersHorizontal} active={currentScreen === 'f03-product-scores'} onNavigate={onNavigate} />
-                  <SidebarItem screen="f05-mining" label="Mining Results" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f03-product-scores" label="Product Priorities" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
+                  <SidebarItem screen="f05-mining" label="Analysis History" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                   <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
@@ -157,14 +157,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             {isSystemAdmin && (
               <>
                 <SidebarSection title="OVERVIEW">
-                  <SidebarItem screen="overview" label="Dashboard" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
+                  <SidebarItem screen="overview" label="Mining Overview" icon={LayoutGrid} active={currentScreen === 'overview'} onNavigate={onNavigate} />
                 </SidebarSection>
-                <SidebarSection title="MINING ENGINE MANAGEMENT">
-                  {SYSTEM_MINING_NAV.filter(item=>item.screen!=='overview').map(item=><SidebarItem key={item.screen} screen={item.screen} label={item.label} icon={item.screen==='setup'?Settings:item.screen==='admin-mining-history'?History:BarChart3} active={currentScreen===item.screen} onNavigate={onNavigate}/>) }
+                <SidebarSection title="ANALYTICS MANAGEMENT">
+                  {SYSTEM_MINING_NAV.filter(item=>item.screen!=='overview').map(item=><React.Fragment key={item.screen}>
+                    <SidebarItem screen={item.screen} label={item.label} icon={item.screen==='setup'?Settings:History} active={currentScreen===item.screen} onNavigate={onNavigate}/>
+                    {item.screen==='setup'&&<SidebarItem screen="lambda-policy" label="Priority Strength Policy" icon={SlidersHorizontal} active={currentScreen === 'lambda-policy'} onNavigate={onNavigate} />}
+                  </React.Fragment>)}
                 </SidebarSection>
                 <SidebarSection title="SYSTEM MANAGEMENT">
                   <SidebarItem screen="users" label="Users & Roles" icon={Users} active={currentScreen === 'users'} onNavigate={onNavigate} />
-                  <SidebarItem screen="lambda-policy" label="Lambda Policy" icon={SlidersHorizontal} active={currentScreen === 'lambda-policy'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
             )}

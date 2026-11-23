@@ -1,5 +1,6 @@
+import { parseMiningResponse, MiningPrecisionError } from './f05.precision';
 import { authService } from '../../services/authService';
-import { F05NumberError, parseSafeMiningJson } from './f05.numbers';
+import { F05NumberError } from './f05.numbers';
 
 export class F05ApiError extends Error {
   constructor(public readonly status: number | null, message: string) {
@@ -35,9 +36,9 @@ export async function miningRequest<T>(path: string, init: RequestInit = {}): Pr
   init.signal?.throwIfAborted();
   if ((authService.getSessionId() || authService.getToken()) !== sessionId) throw new F05ApiError(401, 'The active session changed. Reload data for the current session.');
   let data: unknown;
-  try { data = response.ok ? parseSafeMiningJson(body) : JSON.parse(body); }
+  try { data = response.ok ? parseMiningResponse(body) : JSON.parse(body); }
   catch (error) {
-    if (response.ok) throw new F05ApiError(response.status, error instanceof F05NumberError ? error.message : 'The server returned invalid or empty JSON.');
+    if (response.ok) throw new F05ApiError(response.status, error instanceof F05NumberError || error instanceof MiningPrecisionError ? error.message : 'The server returned invalid or empty JSON.');
   }
   if (!response.ok) {
     const fallback: Record<number, string> = {

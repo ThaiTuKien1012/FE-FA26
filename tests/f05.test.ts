@@ -1,3 +1,4 @@
+import { isBenchmarkView } from '../src/features/f05/f05.read-contracts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
@@ -18,7 +19,7 @@ import { assessBenchmarkComparison, assertBenchmarkContext } from '../src/featur
 import { F05WorkspaceView } from '../src/features/f05/components/F05WorkspaceView';
 import { MiningRunResults } from '../src/features/f05/components/MiningRunResults';
 import { MiningPatternsView } from '../src/features/f05/components/MiningPatternsView';
-import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture } from './f05.fixtures';
+import { user, payload, configuration, snapshot, requestFixture, runFixture, benchmarkFixture, efimRequestFixture, progressFixture } from './f05.fixtures';
 
 // All HTTP is replaced in tests. No live endpoint, credential or database is used.
 class MemoryStorage implements Storage {
@@ -36,7 +37,7 @@ function globals(t:TestContext,key:string,value:unknown) {
   t.after(()=>{if(old)Object.defineProperty(globalThis,key,old);else Reflect.deleteProperty(globalThis,key);});
 }
 function actor(t:TestContext,role:AuthUser['role']='System Admin') {
-  t.mock.method(authService,'getCurrentUser',()=>({...user,role}));
+  t.mock.method(authService,'getCurrentUser',()=>({...user,role,storeId:role==='System Admin'?null:1}));
   t.mock.method(authService,'getToken',()=> 'test-only-token');
   t.mock.method(globalThis,'fetch',async()=>{throw new Error('Unexpected test request: no live fetch is permitted');});
 }
@@ -47,7 +48,8 @@ test('numeric input and raw JSON preserve decimal meaning without silent roundin
   for(const s of ['0.5','0.000001','0.123456','100.000000'])assert.equal(parseMinUtilInput(s,'PERCENTAGE'),Number(s));
   for(const s of ['0000.500000','123456789.123456','9007199254740991'])assert.equal(parseMinUtilInput(s,'ABSOLUTE'),Number(s));
   for(const s of ['','0','-1','NaN','Infinity','0.1234567','1e-6','0,5','1.','100.000001','101'])assert.throws(()=>parseMinUtilInput(s,'PERCENTAGE'),F05NumberError);
-  for(const s of ['9007199254740993','9007199254.740991','1234567890123456789012345'])assert.throws(()=>parseMinUtilInput(s,'ABSOLUTE'),F05NumberError);
+  for(const s of ['9007199254740993','9007199254.740991'])assert.equal(String(parseMinUtilInput(s,'ABSOLUTE')),s);
+  assert.throws(()=>parseMinUtilInput('1234567890123456789012345','ABSOLUTE'),F05NumberError);
   assert.deepEqual(parseSafeMiningJson('{"id":9007199254740991,"utility":1.230000,"small":1e-6}'),{id:Number.MAX_SAFE_INTEGER,utility:1.23,small:1e-6});
   for(const s of ['{"id":9007199254740993}','{"utility":1234567890123.123456}','[1e309]','[1e-999]','[0.100000000000000005]'])assert.throws(()=>parseSafeMiningJson(s),F05NumberError);
   const text=JSON.stringify({text:'9007199254740993 and "1234567890123.123456"',date:'2026-11-03'});
@@ -69,11 +71,11 @@ test('all four actors are gated before fetching; retired endpoints are absent',a
       await assert.rejects(f05Api.listSnapshots(),hasStatus(403));await assert.rejects(f05SystemApi.listStores(),hasStatus(403));assert.equal(calls,before);
     } else {
       await f05Api.listSnapshots();await assert.rejects(f05SystemApi.createRequest(payload),hasStatus(403));
-      await assert.rejects(f05SystemApi.getBenchmark(1,42),hasStatus(403));assert.equal(calls,before+1);
+      await assert.rejects(f05SystemApi.getProgress(1,17),hasStatus(403));assert.equal(calls,before+1);
     }
     assert.equal(ROLE_PERMISSIONS[next].allowedScreens.includes('f05-mining'),next!=='End-Customer');
   }
-  assert.equal('createRequest' in f05Api,false);assert.equal('getBenchmark' in f05Api,false);
+  assert.equal('createRequest' in f05Api,true);assert.equal('getBenchmark' in f05Api,false);
   assert.equal('listPatterns' in f05SystemApi,false);
   assert.ok(ROLE_PERMISSIONS.Merchandiser.allowedScreens.includes('f03-preview'));
   t.mock.method(authService,'getCurrentUser',()=>null);
@@ -97,11 +99,11 @@ test('configuration version zero is valid and PUT sends expectedVersion=0 with n
   actor(t);const calls:{url:string;init?:RequestInit}[]=[];
   t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL,init?:RequestInit)=>{
     calls.push({url:String(url),init});
-    return Response.json(init?.method==='PUT'?configuration:{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null});
+    return Response.json(init?.method==='PUT'?configuration:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null});
   });
   assert.equal((await f05SystemApi.getConfiguration()).version,0);
-  assert.equal((await f05SystemApi.updateConfiguration({algorithm:'HUI_MINER',minUtilMode:'PERCENTAGE',minUtilValue:0.5,expectedVersion:0})).version,1);
-  assert.deepEqual(JSON.parse(String(calls[1].init?.body)),{algorithm:'HUI_MINER',minUtilMode:'PERCENTAGE',minUtilValue:0.5,expectedVersion:0});
+  assert.equal((await f05SystemApi.updateConfiguration({minUtilMode:'PERCENTAGE',minUtilValue:0.5,expectedVersion:0})).version,1);
+  assert.deepEqual(JSON.parse(String(calls[1].init?.body)),{minUtilMode:'PERCENTAGE',minUtilValue:0.5,expectedVersion:0});
   assert.equal(calls[0].url,'/api/system/mining/config');
   assert.equal(new Headers(calls[0].init?.headers).get('Content-Type'),null);
   assert.equal(new Headers(calls[1].init?.headers).get('Authorization'),'Bearer test-only-token');
@@ -116,7 +118,7 @@ test('configuration rejects unsafe versions/decimals; 409 is preserved without a
     {...configuration,expectedVersion:0,minUtilValue:0.1234567}
   ]) assert.throws(()=>validateConfiguration(p as Parameters<typeof validateConfiguration>[0]),hasStatus(400));
   t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({error:'Mining configuration version conflict'},{status:409});});
-  await assert.rejects(f05SystemApi.updateConfiguration({algorithm:'EFIM',minUtilMode:'ABSOLUTE',minUtilValue:30,expectedVersion:1}),hasStatus(409));
+  await assert.rejects(f05SystemApi.updateConfiguration({minUtilMode:'ABSOLUTE',minUtilValue:30,expectedVersion:1}),hasStatus(409));
   assert.equal(calls,1);
   t.mock.method(globalThis,'fetch',async()=>new Response('{"version":9007199254740993}'));
   await assert.rejects(f05SystemApi.getConfiguration(),hasStatus(200));
@@ -150,58 +152,50 @@ test('cross-Store snapshots, requests, runs and benchmarks are rejected before d
     [()=>f05SystemApi.listRequests(1),page([requestFixture('PENDING',2)])],
     [()=>f05SystemApi.getRequest(1,17),requestFixture('PENDING',2)],
     [()=>f05SystemApi.listRuns(1,17),[runFixture('PENDING',2)]],
-    [()=>f05SystemApi.getBenchmark(1,42),{...benchmarkFixture(),run:{...benchmarkFixture().run,storeId:2}}]
+    [()=>f05SystemApi.getProgress(1,17),progressFixture('PENDING',2)]
   ] as const){
     t.mock.method(globalThis,'fetch',async()=>Response.json(body));await assert.rejects(read(),hasStatus(200));
   }
 });
 
-test('manual request sends only four DTO fields, handles compare true/false and never resends policy',async t=>{
-  actor(t);
-  for(const compareAlgorithms of [false,true]){
-    t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL,init?:RequestInit)=>{
-      assert.equal(url,'/api/system/mining/requests');assert.equal(init?.method,'POST');
-      const sent=JSON.parse(String(init?.body));assert.deepEqual(sent,{...payload,compareAlgorithms});
-      return Response.json({...requestFixture(),algorithms:compareAlgorithms?['HUI_MINER','EFIM']:['EFIM']},{status:202});
-    });
-    const result=await f05SystemApi.createRequest({...payload,compareAlgorithms,algorithm:'HUI_MINER',minUtilValue:99} as typeof payload);
-    assert.equal(result.algorithms.length,compareAlgorithms?2:1);assert.equal(result.status,'PENDING');
-  }
-  for(const invalid of [{...payload,storeId:0},{...payload,snapshotId:1.5},{...payload,requestKey:'bad'},{...payload,compareAlgorithms:null}]){
-    assert.throws(()=>validateManualRequest(invalid as typeof payload),hasStatus(400));
-  }
+test('System manual adapter is closed by temporary Frontend policy without a network request',async t=>{
+  actor(t);let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;throw Error('Unexpected POST');});
+  await assert.rejects(f05SystemApi.createRequest(payload),hasStatus(403));assert.equal(calls,0);
+  // Backend DTO remains supported by Backend; its validator still rejects obsolete fields.
+  for(const invalid of [{...payload,storeId:0},{...payload,snapshotId:1.5},{...payload,requestKey:'bad'},{...payload,compareAlgorithms:false},{...payload,algorithms:['EFIM']},{...payload,algorithm:'HUI_MINER'},{...payload,minUtilValue:99}])assert.throws(()=>validateManualRequest(invalid as typeof payload),hasStatus(400));
 });
 
+const storePayload={snapshotId:payload.snapshotId,requestKey:payload.requestKey};
 test('network-uncertain submission restores and retries byte-for-byte with the original UUID',async t=>{
-  actor(t);const storage=new MemoryStorage();globals(t,'sessionStorage',storage);
+  actor(t,'Merchandiser');const storage=new MemoryStorage();globals(t,'sessionStorage',storage);
   const bodies:string[]=[];
-  t.mock.method(globalThis,'fetch',async(_url:RequestInfo|URL,init?:RequestInit)=>{bodies.push(String(init?.body));if(bodies.length===1)throw new TypeError('offline');return Response.json(requestFixture(),{status:202});});
-  await assert.rejects(sendSubmission(user.id,payload),hasStatus(null));
-  const restored=readPendingSubmission(user.id);assert.deepEqual(restored,payload);
+  t.mock.method(globalThis,'fetch',async(_url:RequestInfo|URL,init?:RequestInit)=>{bodies.push(String(init?.body));if(bodies.length===1)throw new TypeError('offline');return Response.json(efimRequestFixture(),{status:202});});
+  await assert.rejects(sendSubmission(user.id,storePayload),hasStatus(null));
+  const restored=readPendingSubmission(user.id);assert.deepEqual(restored,storePayload);
   await sendSubmission(user.id,restored!);assert.equal(bodies[0],bodies[1]);
   assert.ok(readPendingSubmission(user.id));clearPendingSubmission(user.id);assert.equal(readPendingSubmission(user.id),null);
 });
 
 test('one pending POST joins duplicate clicks and blocks a different payload/key or clear while active',async t=>{
-  actor(t);globals(t,'sessionStorage',new MemoryStorage());
+  actor(t,'Merchandiser');globals(t,'sessionStorage',new MemoryStorage());
   let release!:(r:Response)=>void;let calls=0;
   t.mock.method(globalThis,'fetch',()=>{calls++;return new Promise<Response>(resolve=>{release=resolve;});});
-  const a=sendSubmission(user.id,payload);const b=sendSubmission(user.id,{...payload});assert.equal(a,b);assert.equal(calls,1);
-  assert.throws(()=>sendSubmission(user.id,{...payload,storeId:2}),/in progress/);
+  const a=sendSubmission(user.id,storePayload);const b=sendSubmission(user.id,{...storePayload});assert.equal(a,b);assert.equal(calls,1);
+  assert.throws(()=>sendSubmission(user.id,{...storePayload,snapshotId:3}),/in progress/);
   assert.throws(()=>clearPendingSubmission(user.id),/Wait/);
-  release(Response.json(requestFixture(),{status:202}));await a;clearPendingSubmission(user.id);
+  release(Response.json(efimRequestFixture(),{status:202}));await a;clearPendingSubmission(user.id);
 });
 
 test('unresolved saved payload cannot be overwritten, unsafe 202 and storage errors retain a safe retry boundary',async t=>{
-  actor(t);const storage=new MemoryStorage();globals(t,'sessionStorage',storage);
+  actor(t,'Merchandiser');const storage=new MemoryStorage();globals(t,'sessionStorage',storage);
   let calls=0;
   t.mock.method(globalThis,'fetch',async()=>{calls++;return new Response('{"requestId":9007199254740993}',{status:202});});
-  await assert.rejects(sendSubmission(user.id,payload),hasStatus(202));
-  assert.deepEqual(readPendingSubmission(user.id),payload);
-  assert.throws(()=>sendSubmission(user.id,{...payload,compareAlgorithms:false}),/Resolve/);assert.equal(calls,1);
+  await assert.rejects(sendSubmission(user.id,storePayload),hasStatus(202));
+  assert.deepEqual(readPendingSubmission(user.id),storePayload);
+  assert.throws(()=>sendSubmission(user.id,{...storePayload,snapshotId:3}),/Resolve/);assert.equal(calls,1);
   clearPendingSubmission(user.id);
   t.mock.method(storage,'setItem',()=>{throw new Error('storage denied');});
-  assert.throws(()=>sendSubmission(user.id,payload),/No new request/);assert.equal(calls,1);
+  assert.throws(()=>sendSubmission(user.id,storePayload),/No new request/);assert.equal(calls,1);
 });
 
 test('legacy Store drafts are ignored; administrative restore is explicit and never auto-submits',t=>{
@@ -210,7 +204,8 @@ test('legacy Store drafts are ignored; administrative restore is explicit and ne
   t.mock.method(globalThis,'fetch',async()=>{calls++;throw new Error('Unexpected request');});
   assert.equal(readPendingSubmission(user.id),null);assert.equal(calls,0);
   storage.setItem('paspm:f05:system:v2:pending:'+encodeURIComponent(user.id),'corrupt');
-  assert.throws(()=>readPendingSubmission(user.id));assert.equal(calls,0);
+  assert.equal(readPendingSubmission(user.id),null);assert.equal(calls,0);
+  storage.setItem('paspm:f05:efim:v3:System%20Admin:'+encodeURIComponent(user.id)+':store','1');storage.setItem('paspm:f05:efim:v3:System%20Admin:'+encodeURIComponent(user.id)+':store:1','corrupt');assert.equal(readPendingSubmission(user.id),null);assert.equal(calls,0);
 });
 
 test('all relevant HTTP errors and empty/invalid envelopes preserve status with no retry',async t=>{
@@ -237,13 +232,13 @@ test('Store read-only history/snapshots/pattern pagination and nullable support 
   t.mock.method(globalThis,'fetch',async()=>Response.json(page([])));assert.deepEqual((await f05Api.listPatterns(42)).items,[]);
 });
 
-test('pattern validation rejects wrong run IDs, invalid items and unsafe raw decimals/IDs',async t=>{
+test('pattern validation rejects wrong run IDs, invalid items and unsafe raw IDs',async t=>{
   actor(t,'Store Admin');
   const valid={patternId:91,runId:42,productIds:[7,2],utility:12.123456,utilitySpmf:12,patternSize:2,supportCount:null};
   for(const item of [{...valid,runId:43},{...valid,productIds:[2,2]},{...valid,patternSize:3},{...valid,utility:-1},{...valid,supportCount:undefined}]){
     t.mock.method(globalThis,'fetch',async()=>Response.json(page([item])));await assert.rejects(f05Api.listPatterns(42),hasStatus(200));
   }
-  for(const body of [JSON.stringify(page([valid])).replace('"patternId":91','"patternId":9007199254740993'),JSON.stringify(page([valid])).replace('12.123456','1234567890123.123456')]){
+  for(const body of [JSON.stringify(page([valid])).replace('"patternId":91','"patternId":9007199254740993')]){
     t.mock.method(globalThis,'fetch',async()=>new Response(body));await assert.rejects(f05Api.listPatterns(42),hasStatus(200));
   }
 });
@@ -253,7 +248,7 @@ test('System benchmark keeps null/zero metrics, real statuses and compatible MAT
   for(const comparisonStatus of ['NOT_REQUESTED','PENDING','MATCH','FAILED','BLOCKED'] as const){
     const row={...benchmarkFixture(),comparisonStatus,run:{...benchmarkFixture().run,runtimeMillis:null,memoryMiB:null,patternCount:null}};
     t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>{assert.equal(url,'/api/system/mining/stores/1/runs/42/benchmark');return Response.json(row);});
-    const result=await f05SystemApi.getBenchmark(1,42);assert.equal(result.run.runtimeMillis,null);assert.equal(result.comparisonStatus,comparisonStatus);
+    assert.equal(isBenchmarkView(row),true);assert.equal(row.run.runtimeMillis,null);assert.equal(row.comparisonStatus,comparisonStatus);assert.equal('getBenchmark' in f05SystemApi,false);
   }
   const rows=[benchmarkFixture(),benchmarkFixture('EFIM')];const request=requestFixture('COMPLETED');
   assert.equal(assessBenchmarkComparison(request,rows).comparable,true);
@@ -273,31 +268,30 @@ test('benchmark invalid/unsafe data is rejected without inventing measurements',
     {...valid,run:{...valid.run,runId:43}}, {...valid,run:{...valid.run,runtimeMillis:-1}},
     {...valid,comparisonStatus:'COMPLETED'},{...valid,divisor:0},{...valid,repetitionPolicy:null}
   ]){
-    t.mock.method(globalThis,'fetch',async()=>Response.json(body));await assert.rejects(f05SystemApi.getBenchmark(1,42),hasStatus(200));
+    assert.throws(()=>{if(!isBenchmarkView(body))throw new F05ApiError(200,'Invalid historical telemetry');assertBenchmarkContext(body,requestFixture('COMPLETED'),valid.run);},F05ApiError);
   }
-  t.mock.method(globalThis,'fetch',async()=>new Response(JSON.stringify(valid).replace('"divisor":1','"divisor":9007199254740993')));
-  await assert.rejects(f05SystemApi.getBenchmark(1,42),hasStatus(200));
+  assert.throws(()=>parseSafeMiningJson(JSON.stringify(valid).replace('"divisor":1','"divisor":9007199254740993')),F05NumberError);
 });
 
 test('polling follows request state, never polls history, and stops at a terminal request',async t=>{
   actor(t,'Merchandiser');t.mock.timers.enable({apis:['setTimeout']});
   const updates:MiningProgress[]=[];const errors:unknown[]=[];const paths:string[]=[];let reads=0;
   const states=['PENDING','RUNNING','COMPLETED'] as const;
-  t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>{const s=String(url);paths.push(s);return Response.json(s.endsWith('/runs')?[runFixture()]:requestFixture(states[reads++]));});
+  t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>{const s=String(url);paths.push(s);return Response.json(s.endsWith('/progress')?progressFixture(states[reads++]):s.endsWith('/runs')?[runFixture()]:requestFixture(states[Math.max(0,reads-1)]));});
   const stop=watchMiningRequest(17,x=>updates.push(x),e=>errors.push(e));t.after(stop);
   await flush();assert.equal(updates.length,1);
   t.mock.timers.tick(1500);await flush();assert.equal(updates[1].request.status,'RUNNING');
   t.mock.timers.tick(1500);await flush();assert.equal(updates[2].request.status,'COMPLETED');
   t.mock.timers.tick(60000);await flush();assert.equal(reads,3);assert.deepEqual(errors,[]);
-  assert.ok(paths.every(p=>p==='/api/mining/requests/17'||p==='/api/mining/requests/17/runs'));
+  assert.ok(paths.every(p=>p==='/api/mining/requests/17'||p==='/api/mining/requests/17/runs'||p==='/api/mining/requests/17/progress'));
 });
 
 test('administrative polling uses scoped run list for details, never invents a GET run or pattern route',async t=>{
   actor(t);const urls:string[]=[];let update:MiningProgress|undefined;
-  t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>{urls.push(String(url));return Response.json(String(url).endsWith('/runs')?[runFixture('COMPLETED')]:requestFixture('COMPLETED'));});
+  t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>{urls.push(String(url));return Response.json(String(url).endsWith('/progress')?progressFixture('COMPLETED'):String(url).endsWith('/runs')?[runFixture('COMPLETED')]:requestFixture('COMPLETED'));});
   const stop=watchMiningRequest(17,x=>update=x,()=>assert.fail('Unexpected polling callback'),42,systemMiningReader(1));await flush();stop();
   assert.equal(update?.runDetail?.runId,42);
-  assert.deepEqual(urls,['/api/system/mining/stores/1/requests/17','/api/system/mining/stores/1/requests/17/runs']);
+  assert.deepEqual(urls,['/api/system/mining/stores/1/requests/17/progress','/api/system/mining/stores/1/requests/17','/api/system/mining/stores/1/requests/17/runs']);
 });
 
 test('slow polling does not overlap, navigation aborts and late Store responses do not update',async t=>{
@@ -324,7 +318,7 @@ test('Store run details retain TIMED_OUT/null metrics and refuse mixed provenanc
   t.mock.method(globalThis,'fetch',async(url:RequestInfo|URL)=>{
     if(String(url).endsWith('/runs/42'))return Response.json({...runFixture('TIMED_OUT'),storeId:wrong?2:1,failureCode:'TIMED_OUT'});
     if(String(url).endsWith('/runs'))return Response.json([runFixture('TIMED_OUT')]);
-    return Response.json(requestFixture('FAILED'));
+    return Response.json(String(url).endsWith('/progress')?progressFixture('FAILED'):requestFixture('FAILED'));
   });
   const stop=watchMiningRequest(17,x=>seen=x,e=>errors.push(e),42);await flush();stop();
   assert.equal(seen?.runDetail?.status,'TIMED_OUT');assert.equal(seen?.runDetail?.runtimeMillis,null);
@@ -334,7 +328,7 @@ test('Store run details retain TIMED_OUT/null metrics and refuse mixed provenanc
 test('result and snapshot reads propagate abort signals',async t=>{
   actor(t);const c=new AbortController();
   t.mock.method(globalThis,'fetch',(_url:RequestInfo|URL,init?:RequestInit)=>new Promise<Response>((_resolve,reject)=>{assert.equal(init?.signal,c.signal);c.signal.addEventListener('abort',()=>reject(c.signal.reason),{once:true});}));
-  const reads=[f05SystemApi.getBenchmark(1,42,c.signal),f05SystemApi.listSnapshots(1,0,20,c.signal)];
+  const reads=[f05SystemApi.getProgress(1,17,c.signal),f05SystemApi.listSnapshots(1,0,20,c.signal)];
   c.abort();for(const read of reads)await assert.rejects(read,e=>e instanceof DOMException&&e.name==='AbortError');
 });
 
@@ -343,17 +337,17 @@ test('workspace RBAC and result actions match all four actors; old drafts never 
   for(const role of ['System Admin','Store Admin','Merchandiser','End-Customer'] as const){
     const html=renderToStaticMarkup(createElement(F05WorkspaceView,{currentUser:{...user,role}}));
     if(role==='End-Customer')assert.equal(html,'');
-    else if(role==='System Admin'){assert.ok(html.includes('Dashboard'));assert.equal(html.includes('<form'),false);}
-    else if(role==='Store Admin'){assert.ok(html.includes('Mining Results'));assert.ok(html.includes('Recent analyses'));assert.ok(html.includes('Source snapshots'));assert.equal(html.includes('Request history'),false);assert.equal(html.includes('Run Mining'),false);}
-    else {assert.ok(html.includes('Read-only access'));assert.equal(html.includes('Run Mining'),false);assert.ok(html.includes('Request history'));}
+    else if(role==='System Admin'){assert.ok(html.includes('Mining Overview'));}
+    else if(role==='Store Admin'){assert.ok(html.includes('Analysis History'));assert.ok(html.includes('Read-only access'));assert.equal(html.includes('Run Analysis'),false);assert.equal(html.includes('Request history'),false);assert.equal(html.includes('Run Analysis'),false);}
+    else {assert.ok(html.includes('Run Analysis'));assert.ok(html.includes('Analysis History'));assert.equal(html.includes('Read-only access'),false);}
   }
   for(const reader of [storeMiningReader,systemMiningReader(1)]){
     const html=renderToStaticMarkup(createElement(MiningRunResults,{reader,request:requestFixture(),runs:[runFixture()],run:runFixture(),onReadError:()=>{},onOpenBenchmark:()=>{}}));
     assert.equal(html.includes('Show patterns'),reader.kind==='store');
-    assert.equal(html.includes('Open algorithm benchmark'),reader.kind==='system');
+    assert.equal(html.includes('Open algorithm benchmark'),false);
   }
   for(const status of ['PENDING','RUNNING','FAILED','TIMED_OUT'] as const){
-    const html=renderToStaticMarkup(createElement(MiningPatternsView,{run:runFixture(status),onReadError:()=>{}}));assert.ok(html.includes('Patterns unavailable'));assert.equal(html.includes('<table'),false);
+    const html=renderToStaticMarkup(createElement(MiningPatternsView,{run:runFixture(status),onReadError:()=>{}}));assert.ok(html.includes('Results unavailable'));assert.equal(html.includes('<table'),false);
   }
 });
 

@@ -1,5 +1,7 @@
 import { authService, type AuthUser } from '../../services/authService';
 import { f05Api, F05ApiError } from '../f05/f05.api';
+import { recommendationProductImage } from './f06.products';
+import { sameMiningInput } from '../f05/f05.conversion';
 import type { Page, RequestView, RunView } from '../f05/f05.types';
 import { f06Api, F06ApiError } from './f06.api';
 import type { RecListParams, RecPage, RecView } from './f06.types';
@@ -23,6 +25,7 @@ export interface RecommendationBrowseState {
   detailError: string;
   names: Record<number, string>;
   listNames: Record<number, string>;
+  images?: Record<number, string>;
   namesLoading: boolean;
   namesUnavailable: boolean;
   requests: Page<RequestView> | null;
@@ -46,7 +49,7 @@ const scopeKey = () => {
 const initial = (): RecommendationBrowseState => ({
   role: authService.getCurrentUser()?.role ?? null, mode: 'history', filters: { pageSize: 20 }, page: 0,
   miningRunId: null, list: null, loading: false, error: '', detailId: null, detail: null, detailLoading: false, detailError: '',
-  names: {}, listNames: {}, namesLoading: false, namesUnavailable: false, requests: null, requestPage: 0, requestsLoading: false,
+  names: {}, listNames: {}, images: {}, namesLoading: false, namesUnavailable: false, requests: null, requestPage: 0, requestsLoading: false,
   requestsError: '', request: null, runs: [], runsLoading: false, runsError: '',
   reviewConfirmation: null, reviewPending: false, reviewNeedsRefresh: false, reviewError: '', reviewNotice: ''
 });
@@ -64,7 +67,7 @@ export function recommendationReadError(error: unknown, ranked = false): string 
  * storeApi wrapper has no AbortSignal, so use the same authenticated transport
  * with cancellation here. IDs remain visible when names cannot be resolved.
  */
-export async function readRecommendationProductNames(ids: number[], signal: AbortSignal, cache?: Map<number, string | null>): Promise<Record<number, string>> {
+export async function readRecommendationProductNames(ids: number[], signal: AbortSignal, cache?: Map<number, string | null>, images?: Map<number,string>): Promise<Record<number, string>> {
   const names: Record<number, string> = {};
   const unique = [...new Set(ids)];
   let next = 0;
@@ -78,11 +81,13 @@ export async function readRecommendationProductNames(ids: number[], signal: Abor
         signal.throwIfAborted();
         if (product && typeof product === 'object' && 'id' in product && product.id === id &&
             'name' in product && typeof product.name === 'string' && product.name.trim()) {
+          const image=recommendationProductImage('imageUrl' in product?product.imageUrl:undefined);
+          if(image)images?.set(id,image);else images?.delete(id);
           names[id] = product.name;
           cache?.set(id, product.name);
         } else if (response.status === 404) cache?.set(id, null);
         // Bound this mounted, Store/session-scoped presentation cache.
-        if (cache && cache.size > 500) cache.delete(cache.keys().next().value!);
+        if (cache && cache.size > 500) { const oldest=cache.keys().next().value!;cache.delete(oldest);images?.delete(oldest); }
       } catch { signal.throwIfAborted(); }
     }
   }));
@@ -102,6 +107,7 @@ export class RecommendationBrowser {
   private reads = new Map<ReadKind, AbortController>();
   private listeners = new Set<() => void>();
   private productNames = new Map<number, string | null>();
+  private productImages = new Map<number,string>();
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private update(patch: Partial<RecommendationBrowseState>) {
@@ -127,7 +133,7 @@ export class RecommendationBrowser {
   private syncContext = () => {
     if (scopeKey() === this.scope) return;
     this.abort('list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
-    this.productNames.clear();
+    this.productNames.clear(); this.productImages.clear();
     this.scope = scopeKey();
     this.state = initial(); this.update({});
     if (this.allowed()) void this.refresh();
@@ -135,14 +141,14 @@ export class RecommendationBrowser {
   start = () => {
     if (this.active) return;
     this.active = true; this.scope = scopeKey();
-    this.productNames.clear();
+    this.productNames.clear(); this.productImages.clear();
     this.state = initial(); this.update({});
     this.unsubscribeAuth = authService.subscribe(this.syncContext);
     if (this.allowed()) void this.refresh();
   };
   stop = () => {
     this.active = false; this.abort('list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
-    this.productNames.clear();
+    this.productNames.clear(); this.productImages.clear();
     this.unsubscribeAuth?.(); this.unsubscribeAuth = null;
   };
   setMode = (mode: RecommendationBrowseState['mode']) => {
@@ -170,10 +176,10 @@ export class RecommendationBrowser {
   };
   refresh = async (refreshNames = false, preserveDetail = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
-    // Explicit Store Admin refresh can pick up catalog renames; paging/filtering
+    // Explicit refresh can pick up catalog renames; paging/filtering
     // reuses labels and does not repeat one F02 request for each row.
-    if (refreshNames && this.state.role === 'Store Admin') {
-      this.productNames.clear(); this.update({ listNames: {} });
+    if (refreshNames) {
+      this.productNames.clear(); this.productImages.clear(); this.update({ listNames: {}, images:{} });
     }
     this.abort('listNames');
     if (!preserveDetail) this.closeDetail();
@@ -189,15 +195,22 @@ export class RecommendationBrowser {
       const lastPage = Math.max(0, Math.ceil(list.totalElements / list.pageSize) - 1);
       if (list.page > lastPage) { this.update({ page: lastPage }); await this.refresh(false, preserveDetail); return; }
       this.update({ list, loading: false });
-      if (this.state.role === 'Store Admin') void this.loadListNames(list);
+      void this.loadListNames(list);
     } catch (error) { if (job.current()) this.update({ loading: false, error: recommendationReadError(error, this.state.mode === 'ranked') }); }
   };
   private loadListNames = async (list: RecPage) => {
     const job = this.begin('listNames');
     try {
-      const names = await readRecommendationProductNames(list.items.flatMap(item => item.productIds), job.signal, this.productNames);
-      if (job.current() && this.state.list === list) this.update({ listNames: names });
+      const names = await readRecommendationProductNames(list.items.flatMap(item => item.productIds), job.signal, this.productNames, this.productImages);
+      if (job.current() && this.state.list === list) this.update({ listNames: names, images:Object.fromEntries(this.productImages) });
     } catch { /* Optional labels never block results or replace IDs with invented names. */ }
+  };
+  showGeneratedResults = async (runId:number) => {
+    if(!this.allowed()||this.state.reviewPending)return;
+    recommendationInteger(runId,'miningRunId');
+    this.closeDetail();this.abort('requests','runs');
+    this.update({mode:'ranked',miningRunId:runId,page:0,filters:{pageSize:20},request:null,runs:[],list:null,error:''});
+    await this.refresh();
   };
   loadRequests = async (page = this.state.requestPage) => {
     if (!this.allowed() || this.state.reviewPending || this.state.mode !== 'ranked') return;
@@ -224,7 +237,7 @@ export class RecommendationBrowser {
     try {
       const runs = await f05Api.listRuns(id, job.signal);
       if (!job.current()) return;
-      if (runs.some(run => run.storeId !== request.storeId || run.snapshotId !== request.snapshotId)) throw new F06ApiError(200, 'Mismatched mining source was rejected.');
+      if (runs.some(run => run.requestId !== request.requestId || run.storeId !== request.storeId || run.snapshotId !== request.snapshotId || !request.algorithms.includes(run.algorithm) || !sameMiningInput(request, run))) throw new F06ApiError(200, 'Mismatched mining source was rejected.');
       this.update({ runs, runsLoading: false });
     } catch (error) { if (job.current()) this.update({ runsLoading: false, runsError: recommendationReadError(error) }); }
   };
@@ -232,9 +245,10 @@ export class RecommendationBrowser {
     if (!this.allowed() || this.state.reviewPending || !this.state.runs.some(run => run.runId === id && run.status === 'COMPLETED')) return;
     this.update({ miningRunId: id, page: 0 }); await this.refresh();
   };
-  openDetail = async (id: number, retainReviewMessage = false) => {
+  openDetail = async (id: number, retainReviewMessage = false, refreshNames = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
-    if (this.state.role === 'Store Admin') this.abort('listNames');
+    this.abort('listNames');
+    if (refreshNames) { this.productNames.clear(); this.productImages.clear(); }
     this.abort('names'); const job = this.begin('detail');
     this.update({ detailId: id, detail: null, detailLoading: true, detailError: '', names: {}, namesLoading: false, namesUnavailable: false,
       reviewConfirmation: null, ...(retainReviewMessage ? {} : { reviewError: '', reviewNotice: '' }) });
@@ -245,8 +259,8 @@ export class RecommendationBrowser {
       this.update({ detail, detailLoading: false, reviewNeedsRefresh: false });
       const namesJob = this.begin('names');
       this.update({ namesLoading: true });
-      const names = await readRecommendationProductNames(detail.productIds, namesJob.signal, this.state.role === 'Store Admin' ? this.productNames : undefined);
-      if (namesJob.current()) this.update({ names, ...(this.state.role === 'Store Admin' ? { listNames: { ...this.state.listNames, ...names } } : {}), namesLoading: false, namesUnavailable: detail.productIds.some(productId => !names[productId]) });
+      const names = await readRecommendationProductNames(detail.productIds, namesJob.signal, this.productNames, this.productImages);
+      if (namesJob.current()) this.update({ names, listNames: { ...this.state.listNames, ...names }, images:Object.fromEntries(this.productImages), namesLoading: false, namesUnavailable: detail.productIds.some(productId => !names[productId]) });
     } catch (error) { if (job.current()) this.update({ detailLoading: false, detailError: recommendationReadError(error) }); }
   };
   closeDetail = () => {

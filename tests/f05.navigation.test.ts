@@ -8,12 +8,13 @@ import { SYSTEM_MINING_NAV,resolveSystemScreen,systemMiningView,systemScreenUrl,
 import { getPathForScreen,getScreenFromPathname } from '../src/utils/navigationRouter';
 import { SystemMiningDashboard } from '../src/features/f05/components/SystemMiningDashboard';
 import { MiningConfigurationView } from '../src/features/f05/components/MiningConfigurationView';
-import { user,configuration } from './f05.fixtures';
+import { SystemAnalysisList } from '../src/features/f05/components/SystemAnalysisList';
+import { user,configuration,requestFixture } from './f05.fixtures';
 import type { ActiveNavScreen } from '../src/types/mining';
 
 test('each System Admin menu has one independent route/view; old links resolve safely',()=>{
-  assert.equal(new Set(SYSTEM_MINING_NAV.map(x=>getPathForScreen(x.screen))).size,5);
-  assert.equal(new Set(SYSTEM_MINING_NAV.map(x=>x.view)).size,5);
+  assert.equal(new Set(SYSTEM_MINING_NAV.map(x=>getPathForScreen(x.screen))).size,3);
+  assert.equal(new Set(SYSTEM_MINING_NAV.map(x=>x.view)).size,3);
   for(const item of SYSTEM_MINING_NAV){
     assert.equal(getScreenFromPathname(getPathForScreen(item.screen)),item.screen);
     assert.equal(systemMiningView(item.screen),item.view);
@@ -25,27 +26,30 @@ test('each System Admin menu has one independent route/view; old links resolve s
   assert.equal(resolveSystemScreen('results'),'admin-mining-history');
   assert.equal(resolveSystemScreen('failure'),'admin-mining-history');
   assert.equal(resolveSystemScreen('benchmark','?view=history&storeId=1'),'admin-mining-history');
-  assert.equal(resolveSystemScreen('overview','?view=setup'),'admin-run-mining');
+  assert.equal(resolveSystemScreen('overview','?view=setup'),'overview');
 });
 
 test('Store context is preserved while request/run context stays within History or Benchmark',()=>{
   const query='?storeId=2&requestId=17&runId=42&view=history';
   assert.equal(systemScreenUrl('setup',query),'/admin/setup?storeId=2');
   assert.equal(systemScreenUrl('overview',query),'/admin/overview?storeId=2');
-  assert.equal(systemScreenUrl('admin-run-mining',query),'/admin/mining/run?storeId=2');
-  assert.equal(systemScreenUrl('benchmark',query),'/admin/benchmark?storeId=2&requestId=17&runId=42');
+  assert.equal(systemScreenUrl('admin-run-mining',query),'/admin/overview?storeId=2');
+  assert.equal(systemScreenUrl('benchmark',query),'/admin/mining/history?storeId=2&requestId=17&runId=42');
   assert.equal(systemScreenUrl('lambda-policy',query),'/admin/lambda-policy?storeId=2');
   assert.equal(systemScreenUrl('users',query),'/admin/users?storeId=2');
-  assert.equal(systemScreenUrl('setup','?storeId=1&algorithm=EFIM'),'/admin/setup?storeId=1&algorithm=EFIM');
+  assert.equal(systemScreenUrl('setup','?storeId=1&algorithm=EFIM'),'/admin/setup?storeId=1');
 });
 
 test('sidebar matches the required groups and has exactly one active item for each destination',()=>{
   const menus=[...SYSTEM_MINING_NAV.map(x=>x.screen),'users','lambda-policy'] as ActiveNavScreen[];
   for(const screen of menus){
     const html=renderToStaticMarkup(createElement(AppLayout,{currentScreen:screen,currentUser:user,onNavigate:()=>{},children:null}));
-    for(const group of ['OVERVIEW','MINING ENGINE MANAGEMENT','SYSTEM MANAGEMENT'])assert.ok(html.includes(group));
-    for(const label of ['Dashboard','Algorithm Configuration','Run Mining','Mining History','Algorithm Benchmark','Users &amp; Roles','Lambda Policy'])assert.ok(html.includes(label));
+    for(const group of ['OVERVIEW','ANALYTICS MANAGEMENT','SYSTEM MANAGEMENT'])assert.ok(html.includes(group));
+    for(const label of ['Mining Overview','Mining Settings','Priority Strength Policy','Mining History','Users &amp; Roles'])assert.ok(html.includes(label));
+    const order=['OVERVIEW','Mining Overview','ANALYTICS MANAGEMENT','Mining Settings','Priority Strength Policy','Mining History','SYSTEM MANAGEMENT','Users &amp; Roles'];
+    for(let i=1;i<order.length;i++)assert.ok(html.indexOf(order[i-1])<html.indexOf(order[i]),order[i]);
     assert.equal((html.match(/aria-current="page"/g)||[]).length,1);
+    assert.equal(html.includes('Run Analysis'),false);assert.equal(html.includes('Run Mining'),false);
     assert.equal(html.includes('API Connections'),false);
     assert.equal(html.includes('Scheduled Mining'),false);
     assert.equal(html.includes('High Utility Mining'),false);
@@ -66,22 +70,42 @@ test('API Connections is denied even if a cached System Admin session claims the
 });
 
 test('Dashboard has real policy values or explicit no-data state and never includes forms or fake jobs',()=>{
-  for(const config of [configuration,{version:0,algorithm:null,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},null]){
-    const html=renderToStaticMarkup(createElement(SystemMiningDashboard,{config,loading:false,error:'',reader:null,onRefresh:()=>{},onConfigure:()=>{},onRun:()=>{},onRequest:()=>{}}));
+  for(const config of [configuration,{version:0,algorithm:'EFIM' as const,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},null]){
+    const html=renderToStaticMarkup(createElement(SystemMiningDashboard,{config,loading:false,error:'',reader:null,onRefresh:()=>{},onConfigure:()=>{},onRequest:()=>{}}));
     assert.equal(html.includes('<form'),false);assert.equal(html.includes('<input'),false);
     assert.equal(html.includes('#0024'),false);assert.equal(html.includes('DEMO'),false);
-    assert.ok(html.includes('Choose a Store'));
-    if(config?.version===1){assert.ok(html.includes('HUI-Miner'));assert.ok(html.includes('0.5%'));}
+    assert.ok(html.includes('Choose a store'));
+    if(config?.version===1){assert.ok(html.includes('EFIM'));assert.ok(html.includes('0.5%'));}
     else assert.ok(html.includes(config?'Not configured':'Unavailable'));
   }
 });
 
-test('configuration exposes backend audit metadata and explains Compare Algorithms semantics',()=>{
+test('configuration exposes backend audit metadata and separates current settings from the threshold form',()=>{
   const html=renderToStaticMarkup(createElement(MiningConfigurationView,{
     config:{...configuration,changedBy:27},loading:false,saving:false,locked:false,error:'',onRefresh:()=>{},onSave:async()=>{}
   }));
-  assert.ok(html.includes('Updated by'));assert.ok(html.includes('Administrator #27'));assert.ok(html.includes('Last updated'));
-  assert.ok(html.includes('when comparison is off'));assert.ok(html.includes('Existing')||html.includes('existing'));
+  assert.ok(html.includes('Updated By'));assert.ok(html.includes('Administrator #27'));assert.ok(html.includes('Last Updated'));
+  assert.ok(html.includes('EFIM (Fixed)'));assert.equal(html.includes('Default Algorithm<select'),false);assert.ok(html.includes('Existing')||html.includes('existing'));
+});
+
+test('version zero keeps EFIM fixed visible while only minimum utility is unconfigured',()=>{
+  const config={version:0,algorithm:'EFIM' as const,minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null};
+  const html=renderToStaticMarkup(createElement(MiningConfigurationView,{config,loading:false,saving:false,locked:false,error:'',onRefresh:()=>{},onSave:async()=>{}}));
+  assert.equal((html.match(/EFIM/g)||[]).length,1);
+  for(const text of ['EFIM (Fixed)','Merchandisers cannot start new analyses','Edit Mining Settings','Percentage of Total Utility','Fixed Utility Value','0.5 means 0.5%, not 50%.','Save Settings','Discard Changes'])assert.ok(html.includes(text));
+  assert.equal(html.includes('value="0.5"'),false,'no fabricated default threshold');
+  assert.equal(html.includes('value="HUI_MINER"'),false);
+});
+
+test('System analyses preserve Request IDs, server order and submitted audit data without technical columns',()=>{
+  const items=[{...requestFixture('FAILED'),requestId:39,requestedBy:123},requestFixture('COMPLETED')];
+  const before=JSON.stringify(items);
+  const html=renderToStaticMarkup(createElement(SystemAnalysisList,{items,selectedId:39,onSelect:()=>{}}));
+  assert.ok(html.indexOf('#39')<html.indexOf('#17'));
+  for(const text of ['Analysis ID','Submitted By','Submitted At','User #123','View Details','aria-pressed="true"'])assert.ok(html.includes(text));
+  for(const text of ['Comparison','HUI-Miner','snapshotHash','View Results'])assert.equal(html.includes(text),false);
+  assert.match(html,/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}</);
+  assert.equal(JSON.stringify(items),before);
 });
 
 test('Store F05 URL and permissions remain separate from System Admin routes',t=>{

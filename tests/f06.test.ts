@@ -9,7 +9,7 @@ import { eligibility, expiryPage, generation, policy, policyRequest, recommendat
 
 const hasStatus = (status: number | null) => (error: unknown) => error instanceof F06ApiError && error.status === status;
 function actor(t: TestContext, role: AuthUser['role'] = 'Merchandiser') {
-  t.mock.method(authService, 'getCurrentUser', () => ({ ...user, role }));
+  t.mock.method(authService, 'getCurrentUser', () => ({ ...user, role, storeId: 1 }));
   t.mock.method(authService, 'getToken', () => 'test-only-token');
   t.mock.method(authService, 'getSessionId', () => 'test-session');
   const calls: { path: string; init: RequestInit }[] = [];
@@ -225,14 +225,14 @@ test('empty/HTML error bodies use status fallback; configuration and generation 
   await assert.rejects(f06Api.updateConfig(policyRequest), hasStatus(409));
   assert.equal(f.calls.length, 4);
 });
-test('unsafe wire integers/decimals and quoted integer fields are rejected instead of rounded', async t => {
+test('unsafe integer fields stay rejected while exact Decimal values remain readable without rounding', async t => {
   const f = actor(t);
   for (const raw of ['9007199254740993', '0.100000000000000005', '1e309', '1e-999', '"1"']) {
     f.respond(async () => new Response(JSON.stringify(policy).replace('"version":1', `"version":${raw}`)));
     await assert.rejects(f06Api.getConfig(), hasStatus(200));
   }
   f.respond(async () => new Response(JSON.stringify(recommendation()).replace('40.123456', '1234567890123.123456')));
-  await assert.rejects(f06Api.get(62), hasStatus(200));
+  assert.equal(String((await f06Api.get(62)).utility), '1234567890123.123456');
   f.body({ ...policy, version: Number.MAX_SAFE_INTEGER });
   assert.equal((await f06Api.getConfig()).version, Number.MAX_SAFE_INTEGER);
 });
