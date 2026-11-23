@@ -44,7 +44,7 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], errors = [], unexpected = [], checks = [];
-const state = { role: 'MERCHANDISER', storeId: 1, review: 'PENDING_REVIEW', eligibility: 'ELIGIBLE', version: 1, mode: 'normal', hold: false, config: {...policy}, configMode: 'normal', expiryEmpty: false };
+const state = { role: 'MERCHANDISER', storeId: 1, review: 'PENDING_REVIEW', eligibility: 'ELIGIBLE', version: 1, mode: 'normal', hold: false, config: {...policy}, configMode: 'normal', expiryEmpty: false, groupRecords: null };
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/services/authService.ts').name))).authService";
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -69,7 +69,11 @@ async function dashboard() {
   await until("!!document.querySelector('#f06-dashboard-title')", 'dashboard mounted');
 }
 async function openDetails(id) {
-  await page.evaluate(`(()=>{const button=[...document.querySelectorAll('button[aria-label="View details for recommendation #${id}"]')].find(el=>el.getClientRects().length);if(!button)throw new Error('No visible detail button');button.click();})()`);
+  if(state.groupRecords&&!await page.evaluate(`Boolean(document.querySelector('button[data-candidate-id="${id}"]'))`)) {
+    await page.evaluate("document.querySelector('button[data-group-open]').click()");
+    await until("!!document.querySelector('dialog[data-recommendation-group-dialog][open]')",'group selector');
+  }
+  await page.evaluate(`(()=>{const button=[...document.querySelectorAll('button[data-candidate-id="${id}"]')].find(el=>el.getClientRects().length);if(!button)throw new Error('No visible detail button');button.click();})()`);
 }
 async function capture(name) { if (!artifacts) return;
   const result = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
@@ -77,11 +81,13 @@ async function capture(name) { if (!artifacts) return;
 }
 
 function item(id = 62) {
-  const final = state.review !== 'PENDING_REVIEW';
-  return recommendation({ recommendationId: id, storeId: state.storeId, version: state.version, reviewStatus: state.review,
-    generationEligibility: legacyEligibility(), seasonEnded: true, endedSeasons: [{seasonId:3,name:"Autumn fixture season",endDate:"2026-10-31"}], currentEligibility: eligibility(state.eligibility), readyForConsumption: state.review === 'APPROVED' && state.eligibility === 'ELIGIBLE',
+  const record=state.groupRecords?.get(id),review=record?.reviewStatus??state.review,version=record?.version??state.version;
+  const final = review !== 'PENDING_REVIEW';
+  return recommendation({ recommendationId: id, storeId: state.storeId, version, reviewStatus: review,
+    ...(record?{type:record.type,anchorProductId:record.type==='CROSS_SELL'?31:null}:{}),
+    generationEligibility: legacyEligibility(), seasonEnded: true, endedSeasons: [{seasonId:3,name:"Autumn fixture season",endDate:"2026-10-31"}], currentEligibility: eligibility(state.eligibility), readyForConsumption: review === 'APPROVED' && state.eligibility === 'ELIGIBLE',
     reviewedBy: final ? 12 : null, reviewedAt: final ? '2026-11-10T00:00:00Z' : null, reviewReason: final ? 'Fixture review decision' : null,
-    reviewHistory: final ? [{ oldStatus: 'PENDING_REVIEW', newStatus: state.review, reviewedBy: 12, reviewedAt: '2026-11-10T00:00:00Z', reason: 'Fixture review decision', resultingVersion: state.version, eligibilityCheck: legacyEligibility(state.eligibility) }] : []
+    reviewHistory: final ? [{ oldStatus: 'PENDING_REVIEW', newStatus: review, reviewedBy: 12, reviewedAt: '2026-11-10T00:00:00Z', reason: 'Fixture review decision', resultingVersion: version, eligibilityCheck: legacyEligibility(state.eligibility) }] : []
   });
 }
 async function fixture({ requestId, request }) {
@@ -94,13 +100,17 @@ async function fixture({ requestId, request }) {
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F06 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: state.storeId, status: 'ACTIVE', emailVerified: true };
   else if (path === '/api/recommendations') {
     const p = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
-    body = { items: [item()], page: p, pageSize: size, totalElements: 45, ordering:url.searchParams.has('miningRunId')?'RANKED_WITHIN_SOURCE_RUN':'CREATED_DESC' };
+    body = { items: state.groupRecords?[...state.groupRecords.keys()].map(id=>item(id)):[item()], page: p, pageSize: size, totalElements: 45, ordering:url.searchParams.has('miningRunId')?'RANKED_WITHIN_SOURCE_RUN':'CREATED_DESC' };
   } else if (/^\/api\/recommendations\/\d+$/.test(path)) body = item(Number(path.split('/').at(-1)));
   else if (/^\/api\/recommendations\/\d+\/(approve|reject)$/.test(path)) {
     assert.equal(request.method, 'POST'); assert.equal(state.role, 'MERCHANDISER');
     assert.deepEqual(Object.keys(JSON.parse(request.postData)).sort(), ['expectedVersion', 'reason']);
     while (state.hold && !closing) await sleep(20);
-    if (state.mode === 'conflict') {
+    if(state.groupRecords) {
+      const id=Number(path.split('/').at(-2)),record=state.groupRecords.get(id);
+      assert.ok(record);assert.equal(JSON.parse(request.postData).expectedVersion,record.version);
+      record.reviewStatus=path.endsWith('/approve')?'APPROVED':'REJECTED';record.version++;body=item(id);
+    } else if (state.mode === 'conflict') {
       state.version++; state.eligibility = 'INELIGIBLE'; responseCode = 409; body = { error: 'Inventory changed during review' };
     } else {
       state.review = path.endsWith('/approve') ? 'APPROVED' : 'REJECTED'; state.version++; body = item();
@@ -225,6 +235,37 @@ try {
   }
   assert.equal(calls.slice(beforeF04).some(c=>c.method!=='GET'&&c.path!=='/api/auth/login'),false);
   checks.push('F04 regression: both Store roles browse imports/sales, filters/reset; Store Admin import page mounts without writes');
+  // Grouping must never merge review status, version, endpoint or frozen evidence.
+  state.mode='normal';state.eligibility='ELIGIBLE';
+  state.groupRecords=new Map([
+    [62,{type:'BUNDLE',reviewStatus:'PENDING_REVIEW',version:2}],
+    [63,{type:'CROSS_SELL',reviewStatus:'PENDING_REVIEW',version:7}],
+    [64,{type:'BANNER',reviewStatus:'PENDING_REVIEW',version:11}],
+    [65,{type:'FBT',reviewStatus:'PENDING_REVIEW',version:13}]
+  ]);
+  const frozen=JSON.stringify([...state.groupRecords.keys()].map(id=>{const record=item(id);return {id,type:record.type,utility:record.utility,evidence:record.evidence,sources:record.sources};}));
+  await login();await has('45 matching recommendations');
+  await until("document.querySelectorAll('[data-product-group]').length===1",'one summary group for four candidates');
+  const beforeGroupReview=writes().length;
+  await openDetails(64);await has('Review this recommendation');
+  assert.equal(await page.evaluate("document.querySelectorAll('dialog[open]').length===1&&!document.querySelector('[data-recommendation-group-dialog]')"),true);
+  await prepare('Approve');await click('Confirm Approval');await has('Recommendation approved');await close('recommendation details');
+  assert.equal(writes().length,beforeGroupReview+1);assert.equal(writes().at(-1).path,'/api/recommendations/64/approve');
+  assert.deepEqual(writes().at(-1).payload,{expectedVersion:11,reason:'Fixture review decision'});
+  assert.deepEqual([...state.groupRecords.values()].map(record=>[record.reviewStatus,record.version]),[['PENDING_REVIEW',2],['PENDING_REVIEW',7],['APPROVED',12],['PENDING_REVIEW',13]]);
+  await until("!!document.querySelector('button[data-group-open]')",'refreshed group');
+  await page.evaluate("document.querySelector('button[data-group-open]').click()");
+  await until("document.querySelector('dialog [data-candidate-id=\"64\"]')?.textContent.includes('Approved')",'group shows fresh Banner approval');
+  assert.deepEqual(await page.evaluate("[...document.querySelectorAll('dialog [data-candidate-id]')].map(el=>el.dataset.candidateId)"),['62','63','64','65']);
+  assert.equal(await page.evaluate("document.querySelector('dialog [data-candidate-id=\"62\"]').textContent.includes('Needs review')"),true);
+  await openDetails(62);await has('Review this recommendation');await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');await close('recommendation details');
+  assert.equal(writes().at(-1).path,'/api/recommendations/62/reject');assert.equal(writes().at(-1).payload.expectedVersion,2);
+  assert.deepEqual([...state.groupRecords.values()].map(record=>[record.reviewStatus,record.version]),[['REJECTED',3],['PENDING_REVIEW',7],['APPROVED',12],['PENDING_REVIEW',13]]);
+  assert.equal(JSON.stringify([...state.groupRecords.keys()].map(id=>{const record=item(id);return {id,type:record.type,utility:record.utility,evidence:record.evidence,sources:record.sources};})),frozen);
+  const beforeReadOnly=writes().length;await login('STORE_ADMIN');await has('45 matching recommendations');await openDetails(63);await has('Products');
+  assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')||[...document.querySelectorAll('dialog button')].some(el=>/Approve Recommendation|Reject Recommendation/.test(el.textContent))"),false);
+  assert.equal(writes().length,beforeReadOnly);await close('recommendation details');
+  checks.push('multi-type group reviews stay independent: Banner approve v11, Bundle reject v2, Cross-sell/FBT untouched, exact IDs/versions, fresh statuses, frozen evidence unchanged, Store Admin read-only');
   assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
   console.log(JSON.stringify({result:'PASS (controlled browser fixtures)',checks,apiCoverage:8,realBackendWrites:0,artifacts},null,2));
 } catch(error) {

@@ -84,7 +84,7 @@ test('season warning displays backend names/dates without changing readiness or 
   for (const text of ['Season ended', 'Autumn sale', '31/10/2026', 'Backend frozen-season explanation', 'Approved and currently available']) assert.ok(html.includes(text));
   assert.equal(JSON.stringify(item), before);
   const list = renderToStaticMarkup(createElement(F06RecommendationTable, { data: { items: [item], page: 0, pageSize: 20, totalElements: 1, ordering: 'CREATED_DESC' }, onOpen: () => {} }));
-  assert.ok(list.includes('Season ended'));
+  assert.equal(list.includes('Season ended'),false,'Season warning is shown in Details, not the compact summary');
   for (const bad of [{ seasonEnded: undefined }, { endedSeasons: null }, { endedSeasons: [{ seasonId: 0, name: 'Broken', endDate: 'date' }] }]) assert.equal(isRecView({ ...item, ...bad }), false);
   assert.doesNotMatch(renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item: recommendation() })), /aria-label="Ended season warning"/);
 });

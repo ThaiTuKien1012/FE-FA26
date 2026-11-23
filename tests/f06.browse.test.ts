@@ -10,6 +10,7 @@ import { RecommendationBrowser, readRecommendationProductNames } from '../src/fe
 import type { RecListParams, RecPage, RecView } from '../src/features/f06/f06.types';
 import { F06RecommendationTable } from '../src/features/f06/components/F06RecommendationTable';
 import { F06RecommendationDetailContent } from '../src/features/f06/components/F06RecommendationDetails';
+import { F06RecommendationOptions } from '../src/features/f06/components/F06RecommendationGroupDetails';
 import { F06DashboardContent } from '../src/features/f06/components/F06DashboardView';
 import { RecommendationBadge, RecommendationProduct, recommendationPercent, recommendationValue, recommendationReadiness, recommendationNumber } from '../src/features/f06/components/F06ReadShared';
 import { eligibility, recommendation } from './f06.fixtures';
@@ -55,7 +56,23 @@ test('history list succeeds in backend order without a rank column or fabricated
   assert.equal(f.list.mock.calls[0].arguments[0]?.miningRunId, undefined); assert.equal(f.products.mock.callCount(), 2);
   const html = table(f.workflow.getSnapshot().list!);
   assert.ok(html.indexOf('#80') < html.indexOf('#62')); assert.equal(html.includes('>Rank<'), false);
-  for (const label of ['Historical utility','Needs review','Available','View Details']) assert.ok(html.includes(label));
+  for (const label of ['Historical utility','Bought together']) assert.ok(html.includes(label));
+  const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items,onSelect:()=>{}}));
+  for(const label of ['Needs review','Available','View Details'])assert.ok(options.includes(label));
+});
+test('opening group candidates retains cached product images; explicit refresh reloads them and session change clears them', async t => {
+  const f=setup(t);
+  f.products.mock.mockImplementation(async (input:RequestInfo|URL)=>{
+    const id=Number(String(input).split('/').at(-1));return Response.json({id,name:'Product '+id,imageUrl:'/api/products/'+id+'/image'});
+  });
+  f.workflow.start();await flush();
+  const images={31:'/api/products/31/image',32:'/api/products/32/image'};
+  assert.deepEqual(f.workflow.getSnapshot().images,images);
+  await f.workflow.openDetail(62);await f.workflow.openDetail(63);
+  assert.deepEqual(f.workflow.getSnapshot().images,images);assert.equal(f.products.mock.callCount(),2);
+  await f.workflow.openDetail(63,false,true);
+  assert.deepEqual(f.workflow.getSnapshot().images,images);assert.equal(f.products.mock.callCount(),4);
+  f.change(null,'logged-out');assert.deepEqual(f.workflow.getSnapshot().images,{});
 });
 for (const role of ['Merchandiser', 'Store Admin'] as const) test(`${role} selects a completed F05 run even with failed request comparison and reads server ranks`, async t => {
   const f = setup(t, role); f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, [recommendation({ rank: params.miningRunId ? 21 : null })]));
@@ -250,7 +267,10 @@ test('mobile cards preserve important data and confidence is only shown when app
   const bundle = recommendation({ reviewStatus: 'PENDING_REVIEW', currentEligibility: eligibility() });
   const html = table(resultPage({}, [bundle]));
   assert.ok(html.includes('aria-label="Product recommendation cards"')); assert.ok(html.includes('data-product-group'));
-  for (const text of ['Product #31', 'Historical utility', '2 orders', '33.3333%', 'Needs review', 'Awaiting approval', 'View Details']) assert.ok(html.includes(text));
+  for (const text of ['Product #31', 'Historical utility', '2 orders', '33.3333%']) assert.ok(html.includes(text));
+  assert.equal(/data-status=|View Details|Awaiting approval/.test(html),false);
+  const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items:[bundle],onSelect:()=>{}}));
+  assert.ok(options.includes('Needs review'));assert.ok(options.includes('View Details'));
   assert.equal(content(bundle).includes('>Confidence</dt>'), false);
   assert.ok(content(recommendation({ type: 'CROSS_SELL', anchorProductId: 31 })).includes('>Confidence</dt>'));
   assert.equal(content(recommendation({ type: 'CROSS_SELL', anchorProductId: null })).includes('>Confidence</dt>'), false);
@@ -261,8 +281,9 @@ test('Store Admin list stays focused on business status and preserves backend ev
   const item = recommendation({ reviewStatus: 'APPROVED', currentEligibility: eligibility('INELIGIBLE'), readyForConsumption: false });
   const original = JSON.stringify(item);
   const html = renderToStaticMarkup(createElement(F06RecommendationTable, { data: resultPage({}, [item]), compact: true, onOpen: () => {} }));
-  for (const text of ['Historical utility', 'Approved', 'Unavailable', 'Bought together', '2 orders']) assert.ok(html.includes(text));
+  for (const text of ['Historical utility', 'Bought together', '2 orders']) assert.ok(html.includes(text));
   assert.ok(html.includes('Snapshot #'));
+  assert.equal(/Approved|Unavailable/.test(html),false);const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items:[item],onSelect:()=>{}}));assert.ok(options.includes('Approved'));assert.ok(options.includes('Unavailable'));
   const dashboard = renderToStaticMarkup(createElement(F06DashboardContent, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
   for(const id of ['f06-filter-snapshot','f06-filter-size','f06-analysis-scope'])assert.ok(dashboard.includes(id));assert.equal(dashboard.includes('Generate New'),false);
   assert.ok(dashboard.includes('f06-filter-type')); assert.ok(dashboard.includes('f06-filter-review'));

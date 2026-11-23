@@ -44,7 +44,7 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], errors = [], unexpected = [], checks = [];
-const state = { role: 'MERCHANDISER', storeId: 1, listStatus: 200, detailStatus: 200, empty: false, holdList: false, network: false, ready: false, availability: null, reviewStatus: 'APPROVED', namesUnavailable: false, visual:false };
+const state = { role: 'MERCHANDISER', storeId: 1, listStatus: 200, detailStatus: 200, empty: false, holdList: false, network: false, ready: false, availability: null, reviewStatus: 'APPROVED', namesUnavailable: false, visual:false, longNames:false, noImages:false };
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/services/authService.ts').name))).authService";
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -71,8 +71,17 @@ async function dashboard() {
 
   await until("!!document.querySelector('#f06-dashboard-title')", 'dashboard mounted');
 }
+async function openGroup(index=0) {
+  const selector='button[data-group-open="'+index+'"]';
+  await until('Boolean(document.querySelector('+JSON.stringify(selector)+'))','Group card ready');
+  await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');
+  await until('Boolean(document.querySelector("dialog[data-recommendation-group-dialog][open]"))','Group details open');
+}
 async function openDetails(id) {
-  await page.evaluate(`(()=>{const button=[...document.querySelectorAll('button[aria-label="View details for recommendation #${id}"]')].find(el=>el.getClientRects().length);if(!button)throw new Error('No visible detail button');button.click();})()`);
+  const selector='button[data-candidate-id="'+id+'"]';
+  if(!await page.evaluate('Boolean(document.querySelector('+JSON.stringify(selector)+'))'))await openGroup();
+  await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');
+  await until('Boolean(document.querySelector("#f06-detail-title"))&&!document.querySelector("[data-recommendation-group-dialog]")','Single recommendation dialog replaces group dialog');
   await until("!![...document.querySelectorAll('dialog summary')].find(e=>e.textContent==='Source Details')",'Details response rendered');
 }
 async function capture(name) { if (!artifacts) return;
@@ -89,7 +98,7 @@ function item(id, storeId) {
 }
 function visualItems(pageIndex=0){
  const first=recommendation({recommendationId:62+pageIndex*20,storeId:state.storeId});
- return [first,{...first,recommendationId:63+pageIndex*20,type:'CROSS_SELL',anchorProductId:31,evidence:{...first.evidence,anchorSupportCount:4,confidence:0.5}},{...first,recommendationId:64+pageIndex*20,type:'CROSS_SELL',anchorProductId:32,evidence:{...first.evidence,anchorSupportCount:3,confidence:0.666667}},{...first,recommendationId:65+pageIndex*20,type:'BANNER'},{...first,recommendationId:66+pageIndex*20,snapshotId:3,sources:first.sources.map(source=>({...source,snapshotId:3}))}];
+ return [first,{...first,recommendationId:63+pageIndex*20,type:'CROSS_SELL',anchorProductId:31,evidence:{...first.evidence,anchorSupportCount:4,confidence:0.5}},{...first,recommendationId:64+pageIndex*20,type:'CROSS_SELL',anchorProductId:32,evidence:{...first.evidence,anchorSupportCount:3,confidence:0.666667}},{...first,recommendationId:65+pageIndex*20,type:'BANNER'},{...first,recommendationId:66+pageIndex*20,type:'FBT'},{...first,recommendationId:67+pageIndex*20,snapshotId:3,sources:first.sources.map(source=>({...source,snapshotId:3}))}];
 }
 async function fixture({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname;
@@ -118,7 +127,7 @@ async function fixture({ requestId, request }) {
     const ok=path.includes('/31/');return page.call('Fetch.fulfillRequest',{requestId,responseCode:ok?200:404,responseHeaders:[{name:'Content-Type',value:ok?'image/png':'application/json'}],body:ok?'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=':Buffer.from('{}').toString('base64')});
   } else if (/^\/api\/products\/\d+$/.test(path)) {
     responseCode = state.namesUnavailable ? 404 : 200;
-    body = state.namesUnavailable ? { error: 'Product not found' } : { id: Number(path.split('/').at(-1)), name: path.endsWith('/31') ? 'Fixture milk' : 'Fixture bread',...(state.visual?{imageUrl:'/api/products/'+path.split('/').at(-1)+'/image'}:{}) };
+    body = state.namesUnavailable ? { error: 'Product not found' } : { id: Number(path.split('/').at(-1)), name: (path.endsWith('/31') ? 'Fixture milk' : 'Fixture bread')+(state.longNames?' extra long product description '+('ExtraLongWordWithoutSpaces'.repeat(8)):''),...(state.visual&&!state.noImages?{imageUrl:'/api/products/'+path.split('/').at(-1)+'/image'}:{}) };
   }
   else if (path === '/api/recommendations/config') body = policy;
   else if (path === '/api/mining/requests') body = { items: [{ ...requestFixture('FAILED', storeId), comparisonStatus: 'FAILED' }], page: 0, pageSize: 20, totalElements: 1 };
@@ -150,7 +159,7 @@ try {
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module');
   await login(); await dashboard(); await has('45 matching recommendations');await has('1,234,567,890,123.123456');
   assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel thead th')].some(t=>t.textContent==='Rank')"), false);
-  assert.deepEqual(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel [data-candidate-id]')].map(b=>b.getAttribute('aria-label'))"), ['View details for recommendation #62','View details for recommendation #63']);
+  assert.deepEqual(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel [data-candidate-id]')].map(b=>b.dataset.candidateId)"), ['62','63']);
   await click('Next recommendations'); await has('Page 2 of 3');
   await select('f06-filter-snapshot', '2'); await select('f06-filter-type', 'BUNDLE'); await select('f06-filter-review', 'APPROVED'); await select('f06-filter-size', '10');
   await click('Apply Filters'); await has('Page 1 of 5');
@@ -223,15 +232,20 @@ try {
   assert.equal(await page.evaluate("[...document.querySelectorAll('strong')].some(e=>e.textContent==='Ready to use means approved and currently eligible.')"),false,'No definition banner');
   for(const [review,availability,ready] of [['PENDING_REVIEW','INELIGIBLE',false],['APPROVED','ELIGIBLE',true],['REJECTED','NEEDS_RECHECK',false]]){
     state.reviewStatus=review;state.availability=availability;state.ready=ready;await click('Refresh');await has('45 matching recommendations');
+    assert.equal(await page.evaluate("!!document.querySelector('[data-product-group] [data-status]')"),false,'Summary omits per-suggestion status');
+    await openDetails(62);
     assert.equal(await page.evaluate('!!document.querySelector('+JSON.stringify('[data-status="'+review+'"]')+')'),true);
     assert.equal(await page.evaluate('!!document.querySelector('+JSON.stringify('[data-status="'+availability+'"]')+')'),true);
+    await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
   }
   state.reviewStatus='APPROVED';state.availability='ELIGIBLE';state.ready=true;
   await click('Refresh');await has('45 matching recommendations');
   for(const width of [1440,768,390]){
     await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
     assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
+    await openDetails(62);
     assert.equal(await page.evaluate("[...document.querySelectorAll('[data-status]')].filter(e=>e.getClientRects().length).every(e=>getComputedStyle(e).whiteSpace==='nowrap')"),true,'Store status labels never wrap');
+    await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
     await capture('store-admin-list-'+width);
   }
   await capture('store-admin-desktop');
@@ -289,15 +303,40 @@ try {
   await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
   state.visual=true;state.reviewStatus='PENDING_REVIEW';state.availability='ELIGIBLE';state.empty=false;state.namesUnavailable=false;
   await login();await has('25 matching recommendations');
-  await until("document.querySelectorAll('[data-product-group]').length===2&&document.querySelectorAll('[data-candidate-id]').length===5",'Two page-local groups retain five candidates');
-  assert.deepEqual(await page.evaluate("[...document.querySelectorAll('[data-candidate-id]')].map(e=>e.dataset.candidateId)"),['62','63','64','65','66']);
+  await until("document.querySelectorAll('[data-product-group]').length===2&&document.querySelectorAll('[data-product-group] button').length===2",'Two compact page-local groups with one action each');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('[data-product-group]')].every(e=>!e.querySelector('[data-status]')&&!/Each type is a separate|Suggestion #|View Details/.test(e.innerText)&&e.querySelectorAll('button').length===1)"),true,'Summary-only cards have no nested suggestion list or status');
+  const groupReads=calls.filter(c=>/^\/api\/recommendations\/\d+$/.test(c.path)).length;
+  await openGroup();assert.deepEqual(await page.evaluate("[...document.querySelectorAll('dialog [data-candidate-id]')].map(e=>e.dataset.candidateId)"),['62','63','64','65','66']);
+  assert.equal(calls.filter(c=>/^\/api\/recommendations\/\d+$/.test(c.path)).length,groupReads,'Group selection does not preload suggestion details');
+  assert.equal(await page.evaluate("document.querySelectorAll('dialog[open]').length"),1);
+  assert.equal(await page.evaluate("document.activeElement.getAttribute('aria-label')"),'Close product group details');
+  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8});
+  await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8});
+  await until("document.activeElement?.dataset.candidateId==='66'",'Group native focus trap wraps to last type');
+  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await until("!document.querySelector('dialog')&&document.activeElement?.dataset.groupOpen==='0'",'Group Escape restores card focus');
+  for(const key of ['Enter',' ']){
+    await page.evaluate("document.querySelector('[data-group-open=\"0\"]').focus()");
+    await page.call('Input.dispatchKeyEvent',{type:'keyDown',key,text:key==='Enter'?'\r':' ',code:key==='Enter'?'Enter':'Space',windowsVirtualKeyCode:key==='Enter'?13:32});
+    await page.call('Input.dispatchKeyEvent',{type:'keyUp',key,code:key==='Enter'?'Enter':'Space',windowsVirtualKeyCode:key==='Enter'?13:32});
+    await until("!!document.querySelector('[data-recommendation-group-dialog]')",'Native card keyboard '+key);
+    await page.evaluate("document.querySelector('[aria-label=\"Close product group details\"]').click()");
+  }
+  for(const id of [62,63,64,65,66]){
+    const readStart=calls.length;await openDetails(id);
+    assert.ok(calls.slice(readStart).some(c=>c.path==='/api/recommendations/'+id),'Exact type ID '+id);
+    assert.equal(await page.evaluate("document.querySelectorAll('dialog[open]').length===1&&!document.querySelector('[data-recommendation-group-dialog]')"),true);
+    await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
+    await until("document.activeElement?.dataset.groupOpen==='0'",'Type Details returns focus to group');
+  }
   await page.evaluate("document.querySelector('[data-product-group]').scrollIntoView({block:'start'})");
   await until("[...document.querySelectorAll('[aria-label=\"Product recommendation cards\"] img')].some(e=>e.complete&&e.naturalWidth>0)",'Advertised authorized product image loads');
   assert.equal(await page.evaluate("!!document.querySelector('[aria-label=\"Image unavailable for Fixture bread\"]')"),true,'Broken product image gets a placeholder');
-  await click('All suggestions');assert.equal(await page.evaluate("document.querySelectorAll('[data-product-group]').length"),5);
+  await click('All suggestions');assert.equal(await page.evaluate("document.querySelectorAll('[data-product-group]').length"),6);
   await click('Product groups');assert.equal(await page.evaluate("document.querySelectorAll('[data-product-group]').length"),2);
   await click('Next recommendations');await has('Page 2 of 2');
-  assert.deepEqual(await page.evaluate("[...document.querySelectorAll('[data-candidate-id]')].map(e=>e.dataset.candidateId)"),['82','83','84','85','86']);
+  await openGroup();assert.deepEqual(await page.evaluate("[...document.querySelectorAll('dialog [data-candidate-id]')].map(e=>e.dataset.candidateId)"),['82','83','84','85','86']);await page.evaluate("document.querySelector('[aria-label=\"Close product group details\"]').click()");
   await click('Previous recommendations');await has('Page 1 of 2');
   const detailStart=calls.length;await openDetails(64);
   assert.ok(calls.slice(detailStart).some(c=>c.path==='/api/recommendations/64'));
@@ -319,7 +358,7 @@ try {
   await until("!document.querySelector('[aria-label=\"Unsaved review\"]')&&document.activeElement?.id==='f06-review-reason'",'Escape dismisses warning and preserves draft/focus');
   await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
   await has('Keep your unfinished review?');await click('Discard & Close');await until("!document.querySelector('dialog')",'Explicit discard closes modal');
-  await until("document.activeElement?.dataset.candidateId==='64'",'Focus returns to exact candidate');
+  await until("document.activeElement?.dataset.groupOpen==='0'",'Focus returns to the originating product group');
   for(const width of [320,390,820,1280,1920]){
     await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
     assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Grouped library fits '+width);
@@ -328,6 +367,29 @@ try {
   }
   checks.push('A+B visual Library: page-local groups, 5 independent candidates including reverse anchors and different snapshot, All suggestions, exact server totals/pages/order, authenticated real-image fixture and broken-image fallback; centered modal 320–1920, draft refresh/Keep/Discard/Escape/focus restoration; no feature writes');
 
+  // Missing images/names and unusually long names must fit both summary and selector.
+  state.noImages=true;
+  for(const missingNames of [false,true]) {
+    state.longNames=!missingNames;state.namesUnavailable=missingNames;
+    await login();await has('25 matching recommendations');
+    if(!missingNames)await has('extra long product description');
+    else await until("document.querySelector('[data-product-group] h3')?.textContent.includes('Product #31')",'Product ID fallback');
+    await until("document.querySelectorAll('[data-product-group] [aria-label^=\"Image unavailable\"]').length>=2",'No-image placeholders');
+    for(const width of [320,390,820,1366]) {
+      await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
+      assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Long/fallback summary fits '+width);
+      await openGroup();
+      assert.equal(await page.evaluate("(()=>{const d=document.querySelector('dialog');const r=d.getBoundingClientRect();return d.scrollWidth<=d.clientWidth+1&&r.height<=innerHeight&&r.width<=innerWidth})()"),true,'Long/fallback group dialog fits '+width);
+      await page.evaluate("document.querySelector('[aria-label=\"Close product group details\"]').click()");
+    }
+  }
+  await openGroup();await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();})()`);
+  await until("!document.querySelector('dialog')&&!document.querySelector('[data-product-group]')",'Logout removes open group and old Store data');
+  await login();await has('25 matching recommendations');await openGroup();await login('STORE_ADMIN',2);await has('25 matching recommendations');
+  assert.equal(await page.evaluate("!!document.querySelector('dialog')"),false,'Session/Store change closes old selector');
+  await openDetails(63);assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false,'Store Admin group remains read-only');
+  await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
+  checks.push('long/unbroken names, absent images and unavailable product names at 320/390/820/1366; logout and Store/session change clear open group; Store Admin grouped Details read-only');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);
   console.log(JSON.stringify({ result: 'PASS (controlled browser fixtures)', checks, interceptedApiCalls: calls.length, realBackendWrites: 0, artifacts }, null, 2));
 } catch (error) {

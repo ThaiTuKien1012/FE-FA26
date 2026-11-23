@@ -27,7 +27,7 @@ test('18-place Backend expiry scores survive list/detail parsing and rendering e
   const page={items:[item],page:0,pageSize:20,totalElements:1,ordering:'CREATED_DESC' as const};assert.ok(isRecPage(page));
   const details=renderToStaticMarkup(createElement(F06RecommendationDetailContent,{item,technical:false}));
   assert.ok(details.includes(expiryScore));assert.equal(details.includes('0.6923076923076923<'),false);
-  assert.ok(renderToStaticMarkup(createElement(F06RecommendationTable,{data:page,onOpen:()=>{}})).includes('View Details'));
+  assert.ok(renderToStaticMarkup(createElement(F06RecommendationTable,{data:page,onOpen:()=>{}})).includes('data-group-open="0"'));
 });
 
 test('Decimal utility, source utility, support/confidence and percentages preserve every digit',()=>{

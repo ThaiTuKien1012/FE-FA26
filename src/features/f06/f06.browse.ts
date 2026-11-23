@@ -248,7 +248,7 @@ export class RecommendationBrowser {
   openDetail = async (id: number, retainReviewMessage = false, refreshNames = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
     this.abort('listNames');
-    if (refreshNames) this.productNames.clear(); this.productImages.clear();
+    if (refreshNames) { this.productNames.clear(); this.productImages.clear(); }
     this.abort('names'); const job = this.begin('detail');
     this.update({ detailId: id, detail: null, detailLoading: true, detailError: '', names: {}, namesLoading: false, namesUnavailable: false,
       reviewConfirmation: null, ...(retainReviewMessage ? {} : { reviewError: '', reviewNotice: '' }) });

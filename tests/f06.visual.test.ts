@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { groupRecommendationPage, repeatedRecommendationIds } from '../src/features/f06/f06.groups';
 import { recommendationProductImage } from '../src/features/f06/f06.products';
 import { F06RecommendationCards } from '../src/features/f06/components/F06RecommendationCards';
+import { F06RecommendationOptions } from '../src/features/f06/components/F06RecommendationGroupDetails';
 import { F06ProductImage } from '../src/features/f06/components/F06ProductImage';
 import { F06RecommendationDetailContent } from '../src/features/f06/components/F06RecommendationDetails';
 import { RecommendationBrowser, readRecommendationProductNames } from '../src/features/f06/f06.browse';
@@ -30,9 +31,13 @@ test('adjacent types/directions are visual options, with every candidate and anc
   assert.equal(groupRecommendationPage(items,false).length,5);
   const html=renderToStaticMarkup(createElement(F06RecommendationCards,{data:{items,page:0,pageSize:20,totalElements:85,ordering:'CREATED_DESC'},names:{31:'Milk',32:'Bread'},onOpen:()=>{}}));
   assert.equal((html.match(/data-product-group="true"/g)??[]).length,1);
-  for(const id of [62,63,64,65,66])assert.ok(html.includes('View details for recommendation #'+id));
-  assert.ok(html.includes('From Milk → Bread'));assert.ok(html.includes('From Bread → Milk'));
-  assert.ok(html.includes('66.6667%'));assert.equal(JSON.stringify(items),before);
+  assert.equal((html.match(/data-group-open=/g)??[]).length,1);
+  assert.equal(/data-candidate-id|Each type is a separate|Suggestion #|View Details|data-status=/.test(html),false);
+  for(const label of ['Milk','Bread','5','Historical utility','Bought together','Snapshot #2','Rule set 1'])assert.ok(html.includes(label),label);
+  const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items,names:{31:'Milk',32:'Bread'},onSelect:()=>{}}));
+  for(const id of [62,63,64,65,66])assert.ok(options.includes('data-candidate-id="'+id+'"'));
+  assert.ok(options.includes('From Milk → Bread'));assert.ok(options.includes('From Bread → Milk'));
+  assert.ok(options.includes('66.6667%'));assert.equal(JSON.stringify(items),before);
 });
 
 test('snapshot, complete policy, source evidence and utility differences never merge',()=>{
@@ -45,6 +50,26 @@ test('snapshot, complete policy, source evidence and utility differences never m
   assert.equal(groupRecommendationPage([base,{...base,recommendationId:63,sources:[]}]).length,2);
 });
 
+test('All suggestions has one native full-card action per record and no per-suggestion list',()=>{
+  const items=variants(),before=JSON.stringify(items);
+  const html=renderToStaticMarkup(createElement(F06RecommendationCards,{data:{items,page:0,pageSize:20,totalElements:85,ordering:'CREATED_DESC'},grouped:false,names:{31:'Milk',32:'Bread'},onOpen:()=>{}}));
+  assert.equal((html.match(/data-product-group="true"/g)??[]).length,5);
+  assert.equal((html.match(/<button/g)??[]).length,5);
+  for(const item of items)assert.ok(html.includes(`data-candidate-id="${item.recommendationId}"`));
+  for(const label of ['Bundle','Cross-sell','Banner','Frequently bought together'])assert.ok(html.includes(label));
+  assert.equal(/Each type is a separate|Suggestion #|>View Details|data-status=/.test(html),false);
+  assert.equal(JSON.stringify(items),before);
+});
+
+test('group options retain independent review, availability, ID and version without mutating frozen evidence',()=>{
+  const items=variants().slice(0,3).map((item,index)=>({...item,version:index+4,reviewStatus:(['APPROVED','REJECTED','PENDING_REVIEW'] as const)[index]}));
+  const before=JSON.stringify(items);
+  const html=renderToStaticMarkup(createElement(F06RecommendationOptions,{items,onSelect:()=>{}}));
+  assert.equal((html.match(/data-candidate-id=/g)??[]).length,3);
+  for(const item of items)assert.ok(html.includes(`data-status="${item.reviewStatus}"`));
+  assert.equal(JSON.stringify(items),before);
+});
+
 test('nonadjacent groups and page boundaries retain server order, ranks and counts',()=>{
   const first=variants().slice(0,2),other=recommendation({recommendationId:80,snapshotId:9});
   const items=[first[0],other,first[1]];const groups=groupRecommendationPage(items);
@@ -52,7 +77,8 @@ test('nonadjacent groups and page boundaries retain server order, ranks and coun
   assert.equal(groupRecommendationPage(first.slice(0,1)).length,1);assert.equal(groupRecommendationPage(first.slice(1)).length,1);
   const page={items:first.map((x,i)=>({...x,rank:21+i})),page:1,pageSize:20,totalElements:85,ordering:'RANKED_WITHIN_SOURCE_RUN' as const};
   const html=renderToStaticMarkup(createElement(F06RecommendationCards,{data:page,onOpen:()=>{}}));
-  assert.ok(html.includes('data-rank="21"'));assert.ok(html.includes('data-rank="22"'));assert.equal(page.totalElements,85);
+  const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items:page.items,onSelect:()=>{}}));
+  assert.equal(html.includes('data-rank='),false);assert.ok(options.includes('data-rank="21"'));assert.ok(options.includes('data-rank="22"'));assert.equal(page.totalElements,85);
   const repeats=[first[0],first[0]];assert.deepEqual(repeatedRecommendationIds(repeats),[62]);assert.equal(groupRecommendationPage(repeats)[0].items.length,2);
 });
 
