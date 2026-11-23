@@ -59,6 +59,8 @@ export type ActiveNavScreen =
   | 'results'         // S05: Mining Run Results
   | 'failure'         // S07: Mining Failure & Retry
   | 'benchmark'       // S06: HUI-Miner vs EFIM Benchmark
+  | 'admin-stores'
+  | 'my-store'
   | 'users'           // Accounts & Roles (User Management & RBAC)
   | 'api-connections' // API Connections & Import Settings
   | 'merchandiser-recommendations' // Merchandiser: Recommendations Dashboard (From Screenshot 1)

@@ -42,6 +42,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     department: 'Store Operations & Inventory',
     defaultScreen: 'store-inventory',
     allowedScreens: [
+      'my-store',
       'store-inventory',
       'store-edit-product',
       'store-categories',
@@ -67,6 +68,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'benchmark',
       'f05-mining',
       'users',
+      'admin-stores',
       'admin-run-mining',
       'admin-mining-history',
       'lambda-policy',
@@ -77,6 +79,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     department: 'Retail Merchandising Planner',
     defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
+      'my-store',
       'f04-import-history',
       'f04-transactions',
       'f03-configuration',
@@ -107,6 +110,8 @@ export interface ScreenOwnerInfo {
 }
 
 export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>> = {
+  'admin-stores': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Stores', allowedRoles: ['System Admin'] },
+  'my-store': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'My Store', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f06-recommendations': {
     primaryRole: 'Merchandiser',
     roleKey: 'merchandiser',

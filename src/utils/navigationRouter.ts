@@ -5,6 +5,8 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'forgot-password': '/forgot-password',
   'register': '/register',
   'activate': '/activate',
+  'admin-stores': '/admin/stores',
+  'my-store': '/store/profile',
   'profile': '/profile',
   'f05-mining': '/mining',
   'f06-recommendations': '/recommendations',

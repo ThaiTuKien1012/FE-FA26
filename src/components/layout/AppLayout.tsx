@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Package, BarChart3, Bell, SlidersHorizontal, LogOut, ShoppingBag, Users, Zap,
-  Layers, LayoutGrid, Settings, Upload, History, ReceiptText, Menu, X,
+  Layers, Store, LayoutGrid, Settings, Upload, History, ReceiptText, Menu, X,
   type LucideIcon
 } from 'lucide-react';
 import { ActiveNavScreen } from '../../types/mining';
@@ -120,6 +120,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
           {/* Navigation groups organize the existing screens without changing role permissions. */}
           <nav id={compactPlanner ? 'planner-main-navigation' : undefined} className={`min-h-0 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-5 ${compactPlanner && !plannerNavOpen ? 'hidden md:block' : ''}`} aria-label="Main Navigation">
+            {(isStoreAdmin || isMerchandiser) && (
+              <SidebarSection title="STORE">
+                <SidebarItem screen="my-store" label="My Store" icon={Store} active={currentScreen === 'my-store'} onNavigate={onNavigate} />
+              </SidebarSection>
+            )}
             {isMerchandiser && (
               <>
                 <SidebarSection title="PRODUCT ANALYTICS">
@@ -166,6 +171,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   </React.Fragment>)}
                 </SidebarSection>
                 <SidebarSection title="SYSTEM MANAGEMENT">
+                  <SidebarItem screen="admin-stores" label="Stores" icon={Store} active={currentScreen === 'admin-stores'} onNavigate={onNavigate} />
                   <SidebarItem screen="users" label="Users & Roles" icon={Users} active={currentScreen === 'users'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { accountRequest } from '../account-management';
+import { useSelectedStore } from '../../storeManagement/useSelectedStore';
 import { AccountSelect } from './AccountSelect';
 
 interface StoreOption {storeId:number;name:string;}
@@ -7,7 +8,6 @@ interface StorePage {items:StoreOption[];page:number;pageSize:number;totalElemen
 interface Props {value:string;disabled:boolean;required?:boolean;onChange:(value:string)=>void;className:string;}
 export function AccountStoreSelect({value,disabled,required=true,onChange,className}:Props) {
   const [page,setPage]=useState(0),[revision,setRevision]=useState(0);
-  const [names,setNames]=useState<Record<string,string>>({});
   const [result,setResult]=useState<{key:string;data?:StorePage;error?:string}|null>(null);
   const key=page+':'+revision,current=result?.key===key?result:null;
   useEffect(()=>{
@@ -19,16 +19,17 @@ export function AccountStoreSelect({value,disabled,required=true,onChange,classN
       if(c.signal.aborted)return;
       const last=Math.min(100000,Math.max(0,Math.ceil(data.totalElements/20)-1));
       if(page>last){setPage(last);return;}
-      setNames(old=>({...old,...Object.fromEntries(data.items.map(s=>[String(s.storeId),s.name]))}));setResult({key,data});
+      setResult({key,data});
     }).catch(e=>{if(!c.signal.aborted)setResult({key,error:e instanceof Error?e.message:'Unable to load stores.'});});
     return()=>c.abort();
   },[page,key]);
   const selectedOutsidePage=Boolean(value&&!current?.data?.items.some(s=>String(s.storeId)===value));
+  const selected = useSelectedStore(selectedOutsidePage && current?.data ? Number(value) : null, revision);
   return <div>
     <label htmlFor="account-assigned-store" className="text-sm font-medium text-[#405447]">Assigned Store</label>
     <AccountSelect id="account-assigned-store" aria-label="Assigned Store" required={required} value={value} disabled={disabled||!current?.data} onChange={e=>onChange(e.target.value)} className={className}>
       <option value="">{!current?'Loading stores...':'Select a store'}</option>
-      {selectedOutsidePage&&<option value={value}>{names[value]??`Current Store #${value}`}</option>}
+      {selectedOutsidePage&&<option value={value} disabled={selected?.disabled}>{selected?.label ?? `Current Store #${value}`}</option>}
       {current?.data?.items.map(store=><option key={store.storeId} value={String(store.storeId)}>{store.name} · #{store.storeId}</option>)}
     </AccountSelect>
     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[#6D7974]">

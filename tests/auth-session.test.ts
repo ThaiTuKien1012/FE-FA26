@@ -479,3 +479,33 @@ test('secure CSRF cookie is supported; logout can renew expired Bearer before re
   assert.equal(new Headers(logout.init.headers).get('Authorization'), 'Bearer fixture-for-logout');
   assert.equal(f.session.getToken(), null);
 });
+
+test('inactive Store on refresh fences local recovery and does not call logout', async t => {
+  const f = setup(t);
+  await f.login();
+  const start = f.calls.length;
+  f.handle(async () => Response.json({ error: 'Store is inactive', code: 'STORE_INACTIVE' }, { status: 403 }));
+  await assert.rejects(f.session.refresh(), /your store is inactive/i);
+  assert.equal(f.session.getToken(), null);
+  assert.equal(f.session.getSnapshot().status, 'anonymous');
+  await f.session.restore();
+  assert.deepEqual(f.calls.slice(start).map(call => call.path), ['/api/auth/refresh']);
+});
+
+test('inactive Store on login aborts before requesting the profile', async t => {
+  const f = setup(t);
+  f.handle(async () => Response.json({ error: 'Store is inactive', code: 'STORE_INACTIVE' }, { status: 403 }));
+  await assert.rejects(f.login(), /your store is inactive/i);
+  assert.equal(f.session.getSnapshot().status, 'anonymous');
+  assert.deepEqual(f.calls.map(call => call.path), ['/api/auth/login']);
+});
+
+test('a system operation returning 409 STORE_INACTIVE leaves the session signed in', async t => {
+  const f = setup(t);
+  await f.login();
+  f.handle(async () => Response.json({ error: 'Store is inactive', code: 'STORE_INACTIVE' }, { status: 409 }));
+  const result = await f.session.request('/api/system/mining/requests', { method: 'POST' });
+  assert.equal(result.status, 409);
+  assert.equal(f.session.getSnapshot().status, 'authenticated');
+  assert.equal(f.session.getToken(), 'fixture-one');
+});

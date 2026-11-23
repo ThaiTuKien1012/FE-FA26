@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen } from './types/mining';
-import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
+import { getPathForScreen, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
@@ -39,6 +39,9 @@ import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
 import { F06WorkspaceView } from './features/f06/components/F06WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
+
+const StoreManagementView = lazy(() => import('./features/storeManagement/StoreManagementView')
+  .then(module => ({ default: module.StoreManagementView })));
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
@@ -116,9 +119,14 @@ export default function App() {
 
   const handleNavigate = (screen: ActiveNavScreen) => {
     scrollPositions.current[currentScreen] = window.scrollY;
-    if (currentUser?.role==='System Admin') {
+    if (screen === 'admin-stores') {
+      window.history.pushState({ screen }, '', getPathForScreen(screen));
+      setCurrentScreen(screen);
+      window.dispatchEvent(new Event('popstate'));
+    } else if (currentUser?.role==='System Admin') {
       const target=resolveSystemScreen(screen);
-      window.history.pushState({screen:target},'',systemScreenUrl(target,window.location.search));
+      const search = currentScreen === 'admin-stores' ? '' : window.location.search;
+      window.history.pushState({screen:target},'',systemScreenUrl(target,search));
       setCurrentScreen(target);
       window.dispatchEvent(new Event('popstate'));
     } else {
@@ -333,6 +341,15 @@ export default function App() {
           )}
           {currentScreen === 'f04-transactions' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
             <SalesTransactionsView />
+          )}
+
+          {currentScreen === 'admin-stores' && currentUser?.role === 'System Admin' && (
+            <Suspense fallback={<p role="status">Loading Stores…</p>}><StoreManagementView mode="system" /></Suspense>
+          )}
+          {currentScreen === 'my-store' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
+            <Suspense fallback={<p role="status">Loading My Store…</p>}>
+              <StoreManagementView key={currentUser.id} mode={currentUser.role === 'Store Admin' ? 'manage' : 'read'} />
+            </Suspense>
           )}
 
           {/* System Admin: Users & Roles */}
