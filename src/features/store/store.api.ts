@@ -8,7 +8,7 @@ export interface F02Product {
   category: F02Category | null; sellingPrice: number; costPrice: number;
   status: F02Status; stockQuantity: number;
 }
-export type F02ProductRequest = Omit<F02Product, 'id' | 'category' | 'stockQuantity'> & { categoryId?: number | null; confirmSimilarName?: boolean };
+export type F02ProductRequest = Omit<F02Product, 'id' | 'sku' | 'category' | 'stockQuantity'> & { categoryId?: number | null; confirmSimilarName?: boolean };
 export interface F02ProductPage { content: F02Product[]; page: number; pageSize: number; totalElements: number; totalPages: number; }
 export interface F02BatchCreateRequest { receivedAt: string; expiryDate?: string | null; initialQuantity: number; pushDay?: string | null; }
 export interface F02BatchPatchRequest { remainingQuantity?: number; status?: F02BatchStatus; pushDay?: string | null; expiryDate?: string | null; }
@@ -50,8 +50,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 // Select only writable contract fields, even when the caller holds a response object.
-const productBody = ({ sku, name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName }: F02ProductRequest) =>
-  JSON.stringify({ sku, name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName });
+const productBody = ({ name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName }: F02ProductRequest) =>
+  JSON.stringify({ name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName });
 
 export const storeApi = {
   listCategories: () => request<F02Category[]>('/api/categories'),

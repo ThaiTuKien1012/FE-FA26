@@ -112,14 +112,14 @@ async function fixture({ requestId, request }) {
     while (state.hold && !closing) await sleep(20);
     if (state.writeError) { responseCode = 400; body = { error: state.writeError }; }
     else if (path === '/api/products' || /^\/api\/products\/\d+$/.test(path)) {
-      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['sku', 'name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
+      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
       if (state.productConflict === 'sku' || state.productConflict === 'other' || (state.productConflict === 'name' && !payload.confirmSimilarName)) {
         responseCode = 409;
         body = state.productConflict === 'name' ? { error: 'A similar product name exists', code: 'PRODUCT_NAME_CONFIRMATION_REQUIRED', confirmWith: 'confirmSimilarName=true' } : { error: state.productConflict === 'sku' ? 'SKU already exists in this Store' : 'Controlled unrelated conflict' };
       } else {
-      assert.match(payload.sku, /^SKU-[A-Z0-9-]{11}$/);
+      assert.equal(Object.hasOwn(payload, 'sku'), false);
       const id = method === 'POST' ? products.length + 1 : Number(path.split('/').at(-1));
-      body = { ...products[0], ...payload, id, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
+      body = { ...products[0], ...payload, id, sku: method === 'POST' ? 'SKU-' + String(id).padStart(11, '0') : products.find(p => p.id === id).sku, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
       if (method === 'POST') products.unshift(body); else products[products.findIndex(p => p.id === id)] = body;
       }
     } else if (/^\/api\/products\/\d+\/status$/.test(path)) { const row = products.find(p => p.id === Number(path.split('/').at(-2))); Object.assign(row, payload); body = row; }
@@ -181,41 +181,25 @@ try {
   await has('Products · current page'); assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('Push days')"), false);
   await click('Next'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='2'", 'Page 2 selected'); await click('Previous'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='1'", 'Page 1 selected');
   await input('Search name or SKU', 'does-not-exist'); await has('No matching products.'); await input('Search name or SKU', ''); await has('Fixture product 1');
-  await click('Add product'); await input('SKU', ' sku-new-0000001 '); await input('Product name', 'New fixture product'); await input('Selling price', '12.75'); await input('Cost price', '15.25'); await input('Category', '1', 'select');
+  await click('Add product'); await has('SKU will be generated automatically when the product is saved.'); assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"), false); await input('Product name', 'New fixture product'); await input('Selling price', '12.75'); await input('Cost price', '15.25'); await input('Category', '1', 'select');
   await has('Choose a previous unit or enter a new one.'); await ariaClick('Show unit suggestions');
   assert.deepEqual(await page.evaluate("[...document.querySelectorAll('[aria-label=\"Previous units\"] [role=option]')].map(o=>o.textContent)"), ['Bottle']);
   await input('Unit', 'vỉ');
   await has('The selling price is below the cost price.'); state.hold = true; const beforeCreate = writes().length;
   await page.evaluate("(()=>{const f=document.querySelector('dialog form');f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");
   await until("document.querySelector('dialog fieldset')?.disabled", 'Product saving'); await sleep(150); assert.equal(writes().length, beforeCreate + 1); state.hold = false;
-  await has('Product created successfully.'); assert.equal(writes().at(-1).body.sellingPrice, 12.75); assert.equal(writes().at(-1).body.sku, 'SKU-NEW-0000001'); assert.equal(writes().at(-1).body.unit, 'vỉ');
+  await has('Product created successfully.'); assert.equal(writes().at(-1).body.sellingPrice, 12.75); assert.equal(Object.hasOwn(writes().at(-1).body, 'sku'), false); await has(products.find(p=>p.name==='New fixture product').sku); assert.equal(writes().at(-1).body.unit, 'vỉ');
   await input('Search name or SKU', 'New fixture product'); await has('New fixture product'); await click('Edit'); await input('Product name', 'Edited fixture product'); state.writeError = 'Cannot require expiry while a batch has no expiry date'; await click('Save product');
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=Unit]').value"), 'vỉ');
   await has('Cannot enable expiry tracking because some existing batches have no expiry date.'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Product name\"]').value"), 'Edited fixture product'); state.writeError = ''; await click('Save product'); await has('Product updated successfully.');
   await input('Search name or SKU', ''); await has('Fixture product 1');
   checks.push('Product V26 create/edit, decimals below cost, inline Backend rejection keeps input, duplicate submit sends once, filters and pagination');
-  await click('Add product'); await input('SKU', 'bad'); await input('Product name', 'Confirm fixture product');
-  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').validity.patternMismatch"), true, 'Native SKU validation rejects a malformed SKU');
-  for (const sku of ['SKU-MILK-000001', 'SKU-ABC-123-XYZ', 'SKU------------']) {
-    await input('SKU', sku);
-    assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').validity.valid"), true, 'Native SKU validation accepts ' + sku);
-  }
-  for (const sku of ['SKU-ABC_1234567', 'SKU-123456789012', 'XXSKU-12345678901', 'SKU-12345678901XX', 'FM26-0001']) {
-    await input('SKU', sku);
-    assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').validity.patternMismatch"), true, 'Native SKU validation rejects ' + sku);
-  }
-  await input('SKU', 'bad');
-  const invalidSkuWrites = writes().length;
-  assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].find(b=>b.textContent==='Save product').disabled"), true);
-  await page.evaluate("document.querySelector('dialog form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  await has('SKU must be 15 characters'); assert.equal(writes().length, invalidSkuWrites);
-  await input('SKU', ' sku-confirm0001 '); await input('Category', '1', 'select');
+  await click('Add product'); await input('Product name', 'Confirm fixture product'); await input('Category', '1', 'select');
   state.productConflict = 'name'; const nameWrites = writes().length, productCount = products.length;
   await click('Save product'); await has('Similar product name'); await capture('product-name-confirmation');
   assert.equal(products.length, productCount, 'Rejected first request did not save');
   assert.equal(writes().length, nameWrites + 1); assert.equal(writes().at(-1).body.confirmSimilarName, undefined);
   await click('Cancel'); assert.equal(writes().length, nameWrites + 1);
-  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').value"), 'SKU-CONFIRM0001');
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Product name\"]').value"), 'Confirm fixture product');
   await click('Save product'); await has('Similar product name'); const originalNameRequest = structuredClone(writes().at(-1));
   state.hold = true; await click('Continue Anyway');
@@ -231,18 +215,19 @@ try {
   await click('Continue Anyway'); await has('Product updated successfully.');
   assert.deepEqual(writes().at(-1), { ...originalPut, body: { ...originalPut.body, confirmSimilarName: true } });
   await input('Search name or SKU', ''); await has('Edited fixture product');
-  state.productConflict = 'sku'; await click('Add product'); await input('SKU', 'SKU-CONFIRM0001'); await input('Product name', 'Duplicate SKU fixture');
+  state.productConflict = 'sku'; await click('Add product'); await input('Product name', 'Duplicate SKU fixture');
   const conflictWrites = writes().length; await click('Save product'); await has('SKU already exists in this Store');
   assert.equal(writes().length, conflictWrites + 1); assert.equal(await page.evaluate("Boolean(document.querySelector('dialog[aria-label=\"Similar product name\"]'))"), false);
   state.productConflict = 'other'; await click('Save product'); await has('Controlled unrelated conflict');
   assert.equal(writes().length, conflictWrites + 2); await click('Cancel'); state.productConflict = '';
   const legacyProduct = products.find(p=>p.id===11), savedLegacySku = legacyProduct.sku; legacyProduct.sku = 'FM26-0001';
-  await input('Search name or SKU', 'FM26-0001'); await has('FM26-0001'); await click('Edit'); await has('Compatibility support is required before saving catalog changes.');
-  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').value"), 'FM26-0001');
+  await input('Search name or SKU', 'FM26-0001'); await has('FM26-0001'); await click('Edit'); await has('SKU: FM26-0001 (read-only)');
+  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"), false);
   await input('Product name', 'Legacy name edit'); const legacyWrites = writes().length;
-  await page.evaluate("document.querySelector('dialog form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))");
-  await has('SKU must be 15 characters'); assert.equal(writes().length, legacyWrites); assert.equal(legacyProduct.sku, 'FM26-0001');
-  await capture('product-legacy-sku-blocker'); await click('Cancel'); legacyProduct.sku = savedLegacySku;
+  await click('Save product'); await has('Product updated successfully.');
+  assert.equal(writes().length, legacyWrites + 1); assert.equal(Object.hasOwn(writes().at(-1).body, 'sku'), false);
+  assert.equal(products.find(p=>p.id===11).sku, 'FM26-0001');
+  products.find(p=>p.id===11).sku = savedLegacySku;
   await input('Search name or SKU', 'Fixture'); await productColumnFilter('Category', '1'); await productColumnFilter('Status', 'ACTIVE');
   for (const [label, field] of [['SKU','sku'], ['Product name','name'], ['Category','category'],  ['Cost price','costPrice'], ['Selling price','sellingPrice'], ['Expiry tracking','requiresExpiry'], ['Total stock','stockQuantity'], ['Status','status']]) {
     const beforeSort = calls.length; await ariaClick('Sort by ' + label);
@@ -257,7 +242,7 @@ try {
   assert.equal(new URLSearchParams(calls.filter(c=>c.path==='/api/products').at(-1).query).get('sortDirection'), 'desc');
   await productColumnFilter('Category', ''); await productColumnFilter('Status', ''); await input('Search name or SKU', ''); await ariaClick('Sort by Product name'); await has('Edited fixture product');
   await click('Add product'); await capture('product-create-form'); await click('Cancel');
-  checks.push('SKU validation/normalization, legacy SKU preserved and PUT blocked, duplicate/other 409 no retry, name POST/PUT Cancel/Continue keeps exact payload, authoritative IDs, all nine server sorts with pagination/filter state');
+  checks.push('Backend-generated read-only SKU, legacy SKU edit succeeds unchanged, duplicate/other 409 no retry, name POST/PUT Cancel/Continue keeps exact payload, authoritative IDs, all nine server sorts with pagination/filter state');
   await navigate('/store/categories'); await has('Dairy'); await click('Add category'); await input('Category name', '   '); const beforeCategory = writes().length; await click('Save category'); await has('Category name is required'); assert.equal(writes().length, beforeCategory);
   await input('Category name', ' Chilled '); await click('Save category'); await has('Category created successfully.'); await has('Chilled'); await click('Edit'); await input('Category name', 'Dairy edited'); await click('Save category'); await has('Category updated successfully.');
   await page.evaluate("document.querySelector('button[aria-label=\"Change status for Dairy edited\"]').click()"); await has('Category status updated successfully.');
@@ -392,8 +377,9 @@ try {
   // direct detail URL has no selected product, so never guess one in production.
   products.find(p=>p.id===1).sku='SKU-MILK-000001';
   await navigate('/store/edit-product'); await has('No product was selected.');
+  products.find(p=>p.id===1).sku = 'FM26-DetailLegacy';
   await page.evaluate("(async()=>{const resources=performance.getEntriesByType('resource');const React=await import(resources.find(e=>new URL(e.name).pathname==='/node_modules/.vite/deps/react.js').name);const ReactDOM=await import(resources.find(e=>new URL(e.name).pathname==='/node_modules/.vite/deps/react-dom_client.js').name);const {EditProductView}=await import('/src/features/store/components/EditProductView.tsx');const host=document.createElement('div');host.id='detail-fixture';document.querySelector('main').append(host);window.detailFixtureRoot=(ReactDOM.createRoot||ReactDOM.default.createRoot)(host);window.detailFixtureRoot.render((React.createElement||React.default.createElement)(EditProductView,{productId:'1',onNavigate:()=>{}}));})()");
-  await has('Catalog information'); await has('BATCH-9'); await input('Category', '2', 'select'); await click('Save changes'); await has('Product updated successfully.'); assert.equal(writes().at(-1).body.categoryId, 2);
+  await has('Catalog information'); await has('SKU: FM26-DetailLegacy (read-only)'); await has('BATCH-9'); await input('Category', '2', 'select'); await click('Save changes'); await has('Product updated successfully.'); assert.equal(writes().at(-1).body.categoryId, 2); assert.equal(Object.hasOwn(writes().at(-1).body,'sku'),false); assert.equal(products.find(p=>p.id===1).sku,'FM26-DetailLegacy');
   await input('Product name', 'Unsaved catalog draft'); products.find(p=>p.id===1).stockQuantity = 123;
   await page.evaluate("[...document.querySelectorAll('#detail-fixture button')].find(b=>b.textContent.trim()==='Edit').click()"); await input('Push Day', '2099-12-01'); const detailReads = calls.length; await click('Save batch'); await has('Batch updated successfully.');
   await until("[...document.querySelectorAll('#detail-fixture strong')].some(e=>e.textContent==='123')", 'Detail stock refreshed'); assert.ok(calls.slice(detailReads).some(c=>c.path==='/api/products/1'&&c.method==='GET'));

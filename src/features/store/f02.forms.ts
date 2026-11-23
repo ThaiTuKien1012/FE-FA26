@@ -52,18 +52,13 @@ export function validatePushDay(pushDay: string, expiryDate: string): string {
   return pushDay && expiryDate && pushDay > expiryDate ? 'Push Day must be on or before the expiry date.' : '';
 }
 
-export interface ProductForm { sku: string; name: string; unit: string; categoryId: string; requiresExpiry: boolean; sellingPrice: string; costPrice: string; status: F02Status; }
-export const emptyProductForm: ProductForm = { sku: '', name: '', unit: 'Piece', categoryId: '', requiresExpiry: false, sellingPrice: '0', costPrice: '0', status: 'ACTIVE' };
-export const normalizeSku = (sku: string) => sku.trim().toUpperCase();
-export const validSku = (sku: string) => /^SKU-[A-Z0-9-]{11}$/.test(sku);
-export const legacySkuMessage = 'This saved SKU uses a legacy format. The server blocks product updates with this SKU, including changes to other fields. The saved SKU has been preserved. Compatibility support is required before saving catalog changes.';
+export interface ProductForm { name: string; unit: string; categoryId: string; requiresExpiry: boolean; sellingPrice: string; costPrice: string; status: F02Status; }
+export const emptyProductForm: ProductForm = { name: '', unit: 'Piece', categoryId: '', requiresExpiry: false, sellingPrice: '0', costPrice: '0', status: 'ACTIVE' };
 export function productRequest(form: ProductForm, categories: F02Category[]): F02ProductRequest {
-  const sku = normalizeSku(form.sku);
-  if (!validSku(sku)) throw new Error('SKU must be 15 characters: SKU- followed by exactly 11 uppercase letters, digits or hyphens.');
   if (!['ACTIVE', 'INACTIVE'].includes(form.status)) throw new Error('Choose Active or Inactive.');
   const categoryId = form.categoryId ? Number(form.categoryId) : null;
   if (categoryId !== null && !categories.some(c => c.id === categoryId)) throw new Error('Choose a category available in this store.');
-  return { sku, name: text(form.name, 'Product name', 180), unit: text(form.unit, 'Unit', 40), categoryId,
+  return { name: text(form.name, 'Product name', 180), unit: text(form.unit, 'Unit', 40), categoryId,
     requiresExpiry: form.requiresExpiry, sellingPrice: price(form.sellingPrice, 'Selling price'), costPrice: price(form.costPrice, 'Cost price'), status: form.status };
 }
 export function categoryRequest(form: { name: string; status: F02Status }) {

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import type { ActiveNavScreen } from '../../../types/mining';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Category, type F02Product } from '../store.api';
-import { emptyProductForm, normalizeSku, productRequest, validSku } from '../f02.forms';
+import { emptyProductForm, productRequest } from '../f02.forms';
 import { productUnitScope, rememberProductUnit } from './ProductUnitInput';
 import { ProductFields, productForm } from './ProductInventoryView';
 import { StoreBatchesView } from './StoreBatchesView';
@@ -42,7 +42,7 @@ export const EditProductView: React.FC<Props> = ({ productId, onNavigate, onProd
     {(error || productSave.error) && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">{error || productSave.error}{!product && <button onClick={() => void load()} className="ml-2 underline">Retry product</button>}</p>}
     {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-700">{success}</p>}
     {loading ? <p role="status" className="rounded-xl bg-white p-10 text-center">Loading product…</p> : product && <>
-      <form onSubmit={save} className="rounded-2xl border border-[#e7e2d8] bg-white p-6"><fieldset disabled={saving} className="space-y-4"><h2 className="text-xl font-semibold">Catalog information</h2><ProductFields form={form} categories={categories} onChange={setForm} product={product} /><div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"><span className="text-sm text-[#6d7974]">Total stock: <strong>{product.stockQuantity.toLocaleString('en-GB')}</strong> (includes blocked and expired batches)</span><button disabled={!validSku(normalizeSku(form.sku))} className="rounded-lg disabled:opacity-40 bg-[#1e3a2f] px-4 py-2 font-semibold text-white">{saving ? 'Saving…' : 'Save changes'}</button></div></fieldset></form>
+      <form onSubmit={save} className="rounded-2xl border border-[#e7e2d8] bg-white p-6"><fieldset disabled={saving} className="space-y-4"><h2 className="text-xl font-semibold">Catalog information</h2><ProductFields form={form} categories={categories} onChange={setForm} product={product} /><div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"><span className="text-sm text-[#6d7974]">Total stock: <strong>{product.stockQuantity.toLocaleString('en-GB')}</strong> (includes blocked and expired batches)</span><button className="rounded-lg disabled:opacity-40 bg-[#1e3a2f] px-4 py-2 font-semibold text-white">{saving ? 'Saving…' : 'Save changes'}</button></div></fieldset></form>
       <StoreBatchesView key={product.id} product={product} onInventoryChanged={refreshStock} />
     </>}
     <ProductNameConfirmation save={productSave} />

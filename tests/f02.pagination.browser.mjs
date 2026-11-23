@@ -112,14 +112,14 @@ async function fixture({ requestId, request }) {
     while (state.hold && !closing) await sleep(20);
     if (state.writeError) { responseCode = 400; body = { error: state.writeError }; }
     else if (path === '/api/products' || /^\/api\/products\/\d+$/.test(path)) {
-      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['sku', 'name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
+      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
       if (state.productConflict === 'sku' || state.productConflict === 'other' || (state.productConflict === 'name' && !payload.confirmSimilarName)) {
         responseCode = 409;
         body = state.productConflict === 'name' ? { error: 'A similar product name exists', code: 'PRODUCT_NAME_CONFIRMATION_REQUIRED', confirmWith: 'confirmSimilarName=true' } : { error: state.productConflict === 'sku' ? 'SKU already exists in this Store' : 'Controlled unrelated conflict' };
       } else {
-      assert.match(payload.sku, /^SKU-[A-Z0-9-]{11}$/);
+      assert.equal(Object.hasOwn(payload, 'sku'), false);
       const id = method === 'POST' ? products.length + 1 : Number(path.split('/').at(-1));
-      body = { ...products[0], ...payload, id, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
+      body = { ...products[0], ...payload, id, sku: method === 'POST' ? 'SKU-' + String(id).padStart(11, '0') : products.find(p => p.id === id).sku, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
       if (method === 'POST') products.unshift(body); else products[products.findIndex(p => p.id === id)] = body;
       }
     } else if (/^\/api\/products\/\d+\/status$/.test(path)) { const row = products.find(p => p.id === Number(path.split('/').at(-2))); Object.assign(row, payload); body = row; }

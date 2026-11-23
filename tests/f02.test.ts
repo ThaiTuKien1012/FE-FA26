@@ -5,12 +5,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ProductFields } from '../src/features/store/components/ProductInventoryView';
 import { authService, ROLE_PERMISSIONS, type AuthUser } from '../src/services/authService';
 import { canManageCatalog, F02ApiError, f02ErrorMessage, needsProductNameConfirmation, storeApi, type F02Batch, type F02BatchPatchRequest, type F02Product, type F02Status } from '../src/features/store/store.api';
-import { batchCreateRequest, batchPatchRequest, batchPushState, categoryRequest, emptyBatchForm, emptyProductForm, isExpired, isExpiringSoon, localDateTime, money, productRequest, normalizeSku, validSku, storeDate, validatePushDay } from '../src/features/store/f02.forms';
+import { batchCreateRequest, batchPatchRequest, batchPushState, categoryRequest, emptyBatchForm, emptyProductForm, isExpired, isExpiringSoon, localDateTime, money, productRequest, storeDate, validatePushDay } from '../src/features/store/f02.forms';
 import { user } from './f05.fixtures';
 
 const categories = [{ id: 1, name: 'Dairy', status: 'ACTIVE' as const }, { id: 2, name: 'Archived', status: 'INACTIVE' as const }];
 const product: F02Product = { id: 4, sku: 'SKU-MILK-000001', name: 'Milk', unit: 'Bottle', requiresExpiry: true, category: categories[0], sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE', stockQuantity: 100 };
-const productForm = () => ({ ...emptyProductForm, sku: ' sku-milk-000001 ', name: ' Milk ', unit: ' Bottle ', categoryId: '1', sellingPrice: '12.75', costPrice: '15.25' });
+const productForm = () => ({ ...emptyProductForm, name: ' Milk ', unit: ' Bottle ', categoryId: '1', sellingPrice: '12.75', costPrice: '15.25' });
 const batch: F02Batch = { id: 9, productId: 4, batchCode: 'B-1', receivedAt: '2026-11-17T02:00:00Z', expiryDate: '2026-12-15', initialQuantity: 100, remainingQuantity: 80, pushDay: '2026-12-10', status: 'ACTIVE', createdAt: '2026-11-17T02:00:00Z', updatedAt: '2026-11-17T02:00:00Z' };
 const batchForm = () => ({ ...emptyBatchForm(), receivedAt: '2026-11-17T09:00', expiryDate: '2026-12-15', initialQuantity: '100', remainingQuantity: '80', pushDay: '2026-12-10' });
 function setup(t: TestContext, role: AuthUser['role'] = 'Store Admin') {
@@ -27,10 +27,12 @@ function setup(t: TestContext, role: AuthUser['role'] = 'Store Admin') {
 
 test('Product create/edit payloads select only V26 writable fields; decimal prices and below-cost sales survive', async t => {
   const f = setup(t), request = productRequest(productForm(), categories);
-  assert.deepEqual(request, { sku: 'SKU-MILK-000001', name: 'Milk', unit: 'Bottle', categoryId: 1, requiresExpiry: false, sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE' });
-  const contaminated = { ...request, expiryPushDays: 7, stockQuantity: 999, category: categories[0], id: 44, pushDay: '2026-12-10', storeId: 99 };
-  assert.deepEqual(await storeApi.createProduct(contaminated), product);
-  assert.deepEqual(await storeApi.updateProduct(4, contaminated), product);
+  assert.deepEqual(request, { name: 'Milk', unit: 'Bottle', categoryId: 1, requiresExpiry: false, sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE' });
+  const generated = { ...product, sku: 'SKU-00000000004' };
+  f.respond(async () => Response.json(generated));
+  const contaminated = { ...request, sku: 'attempted manual SKU', expiryPushDays: 7, stockQuantity: 999, category: categories[0], id: 44, pushDay: '2026-12-10', storeId: 99 };
+  assert.deepEqual(await storeApi.createProduct(contaminated), generated);
+  assert.deepEqual(await storeApi.updateProduct(4, contaminated), generated);
   assert.deepEqual(f.calls.map(c => [c.path, c.init.method]), [['/api/products', 'POST'], ['/api/products/4', 'PUT']]);
   for (const call of f.calls) assert.deepEqual(call.body, request);
   assert.equal('expiryPushDays' in product, false);
@@ -199,34 +201,32 @@ test('Network failures are surfaced with no automatic mutation retry or duplicat
   assert.equal(f02ErrorMessage(new TypeError('Failed to fetch')), 'Unable to connect to the server. Please check your connection and try again.');
 });
 
-test('SKU matches Backend exactly after trim/uppercase; invalid and legacy values cannot be submitted', () => {
-  assert.equal(productRequest(productForm(), categories).sku, 'SKU-MILK-000001');
-  for (const sku of ['SKU-12345678901', 'SKU-ABC-123-XYZ', 'SKU------------']) assert.equal(validSku(sku), true);
-  for (const sku of ['', 'FM26-0001', 'SKU-1', 'SKU-123456789012', 'SKU-ABC_1234567', 'SKU-ÁBC12345678']) {
-    assert.equal(validSku(sku), false);
-    assert.throws(() => productRequest({ ...productForm(), sku }, categories), /SKU must be 15 characters/);
-  }
-  assert.equal(normalizeSku(' sku-milk-000001 '), 'SKU-MILK-000001');
-});
-
-test('Rendered SKU pattern compiles with the HTML v flag and matches Backend validation', () => {
+test('Add Product has no SKU input and explains automatic generation', () => {
   const markup = renderToStaticMarkup(createElement(ProductFields, { form: productForm(), categories, onChange: () => {} }));
-  const pattern = markup.match(/pattern="([^"]+)"/)?.[1];
-  assert.ok(pattern, 'SKU input exposes a native validation pattern');
-  const nativePattern = new RegExp(`^(?:${pattern})$`, 'v');
-  for (const sku of ['SKU-MILK-000001', 'SKU-ABC-123-XYZ', 'SKU------------', 'bad', 'FM26-0001', 'SKU-ABC_1234567', 'SKU-123456789012', 'XXSKU-12345678901', 'SKU-12345678901XX']) {
-    assert.equal(nativePattern.test(sku), validSku(sku), sku);
+  assert.ok(markup.includes('SKU will be generated automatically when the product is saved.'));
+  assert.equal(/<input[^>]*aria-label="SKU"/.test(markup), false);
+  assert.equal('sku' in emptyProductForm, false);
+});
+
+test('Edit shows returned SKU as text for generated and legacy products', () => {
+  for (const sku of ['SKU-00000000004', 'FM26-0001', 'legacy mixed Case']) {
+    const markup = renderToStaticMarkup(createElement(ProductFields, { form: productForm(), categories, product: { ...product, sku }, onChange: () => {} }));
+    assert.ok(markup.includes(sku));
+    assert.equal(/<input[^>]*aria-label="SKU"/.test(markup), false);
+    assert.equal(markup.includes('Compatibility support is required'), false);
   }
 });
 
-test('Legacy FoodMart SKU is returned untouched; full PUT is blocked by Backend while status route remains independent', async t => {
+test('Legacy SKU is preserved by Backend while PUT sends writable fields only', async t => {
   const f = setup(t), legacy = { ...product, sku: 'FM26-0001' };
   f.respond(async () => Response.json(legacy));
   assert.deepEqual(await storeApi.getProduct(4), legacy);
-  const body = { ...productRequest(productForm(), categories), sku: legacy.sku, name: 'Changed name only' };
-  f.respond(async () => Response.json({ error: 'SKU must be 15 characters: SKU- followed by 11 letters, digits or hyphens' }, { status: 400 }));
-  await assert.rejects(storeApi.updateProduct(4, body), (e: F02ApiError) => e.status === 400 && /SKU/.test(e.message));
-  assert.equal(f.calls.at(-1)!.body.sku, legacy.sku);
+  const body = { ...productRequest(productForm(), categories), name: 'Changed name only' };
+  f.respond(async () => Response.json({ ...legacy, name: body.name }));
+  const saved = await storeApi.updateProduct(4, { ...body, sku: 'attempted overwrite' } as typeof body);
+  assert.equal(saved.sku, legacy.sku); assert.equal(saved.name, body.name);
+  assert.deepEqual(f.calls.at(-1)!.body, body);
+  assert.equal(Object.hasOwn(f.calls.at(-1)!.body, 'sku'), false);
   f.respond(async () => Response.json({ ...legacy, status: 'INACTIVE' }));
   await storeApi.updateProductStatus(4, 'INACTIVE');
   assert.deepEqual(f.calls.at(-1)!.body, { status: 'INACTIVE' });
@@ -302,4 +302,13 @@ test('360 FoodMart legacy Product references survive all 36 pages without SKU re
   }
   assert.deepEqual(received, legacy);
   assert.ok(f.calls.every(c => !c.init.method || c.init.method === 'GET'));
+});
+
+test('Product POST and PUT never retry an uncertain network response', async t => {
+  const f = setup(t); f.respond(async () => { throw new TypeError('Failed to fetch'); });
+  const body = productRequest(productForm(), categories);
+  await assert.rejects(storeApi.createProduct(body), /Failed to fetch/);
+  assert.equal(f.calls.length, 1);
+  await assert.rejects(storeApi.updateProduct(4, body), /Failed to fetch/);
+  assert.equal(f.calls.length, 2);
 });

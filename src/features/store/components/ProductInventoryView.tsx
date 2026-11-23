@@ -1,8 +1,8 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Ban, Check, Package, Pencil, Plus, RefreshCw, X, type LucideIcon } from 'lucide-react';
 import { ProductTableHeader } from '../../../components/common/ProductTableHeader';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Category, type F02Product, type F02Status } from '../store.api';
-import { emptyProductForm, legacySkuMessage, money, normalizeSku, productRequest, validSku, type ProductForm } from '../f02.forms';
+import { emptyProductForm, money, productRequest, type ProductForm } from '../f02.forms';
 import { F02Dialog } from './F02Dialog';
 import { ProductNameConfirmation, useProductSave } from './ProductNameConfirmation';
 import { F02FilterSummary, F02TableFrame, F02TablePagination, F02TableEmpty } from './F02Table';
@@ -11,15 +11,12 @@ import { nextTableSort, type SortDirection } from '../f02.tables';
 import { restoreProductViewState } from '../f02.product-view';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-[#e7e2d8] bg-white p-2 outline-none focus:border-[#1e3a2f]';
-export const productForm = (p: F02Product): ProductForm => ({ sku: p.sku, name: p.name, categoryId: p.category ? String(p.category.id) : '', unit: p.unit, requiresExpiry: p.requiresExpiry, sellingPrice: String(p.sellingPrice), costPrice: String(p.costPrice), status: p.status });
+export const productForm = (p: F02Product): ProductForm => ({ name: p.name, categoryId: p.category ? String(p.category.id) : '', unit: p.unit, requiresExpiry: p.requiresExpiry, sellingPrice: String(p.sellingPrice), costPrice: String(p.costPrice), status: p.status });
 
 export function ProductFields({ form, categories, onChange, product }: { form: ProductForm; categories: F02Category[]; onChange: (form: ProductForm) => void; product?: F02Product | null }) {
-  const unitOptionsId = useId();
-  const [skuTouched, setSkuTouched] = useState(false);
   return <>
-    {product && <p className="text-sm text-[#6d7974]">Product ID: <strong>{product.id}</strong> (read-only)</p>}
-    {product && !validSku(product.sku) && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{legacySkuMessage}</p>}
-    <div className="grid gap-3 sm:grid-cols-2"><label>SKU<input aria-label="SKU" placeholder="SKU-00000000001" aria-describedby={unitOptionsId + '-sku-help'} aria-invalid={skuTouched && !validSku(form.sku)} autoFocus required maxLength={80} pattern={'SKU-[A-Z0-9\\-]{11}'} value={form.sku} onBlur={() => setSkuTouched(true)} onInvalid={() => setSkuTouched(true)} onChange={e => { setSkuTouched(true); onChange({ ...form, sku: normalizeSku(e.target.value) }); }} className={inputClass} /><span id={unitOptionsId + '-sku-help'} className="mt-1 block text-xs text-[#6d7974]">Format: SKU- + 11 letters, numbers or hyphens.</span>{skuTouched && !validSku(form.sku) && <span role="alert" className="mt-1 block text-xs text-red-700">Use SKU- followed by exactly 11 uppercase letters, numbers or hyphens (15 characters total).</span>}</label><ProductUnitInput value={form.unit} onChange={unit => onChange({ ...form, unit })} /></div>
+    {product ? <div className="grid gap-2 text-sm sm:grid-cols-2"><p className="text-[#6d7974]">Product ID: <strong>{product.id}</strong> (read-only)</p><p className="min-w-0 break-words text-[#6d7974]">SKU: <strong className="text-[#191c1b]">{product.sku}</strong> (read-only)</p></div> : <p className="text-sm text-[#6d7974]">SKU will be generated automatically when the product is saved.</p>}
+    <ProductUnitInput value={form.unit} onChange={unit => onChange({ ...form, unit })} />
     <label className="block">Product name<input aria-label="Product name" required maxLength={180} value={form.name} onChange={e => onChange({ ...form, name: e.target.value })} className={inputClass} /></label>
     <div className="grid gap-3 sm:grid-cols-2"><label>Category<select aria-label="Category" value={form.categoryId} onChange={e => onChange({ ...form, categoryId: e.target.value })} className={inputClass}><option value="">No category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}{c.status === 'INACTIVE' ? ' (Inactive)' : ''}</option>)}</select></label><label>Status<select aria-label="Product status" value={form.status} onChange={e => onChange({ ...form, status: e.target.value as F02Status })} className={inputClass}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label></div>
     <div className="grid gap-3 sm:grid-cols-2"><label>Cost price<input aria-label="Cost price" type="number" min="0" step="any" required value={form.costPrice} onChange={e => onChange({ ...form, costPrice: e.target.value })} className={inputClass} /></label><label>Selling price<input aria-label="Selling price" type="number" min="0" step="any" required value={form.sellingPrice} onChange={e => onChange({ ...form, sellingPrice: e.target.value })} className={inputClass} /></label></div>
@@ -118,7 +115,7 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
       </article>)}{!products.length && <p className="f02-empty-card-message">{emptyMessage}</p>}</div>
     </F02TableFrame></div>
     <F02TablePagination label="Products" page={page} totalPages={totalPages} total={totalElements} count={products.length} disabled={busy || loading} onPage={setPage} />
-    {showForm && canManage && <F02Dialog title={editing ? 'Edit product' : 'Add product'} busy={busy} onClose={() => setShowForm(false)}><form onSubmit={submit}><fieldset disabled={busy || Boolean(productSave.confirmation)} className="space-y-4">{(formError || productSave.error) && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">{formError || productSave.error}</p>}<ProductFields form={form} categories={categories} onChange={setForm} product={editing} /><div className="flex justify-end gap-2"><button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-[#e7e2d8] px-4 py-2">Cancel</button><button disabled={!validSku(normalizeSku(form.sku))} className="rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white disabled:opacity-40">{busy ? 'Saving…' : 'Save product'}</button></div></fieldset></form></F02Dialog>}
+    {showForm && canManage && <F02Dialog title={editing ? 'Edit product' : 'Add product'} busy={busy} onClose={() => setShowForm(false)}><form onSubmit={submit}><fieldset disabled={busy || Boolean(productSave.confirmation)} className="space-y-4">{(formError || productSave.error) && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">{formError || productSave.error}</p>}<ProductFields form={form} categories={categories} onChange={setForm} product={editing} /><div className="flex justify-end gap-2"><button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-[#e7e2d8] px-4 py-2">Cancel</button><button className="rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white disabled:opacity-40">{busy ? 'Saving…' : 'Save product'}</button></div></fieldset></form></F02Dialog>}
     <ProductNameConfirmation save={productSave} />
   </div>;
 };

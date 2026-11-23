@@ -112,14 +112,14 @@ async function fixture({ requestId, request }) {
     while (state.hold && !closing) await sleep(20);
     if (state.writeError) { responseCode = 400; body = { error: state.writeError }; }
     else if (path === '/api/products' || /^\/api\/products\/\d+$/.test(path)) {
-      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['sku', 'name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
+      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
       if (state.productConflict === 'sku' || state.productConflict === 'other' || (state.productConflict === 'name' && !payload.confirmSimilarName)) {
         responseCode = 409;
         body = state.productConflict === 'name' ? { error: 'A similar product name exists', code: 'PRODUCT_NAME_CONFIRMATION_REQUIRED', confirmWith: 'confirmSimilarName=true' } : { error: state.productConflict === 'sku' ? 'SKU already exists in this Store' : 'Controlled unrelated conflict' };
       } else {
-      assert.match(payload.sku, /^SKU-[A-Z0-9-]{11}$/);
+      assert.equal(Object.hasOwn(payload, 'sku'), false);
       const id = method === 'POST' ? products.length + 1 : Number(path.split('/').at(-1));
-      body = { ...products[0], ...payload, id, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
+      body = { ...products[0], ...payload, id, sku: method === 'POST' ? 'SKU-' + String(id).padStart(11, '0') : products.find(p => p.id === id).sku, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
       if (method === 'POST') products.unshift(body); else products[products.findIndex(p => p.id === id)] = body;
       }
     } else if (/^\/api\/products\/\d+\/status$/.test(path)) { const row = products.find(p => p.id === Number(path.split('/').at(-2))); Object.assign(row, payload); body = row; }
@@ -233,8 +233,8 @@ async function tableChecks() {
   const during=await metrics(); before.widths.forEach((w,i)=>closeEnough(w,during.widths[i],'Held width')); closeEnough(before.height,during.height,'Held height');
   state.heldSearches.delete(''); await settled('Product'); const after=await metrics();
   before.widths.forEach((w,i)=>closeEnough(w,after.widths[i],'Sorted width')); closeEnough(before.height,after.height,'Refetch height'); closeEnough(before.y,after.y,'Window scroll'); closeEnough(before.scroll,after.scroll,'Horizontal scroll');
-  await input('Search name or SKU','FM26-0002'); await settled('Product'); await click('Edit'); await has('Compatibility support is required');
-  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').value"),'FM26-0002'); await click('Cancel'); await click('Clear filters'); await settled('Product');
+  await input('Search name or SKU','FM26-0002'); await settled('Product'); await click('Edit'); await has('SKU: FM26-0002 (read-only)');
+  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"),false); await click('Cancel'); await click('Clear filters'); await settled('Product');
   await page.call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   const fullPageHeight=(await metrics()).height;
   await input('Search name or SKU',products.find(product=>product.id===3).sku); await settled('Product');
@@ -245,8 +245,8 @@ async function tableChecks() {
   checks.push('All 8 displayed Backend sort fields use single-action headers; toolbar queries whitelist; DOM/width/height/focus/scroll stable through held refetch; legacy SKU preserved');
 
   await click('Add product'); await has('Choose a previous unit or enter a new one.');
-  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').placeholder"),'SKU-00000000001');
-  await has('Format: SKU- + 11 letters, numbers or hyphens.');
+  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"),false);
+  await has('SKU will be generated automatically when the product is saved.');
   const unitReads=calls.filter(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('pageSize')==='100');
   assert.deepEqual(unitReads.map(c=>new URLSearchParams(c.query).get('page')),['0','1']);
   await input('Unit',''); await page.evaluate("document.querySelector('input[aria-label=Unit]').focus()");
@@ -258,20 +258,19 @@ async function tableChecks() {
   await input('Unit',''); await unitKey('ArrowDown'); await unitKey('Enter'); assert.ok(await page.evaluate("document.querySelector('input[aria-label=Unit]').value.length>0"),'Keyboard unit choice');
   await input('Unit',''); for(let index=0;index<9;index++) await unitKey('ArrowDown');
   assert.equal(await page.evaluate("(()=>{const o=document.querySelector('[aria-label=\"Previous units\"] [aria-selected=true]'),r=o.getBoundingClientRect(),p=o.parentElement.getBoundingClientRect();return r.top>=p.top&&r.bottom<=p.bottom+1})()"),true,'Keyboard keeps active unit visible without scrolling the page'); await unitKey('Escape');
-  await input('SKU','bad'); await page.evaluate("document.querySelector('input[aria-label=SKU]').focus();document.querySelector('input[aria-label=Unit]').focus()"); await has('Use SKU- followed by exactly 11');
-  await input('SKU',' sku-00000000999 '); await input('Product name','A new custom unit product'); await input('Unit','Custom tray'); await input('Cost price','11'); await input('Selling price','15');
+  await input('Product name','A new custom unit product'); await input('Unit','Custom tray'); await input('Cost price','11'); await input('Selling price','15');
   await capture('add-product-desktop'); await click('Save product'); await has('Product created successfully.'); await settled('Product');
-  assert.equal(writes().at(-1).body.unit,'Custom tray'); assert.equal(writes().at(-1).body.sku,'SKU-00000000999');
+  assert.equal(writes().at(-1).body.unit,'Custom tray'); assert.equal(Object.hasOwn(writes().at(-1).body,'sku'),false);
   await click('Add product'); await has('Choose a previous unit or enter a new one.'); await input('Unit','Custom'); await page.evaluate("document.querySelector('input[aria-label=Unit]').focus()");
   await until("document.querySelector('[aria-label=\"Previous units\"]')?.textContent.includes('Custom tray')",'Saved custom unit cached');
   assert.equal(calls.filter(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('pageSize')==='100').length,2,'Reopening uses cache');
   await page.call('Emulation.setDeviceMetricsOverride',{width:390,height:900,deviceScaleFactor:1,mobile:true}); await capture('add-product-mobile'); await click('Cancel');
   await page.call('Emulation.setDeviceMetricsOverride',{width:1366,height:900,deviceScaleFactor:1,mobile:false});
-  await input('Search name or SKU','SKU-00000000999'); await settled('Product'); await click('Edit');
+  await input('Search name or SKU',products.find(p=>p.name==='A new custom unit product').sku); await settled('Product'); await click('Edit');
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=Unit]').value"),'Custom tray');
   await input('Product name','Edited custom unit product'); await click('Save product'); await has('Product updated successfully.'); assert.equal(writes().at(-1).body.unit,'Custom tray');
   await click('Clear filters'); await settled('Product');
-  checks.push('SKU short helper/placeholder/detail-on-invalid and normalization; Unit full paged Store history, dedup/search/mouse/keyboard/free entry, cache, custom unit after save and unchanged Unit on edit');
+  checks.push('Automatic SKU helper and read-only legacy SKU; Unit full paged Store history, dedup/search/mouse/keyboard/free entry, cache, custom unit after save and unchanged Unit on edit');
 
   await navigate('/store/batches'); await has('Inventory Batches'); await selectProduct(1,'SKU-00000000001'); await settled('Inventory batch'); await noHeaderFilters();
   const summary=await summaryValues();
