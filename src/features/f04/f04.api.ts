@@ -71,8 +71,23 @@ function validateProgress(value: ImportProgress): ImportProgress {
   return value;
 }
 
+function validateExcelSummary(value: ImportSummary): ImportSummary {
+  const counters=['totalCount','validCount','rejectedCount','totalOrderCount','acceptedOrderCount','rejectedOrderCount','duplicateOrderCount','conflictOrderCount'] as const;
+  if(!value || !Number.isSafeInteger(value.importBatchId) || value.importBatchId<1 || !['COMPLETED','COMPLETED_WITH_ERRORS','FAILED'].includes(value.status) ||
+    !counters.every(key=>Number.isSafeInteger(value[key])&&value[key]>=0))throw new F04ApiError(201,'The import response could not be verified. Check Import History before uploading again.');
+  return value;
+}
+
 // The backend derives Store scope from the JWT and enforces endpoint roles.
 export const f04Api = {
+  uploadExcel: async (file: File, signal?: AbortSignal): Promise<ImportSummary> => {
+    const user = authService.getCurrentUser();
+    if (!user) throw new F04ApiError(401, 'Please sign in before importing transactions.');
+    if (user.role !== 'Store Admin') throw new F04ApiError(403, 'Only Store Admin can import transactions.');
+    const body = new FormData(); body.append('file', file);
+    // Synchronous Excel contract. Browser supplies the multipart boundary.
+    return validateExcelSummary(await request<ImportSummary>('/api/transactions/imports/excel', {method:'POST', body, signal}));
+  },
   uploadCsvAsync: async (file: File, key: string, signal?: AbortSignal): Promise<ImportProgress> => {
     if (authService.getCurrentUser()?.role !== 'Store Admin') throw new F04ApiError(403, 'Only Store Admin can import transactions.');
     if (!/^[A-Za-z0-9._:-]{1,128}$/.test(key)) throw new F04ApiError(400, 'Invalid import request key.');

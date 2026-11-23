@@ -1,3 +1,4 @@
+import { importFormat } from '../f04.files';
 import { formatDateTime } from '../../../utils/dateTime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -112,7 +113,7 @@ function ImportErrors({ batchId }: { batchId: number }) {
   const load = useCallback((page: number, size: number) => f04Api.getImportErrors(batchId, page, size), [batchId]);
   const { data, loading, error, refresh, setPage } = usePagedResults(load);
   return <section className="f04h-detail-section" aria-labelledby="f04h-errors-title">
-    <div className="f04h-section-heading"><div><h3 id="f04h-errors-title">Error details</h3><p>CSV rows rejected during import or linked to a conflicting order. Saved transactions marked Not Eligible are not import errors.</p></div>
+    <div className="f04h-section-heading"><div><h3 id="f04h-errors-title">Error details</h3><p>File rows rejected during import or linked to a conflicting order. Saved transactions marked Not Eligible are not import errors.</p></div>
       <button type="button" className="f04h-button" disabled={loading} onClick={refresh} aria-label="Refresh error details"><RefreshCw size={15} aria-hidden="true" />Refresh</button>
     </div>
     {loading ? <Loading label="Loading row errors..." /> : error ? <RequestError message={error} retry={refresh} /> : data && (
@@ -144,7 +145,7 @@ function Metrics({ title, description, values }: { title: string; description: s
 function ImportDetails({ batchId, filename, onClose }: { batchId: number; filename?: string | null; onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const state = useImportWorkflow(batchId);
+  const state = useImportWorkflow(batchId, importFormat(filename ?? '') ?? 'csv');
   const summary = state.summary;
 
   useEffect(() => {
@@ -162,13 +163,13 @@ function ImportDetails({ batchId, filename, onClose }: { batchId: number; filena
   }, []);
 
   return createPortal(<dialog ref={dialogRef} className="f04-history f04h-dialog" aria-labelledby="f04h-detail-title" aria-describedby="f04h-detail-description" onCancel={event => { event.preventDefault(); onClose(); }}>
-    <header className="f04h-dialog-header"><div><p className="f04h-eyebrow">BATCH #{batchId}</p><h2 id="f04h-detail-title">Import details</h2><p id="f04h-detail-description">Review this CSV import and its processing results.</p></div>
+    <header className="f04h-dialog-header"><div><p className="f04h-eyebrow">BATCH #{batchId}</p><h2 id="f04h-detail-title">Import details</h2><p id="f04h-detail-description">Review this file import and its processing results.</p></div>
       <button ref={closeRef} type="button" className="f04h-icon-button" onClick={onClose} aria-label="Close import details"><X size={20} aria-hidden="true" /></button>
     </header>
     <div className="f04h-dialog-body">
       {!summary ? <ImportProgressCard state={{ ...state, filename: state.progress ? filename || '' : '' }} refresh={state.workflow.refresh} /> : <>
         <section className="f04h-batch-overview" aria-label="Batch information">
-          <div className="f04h-file-heading"><span className="f04h-file-icon"><FileText size={18} aria-hidden="true" /></span><div><div className="f04h-file-title"><h3>{summary.filename ?? 'Unnamed CSV file'}</h3><StatusBadge status={summary.status} /></div>{skippedExisting(summary) && <p className="f04h-skipped">Existing orders skipped</p>}</div></div>
+          <div className="f04h-file-heading"><span className="f04h-file-icon"><FileText size={18} aria-hidden="true" /></span><div><div className="f04h-file-title"><h3>{summary.filename ?? 'Unnamed file'}</h3><StatusBadge status={summary.status} /></div>{skippedExisting(summary) && <p className="f04h-skipped">Existing orders skipped</p>}</div></div>
           <dl className="f04h-metadata"><div><dt>Batch ID</dt><dd>#{summary.importBatchId}</dd></div><div><dt>Started at</dt><dd><time dateTime={summary.startedAt}>{formatDate(summary.startedAt)}</time></dd></div><div><dt>Finished at</dt><dd>{summary.finishedAt ? <time dateTime={summary.finishedAt}>{formatDate(summary.finishedAt)}</time> : '—'}</dd></div></dl>
           <p className="f04h-time-note">Times shown in your local time zone.</p>
           <p className="f04h-time-note">Saved transactions may still be Not Eligible for utility calculation and mining. This is separate from import validation.</p>
@@ -181,7 +182,7 @@ function ImportDetails({ batchId, filename, onClose }: { batchId: number; filena
           { label: 'Rejected orders', value: summary.rejectedOrderCount, tone: 'danger' },
           { label: 'Conflict orders', value: summary.conflictOrderCount, tone: 'warning' }
         ]} />
-        <Metrics title="CSV rows" description="Product rows; one order can contain several rows." values={[
+        <Metrics title="File rows" description="Product rows; one order can contain several rows." values={[
           { label: 'Total rows', value: summary.totalCount },
           { label: 'Valid rows', value: summary.validCount, tone: 'success' },
           { label: 'Rejected rows', value: summary.rejectedCount, tone: 'danger' }
@@ -202,13 +203,13 @@ function ImportHistoryContent() {
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const closeDetails = useCallback(() => setSelectedBatch(null), []);
   return <div className="f04-history f04h-page">
-    <header className="f04h-page-header"><div><h1>Import History</h1><p>Review your store's previous CSV imports.</p></div>
+    <header className="f04h-page-header"><div><h1>Import History</h1><p>Review your store's previous CSV and Excel imports.</p></div>
       <button type="button" className="f04h-button" onClick={refresh} disabled={loading}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
     </header>
     <section className="f04h-card" aria-labelledby="f04h-list-title">
-      <div className="f04h-card-heading"><span className="f04h-file-icon"><FileClock size={20} aria-hidden="true" /></span><div><h2 id="f04h-list-title">CSV imports</h2><p>Newest imports first · 20 per page · Local time</p></div></div>
+      <div className="f04h-card-heading"><span className="f04h-file-icon"><FileClock size={20} aria-hidden="true" /></span><div><h2 id="f04h-list-title">File imports</h2><p>Newest imports first · 20 per page · Local time</p></div></div>
       {loading ? <Loading label="Loading import history..." /> : error ? <RequestError message={error} retry={refresh} /> : data && (
-        data.content.length === 0 ? <div className="f04h-empty" role="status"><FileClock size={32} aria-hidden="true" /><h3>No imports yet</h3><p>CSV imports for your store will appear here after they are submitted.</p></div> : <>
+        data.content.length === 0 ? <div className="f04h-empty" role="status"><FileClock size={32} aria-hidden="true" /><h3>No imports yet</h3><p>File imports for your store will appear here after they are submitted.</p></div> : <>
           <div className="f04h-table-scroll" tabIndex={0} role="region" aria-label="Import history; scroll horizontally to see all columns">
             <table className="f04h-table f04h-history-table"><thead><tr>
               <th scope="col">Batch ID</th><th scope="col">Filename</th><th scope="col">Started at</th><th scope="col">Status</th>

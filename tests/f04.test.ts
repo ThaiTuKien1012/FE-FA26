@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { validateImportFile } from '../src/features/f04/f04.files';
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { authService, type AuthUser } from '../src/services/authService';
@@ -28,7 +31,7 @@ function setup(t: TestContext, role: AuthUser['role'] = 'Store Admin') {
   const calls: { path: string; init: RequestInit }[] = [];
   let respond = async (path: string, _init: RequestInit): Promise<Response> => Response.json(path.endsWith('/progress') ? progress() : summary());
   t.mock.method(authService, 'request', async (path: RequestInfo | URL, init: RequestInit = {}) => { calls.push({ path: String(path), init }); return respond(String(path), init); });
-  const flow = (id?: number) => { const workflow = new ImportWorkflow(id); t.after(workflow.connect()); return workflow; };
+  const flow = (id?: number, format: 'csv' | 'excel' = 'csv') => { const workflow = new ImportWorkflow(id, format); t.after(workflow.connect()); return workflow; };
   return { calls, storage, flow, respond: (fn: typeof respond) => { respond = fn; }, change: (store = 2, session = epoch) => { actor = { ...actor!, storeId: store }; epoch = session; listeners.forEach(fn => fn()); } };
 }
 const file = () => new File(['source_order_id,occurred_at,sku,quantity,unit_price,unit_cost,status\n'], 'sales.csv', { type: 'text/csv' });
@@ -167,4 +170,60 @@ test('changing session during a slow read clears previous progress and cancels t
   const w = f.flow(41); await flush(); assert.equal(w.getSnapshot().progress?.status, 'QUEUED');
   f.change(1, 'new-login'); assert.equal(w.getSnapshot().progress, null);
   t.mock.timers.tick(90000); await flush(); assert.equal(f.calls.length, 1);
+});
+
+const excelFile = (extension='xlsx') => new File([readFileSync(new URL('../public/templates/f04/transactions-template.'+extension,import.meta.url))], 'sales.'+extension, {type:extension==='xls'?'application/vnd.ms-excel':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+for(const extension of ['xlsx','xls']) test('Excel '+extension+' uploads official bytes to synchronous multipart endpoint only',async t=>{
+ const f=setup(t);f.respond(async()=>Response.json(summary({filename:'sales.'+extension}),{status:201}));
+ const w=f.flow();await w.submit(excelFile(extension));
+ assert.equal(w.getSnapshot().phase,'result');assert.equal(w.getSnapshot().progress,null);assert.equal(w.getSnapshot().summary?.acceptedOrderCount,490);
+ assert.equal(f.calls.length,1);const {path,init}=f.calls[0];assert.equal(path,'/api/transactions/imports/excel');assert.equal(init.method,'POST');
+ const form=init.body as FormData;assert.deepEqual([...form.keys()],['file']);assert.equal((form.get('file') as File).name,'sales.'+extension);
+ assert.equal(new Headers(init.headers).has('Content-Type'),false);assert.equal(new Headers(init.headers).has('Idempotency-Key'),false);
+ assert.equal(f.storage.values.size,0);
+});
+for(const role of ['Merchandiser','System Admin','End-Customer'] as const)test(role+' cannot upload Excel',async t=>{
+ const f=setup(t,role);await assert.rejects(f04Api.uploadExcel(excelFile()),status(403));assert.equal(f.calls.length,0);
+});
+for(const code of [400,401,403,413])test('Excel HTTP '+code+' is definite rejection without retry/polling',async t=>{
+ const f=setup(t);f.respond(async()=>Response.json({error:'Workbook contains unsupported formulas'},{status:code}));const w=f.flow();await w.submit(excelFile());
+ assert.equal(w.getSnapshot().phase,'idle');assert.equal(w.getSnapshot().canRetryUpload,false);assert.match(w.getSnapshot().error,new RegExp('HTTP '+code));
+ if(code===400){assert.match(w.getSnapshot().error,/workbook/i);assert.match(w.getSnapshot().error,/formulas/);}
+ assert.equal(f.calls.length,1);assert.equal(f.storage.values.size,0);
+});
+for(const failure of ['network','server','unreadable','invalid-summary'])test('Excel '+failure+' remains uncertain across reload, without resubmit',async t=>{
+ const f=setup(t);t.mock.timers.enable({apis:['setTimeout']});f.respond(async()=>{
+  if(failure==='network')throw new TypeError('Failed to fetch');
+  return failure==='server'?Response.json({error:'Unavailable'},{status:503}):failure==='unreadable'?new Response('unreadable',{status:201}):Response.json({importBatchId:1},{status:201});
+ });
+ const w=f.flow();await w.submit(excelFile());assert.equal(w.getSnapshot().phase,'uncertain');assert.equal(w.getSnapshot().canRetryUpload,false);
+ await w.retryUpload();t.mock.timers.tick(60000);await flush();assert.equal(f.calls.length,1);
+ w.disconnect();const restored=f.flow();assert.equal(restored.getSnapshot().format,'excel');assert.equal(restored.getSnapshot().filename,'sales.xlsx');
+ assert.equal(restored.getSnapshot().phase,'uncertain');await restored.retryUpload();await restored.submit(excelFile());assert.equal(f.calls.length,1);
+});
+test('Excel duplicate-submit guard, mixed counters/errors and cross-format duplicate/conflict results remain authoritative',async t=>{
+ const f=setup(t);let release!:(r:Response)=>void;f.respond(()=>new Promise(resolve=>release=resolve));const w=f.flow();const pending=w.submit(excelFile());
+ await w.submit(excelFile());assert.equal(f.calls.length,1);assert.equal(w.getSnapshot().phase,'uploading');assert.equal(w.getSnapshot().progress,null);
+ const mixed=summary({filename:'sales.xlsx',status:'COMPLETED_WITH_ERRORS',acceptedOrderCount:1,duplicateOrderCount:2,rejectedOrderCount:1,conflictOrderCount:1,rejectedCount:2});
+ release(Response.json(mixed,{status:201}));await pending;assert.deepEqual(w.getSnapshot().summary,mixed);
+ f.respond(async path=>path.endsWith('/errors?page=0&pageSize=100')?Response.json({content:[{rowNumber:2,sourceOrderId:'existing-csv-order',status:'CONFLICT',errorDetails:'Different contents'}],page:0,pageSize:100,totalElements:1}):Response.json(summary({filename:'sales.xls',acceptedOrderCount:0,duplicateOrderCount:490}),{status:201}));
+ assert.equal((await f04Api.getImportErrors(41)).content[0].status,'CONFLICT');w.reset();await w.submit(excelFile('xls'));assert.equal(w.getSnapshot().summary?.acceptedOrderCount,0);assert.equal(w.getSnapshot().summary?.duplicateOrderCount,490);
+});
+test('Excel History reads summary directly, with no progress polling',async t=>{
+ const f=setup(t);const w=f.flow(41,'excel');await flush();assert.equal(w.getSnapshot().phase,'result');assert.deepEqual(f.calls.map(c=>c.path),['/api/transactions/imports/41']);
+});
+test('Late Excel response after Store switch cannot populate the new Store',async t=>{
+ const f=setup(t);let release!:(r:Response)=>void;f.respond(()=>new Promise(resolve=>release=resolve));const w=f.flow();const pending=w.submit(excelFile());f.change(2);release(Response.json(summary(),{status:201}));await pending;
+ assert.equal(w.getSnapshot().summary,null);assert.equal(w.getSnapshot().phase,'idle');assert.equal(f.calls.length,1);
+});
+test('File validation and byte-identical official templates match Backend dev 6d2a877',()=>{
+ for(const [extension,hash] of [['xlsx','ce11f5a2716766d36b0e84b5963afee95c77dd4c9dc2961fd925dda5f6280747'],['xls','49e0525b00bc2c41e4db218aa966afc7a312e41635f4989139f8adcd2b6e38fa']]){
+  const bytes=readFileSync(new URL('../public/templates/f04/transactions-template.'+extension,import.meta.url));assert.equal(createHash('sha256').update(bytes).digest('hex'),hash);assert.equal(validateImportFile(excelFile(extension)),null);
+ }
+ assert.match(validateImportFile(new File(['data'],'bad.xlsm'))!,/CSV.*Excel/);assert.match(validateImportFile(new File([],'empty.xlsx'))!,/empty/);
+ assert.match(validateImportFile(new File([new Uint8Array(5*1024*1024+1)],'large.xlsx'))!,/5 MiB/);
+});
+
+test('Unauthenticated Excel upload returns 401 without sending bytes',async t=>{
+ const f=setup(t);t.mock.method(authService,'getCurrentUser',()=>null);await assert.rejects(f04Api.uploadExcel(excelFile()),status(401));assert.equal(f.calls.length,0);
 });

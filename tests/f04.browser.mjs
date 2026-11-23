@@ -43,7 +43,7 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], errors = [], unexpected = [], checks = [];
-const state = { role: 'STORE_ADMIN', storeId: 1, accepted: false, holdPost: false, network: false, postStatus: 202, current: progress(), result: summary(), issueRows: false };
+const state = { role: 'STORE_ADMIN', storeId: 1, accepted: false, holdPost: false, network: false, postStatus: 202, current: progress(), result: summary(), issueRows: false, excelStatus:201, excelNetwork:false, holdExcel:false, excelName:'sales.xlsx', excelResult:summary({importBatchId:51,filename:'sales.xlsx'}) };
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/services/authService.ts').name))).authService";
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -62,13 +62,19 @@ async function login(role = 'STORE_ADMIN', storeId = 1) {
   await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});})()`);
   await navigate('/store/transactions/import');
 }
-async function choose(name = 'sales.csv', contents = 'source_order_id,occurred_at,sku,quantity,unit_price,unit_cost,status\n') {
-  await page.evaluate(`(()=>{const input=document.querySelector('#f04-csv-file');const transfer=new DataTransfer();transfer.items.add(new File([${JSON.stringify(contents)}],${JSON.stringify(name)},{type:'text/csv'}));input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+async function choose(name='sales.csv', contents) {
+  const extension=/\.xlsx$/i.test(name)?'xlsx':/\.xls$/i.test(name)?'xls':null;
+  if(extension)state.excelName=name;
+  const bytes=contents===undefined && extension ? readFileSync(new URL('../public/templates/f04/transactions-template.'+extension,import.meta.url)) : Buffer.from(contents??'source_order_id,occurred_at,sku,quantity,unit_price,unit_cost,status\n');
+  const mime=extension==='xlsx'?'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':extension==='xls'?'application/vnd.ms-excel':'text/csv';
+  await page.evaluate(`(()=>{const input=document.querySelector('#f04-csv-file'),transfer=new DataTransfer();transfer.items.add(new File([Uint8Array.from(atob(${JSON.stringify(bytes.toString('base64'))}),c=>c.charCodeAt(0))],${JSON.stringify(name)},{type:${JSON.stringify(mime)}}));input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
 }
 async function capture(name) { if (!artifacts) return;
   const result = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(result.data, 'base64'));
 }
+const excelHistory = new Map();
+const excelPosts = () => calls.filter(c=>c.path.endsWith('/excel'));
 const posts = () => calls.filter(c => c.path.endsWith('/csv/async'));
 const progressReads = () => calls.filter(c => c.path.endsWith('/progress'));
 async function setProgress(patch, percent) {
@@ -93,15 +99,24 @@ async function fixture({ requestId, request }) {
     state.accepted = true;
     if (state.network) return page.call('Fetch.failRequest', { requestId, errorReason: 'InternetDisconnected' });
     responseCode = state.postStatus; body = responseCode === 202 ? state.current : { error: 'Controlled request failure' };
+  } else if(path==='/api/transactions/imports/excel') {
+    assert.equal(request.method,'POST');assert.equal(url.search,'');
+    assert.equal(Object.entries(request.headers).some(([k])=>k.toLowerCase()==='idempotency-key'),false);
+    assert.ok(Object.entries(request.headers).some(([k,v])=>k.toLowerCase()==='content-type'&&/multipart\/form-data; boundary=/.test(v)));
+    if(request.postData)assert.ok(request.postData.includes('name="file"'));
+    while(state.holdExcel&&!closing)await sleep(20);
+    if(state.excelNetwork)return page.call('Fetch.failRequest',{requestId,errorReason:'InternetDisconnected'});
+    responseCode=state.excelStatus;body=responseCode===201?{...state.excelResult,filename:state.excelName}:{error:'Workbook contains unsupported formulas'};
+    if(responseCode===201)excelHistory.set(body.importBatchId,body);
   } else if (/^\/api\/transactions\/imports\/\d+\/progress$/.test(path)) body = path.includes('/43/') ? progress({ importBatchId: 43, status: 'COMPLETED', stage: 'LEGACY', progressPercent: 100 }) : { ...state.current, importBatchId: Number(path.split('/').at(-2)) };
   else if (/^\/api\/transactions\/imports\/\d+\/errors$/.test(path)) {
     const index = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
     body = { content: Array.from({ length: index === 0 ? size : 1 }, (_, i) => ({ rowNumber: index * size + i + 2, sourceOrderId: 'ORDER-' + i, status: 'REJECTED', errorDetails: '[{"field":"sku","message":"Unknown product"}]' })), page: index, pageSize: size, totalElements: 21 };
-  } else if (/^\/api\/transactions\/imports\/\d+$/.test(path)) body = path.endsWith('/43') ? summary({ importBatchId: 43, filename: 'legacy.csv' }) : { ...state.result, importBatchId: Number(path.split('/').at(-1)) };
+  } else if (/^\/api\/transactions\/imports\/\d+$/.test(path)) body = excelHistory.get(Number(path.split('/').at(-1))) ?? (path.endsWith('/43') ? summary({ importBatchId: 43, filename: 'legacy.csv' }) : { ...state.result, importBatchId: Number(path.split('/').at(-1)) });
   else if (path === '/api/transactions/imports') {
     const index = Number(url.searchParams.get('page') || 0);
     const statuses = ['QUEUED', 'PROCESSING', 'COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'RECEIVING'];
-    body = { content: index === 0 ? statuses.map((status, i) => summary({ importBatchId: 41 + i, filename: i === 2 ? 'legacy.csv' : 'sales.csv', status })) : [summary({ importBatchId: 11 })], page: index, pageSize: 20, totalElements: 21 };
+    body = { content: index === 0 ? [...excelHistory.values(),...statuses.map((status, i) => summary({ importBatchId: 41 + i, filename: i === 2 ? 'legacy.csv' : 'sales.csv', status }))] : [summary({ importBatchId: 11 })], page: index, pageSize: 20, totalElements: 21 };
   } else if (path === '/api/products') body = { content: [], page: 0, pageSize: 20, totalElements: 0, totalPages: 0 };
   else if (path === '/api/categories' || path === '/api/system/stores') body = [];
   else if (path === '/api/utility/config') body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 1, beta: 1, gamma: 1, lambda: .1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: .5, version: 1 }, lambdaValid: true };
@@ -128,7 +143,7 @@ try {
   await login(); await has('Upload CSV');
   await until("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Import CSV')", 'Import CSV form ready');
   assert.equal(await page.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Import CSV').disabled"), true);
-  await choose('bad.xlsx'); await has('Excel files are not supported'); await choose('empty.csv', ''); await has('This file is empty');
+  await choose('bad.xlsm'); await has('Choose a CSV (.csv) or Excel (.xlsx, .xls) file.'); await choose('empty.csv', ''); await has('This file is empty');
   await choose(); await capture('upload-desktop');
   state.holdPost = true; await click('Import CSV'); await has('Preparing your import');
   assert.equal(await page.evaluate("document.querySelector('[role=progressbar]').hasAttribute('aria-valuenow')"), false);
@@ -165,7 +180,7 @@ try {
   await page.evaluate("document.querySelector('[aria-label=\"Close import details\"]').click()");
   await page.evaluate("document.querySelector('[aria-label=\"Next page: Import history\"]').click()"); await has('Page 2 of 2');
   await page.evaluate("document.querySelector('[aria-label=\"Previous page: Import history\"]').click()"); await has('legacy.csv');
-  await navigate('/store/transactions/import'); await has('Import completed with issues'); await has('CSV Row Summary'); await has('Error Details');
+  await navigate('/store/transactions/import'); await has('Import completed with issues'); await has('File Row Summary'); await has('Error Details');
   await click('Review errors'); assert.equal(await page.evaluate("document.activeElement.id"), 'import-errors-heading');
   await click('Next'); await has('Page 2'); await has('Showing 21–21 of 21 row errors');
   const terminalReads = progressReads().length; await sleep(1700); assert.equal(progressReads().length, terminalReads);
@@ -183,6 +198,30 @@ try {
   state.network = false; state.current = progress(); await click('Retry original upload'); await has('Your import is queued');
   const header = call => Object.entries(call.headers).find(([key])=>key.toLowerCase()==='idempotency-key')[1];
   assert.equal(header(posts().at(-1)), header(lost));
+  // Excel synchronous branch uses real official workbook bytes, intercepted HTTP only.
+  await login('STORE_ADMIN',1);await has('Upload CSV');
+  await click('View format instructions');await has('Excel checklist');await has('Order ID, SKU and timestamp');await has('00123');
+  assert.equal(await page.evaluate("document.querySelector('#f04-csv-file').accept"),'.csv,.xlsx,.xls');
+  const templateLinks=await page.evaluate("[...document.querySelectorAll('a[download]')].map(a=>({href:a.getAttribute('href'),download:a.hasAttribute('download')}))");
+  assert.deepEqual(templateLinks.map(a=>a.href),['/templates/f04/transactions-template.xlsx','/templates/f04/transactions-template.xls']);
+  for(const item of templateLinks)assert.equal((await fetch(origin+item.href)).status,200);
+  for(const extension of ['xlsx','xls']) {
+    await choose('orders.'+extension);state.holdExcel=true;state.excelResult=summary({importBatchId:51,filename:'orders.'+extension,status:'COMPLETED_WITH_ERRORS',acceptedOrderCount:1,duplicateOrderCount:2,rejectedOrderCount:1,conflictOrderCount:1,rejectedCount:2});
+    const progressBefore=progressReads().length,postBefore=excelPosts().length;
+    await click('Import Excel');await has('Reading Excel import result');assert.equal(await page.evaluate("Boolean(document.querySelector('[role=progressbar]'))"),false);
+    await page.evaluate("document.querySelector('form')?.requestSubmit()");assert.equal(excelPosts().length,postBefore+1);state.holdExcel=false;
+    await has('Import completed with issues');await has('File Row Summary');await has('Unknown product');assert.equal(progressReads().length,progressBefore);
+    for(const width of [1440,390,320]) {await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);}
+    await click('Import another file');
+  }
+  for(const code of [400,413]) {state.excelStatus=code;await choose('rejected.xlsx');const n=excelPosts().length;await click('Import Excel');await has('HTTP '+code);assert.equal(excelPosts().length,n+1);}
+  state.excelStatus=201;state.excelResult=summary({importBatchId:52,acceptedOrderCount:0,duplicateOrderCount:490});await choose('duplicate.xls');await click('Import Excel');await has('No new transactions');await has('existing orders were skipped');await click('Import another file');
+  state.excelNetwork=true;await choose('uncertain.xlsx');await click('Import Excel');await has('Upload confirmation unavailable');const uncertainCount=excelPosts().length;
+  assert.equal(await page.evaluate("document.body.innerText.includes('Retry original upload')"),false);await page.call('Page.reload');await has('Upload confirmation unavailable');await sleep(1700);assert.equal(excelPosts().length,uncertainCount);state.excelNetwork=false;
+  await navigate('/store/transactions/history');await has('orders.xls');const historyProgress=progressReads().length;
+  await page.evaluate("document.querySelector('[aria-label=\"View details for batch 51\"]').click()");await has('Unknown product');assert.equal(progressReads().length,historyProgress,'Excel History does not poll progress');
+  await page.evaluate("document.querySelector('[aria-label=\"Close import details\"]').click()");
+  checks.push('XLSX/XLS official bytes, boundary/file multipart, direct mixed and duplicate Summary, 400/413, lost response and reload without retry, no fake progress/polling, History/errors, template links and responsive desktop/mobile');
   await login('STORE_ADMIN', 2); await has('Upload CSV'); assert.equal(await page.evaluate("!!document.querySelector('[role=progressbar]')"), false);
   await login('MERCHANDISER', 1); await has('Permission Required'); await navigate('/store/transactions/history'); await has('legacy.csv');
   await page.evaluate("document.querySelector('[aria-label=\"View details for batch 41\"]').click()"); await has('Your import is queued');

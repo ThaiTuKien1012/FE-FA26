@@ -64,7 +64,7 @@ function formatDate(value: string) {
 }
 
 function formatImportSource(value: string): string {
-  return value === 'CSV_UPLOAD' ? 'CSV Upload' : value;
+  return value === 'CSV_UPLOAD' ? 'File Import' : value;
 }
 
 function hasBelowCostPrice(item: TransactionLine): boolean {
