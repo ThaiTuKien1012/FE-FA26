@@ -83,10 +83,10 @@ test('Legacy progress null timing/algorithm and historical HUI-Miner/COMPARING r
   assert.equal(isMiningProgressView({ ...progressFixture('RUNNING'), stage: 'COMPARING', algorithm: 'HUI_MINER', comparisonStatus: 'PENDING' }), true);
   assert.equal(isRequestView(requestFixture('COMPLETED')), true);
 });
-test('Global int64 total above int32 is accepted exactly; unsafe JSON is rejected', async t => {
+test('Global int64 totals above int32 and safe Number range retain exact values', async t => {
   setup(t); const large = { ...efimRequestFixture(), totalScaledUtility: 4294967296 }; assert.equal(isRequestView(large), true);
   t.mock.method(globalThis, 'fetch', async () => Response.json(large)); assert.equal((await f05Api.getRequest(17)).totalScaledUtility, 4294967296);
-  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(large).replace('4294967296', '9007199254740993'))); await assert.rejects(f05Api.getRequest(17), status(200));
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(large).replace('4294967296', '9007199254740993'))); assert.equal(String((await f05Api.getRequest(17)).totalScaledUtility), '9007199254740993');
 });
 test('Merchandiser reload/retry keeps key and isolates role, user and Store; legacy drafts never replay', async t => {
   const context = setup(t); const data = storage(t), body = { requestKey: payload.requestKey, snapshotId: 2 }, sent: string[] = [];

@@ -28,6 +28,7 @@ export function analysisErrorMessage(error: unknown): string {
   if (/configure mining policy|not configured/i.test(text)) return 'Minimum Utility has not been configured. Contact a System Admin to set it before running an analysis.';
   if (/lambda policy changed|snapshot exceeds.*lambda/i.test(text)) return 'This snapshot no longer meets the current priority settings. Create a new snapshot in Utility Planner.';
   if (/int32|TWU|numeric.*limit|capacity|too many.*(?:items|transactions)/i.test(text)) return 'This snapshot exceeds the analysis size or numeric limits. Use a smaller sales period and create a new snapshot.';
+  if (/cannot be used safely for navigation/.test(text)) return text;
   if (/unsafe|precision|conversion metadata|unreadable|malformed/i.test(text)) return 'The response could not be read safely. No scores were changed. Refresh manually or contact System Admin.';
   if (/outputBytes|exception|stack trace|java|inputHash|snapshotHash|divisor|SPMF/i.test(text)) return 'The analysis service could not process this data. Ask System Admin to check it before retrying manually.';
   if (error instanceof F05ApiError) {

@@ -1,3 +1,4 @@
+import { compareMining, miningText, exactMiningValue, type MiningNumber } from './f05.precision';
 import { F05ApiError } from './f05.api';
 import type { BenchmarkView, RequestView, RunView } from './f05.types';
 
@@ -6,11 +7,11 @@ export const HEAP_METHOD = 'SPMF_SAMPLED_JAVA_HEAP_MIB_NOT_RSS';
 export const WALL_TIME_METHOD = 'CHILD_JVM_WALL_TIME_INCLUDING_STARTUP_AND_IO_EXCLUDING_INPUT_PREPARATION';
 
 /** A difference describes these compatible observations only, never a default choice. */
-export function benchmarkRuntimeDifference(request: RequestView, rows: BenchmarkView[]): { algorithm: RunView['algorithm'] | null; differenceMillis: number } | null {
+export function benchmarkRuntimeDifference(request: RequestView, rows: BenchmarkView[]): { algorithm: RunView['algorithm'] | null; differenceMillis: MiningNumber } | null {
   if (!assessBenchmarkComparison(request, rows).comparable) return null;
   const [first, second] = rows;
-  const difference = first.run.runtimeMillis! - second.run.runtimeMillis!;
-  return { algorithm: difference === 0 ? null : difference < 0 ? first.run.algorithm : second.run.algorithm, differenceMillis: Math.abs(difference) };
+  const difference = BigInt(miningText(first.run.runtimeMillis!)) - BigInt(miningText(second.run.runtimeMillis!));
+  return { algorithm: difference === 0n ? null : difference < 0n ? first.run.algorithm : second.run.algorithm, differenceMillis: exactMiningValue((difference<0n?-difference:difference).toString()) };
 }
 
 /** Verify immutable input provenance before displaying a run's benchmark. */
@@ -22,8 +23,8 @@ export function assertBenchmarkContext(benchmark: BenchmarkView, request: Reques
       run.minUtilSpmf !== request.minUtilSpmf || run.conversionVersion !== request.conversionVersion ||
       benchmark.snapshotHash !== request.snapshotHash || benchmark.transactionCount !== request.transactionCount ||
       benchmark.distinctItems !== request.distinctItems || benchmark.inputBytes !== request.inputBytes ||
-      benchmark.divisor !== request.divisor || benchmark.utilityScale !== request.utilityScale ||
-      benchmark.effectiveMinUtility !== request.effectiveMinUtility) {
+      compareMining(benchmark.divisor,request.divisor)!==0 || benchmark.utilityScale !== request.utilityScale ||
+      compareMining(benchmark.effectiveMinUtility,request.effectiveMinUtility)!==0) {
     throw new F05ApiError(200, 'Benchmark provenance does not match the selected request/run. No measurements were displayed.');
   }
 }
@@ -48,7 +49,7 @@ export function assessBenchmarkComparison(request: RequestView, benchmarks: Benc
   }
   const [first, second] = benchmarks;
   const sameInput = (['snapshotHash', 'transactionCount', 'distinctItems', 'inputBytes', 'divisor', 'utilityScale', 'effectiveMinUtility', 'repetitionPolicy'] as const)
-    .every(key => first[key] === second[key]);
+    .every(key => key==='divisor'||key==='effectiveMinUtility' ? compareMining(first[key],second[key])===0 : first[key] === second[key]);
   const sameRunConditions = (['requestId', 'storeId', 'snapshotId', 'inputHash', 'minUtilSpmf', 'conversionVersion', 'libraryVersion', 'attemptNo', 'memoryMethod', 'runtimeMethod', 'environment'] as const)
     .every(key => first.run[key] === second.run[key]);
   if (!sameInput || !sameRunConditions || !first.run.environment?.trim() || !first.run.inputHash.trim() ||

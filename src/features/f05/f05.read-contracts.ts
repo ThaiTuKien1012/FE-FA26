@@ -1,15 +1,16 @@
+import { isMiningNumber, isMiningLong, compareMining } from './f05.precision';
 import type { BenchmarkView, MiningConfiguration, MiningProgressView, PatternView, RequestView, RunView, SnapshotView } from './f05.types';
 import { parseMinUtilInput } from './f05.numbers';
 import { isConversionMetadata, isRequestConversion } from './f05.conversion';
 
 const object = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object';
 const id = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
-const numeric = (value: unknown) => typeof value === 'number' && Number.isFinite(value);
+const numeric = isMiningNumber;
 const nullableNumber = (value: unknown) => value === null || numeric(value);
 const nullableString = (value: unknown) => value === null || typeof value === 'string';
 const algorithm = (value: unknown) => value === 'HUI_MINER' || value === 'EFIM';
 const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-const nonnegative = (value: unknown) => numeric(value) && (value as number) >= 0;
+const nonnegative = (value: unknown) => isMiningNumber(value) && compareMining(value,0)>=0;
 
 export function isSnapshotView(value: unknown): value is SnapshotView {
   if (!object(value)) return false;
@@ -26,7 +27,7 @@ export function isMiningConfiguration(value: unknown): value is MiningConfigurat
   if (value.algorithm !== 'EFIM') return false;
   if (value.version===0) return [value.minUtilMode,value.minUtilValue,value.changedBy,value.changedAt].every(v => v===null);
   if ((value.minUtilMode!=='PERCENTAGE' && value.minUtilMode!=='ABSOLUTE') ||
-      typeof value.minUtilValue!=='number' || !id(value.changedBy) || typeof value.changedAt!=='string') return false;
+      !numeric(value.minUtilValue) || !id(value.changedBy) || typeof value.changedAt!=='string') return false;
   try { parseMinUtilInput(String(value.minUtilValue),value.minUtilMode); return true; } catch { return false; }
 }
 
@@ -39,7 +40,7 @@ export function isMiningProgressView(value: unknown): value is MiningProgressVie
     (value.currentRunId === null || id(value.currentRunId)) && (value.algorithm === null || algorithm(value.algorithm)) &&
     [value.attemptNo, value.completedSteps, value.totalSteps, value.percent].every(count) &&
     (value.completedSteps as number) <= (value.totalSteps as number) && (value.percent as number) <= 100 &&
-    [value.elapsedMs, value.timeoutMs].every(v => v === null || count(v)) &&
+    [value.elapsedMs, value.timeoutMs].every(v => v === null || isMiningLong(v)) &&
     ['NOT_REQUESTED', 'PENDING', 'MATCH', 'FAILED', 'BLOCKED'].includes(String(value.comparisonStatus));
 }
 
@@ -54,10 +55,10 @@ export function isRequestView(value: unknown): value is RequestView {
     ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'].includes(String(value.status)) &&
     ['NOT_REQUESTED', 'PENDING', 'MATCH', 'FAILED', 'BLOCKED'].includes(String(value.comparisonStatus)) &&
     (value.minUtilMode === 'PERCENTAGE' || value.minUtilMode === 'ABSOLUTE') &&
-    numeric(value.minUtilValue) && (value.minUtilValue as number)>0 &&
-    (value.minUtilMode!=='PERCENTAGE' || (value.minUtilValue as number)<=100) &&
+    numeric(value.minUtilValue) && compareMining(value.minUtilValue,0)>0 &&
+    (value.minUtilMode!=='PERCENTAGE' || compareMining(value.minUtilValue as import("./f05.precision").MiningNumber,100)<=0) &&
     id(value.minUtilSpmf) && (value.minUtilSpmf as number)<=2147483647 && nonnegative(value.effectiveMinUtility) &&
-    [value.transactionCount,value.distinctItems,value.inputBytes,value.utilityScale,value.totalScaledUtility].every(count) && id(value.divisor) &&
+    [value.transactionCount,value.distinctItems,value.inputBytes,value.utilityScale].every(count) && isMiningLong(value.totalScaledUtility) && isMiningLong(value.divisor) && compareMining(value.divisor,0)>0 &&
     [value.snapshotHash,value.inputHash,value.conversionVersion,value.roundingMode].every(v => typeof v==='string' && v.length>0) &&
     typeof value.createdAt === 'string' && typeof value.snapshot.rangeStart === 'string' && typeof value.snapshot.rangeEnd === 'string';
 }
@@ -67,7 +68,7 @@ export function isRunView(value: unknown): value is RunView {
   return [value.runId, value.requestId, value.storeId, value.snapshotId].every(id) && algorithm(value.algorithm) &&
     ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'TIMED_OUT'].includes(String(value.status)) &&
     [value.startedAt, value.completedAt, value.environment, value.failureCode, value.failureMessage].every(nullableString) &&
-    (value.runtimeMillis===null || count(value.runtimeMillis)) &&
+    (value.runtimeMillis===null || isMiningLong(value.runtimeMillis)) &&
     (value.patternCount===null || count(value.patternCount)) &&
     (value.memoryMiB===null || nonnegative(value.memoryMiB)) &&
     id(value.minUtilSpmf) && (value.minUtilSpmf as number)<=2147483647 &&
@@ -89,8 +90,8 @@ export function isBenchmarkView(value: unknown): value is BenchmarkView {
   if (!object(value) || !isRunView(value.run)) return false;
   return typeof value.snapshotHash === 'string' && value.snapshotHash.length > 0 &&
     [value.transactionCount, value.distinctItems, value.inputBytes, value.utilityScale].every(count) &&
-    id(value.divisor) && nonnegative(value.effectiveMinUtility) &&
-    id(value.run.minUtilSpmf) && (value.run.runtimeMillis === null || count(value.run.runtimeMillis)) &&
+    isMiningLong(value.divisor) && compareMining(value.divisor,0)>0 && nonnegative(value.effectiveMinUtility) &&
+    id(value.run.minUtilSpmf) && (value.run.runtimeMillis === null || isMiningLong(value.run.runtimeMillis)) &&
     (value.run.memoryMiB === null || nonnegative(value.run.memoryMiB)) &&
     (value.run.patternCount === null || count(value.run.patternCount)) &&
     ['NOT_REQUESTED', 'PENDING', 'MATCH', 'FAILED', 'BLOCKED'].includes(String(value.comparisonStatus)) &&

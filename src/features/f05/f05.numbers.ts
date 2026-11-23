@@ -1,3 +1,4 @@
+import { exactMiningValue, type MiningNumber } from './f05.precision';
 import type { MinUtilMode } from './f05.types';
 
 export class F05NumberError extends Error {
@@ -34,7 +35,9 @@ function isSafeNumber(text: string): boolean {
     decimalIdentity(text) === decimalIdentity(JSON.stringify(value));
 }
 
-/** JSON numbers remain numbers. Reject a response if parsing would change a
+/** Strict scalar/submission guard retained for existing F06 callers.
+ * Mining HTTP responses use parseMiningResponse in f05.precision instead.
+ * JSON numbers remain numbers. Reject a response if parsing would change a
  * decimal's value or use an integer outside the browser's safe integer range.
  * Strings (including quoted IDs, dates and error messages) are skipped.
  */
@@ -50,7 +53,7 @@ export function parseSafeMiningJson(text: string): unknown {
 }
 
 /** Validate the original input string before producing the numeric JSON value. */
-export function parseMinUtilInput(input: string, mode: MinUtilMode): number {
+export function parseMinUtilInput(input: string, mode: MinUtilMode): MiningNumber {
   const text = input.trim();
   if (!/^\d+(?:\.\d{1,6})?$/.test(text)) {
     throw new F05NumberError('Enter a positive decimal with at most 6 fractional digits. Use a decimal point, without commas or exponent notation.');
@@ -63,8 +66,5 @@ export function parseMinUtilInput(input: string, mode: MinUtilMode): number {
   if (mode === 'PERCENTAGE' && (BigInt(integer) > 100n || (BigInt(integer) === 100n && /[1-9]/.test(fraction)))) {
     throw new F05NumberError('Percentage minimum utility must be greater than 0 and at most 100. A value of 0.5 means 0.5%.');
   }
-  if (!isSafeNumber(text)) {
-    throw new F05NumberError('This decimal cannot be sent without losing precision. Use a value within 9007199254740991 that can be serialized unchanged; fewer significant digits may be needed. The value has not been rounded.');
-  }
-  return Number(text);
+  return exactMiningValue(text);
 }

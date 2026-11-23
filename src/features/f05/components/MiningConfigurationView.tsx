@@ -1,3 +1,4 @@
+import { compareMining, type MiningNumber } from '../f05.precision';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { algorithmName, formatMiningNumber, formatThreshold, miningButton, miningDate, miningInput, miningPrimaryButton } from '../f05.display';
@@ -26,9 +27,9 @@ export function MiningConfigurationView({config,loading,saving,locked,error,noti
     setValue(config.minUtilValue===null?'':String(config.minUtilValue));setValidation('');
   };
   useEffect(()=>{reset();},[config]);
-  let parsed:number|null=null;
+  let parsed:MiningNumber|null=null;
   try {parsed=parseMinUtilInput(value,mode);} catch { /* Validate the original string on submit. */ }
-  const changed=Boolean(config && (config.version===0 || mode!==config.minUtilMode || parsed!==config.minUtilValue));
+  const changed=Boolean(config && (config.version===0 || mode!==config.minUtilMode || (parsed===null || config.minUtilValue===null || compareMining(parsed,config.minUtilValue)!==0)));
   const disabled=!config||loading||saving||locked;
   const save=(event:FormEvent)=>{
     event.preventDefault();

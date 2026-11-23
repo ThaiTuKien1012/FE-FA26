@@ -94,7 +94,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
               <dl className={data.items.length===1?'mt-4 grid gap-3 text-sm sm:grid-cols-3':'mt-4 space-y-2 text-sm'}>
                 <div><dt className="text-xs text-[#6D7974]">{system?'Sales Period':'Date range'}</dt><dd className="mt-0.5">{formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)}</dd></div>
                 <div><dt className="text-xs text-[#6D7974]">{system?'Utility Analysis Date':'Analysis date'}</dt><dd className="mt-0.5">{formatDate(snapshot.configuration?.analysisDate ?? snapshot.asOfDate)}</dd></div>
-                <div><dt className="text-xs text-[#6D7974]">{system?'Total Weighted Utility':'Total weighted utility'}</dt><dd className="mt-0.5 break-all font-medium">{system?formatMiningNumber(snapshot.totalWeightedUtility):snapshot.totalWeightedUtility}</dd></div>
+                <div><dt className="text-xs text-[#6D7974]">{system?'Total Weighted Utility':'Total weighted utility'}</dt><dd className="mt-0.5 break-all font-medium">{formatMiningNumber(snapshot.totalWeightedUtility)}</dd></div>
                 {!system&&<div><dt className="text-xs text-[#6D7974]">Scoring version</dt><dd className="mt-0.5 break-words">{snapshot.configuration?.config?.scoringVersion ?? 'Not available in frozen metadata'}</dd></div>}
               </dl>
               {system&&<details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer font-medium">Technical Details</summary><p className="mt-2 break-words">Scoring Version: {snapshot.configuration?.config?.scoringVersion??'Not available in frozen metadata'}</p></details>}

@@ -1,3 +1,4 @@
+import { compareMining, miningText, decimalBody, isMiningNumber } from './f05.precision';
 import { F05ApiError, miningId, miningPage, miningPagination, miningRequest, requireMiningRole, validateRequestKey } from './f05.http';
 import { parseMinUtilInput } from './f05.numbers';
 import { isMiningProgressView, isMiningConfiguration, isRequestView, isRunView, isSnapshotView } from './f05.read-contracts';
@@ -19,7 +20,7 @@ export function validateConfiguration(payload: MiningConfigurationUpdate): void 
       !Number.isSafeInteger(payload.expectedVersion) || payload.expectedVersion < 0 || payload.expectedVersion >= Number.MAX_SAFE_INTEGER) {
     throw new F05ApiError(400, 'Use a safe nonnegative configuration version and the current EFIM threshold contract.');
   }
-  if (typeof payload.minUtilValue !== 'number' || !Number.isFinite(payload.minUtilValue)) throw new F05ApiError(400, 'Minimum utility must be a JSON number.');
+  if (!isMiningNumber(payload.minUtilValue)) throw new F05ApiError(400, 'Minimum utility must be a JSON number.');
   try { parseMinUtilInput(String(payload.minUtilValue), payload.minUtilMode); }
   catch (e) { throw new F05ApiError(400, e instanceof Error ? e.message : 'Invalid minimum utility.'); }
 }
@@ -43,10 +44,10 @@ export const f05SystemApi = {
     const { minUtilMode, minUtilValue, expectedVersion } = payload;
     const result = await request<MiningConfiguration>('/api/system/mining/config', {
       method:'PUT', headers:{ 'Content-Type':'application/json' },
-      body:JSON.stringify({minUtilMode,minUtilValue,expectedVersion})
+      body:decimalBody({minUtilMode,minUtilValue:miningText(minUtilValue),expectedVersion},['minUtilValue'])
     });
     if (!isMiningConfiguration(result) || result.version !== expectedVersion+1 || result.algorithm !== 'EFIM' ||
-        result.minUtilMode !== minUtilMode || result.minUtilValue !== minUtilValue) throw new F05ApiError(200,'The saved configuration response could not be verified. Refresh configuration before another action.');
+        result.minUtilMode !== minUtilMode || result.minUtilValue === null || compareMining(result.minUtilValue, minUtilValue)!==0) throw new F05ApiError(200,'The saved configuration response could not be verified. Refresh configuration before another action.');
     return result;
   },
   async listSnapshots(storeId: number, page = 0, pageSize = 20, signal?: AbortSignal): Promise<Page<SnapshotView>> {

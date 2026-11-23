@@ -21,6 +21,7 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
+let precisionFixture=false;
 const state={systemHistoryCount:1,singleStore:false,conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,snapshotWarnings:[],submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
@@ -153,7 +154,7 @@ async function paused({requestId,request}){
       body=Array.isArray(body)?body.map(decorate):body?.items?{...body,items:body.items.map(decorate)}:decorate(body);
       if(path.endsWith('/runs/42/patterns')) body=state.emptyPatterns?responsePage([],url.searchParams):responsePage([{patternId:91,runId:42,productIds:[7,2],utility:state.conversion==='WHOLE_UNIT_HALF_UP'?12:12.123456,utilitySpmf:state.conversion==='WHOLE_UNIT_HALF_UP'?12:12123456,patternSize:2,supportCount:null}],url.searchParams);
     }
-    await cdp.call('Fetch.fulfillRequest',{requestId,responseCode:code,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(body)).toString('base64')});
+    await cdp.call('Fetch.fulfillRequest',{requestId,responseCode:code,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(precisionFixture ? JSON.stringify(body).replace(/("utility":)[-\d.eE+]+/g,'$1'+'12345678901.123456').replace(/("totalWeightedUtility":)[-\d.eE+]+/g,'$1'+'12345678901.123456').replace(/("totalScaledUtility":)[-\d.eE+]+/g,'$1'+'9223372036854775807').replace(/("divisor":)[-\d.eE+]+/g,'$1'+'9007199254740993').replace(/("runtimeMillis":)[-\d.eE+]+/g,'$1'+'9007199254740993') : JSON.stringify(body)).toString('base64')});
   }catch(e){
     // Cancelled reads during navigation can no longer be fulfilled.
     if(!/Invalid InterceptionId|Invalid Fetch|No resource|Session closed|Target closed/.test(e.message))browserErrors.push(e.message);
@@ -537,6 +538,15 @@ try{
   state.conversion='legacy';state.emptyPatterns=false;state.failedRun=false;state.progressOverride=null;state.requestReads=5;
   checks.push('LOSSLESS/WHOLE_UNIT_HALF_UP/unknown-null Request and Run details for all 3 roles; accepted fallback neutral, exact snapshot kept, terminal poll stop, completed empty patterns, timed-out failure blocked; 1440/820/390 screenshots; no mining/F06/scheduler/benchmark POST');
 
+  precisionFixture=true;state.conversion='LOSSLESS';state.requestReads=5;state.hasRequest=true;state.emptyPatterns=false;
+  const beforePrecisionPosts=postBodies.length;
+  await session('Merchandiser','/mining?view=history&requestId=17');await textIncludes('Analysis Results');await click('View Results');await textIncludes('12,345,678,901.123456');
+  await session('System Admin','/admin/mining/history?storeId=1&requestId=17');await textIncludes('Execution Details');
+  await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Precision details loaded');
+  await evaluate("document.querySelectorAll('main details').forEach(e=>e.open=true)");
+  await textIncludes('9,223,372,036,854,775,807');await textIncludes('9,007,199,254,740,993');
+  assert.equal(postBodies.length,beforePrecisionPosts);precisionFixture=false;state.conversion='legacy';
+  checks.push('Raw numeric precision: exact BigDecimal Pattern results, int64 divisor/scaled total/runtime, completed history and no Mining replay');
   await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
   const featureCalls=()=>state.calls.filter(c=>!c.path.startsWith('/api/auth/')).length;const beforeCustomer=featureCalls();await session('End-Customer');await textIncludes('Access Restricted');assert.equal(featureCalls(),beforeCustomer);

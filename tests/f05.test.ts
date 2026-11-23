@@ -48,7 +48,8 @@ test('numeric input and raw JSON preserve decimal meaning without silent roundin
   for(const s of ['0.5','0.000001','0.123456','100.000000'])assert.equal(parseMinUtilInput(s,'PERCENTAGE'),Number(s));
   for(const s of ['0000.500000','123456789.123456','9007199254740991'])assert.equal(parseMinUtilInput(s,'ABSOLUTE'),Number(s));
   for(const s of ['','0','-1','NaN','Infinity','0.1234567','1e-6','0,5','1.','100.000001','101'])assert.throws(()=>parseMinUtilInput(s,'PERCENTAGE'),F05NumberError);
-  for(const s of ['9007199254740993','9007199254.740991','1234567890123456789012345'])assert.throws(()=>parseMinUtilInput(s,'ABSOLUTE'),F05NumberError);
+  for(const s of ['9007199254740993','9007199254.740991'])assert.equal(String(parseMinUtilInput(s,'ABSOLUTE')),s);
+  assert.throws(()=>parseMinUtilInput('1234567890123456789012345','ABSOLUTE'),F05NumberError);
   assert.deepEqual(parseSafeMiningJson('{"id":9007199254740991,"utility":1.230000,"small":1e-6}'),{id:Number.MAX_SAFE_INTEGER,utility:1.23,small:1e-6});
   for(const s of ['{"id":9007199254740993}','{"utility":1234567890123.123456}','[1e309]','[1e-999]','[0.100000000000000005]'])assert.throws(()=>parseSafeMiningJson(s),F05NumberError);
   const text=JSON.stringify({text:'9007199254740993 and "1234567890123.123456"',date:'2026-11-03'});
@@ -231,13 +232,13 @@ test('Store read-only history/snapshots/pattern pagination and nullable support 
   t.mock.method(globalThis,'fetch',async()=>Response.json(page([])));assert.deepEqual((await f05Api.listPatterns(42)).items,[]);
 });
 
-test('pattern validation rejects wrong run IDs, invalid items and unsafe raw decimals/IDs',async t=>{
+test('pattern validation rejects wrong run IDs, invalid items and unsafe raw IDs',async t=>{
   actor(t,'Store Admin');
   const valid={patternId:91,runId:42,productIds:[7,2],utility:12.123456,utilitySpmf:12,patternSize:2,supportCount:null};
   for(const item of [{...valid,runId:43},{...valid,productIds:[2,2]},{...valid,patternSize:3},{...valid,utility:-1},{...valid,supportCount:undefined}]){
     t.mock.method(globalThis,'fetch',async()=>Response.json(page([item])));await assert.rejects(f05Api.listPatterns(42),hasStatus(200));
   }
-  for(const body of [JSON.stringify(page([valid])).replace('"patternId":91','"patternId":9007199254740993'),JSON.stringify(page([valid])).replace('12.123456','1234567890123.123456')]){
+  for(const body of [JSON.stringify(page([valid])).replace('"patternId":91','"patternId":9007199254740993')]){
     t.mock.method(globalThis,'fetch',async()=>new Response(body));await assert.rejects(f05Api.listPatterns(42),hasStatus(200));
   }
 });
