@@ -117,6 +117,8 @@ async function fixture({ requestId, request }) {
     const index = Number(url.searchParams.get('page') || 0);
     const statuses = ['QUEUED', 'PROCESSING', 'COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'RECEIVING'];
     body = { content: index === 0 ? [...excelHistory.values(),...statuses.map((status, i) => summary({ importBatchId: 41 + i, filename: i === 2 ? 'legacy.csv' : 'sales.csv', status }))] : [summary({ importBatchId: 11 })], page: index, pageSize: 20, totalElements: 21 };
+  } else if (path === '/api/transactions') body = { content: [1,2,3,4,5].map(id => ({transactionId:id,sourceSystem:'CSV_UPLOAD',sourceOrderId:'SALE-00'+id,occurredAt:'2026-11-12T02:00:00Z',status:({2:'CANCELLED',3:'REFUNDED',4:'PARTIAL_REFUND'})[id]??'COMPLETED',f03Eligible:id===1,totalAmount:12000,items:[]})),page:0,pageSize:20,totalElements:5 };
+  else if (/^\/api\/transactions\/\d+$/.test(path)) { const id=Number(path.split('/').at(-1));body={transactionId:id,sourceSystem:'CSV_UPLOAD',sourceOrderId:'SALE-00'+id,occurredAt:'2026-11-12T02:00:00Z',status:({2:'CANCELLED',3:'REFUNDED',4:'PARTIAL_REFUND'})[id]??'COMPLETED',f03Eligible:id===1,totalAmount:12000,items:[{transactionItemId:id,productId:31,sku:'FM26-0290',productName:'Fixture milk',quantity:1,unitPrice:id===5?8:12,unitCost:10}]};
   } else if (path === '/api/products') body = { content: [], page: 0, pageSize: 20, totalElements: 0, totalPages: 0 };
   else if (path === '/api/categories' || path === '/api/system/stores') body = [];
   else if (path === '/api/utility/config') body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 1, beta: 1, gamma: 1, lambda: .1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: .5, version: 1 }, lambdaValid: true };
@@ -169,14 +171,15 @@ try {
 
   await page.call('Page.reload'); await has('Importing transactions'); await has('100%'); assert.equal(posts().length, 1);
   await navigate('/store/transactions/history'); await has('Import History'); await has('legacy.csv');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f04h-details-button')].every(b=>b.textContent==='View Details'&&!b.querySelector('svg')&&b.getAttribute('aria-haspopup')==='dialog'&&getComputedStyle(b).justifyContent==='center'&&getComputedStyle(b).borderTopWidth==='1px')"),true,'Store Admin Import History keeps centered, bordered, accessible text-only details buttons');
   assert.equal(await page.evaluate("document.querySelector('tbody tr .f04h-number').textContent"), '—');
   const reads = progressReads().length; await sleep(1700); assert.equal(progressReads().length, reads);
   await page.evaluate("document.querySelector('[aria-label=\"View details for batch 41\"]').click()"); await has('Importing transactions');
   state.current = progress({ status: 'COMPLETED_WITH_ERRORS', stage: 'COMPLETED_WITH_ERRORS', processedCount: 1000, progressPercent: 100 });
   state.result = summary({ status: 'COMPLETED_WITH_ERRORS', rejectedCount: 21, rejectedOrderCount: 10, conflictOrderCount: 2, errorSummary: 'Some rows need review' });
-  await has('New orders saved'); await has('Unknown product'); await has('Error details'); await capture('history-details-mobile');
+  await has('Imported orders'); await has('Unknown product'); await has('Error details'); await capture('history-details-mobile');
   await page.evaluate("document.querySelector('[aria-label=\"Close import details\"]').click()");
-  await page.evaluate("document.querySelector('[aria-label=\"View details for batch 43\"]').click()"); await has('New orders saved'); await has('490');
+  await page.evaluate("document.querySelector('[aria-label=\"View details for batch 43\"]').click()"); await has('Imported orders'); await has('490');
   await page.evaluate("document.querySelector('[aria-label=\"Close import details\"]').click()");
   await page.evaluate("document.querySelector('[aria-label=\"Next page: Import history\"]').click()"); await has('Page 2 of 2');
   await page.evaluate("document.querySelector('[aria-label=\"Previous page: Import history\"]').click()"); await has('legacy.csv');
@@ -200,7 +203,7 @@ try {
   assert.equal(header(posts().at(-1)), header(lost));
   // Excel synchronous branch uses real official workbook bytes, intercepted HTTP only.
   await login('STORE_ADMIN',1);await has('Upload CSV');
-  await click('View format instructions');await has('Excel checklist');await has('Order ID, SKU and timestamp');await has('00123');
+  await click('View format instructions');await has('Excel checklist');await has('Order ID, SKU and timestamp');assert.equal(await page.evaluate("document.querySelector('.f04-prepare-notes')?.innerText.includes('00123')??false"),false);await has('Replace the sample records');
   assert.equal(await page.evaluate("document.querySelector('#f04-csv-file').accept"),'.csv,.xlsx,.xls');
   const templateLinks=await page.evaluate("[...document.querySelectorAll('a[download]')].map(a=>({href:a.getAttribute('href'),download:a.hasAttribute('download')}))");
   assert.deepEqual(templateLinks.map(a=>a.href),['/templates/f04/transactions-template.xlsx','/templates/f04/transactions-template.xls']);
@@ -222,11 +225,25 @@ try {
   await page.evaluate("document.querySelector('[aria-label=\"View details for batch 51\"]').click()");await has('Unknown product');assert.equal(progressReads().length,historyProgress,'Excel History does not poll progress');
   await page.evaluate("document.querySelector('[aria-label=\"Close import details\"]').click()");
   checks.push('XLSX/XLS official bytes, boundary/file multipart, direct mixed and duplicate Summary, 400/413, lost response and reload without retry, no fake progress/polling, History/errors, template links and responsive desktop/mobile');
+  await navigate('/store/transactions');await has('Can be analyzed');await has('Excluded from analysis');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f04s-details-button')].every(b=>b.textContent==='View Details'&&!b.querySelector('svg')&&b.getAttribute('aria-haspopup')==='dialog'&&getComputedStyle(b).justifyContent==='center'&&getComputedStyle(b).borderTopWidth==='1px')"),true,'Store Admin Sales Records keeps centered, bordered, accessible text-only details buttons');
+  for(const id of [1,2,3,4,5]) {
+    await page.evaluate(`document.querySelector('[aria-label="View details for transaction ${id}"]').click()`);
+    await has('SALE-00'+id);await has('FM26-0290');
+    await has(id===1?'This sale is available for analysis; it has not necessarily been analyzed.':id===5?'selling price below their unit cost':({2:'Cancelled sales',3:'Refunded sales',4:'Partially refunded sales'})[id]);
+    assert.equal(await page.evaluate(`document.querySelector('[aria-label="Transaction information"]').textContent.includes("utility calculation")`),false);
+    for(const width of [390,820,1440]) {await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('document.querySelector("dialog").getBoundingClientRect().width<=innerWidth'),true);}
+    await page.evaluate(`document.querySelector('[aria-label="Close transaction details"]').click()`);
+  }
+  checks.push('Store Admin Sales list/details: ready for analysis is not already analyzed; cancelled/refunded/partial refund/below-cost reasons, product codes and responsive details retained');
   await login('STORE_ADMIN', 2); await has('Upload CSV'); assert.equal(await page.evaluate("!!document.querySelector('[role=progressbar]')"), false);
   await login('MERCHANDISER', 1); await has('Permission Required'); await navigate('/store/transactions/history'); await has('legacy.csv');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f04h-details-button')].every(b=>b.textContent==='View Details'&&!!b.querySelector('.lucide-eye'))"),true,'Merchandiser Import History retains its existing Eye icon');
   await page.evaluate("document.querySelector('[aria-label=\"View details for batch 41\"]').click()"); await has('Your import is queued');
   assert.equal(await page.evaluate("document.body.innerText.includes('Import CSV')"), false);
   await page.evaluate("document.querySelector('[aria-label=\"Close import details\"]').click()");
+  await navigate('/store/transactions');await has('Eligible');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f04s-details-button')].every(b=>b.textContent==='View Details'&&!!b.querySelector('.lucide-eye'))"),true,'Merchandiser Sales Records retains its existing Eye icon');
   await login('END_CUSTOMER', 1); await has('Permission Required');
   checks.push('failure renders safe text, network uncertainty retains original key, Store isolation, Merchandiser progress and restricted actors');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);

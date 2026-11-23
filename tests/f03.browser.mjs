@@ -131,7 +131,7 @@ async function merchantProductChecks() {
 async function openSeason(name) { await aria((fixtureRole === 'Store Admin' ? 'View ' : 'Edit ') + name); await has('Season Details'); }
 async function storeAdminChecks() {
   const before=calls.length;
-  await session('Store Admin','/f03/configuration');await has('Read-only configuration');
+  await session('Store Admin','/f03/configuration');await has('View only. A Merchandiser manages these settings.');
   assert.deepEqual(await evaluate("[...document.querySelectorAll('nav[aria-label=\"Utility Planner tabs\"] button')].map(e=>e.innerText)"),['Weight Settings','Seasons','Product Weights','Snapshots']);
   assert.equal(await enabled('Save Configuration'),false);
   assert.equal(await evaluate("[...document.querySelectorAll('form input')].every(e=>e.matches(':disabled'))"),true);
@@ -163,13 +163,16 @@ async function storeAdminChecks() {
   assert.equal(await evaluate(history+".innerText.includes('Details require Merchandiser access')"),false);
   assert.equal(await evaluate(list+".innerText.includes('Analysis date')&&"+list+".innerText.includes('Total weighted utility')&&!/Created At|Scoring Version|View Warnings/i.test("+list+'.innerText)'),true);
   const beforeDetails=calls.length;
-  await aria('View Details for Snapshot #6');await has('Configuration Metadata');await has('4 warnings');
+  await aria('View Details for Snapshot #6');await has('Saved Weight Settings');await has('4 warnings');
   const metadata="document.querySelector('dialog[open][aria-label=\"Snapshot #6 Details\"]')";
   assert.equal(await evaluate('location.pathname'),'/f03/snapshots');
   assert.equal(await evaluate(metadata+".querySelectorAll('table,form,input').length"),0);
   assert.equal(await evaluate(metadata+".innerText.includes('Snapshot Matrix')"),false);
-  assert.deepEqual(await evaluate('JSON.parse([...'+metadata+".querySelectorAll('summary')].find(e=>e.innerText==='Original configuration metadata').nextElementSibling.textContent)"),snapshot(6).configuration);
-  assert.deepEqual(await evaluate('JSON.parse([...'+metadata+".querySelectorAll('summary')].find(e=>e.innerText==='Original warnings (saved)').nextElementSibling.textContent)"),originals);
+  assert.equal(await evaluate(metadata+".querySelectorAll('pre').length"),0,'Store Admin sees labeled saved settings without raw JSON');
+  assert.equal(await evaluate(metadata+".textContent.includes('Expiry Importance')&&"+metadata+".textContent.includes('Saved Settings Details')"),true);
+  const savedSettings = snapshot(6).configuration.config;
+  assert.deepEqual(await evaluate('Object.fromEntries([...'+metadata+".querySelectorAll('dt')].filter(e=>['Expiry Importance','Season Importance','Priority Strength','Sales Window (days)'].includes(e.textContent)).map(e=>[e.textContent,e.nextElementSibling.textContent]))"),{'Expiry Importance':String(savedSettings.alpha),'Season Importance':String(savedSettings.beta),'Priority Strength':String(savedSettings.lambda),'Sales Window (days)':String(savedSettings.salesWindowDays)});
+  await has('Other original evidence');await has('Repeated 2 times');assert.deepEqual(state.historyWarnings[6],originals,'Saved warning evidence remains unchanged');
   await has('05/11/2026 02:00 UTC');
   assert.equal(calls.slice(beforeDetails).some(c=>/^\/api\/utility\/snapshots\//.test(c.path)),false,'Metadata Details never calls restricted endpoints');
   await evaluate(metadata+".querySelector('button[aria-label=\"Close dialog\"]').focus()");await key('Tab',8);assert.equal(await evaluate('document.activeElement.innerText'),'Close');await key('Tab');assert.equal(await evaluate('document.activeElement.getAttribute("aria-label")'),'Close dialog');
@@ -187,16 +190,16 @@ async function storeAdminChecks() {
   state.historyCount=1;state.historyOverrides={1:{configuration:null}};await click('Refresh Snapshots');await has('Snapshot #1');
   await until(list+'.children.length===1','Single saved metadata row');
   assert.equal(await evaluate(history+".querySelectorAll('nav').length"),0);
-  await aria('View Details for Snapshot #1');await has('Configuration metadata was not supplied');await has('No warnings were recorded');await click('Close');
+  await aria('View Details for Snapshot #1');await has('Saved settings are not available');await has('No warnings were recorded');await click('Close');
   state.historyOverrides={};state.historyCount=0;await click('Refresh Snapshots');await has('No saved snapshots yet');
   assert.equal(await evaluate(history+".innerText.includes('Calculate a Preview')"),false);
   state.historyCount=21;await click('Refresh Snapshots');await has('Snapshot #21');await pageNext('snapshots');await has('Page 2 of 2');await click('Refresh Snapshots');await has('Page 2 of 2');
-  await aria('View Details for Snapshot #1');await has('Configuration Metadata');
-  await evaluate("history.pushState({},'', '/f03/configuration');window.dispatchEvent(new PopStateEvent('popstate'))");await has('Read-only configuration');await until("!document.querySelector('dialog[open]')",'Metadata closes on navigation');
+  await aria('View Details for Snapshot #1');await has('Saved Weight Settings');
+  await evaluate("history.pushState({},'', '/f03/configuration');window.dispatchEvent(new PopStateEvent('popstate'))");await has('View only. A Merchandiser manages these settings.');await until("!document.querySelector('dialog[open]')",'Metadata closes on navigation');
   assert.equal(calls.slice(before).some(c=>c.path.startsWith('/api/utility/')&&c.method!=='GET'),false,'Store Admin never mutates F03');
   assert.equal(calls.slice(before).some(c=>/^\/api\/utility\/snapshots\//.test(c.path)),false,'Store Admin never reads forbidden Snapshot/Matrix routes');
   state.historyCount=null;state.historyWarnings={};
-  checks.push('Store Admin: shared catalog/modal and four tabs; read-only settings/Season/weights; no F03 writes or restricted Snapshot/Matrix GET; list-only metadata Details preserves raw config/warnings, no fake Matrix; focus/Escape/close, refresh, zero/one/multiple pages and responsive cards/modal');
+  checks.push('Store Admin: shared catalog/modal and four tabs; read-only settings/Season/weights; no F03 writes or restricted Snapshot/Matrix GET; list-only Details preserves saved config/warnings, no raw JSON or fake Matrix; focus/Escape/close, refresh, zero/one/multiple pages and responsive cards/modal');
 }
 async function pageNext(label) { const expr = "[...document.querySelectorAll('nav[aria-label=" + JSON.stringify(label + ' pagination') + "] button')].find(b=>b.innerText==='Next'&&b.getClientRects().length&&!b.disabled)"; await until('Boolean(' + expr + ')', 'Next ' + label); await evaluate(expr + '.click()'); }
 async function session(role, path = '/f03/configuration') {

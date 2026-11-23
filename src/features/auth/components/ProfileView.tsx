@@ -1,3 +1,4 @@
+import { storeAdminCopy as copy } from '../../../utils/storeAdminCopy';
 import React, { useEffect, useRef, useState } from "react";
 import {
   User,
@@ -251,10 +252,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             className="inline-flex items-center gap-2 text-xs font-semibold text-[#1E3A2F] hover:text-[#294D3F] mb-2 transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Dashboard</span>
+            <span>{copy('Back to Dashboard','Back to Products')}</span>
           </button>
           <h1 className="text-2xl sm:text-[28px] font-bold text-[#191C1B] tracking-tight flex items-center gap-2.5">
-            Account Profile & Security Settings
+            {copy('Account Profile & Security Settings','Profile & Security')}
           </h1>
           <p className="text-sm text-[#707973] mt-1">
             Manage identity information, system permissions, and SSO

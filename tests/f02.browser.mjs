@@ -71,6 +71,24 @@ const has = async text => {
   // Refetch keeps the previous rows mounted; visible text alone no longer means a request finished.
   await until("![...document.querySelectorAll('.f02-table-frame')].some(frame=>frame.getAttribute('aria-busy')==='true')", 'F02 tables settled');
 };
+async function checkCodeField(label, expected) {
+  const selector = 'input[aria-label=' + JSON.stringify(label) + ']';
+  await until('document.querySelector(' + JSON.stringify(selector) + ')?.value===' + JSON.stringify(expected), label + ' from Backend or unassigned placeholder');
+  assert.equal(await page.evaluate('(()=>{const e=document.querySelector(' + JSON.stringify(selector) + ');return e.readOnly&&!e.disabled&&!e.required&&!e.name&&getComputedStyle(e).backgroundColor!=="rgb(255, 255, 255)"&&e.closest("fieldset").querySelector("input")===e})()'), true, label + ' is a read-only field at the start of the form');
+  await page.evaluate('document.querySelector(' + JSON.stringify(selector) + ').focus()');
+  await page.call('Input.insertText', { text: 'USER-CANNOT-CHANGE-CODE' });
+  assert.equal(await page.evaluate('document.querySelector(' + JSON.stringify(selector) + ').value'), expected, 'User typing cannot change ' + label);
+  assert.equal(await page.evaluate('(()=>{const e=document.querySelector(' + JSON.stringify(selector) + ');e.select();return e.value.slice(e.selectionStart,e.selectionEnd)})()'), expected, label + ' can be selected for copying');
+}
+async function checkFormLabels(expected) {
+  for (const [name, label] of Object.entries(expected)) {
+    const selector = '[aria-label=' + JSON.stringify(name) + ']';
+    await until('Boolean(document.querySelector(' + JSON.stringify(selector) + '))', 'Form field ' + name);
+    const actual = await page.evaluate('(()=>{const e=document.querySelector(' + JSON.stringify(selector) + '),label=e.labels?.[0]||e.closest("label");return [...label.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent).join("").replace(/\\s+/g," ").trim()})()');
+    assert.equal(actual, label, 'Visible label for ' + name);
+  }
+  assert.equal(await page.evaluate("[...document.querySelector('dialog[open] form').querySelectorAll('label')].some(e=>e.textContent.includes('(optional)'))"), false, 'No optional suffix in form labels');
+}
 async function click(label) {
   await until("[...([...document.querySelectorAll('dialog[open]')].at(-1)||document).querySelectorAll('button')].some(b=>b.textContent.trim()===" + JSON.stringify(label) + "&&b.getClientRects().length&&!b.disabled&&!b.closest('fieldset[disabled]'))", 'Clickable ' + label);
   await page.evaluate("[...([...document.querySelectorAll('dialog[open]')].at(-1)||document).querySelectorAll('button')].find(b=>b.textContent.trim()===" + JSON.stringify(label) + "&&b.getClientRects().length&&!b.disabled&&!b.closest('fieldset[disabled]')).click()");
@@ -119,8 +137,8 @@ async function fixture({ requestId, request }) {
       } else {
       assert.equal(Object.hasOwn(payload, 'sku'), false);
       const id = method === 'POST' ? products.length + 1 : Number(path.split('/').at(-1));
-      body = { ...products[0], ...payload, id, sku: method === 'POST' ? 'SKU-' + String(id).padStart(11, '0') : products.find(p => p.id === id).sku, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
-      if (method === 'POST') products.unshift(body); else products[products.findIndex(p => p.id === id)] = body;
+      body = { ...products[0], ...payload, id, sku: method === 'POST' ? (state.nextSku || 'SKU-' + String(id).padStart(11, '0')) : products.find(p => p.id === id).sku, category: categories.find(c => c.id === payload.categoryId) || null }; delete body.categoryId;
+      if (method === 'POST') { products.unshift(body); state.nextSku = undefined; } else products[products.findIndex(p => p.id === id)] = body;
       }
     } else if (/^\/api\/products\/\d+\/status$/.test(path)) { const row = products.find(p => p.id === Number(path.split('/').at(-2))); Object.assign(row, payload); body = row; }
     else if (path === '/api/categories' || /^\/api\/categories\/\d+(\/status)?$/.test(path)) {
@@ -128,7 +146,7 @@ async function fixture({ requestId, request }) {
       else { body = categories.find(c => c.id === Number(path.split('/')[3])); Object.assign(body, payload); }
     } else if (/^\/api\/products\/\d+\/batches$/.test(path)) {
       assert.equal(method, 'POST'); assert.deepEqual(Object.keys(payload).sort(), ['receivedAt','expiryDate','initialQuantity','pushDay'].sort());
-      body = { ...batches[0], ...payload, batchCode: 'BATCH-20261118-' + String(batches.length + 1).padStart(3, '0'), id: Math.max(...batches.map(b => b.id)) + 1, productId: Number(path.split('/')[3]), remainingQuantity: payload.initialQuantity, status: 'ACTIVE' }; batches.push(body);
+      body = { ...batches[0], ...payload, batchCode: state.nextBatchCode || 'BATCH-20261118-' + String(batches.length + 1).padStart(3, '0'), id: Math.max(...batches.map(b => b.id)) + 1, productId: Number(path.split('/')[3]), remainingQuantity: payload.initialQuantity, status: 'ACTIVE' }; batches.push(body); state.nextBatchCode = undefined;
     } else if (/^\/api\/inventory-batches\/\d+(\/(push-day|expiry-date))?$/.test(path)) {
       body = batches.find(b => b.id === Number(path.split('/')[3]));
       if (method === 'DELETE') { assert.equal(payload, undefined); if(path.endsWith('/expiry-date')) { assert.equal(products.find(p=>p.id===body.productId).requiresExpiry,false); body.expiryDate = null; } else { assert.ok(path.endsWith('/push-day')); body.pushDay = null; } }
@@ -178,18 +196,18 @@ try {
   await page.call('Emulation.setTimezoneOverride', { timezoneId: 'Asia/Ho_Chi_Minh' });
   await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false });
   await page.call('Page.navigate', { url: origin + '/login' }); await has('Sign in to the system'); await login(); await navigate('/store/inventory'); await has('Product Management'); await has('Fixture product 1');
-  await has('Products · current page'); assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('Push days')"), false);
+  await has('TOTAL PRODUCTS'); assert.equal(await page.evaluate("document.querySelector('main').innerText.includes('Push days')"), false);
   await click('Next'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='2'", 'Page 2 selected'); await click('Previous'); await until("document.querySelector('.f02-pagination [aria-current=page]')?.textContent.trim()==='1'", 'Page 1 selected');
   await input('Search name or SKU', 'does-not-exist'); await has('No matching products.'); await input('Search name or SKU', ''); await has('Fixture product 1');
-  await click('Add product'); await has('SKU will be generated automatically when the product is saved.'); assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"), false); await input('Product name', 'New fixture product'); await input('Selling price', '12.75'); await input('Cost price', '15.25'); await input('Category', '1', 'select');
+  state.nextSku = 'FM26-0290'; await click('Add product'); await checkFormLabels({SKU:'SKU','Product name':'Product name *',Unit:'Unit *',Category:'Category','Product status':'Status *','Cost price':'Cost price *','Selling price':'Selling price *','Requires expiry tracking':'Expiry tracking'}); const beforeRequiredProduct=writes().length; await click('Save product'); await sleep(80); assert.equal(writes().length,beforeRequiredProduct,'Missing required Product name does not send POST'); await checkCodeField('SKU', 'Generated after saving'); await has('SKU is generated automatically when the product is saved.'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').readOnly"), true); await input('Product name', 'New fixture product'); await input('Selling price', '12.75'); await input('Cost price', '15.25'); await input('Category', '1', 'select');
   await has('Choose a previous unit or enter a new one.'); await ariaClick('Show unit suggestions');
   assert.deepEqual(await page.evaluate("[...document.querySelectorAll('[aria-label=\"Previous units\"] [role=option]')].map(o=>o.textContent)"), ['Bottle']);
   await input('Unit', 'vỉ');
   await has('The selling price is below the cost price.'); state.hold = true; const beforeCreate = writes().length;
   await page.evaluate("(()=>{const f=document.querySelector('dialog form');f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");
   await until("document.querySelector('dialog fieldset')?.disabled", 'Product saving'); await sleep(150); assert.equal(writes().length, beforeCreate + 1); state.hold = false;
-  await has('Product created successfully.'); assert.equal(writes().at(-1).body.sellingPrice, 12.75); assert.equal(Object.hasOwn(writes().at(-1).body, 'sku'), false); await has(products.find(p=>p.name==='New fixture product').sku); assert.equal(writes().at(-1).body.unit, 'vỉ');
-  await input('Search name or SKU', 'New fixture product'); await has('New fixture product'); await click('Edit'); await input('Product name', 'Edited fixture product'); state.writeError = 'Cannot require expiry while a batch has no expiry date'; await click('Save product');
+  await has('Product created successfully. SKU: FM26-0290'); assert.equal(writes().at(-1).body.sellingPrice, 12.75); assert.equal(Object.hasOwn(writes().at(-1).body, 'sku'), false); await has(products.find(p=>p.name==='New fixture product').sku); assert.equal(writes().at(-1).body.unit, 'vỉ');
+  await input('Search name or SKU', 'New fixture product'); await has('New fixture product'); assert.equal(await page.evaluate("document.querySelector('.f02-product-table tbody').textContent.includes('FM26-0290')"),true); await click('Edit'); await checkCodeField('SKU','FM26-0290'); await checkFormLabels({SKU:'SKU','Product name':'Product name *',Unit:'Unit *',Category:'Category','Product status':'Status *','Cost price':'Cost price *','Selling price':'Selling price *','Requires expiry tracking':'Expiry tracking'}); await input('Product name', 'Edited fixture product'); state.writeError = 'Cannot require expiry while a batch has no expiry date'; await click('Save product');
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=Unit]').value"), 'vỉ');
   await has('Cannot enable expiry tracking because some existing batches have no expiry date.'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Product name\"]').value"), 'Edited fixture product'); state.writeError = ''; await click('Save product'); await has('Product updated successfully.');
   await input('Search name or SKU', ''); await has('Fixture product 1');
@@ -221,8 +239,8 @@ try {
   state.productConflict = 'other'; await click('Save product'); await has('Controlled unrelated conflict');
   assert.equal(writes().length, conflictWrites + 2); await click('Cancel'); state.productConflict = '';
   const legacyProduct = products.find(p=>p.id===11), savedLegacySku = legacyProduct.sku; legacyProduct.sku = 'FM26-0001';
-  await input('Search name or SKU', 'FM26-0001'); await has('FM26-0001'); await click('Edit'); await has('SKU: FM26-0001 (read-only)');
-  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"), false);
+  await input('Search name or SKU', 'FM26-0001'); await has('FM26-0001'); await click('Edit'); await checkCodeField('SKU', 'FM26-0001');
+  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').readOnly"), true);
   await input('Product name', 'Legacy name edit'); const legacyWrites = writes().length;
   await click('Save product'); await has('Product updated successfully.');
   assert.equal(writes().length, legacyWrites + 1); assert.equal(Object.hasOwn(writes().at(-1).body, 'sku'), false);
@@ -243,8 +261,8 @@ try {
   await productColumnFilter('Category', ''); await productColumnFilter('Status', ''); await input('Search name or SKU', ''); await ariaClick('Sort by Product name'); await has('Edited fixture product');
   await click('Add product'); await capture('product-create-form'); await click('Cancel');
   checks.push('Backend-generated read-only SKU, legacy SKU edit succeeds unchanged, duplicate/other 409 no retry, name POST/PUT Cancel/Continue keeps exact payload, authoritative IDs, all nine server sorts with pagination/filter state');
-  await navigate('/store/categories'); await has('Dairy'); await click('Add category'); await input('Category name', '   '); const beforeCategory = writes().length; await click('Save category'); await has('Category name is required'); assert.equal(writes().length, beforeCategory);
-  await input('Category name', ' Chilled '); await click('Save category'); await has('Category created successfully.'); await has('Chilled'); await click('Edit'); await input('Category name', 'Dairy edited'); await click('Save category'); await has('Category updated successfully.');
+  await navigate('/store/categories'); await has('Dairy'); await click('Add category'); await checkFormLabels({'Category name':'Category name *','Category status':'Status *'}); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Category name\"]').required&&document.querySelector('input[aria-label=\"Category name\"]').maxLength===150&&document.querySelector('select[aria-label=\"Category status\"]').value==='ACTIVE'"),true,'Category required/maxLength/default unchanged'); await input('Category name', '   '); const beforeCategory = writes().length; await click('Save category'); await has('Category name is required'); assert.equal(writes().length, beforeCategory);
+  await input('Category name', ' Chilled '); await click('Save category'); await has('Category created successfully.'); await has('Chilled'); await click('Edit'); await checkFormLabels({'Category name':'Category name *','Category status':'Status *'}); await input('Category name', 'Dairy edited'); await click('Save category'); await has('Category updated successfully.');
   await page.evaluate("document.querySelector('button[aria-label=\"Change status for Dairy edited\"]').click()"); await has('Category status updated successfully.');
   state.categoriesEmpty = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh categories\"]').click()"); await has('No categories yet.'); state.categoriesEmpty = false;
   checks.push('Category create/edit/status, trim/nonblank validation and empty state');
@@ -285,7 +303,8 @@ try {
   assert.equal((await summaryValues())['Total stock'],22); assert.equal(await page.evaluate("Boolean(document.querySelector('[aria-label=\"Expiring stock\"]'))"),false);
   assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Inventory batch table\"]').textContent.includes('Set a Push Day')"),false);
   await batchAction('NO-EXPIRY-BATCH', 'Edit');
-  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=\"Batch code\"],input[aria-label=\"Received at\"],input[aria-label=\"Initial quantity\"]'))"),false);
+  await checkCodeField('Batch code', 'NO-EXPIRY-BATCH'); await checkFormLabels({'Batch code':'Batch code','Remaining quantity':'Remaining quantity *','Expiry date':'Expiry date','Push Day':'Push Day'});
+  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=\"Received at\"],input[aria-label=\"Initial quantity\"]'))"),false);
   await has('Batch ID (read-only)'); await input('Expiry date', '2099-12-20'); await capture('batch-expiry-edit');
   await click('Save batch'); await has('Batch updated successfully.'); assert.deepEqual(writes().at(-1).body,{expiryDate:'2099-12-20'});
   await batchAction('NO-EXPIRY-BATCH', 'Edit'); await click('Clear Expiry Date'); const beforeClearExpiry = writes().length;
@@ -298,11 +317,11 @@ try {
   assert.ok(calls.slice(beforeExpiryRefresh).some(c=>c.path==='/api/products/2/inventory-summary'&&c.method==='GET'));
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Expiry date\"]').value"),''); await click('Cancel');
   checks.push('Optional expiry PATCH uses YYYY-MM-DD; Clear Expiry confirmation Cancel/Confirm calls DELETE only, consumes response and refreshes list/Summary; receipt fields and Batch ID/code read-only');
-  await click('Add batch'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Expiry date\"]').required"),false); await has('Expiry date (optional)');
+  await click('Add batch'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Expiry date\"]').required"),false); await checkFormLabels({'Batch code':'Batch code','Received at':'Received at *','Initial quantity':'Initial quantity *','Expiry date':'Expiry date','Push Day':'Push Day'}); const beforeRequiredBatch=writes().length; await click('Save batch'); await sleep(80); assert.equal(writes().length,beforeRequiredBatch,'Missing required Initial quantity does not send POST');
   await input('Initial quantity','5'); assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('excluded from expiry-risk')"),false);
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Push Day\"]').disabled"),false); await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.expiryDate,null);
   await selectProduct(1); await has('BATCH-9');
-  await batchAction('BATCH-9','Edit'); await has('Edit inventory batch'); await until("Boolean(document.querySelector('input[aria-label=\"Expiry date\"]'))", 'Expiry editor ready');
+  await batchAction('BATCH-9','Edit'); await has('Edit inventory batch'); await checkFormLabels({'Batch code':'Batch code','Remaining quantity':'Remaining quantity *','Expiry date':'Expiry date *','Push Day':'Push Day'}); await until("Boolean(document.querySelector('input[aria-label=\"Expiry date\"]'))", 'Expiry editor ready');
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Expiry date\"]').required"),true);
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].some(b=>b.textContent==='Clear Expiry Date')"),false);
   await input('Expiry date','2019-12-09'); await has('Push Day must be on or before the expiry date.');
@@ -341,15 +360,15 @@ try {
   await click('Edit'); const beforePatch = writes().length; await input('Push Day', '2099-12-16'); await page.evaluate("document.querySelector('input[aria-label=\"Push Day\"]').dispatchEvent(new Event('blur',{bubbles:true}))"); await click('Save batch'); await has('Choose a date on or before 15/12/2099.'); assert.equal(writes().length, beforePatch);
   await input('Push Day', '2099-12-15'); await capture('batch-push-day-edit-desktop'); const beforeRefresh = calls.length; await click('Save batch'); await has('Batch updated successfully.'); assert.deepEqual(writes().at(-1).body, { pushDay: '2099-12-15' });
   await until("!document.body.innerText.includes('Loading batches')", 'Batch refresh'); assert.ok(calls.slice(beforeRefresh).some(c => c.path.endsWith('/batches') && c.method === 'GET')); assert.ok(calls.slice(beforeRefresh).some(c => c.path.endsWith('/inventory-summary')));
-  await click('Edit'); const beforeBlank = writes().length; await input('Push Day', ''); await click('Save batch'); await has('Use Clear Push Day to remove the saved date.'); assert.equal(writes().length, beforeBlank);
+  await click('Edit'); await checkCodeField('Batch code','BATCH-9'); const beforeBlank = writes().length; await input('Push Day', ''); await click('Save batch'); await has('Use Clear Push Day to remove the saved date.'); assert.equal(writes().length, beforeBlank);
   await click('Clear Push Day'); await has('Push Day cleared successfully.'); assert.equal(writes().at(-1).method, 'DELETE'); assert.equal(writes().at(-1).path, '/api/inventory-batches/9/push-day'); assert.equal(writes().at(-1).body, undefined);
   await click('Cancel'); await has('Set a Push Day for expiry-risk analysis.'); await has('Not set');
   await click('Edit'); await input('Remaining quantity', '40'); await click('Save batch'); await has('Batch updated successfully.'); assert.deepEqual(writes().at(-1).body, { remainingQuantity: 40 });
   await batchAction('BATCH-9','Block'); await has('Batch blocked successfully.'); assert.deepEqual(writes().at(-1).body, { status: 'BLOCKED' }); await batchAction('BATCH-9','Unblock'); await has('Batch unblocked successfully.');
   checks.push('Batch Push Day validation/equality, minimal PATCH, explicit DELETE, immutable fields, summary refresh, quantity, block/unblock');
-  await click('Add batch'); await input('Initial quantity', '10'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Expiry date\"]').required"), true);
-  await input('Received at', '2026-11-18T14:30'); const receivedInstant = await page.evaluate("new Date('2026-11-18T14:30').toISOString()"); await input('Expiry date', '2099-12-15'); await input('Push Day', '2020-01-01'); await capture('batch-create-filled-desktop'); state.writeError = 'Controlled batch save rejection'; await click('Save batch'); await has('Controlled batch save rejection'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Initial quantity\"]').value"), '10');
-  state.writeError = ''; await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.pushDay, '2020-01-01'); assert.equal(writes().at(-1).body.receivedAt, receivedInstant); await has(batches.at(-1).batchCode); assert.match(batches.at(-1).batchCode, /^BATCH-20261118-\d{3}$/); for(const key of ['id','productId','batchCode']) assert.equal(key in writes().at(-1).body,false); assert.equal(writes().at(-1).body.expiryDate, '2099-12-15'); assert.equal('remainingQuantity' in writes().at(-1).body, false);
+  state.nextBatchCode = 'BATCH-20261118-947'; await click('Add batch'); await checkCodeField('Batch code', 'Generated after saving'); await has('Batch code is generated automatically when the batch is saved.'); await checkFormLabels({'Batch code':'Batch code','Received at':'Received at *','Initial quantity':'Initial quantity *','Expiry date':'Expiry date *','Push Day':'Push Day'}); await input('Initial quantity', '10'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Expiry date\"]').required"), true);
+  await input('Received at', '2026-11-18T14:30'); await checkCodeField('Batch code','Generated after saving'); const receivedInstant = await page.evaluate("new Date('2026-11-18T14:30').toISOString()"); await input('Expiry date', '2099-12-15'); await input('Push Day', '2020-01-01'); await capture('batch-create-filled-desktop'); state.writeError = 'Controlled batch save rejection'; await click('Save batch'); await has('Controlled batch save rejection'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Initial quantity\"]').value"), '10');
+  state.writeError = ''; await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.pushDay, '2020-01-01'); assert.equal(writes().at(-1).body.receivedAt, receivedInstant); await has(batches.at(-1).batchCode); assert.equal(batches.at(-1).batchCode, 'BATCH-20261118-947'); await has('Inventory batch added successfully. Batch code: BATCH-20261118-947'); assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Inventory batch table\"] tbody').textContent.includes('BATCH-20261118-947')"),true); for(const key of ['id','productId','batchCode']) assert.equal(key in writes().at(-1).body,false); assert.equal(writes().at(-1).body.expiryDate, '2099-12-15'); assert.equal('remainingQuantity' in writes().at(-1).body, false);
   await click('Add batch'); await input('Initial quantity', '2'); await input('Expiry date', '2099-12-15'); await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.pushDay, null);
   checks.push('Create Batch with past Push Day or without Push Day; expiry required; save failure keeps fields');
   state.readError = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh batches\"]').click()"); await has('Controlled read unavailable'); const beforeRetry = writes().length; state.readError = false; await click('Retry batches'); await has('BATCH-9'); assert.equal(writes().length, beforeRetry);
@@ -379,7 +398,7 @@ try {
   await navigate('/store/edit-product'); await has('No product was selected.');
   products.find(p=>p.id===1).sku = 'FM26-DetailLegacy';
   await page.evaluate("(async()=>{const resources=performance.getEntriesByType('resource');const React=await import(resources.find(e=>new URL(e.name).pathname==='/node_modules/.vite/deps/react.js').name);const ReactDOM=await import(resources.find(e=>new URL(e.name).pathname==='/node_modules/.vite/deps/react-dom_client.js').name);const {EditProductView}=await import('/src/features/store/components/EditProductView.tsx');const host=document.createElement('div');host.id='detail-fixture';document.querySelector('main').append(host);window.detailFixtureRoot=(ReactDOM.createRoot||ReactDOM.default.createRoot)(host);window.detailFixtureRoot.render((React.createElement||React.default.createElement)(EditProductView,{productId:'1',onNavigate:()=>{}}));})()");
-  await has('Catalog information'); await has('SKU: FM26-DetailLegacy (read-only)'); await has('BATCH-9'); await input('Category', '2', 'select'); await click('Save changes'); await has('Product updated successfully.'); assert.equal(writes().at(-1).body.categoryId, 2); assert.equal(Object.hasOwn(writes().at(-1).body,'sku'),false); assert.equal(products.find(p=>p.id===1).sku,'FM26-DetailLegacy');
+  await has('Catalog information'); await checkCodeField('SKU', 'FM26-DetailLegacy'); await has('BATCH-9'); await input('Category', '2', 'select'); await click('Save changes'); await has('Product updated successfully.'); assert.equal(writes().at(-1).body.categoryId, 2); assert.equal(Object.hasOwn(writes().at(-1).body,'sku'),false); assert.equal(products.find(p=>p.id===1).sku,'FM26-DetailLegacy');
   await input('Product name', 'Unsaved catalog draft'); products.find(p=>p.id===1).stockQuantity = 123;
   await page.evaluate("[...document.querySelectorAll('#detail-fixture button')].find(b=>b.textContent.trim()==='Edit').click()"); await input('Push Day', '2099-12-01'); const detailReads = calls.length; await click('Save batch'); await has('Batch updated successfully.');
   await until("[...document.querySelectorAll('#detail-fixture strong')].some(e=>e.textContent==='123')", 'Detail stock refreshed'); assert.ok(calls.slice(detailReads).some(c=>c.path==='/api/products/1'&&c.method==='GET'));

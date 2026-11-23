@@ -9,7 +9,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
 const profile = mkdtempSync(join(base, 'paspm-session-browser-'));
-const artifacts = mkdtempSync(join(base, 'paspm-session-preview-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-session-preview-'));
 const chrome = spawn(process.env.SESSION_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 class CDP {
@@ -74,6 +74,7 @@ async function input(page, selector, value) {
   await page.evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
 }
 async function capture(page, name) {
+  if (!artifacts) return;
   const shot = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64'));
 }
@@ -147,7 +148,7 @@ async function reload(page) {
   await until(page, `window.fixtureDocumentId&&window.fixtureDocumentId!==${JSON.stringify(previous)}&&performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')`, 'new document loaded');
 }
 async function authenticated(page) {
-  if (process.argv.includes('--production')) { await has(page, 'Utility Configuration'); return; }
+  if (process.argv.includes('--production')) { await has(page, 'Weight Settings'); return; }
   await until(page, "performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module loaded');
   await until(page, `(async()=>${session}.getSnapshot().status==='authenticated')()`, 'authenticated');
 }
@@ -167,7 +168,7 @@ try {
   assert.ok(existsSync(join(profile, 'DevToolsActivePort')), 'Chrome started');
   const [portText, browserPath] = readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').trim().split(/\r?\n/); port = Number(portText);
   browser = await connect('ws://127.0.0.1:' + port + browserPath); first = await newPage();
-  await navigate(first, '/login'); await emailLogin(first); await has(first, 'Utility Configuration');
+  await navigate(first, '/login'); await emailLogin(first); await has(first, 'Weight Settings');
   assert.equal(await first.evaluate("localStorage.getItem('retailspace_auth_token')"), null);
   assert.equal(await first.evaluate("document.cookie.includes('PASPM-REFRESH')"), false);
   checks.push('email login, /me validation, memory-only credentials and HttpOnly refresh cookie');
@@ -251,7 +252,7 @@ try {
   assert.equal(await first.evaluate("document.querySelector('input[aria-label=\"Expiry Importance\"]').value"), '0.4');
   checks.push('inactivity only near expiry, sticky dialog, Escape/focus containment, 1440/1024/820/390px, refresh preserves unsaved draft');
 
-  await reload(first); await authenticated(first); await has(first, 'Utility Configuration');
+  await reload(first); await authenticated(first); await has(first, 'Weight Settings');
   checks.push('browser reload recovers via cookies and validates /me before protected UI');
   const secondTarget = await browser.call('Target.createTarget', { url: 'about:blank' });
   const second = await newPage(secondTarget.targetId); const beforeSecond = calls.filter(c => c.path.endsWith('/refresh')).length;

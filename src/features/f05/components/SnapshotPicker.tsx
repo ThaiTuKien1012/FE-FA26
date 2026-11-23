@@ -1,3 +1,4 @@
+import { isStoreAdmin, storeAdminCopy as copy, storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { formatDate, formatDateRange } from '../../../utils/dateTime';
 import { useEffect, useState } from 'react';
 import { AlertCircle, Database, Loader2, RefreshCw } from 'lucide-react';
@@ -9,6 +10,7 @@ import type { MiningReader } from '../f05.reader';
 import type { Page, SnapshotView } from '../f05.types';
 import { StoreSnapshotOptions } from './StoreSnapshotOptions';
 import { AnalysisPages } from './AnalysisPages';
+import { friendlyAnalysisText } from '../f05.presentation';
 
 const PAGE_SIZE = 10;
 const button = 'rounded-xl border border-[#E7E2D8] bg-white px-4 py-2 text-sm font-semibold text-[#1E3A2F] hover:bg-[#EDF5F0] disabled:cursor-not-allowed disabled:opacity-50';
@@ -64,7 +66,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="f05-snapshot-title" className="flex items-center gap-2 text-xl font-semibold"><Database aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{canSubmit?'Select Snapshot':system?'Available Snapshots':'READY snapshots'}</h2>
-          <p className="mt-2 text-sm text-[#6D7974]">{canSubmit?'Choose the saved utility data you want to analyze.':"Frozen F03 inputs for the Store. READY means its inputs have been frozen."}</p>
+          <p className="mt-2 text-sm text-[#6D7974]">{canSubmit?'Choose the saved utility data you want to analyze.':copy("Frozen F03 inputs for the Store. READY means its inputs have been frozen.", 'Saved analysis data for your store. READY means it is available for analysis.')}</p>
         </div>
         <button type="button" onClick={refresh} disabled={loading} className={button}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh snapshots</button>
       </div>
@@ -76,7 +78,7 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
       ) : data && data.items.length === 0 ? (
         <div className="mt-5 rounded-xl border border-dashed border-[#E7E2D8] bg-[#FAF8F5] p-6 text-sm text-[#6D7974]">
           <p className="font-semibold text-[#191C1B]">No READY snapshots found</p>
-          {canCreateSnapshot ? <><p className="mt-2">Open F03 Utility Preview, review the utility matrix and create a snapshot before mining.</p><a href={getPathForScreen('f03-preview')} className="mt-3 inline-block font-semibold text-[#1E3A2F] underline underline-offset-4">Open F03 Utility Preview</a></> : <p className="mt-2">Ask this Store's Merchandiser to create a frozen snapshot in F03.</p>}
+          {canCreateSnapshot ? <><p className="mt-2">Open F03 Utility Preview, review the utility matrix and create a snapshot before mining.</p><a href={getPathForScreen('f03-preview')} className="mt-3 inline-block font-semibold text-[#1E3A2F] underline underline-offset-4">Open F03 Utility Preview</a></> : <p className="mt-2">{copy("Ask this Store's Merchandiser to create a frozen snapshot in F03.",'Ask a Merchandiser to save analysis data for your store.')}</p>}
         </div>
       ) : data && !system ? <StoreSnapshotOptions items={data.items} selected={selected} locked={locked} canSubmit={canSubmit} onSelect={onSelect} /> : data && (
         <div role={canSubmit ? 'radiogroup' : 'region'} aria-label={canSubmit ? 'Snapshot selection' : 'Frozen snapshots'} tabIndex={canSubmit ? undefined : 0} className={`mt-5 grid max-h-[36rem] gap-4 overflow-y-auto pr-1 ${data.items.length>1?'lg:grid-cols-2':''}`}>
@@ -95,10 +97,10 @@ export function SnapshotPicker({ canSubmit, locked, selected, onSelect, errorMes
                 <div><dt className="text-xs text-[#6D7974]">{system?'Sales Period':'Date range'}</dt><dd className="mt-0.5">{formatDateRange(snapshot.rangeStart, snapshot.rangeEnd)}</dd></div>
                 <div><dt className="text-xs text-[#6D7974]">{system?'Utility Analysis Date':'Analysis date'}</dt><dd className="mt-0.5">{formatDate(snapshot.configuration?.analysisDate ?? snapshot.asOfDate)}</dd></div>
                 <div><dt className="text-xs text-[#6D7974]">{system?'Total Weighted Utility':'Total weighted utility'}</dt><dd className="mt-0.5 break-all font-medium">{formatMiningNumber(snapshot.totalWeightedUtility)}</dd></div>
-                {!system&&<div><dt className="text-xs text-[#6D7974]">Scoring version</dt><dd className="mt-0.5 break-words">{snapshot.configuration?.config?.scoringVersion ?? 'Not available in frozen metadata'}</dd></div>}
+                {!system&&!isStoreAdmin()&&<div><dt className="text-xs text-[#6D7974]">Scoring version</dt><dd className="mt-0.5 break-words">{snapshot.configuration?.config?.scoringVersion ?? 'Not available in frozen metadata'}</dd></div>}
               </dl>
               {system&&<details className="mt-3 text-xs text-[#6D7974]"><summary className="cursor-pointer font-medium">Technical Details</summary><p className="mt-2 break-words">Scoring Version: {snapshot.configuration?.config?.scoringVersion??'Not available in frozen metadata'}</p></details>}
-              {snapshot.warnings.length > 0 && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">Snapshot warnings</p><ul className="mt-1 list-disc space-y-1 pl-5">{snapshot.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div>}
+              {snapshot.warnings.length > 0 && <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">Snapshot warnings</p><ul className="mt-1 list-disc space-y-1 pl-5">{snapshot.warnings.map((warning, index) => <li key={index}>{isStoreAdmin() ? storeAdminMessage(friendlyAnalysisText(warning)) : warning}</li>)}</ul></div>}
             </article>
           ))}
         </div>

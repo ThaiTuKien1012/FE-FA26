@@ -1,3 +1,4 @@
+import { storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { useEffect, useRef } from 'react';
 import { formatDateRange } from '../../../utils/dateTime';
 import { algorithmName, formatMiningNumber, miningButton, miningDate } from '../f05.display';
@@ -13,7 +14,7 @@ export function StoreAnalysisContent({ data, selectedRunId, onRun, onReadError }
   return <>
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="font-medium">Snapshot #{request.snapshotId}<span className="mt-1 block text-sm font-normal text-[#6D7974]">{formatDateRange(request.snapshot.rangeStart, request.snapshot.rangeEnd)}</span></p><MiningStatusBadge friendly kind="request" status={request.status} /></div>
     <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-xs text-[#6D7974]">Created At</dt><dd className="mt-1">{miningDate(request.createdAt, false)}</dd></div>{request.status==='COMPLETED'&&runs.length===1&&runs[0].status==='COMPLETED'&&runs[0].patternCount!==null&&<div><dt className="text-xs text-[#6D7974]">Product combinations found</dt><dd className="mt-1 font-semibold">{formatMiningNumber(runs[0].patternCount)}</dd></div>}</dl>
-    {note && <p className="mt-4 rounded-lg bg-[#FAF8F5] p-3 text-sm text-[#6D7974]">{note}</p>}
+    {note && <p className="mt-4 rounded-lg bg-[#FAF8F5] p-3 text-sm text-[#6D7974]">{storeAdminMessage(note)}</p>}
     <MiningProgressCard simple progress={progress} snapshotId={request.snapshotId} />
     {request.snapshot.warnings.length > 0 && <details className="mt-4 text-sm"><summary className="cursor-pointer font-medium text-amber-900">Snapshot warnings ({request.snapshot.warnings.length})</summary><ul className="mt-2 list-disc space-y-2 pl-5">{request.snapshot.warnings.map((warning,index)=><li className="break-words" key={index}>{friendlyAnalysisText(warning)}</li>)}</ul></details>}
     <h3 className="mt-5 font-semibold">Analysis Results</h3>
@@ -32,6 +33,6 @@ export function StoreAnalysisDetails({ data, error, loading, selectedRunId, onRu
   useEffect(()=>{title.current?.focus({preventScroll:true});title.current?.scrollIntoView({block:'start'});},[]);
   return <section aria-labelledby="f05-details-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 ref={title} tabIndex={-1} id="f05-details-title" className="text-xl font-semibold">Analysis Overview{data?' · Analysis #'+data.request.requestId:''}</h2><div className="flex flex-wrap gap-2"><button type="button" className={miningButton} disabled={loading} onClick={onRefresh}>Refresh Details</button>{onClose&&<button type="button" className={miningButton} onClick={onClose}>Close Details</button>}</div></div>
-    {loading?<p role="status" className="mt-4 text-sm text-[#6D7974]">Loading analysis...</p>:error?<p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error} Updates have stopped. Use Refresh Details to try again.</p>:data&&<StoreAnalysisContent data={data} selectedRunId={selectedRunId} onRun={onRun} onReadError={onReadError} />}
+    {loading?<p role="status" className="mt-4 text-sm text-[#6D7974]">Loading analysis...</p>:error?<p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{storeAdminMessage(error)} Updates have stopped. Use Refresh Details to try again.</p>:data&&<StoreAnalysisContent data={data} selectedRunId={selectedRunId} onRun={onRun} onReadError={onReadError} />}
   </section>;
 }

@@ -19,14 +19,14 @@ test('Store Admin metadata Details retains exact saved fields, configuration and
   const value = { ...snapshot(6), totalWeightedUtility: 1234567.123456, warnings: ['MISSING_PUSH_DAY', 'MISSING_PUSH_DAY', 'Original evidence'] };
   const before = JSON.stringify(value);
   const html = renderToStaticMarkup(createElement(SnapshotMetadataContent, { snapshot: value }));
-  for (const label of ['Sales Period', 'Analysis Date', '1,234,567.123456', '05/11/2026 02:00 UTC', 'Configuration Metadata', 'W2_EXPIRY_SEASON_V1', 'Snapshot Warnings', '3 warnings', 'Repeated 2 times', 'Original evidence', 'Original configuration metadata']) assert.ok(html.includes(label), label);
+  for (const label of ['Sales Period', 'Analysis Date', '1,234,567.123456', '05/11/2026 02:00 UTC', 'Saved Weight Settings', 'W2_EXPIRY_SEASON_V1', 'Snapshot Warnings', '3 warnings', 'Repeated 2 times', 'Original evidence', 'Saved Settings Details']) assert.ok(html.includes(label), label);
   assert.equal(/Snapshot Matrix|Utility matrix|Create Snapshot|<form|<input|<table/.test(html), false);
   assert.equal(JSON.stringify(value), before);
 });
 
 test('metadata Details never substitutes current configuration when saved metadata is absent or unknown', () => {
   const absent = renderToStaticMarkup(createElement(SnapshotMetadataContent, { snapshot: { ...snapshot(), configuration: null } }));
-  assert.ok(absent.includes('Configuration metadata was not supplied'));
+  assert.ok(absent.includes('Saved settings are not available'));
   assert.equal(absent.includes('W2_EXPIRY_SEASON_V1'), false);
   const value = snapshot();
   const future = { ...value, configuration: { ...value.configuration!, config: { ...value.configuration!.config, scoringVersion: 'FUTURE_V9' } } };

@@ -3,10 +3,38 @@ import { test, type TestContext } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ProductFields } from '../src/features/store/components/ProductInventoryView';
+import { GeneratedCodeField } from '../src/features/store/components/GeneratedCodeField';
 import { authService, ROLE_PERMISSIONS, type AuthUser } from '../src/services/authService';
 import { canManageCatalog, F02ApiError, f02ErrorMessage, needsProductNameConfirmation, storeApi, type F02Batch, type F02BatchPatchRequest, type F02Product, type F02Status } from '../src/features/store/store.api';
 import { batchCreateRequest, batchPatchRequest, batchPushState, categoryRequest, emptyBatchForm, emptyProductForm, isExpired, isExpiringSoon, localDateTime, money, productRequest, storeDate, validatePushDay } from '../src/features/store/f02.forms';
 import { user } from './f05.fixtures';
+import { loadProductStats } from '../src/features/store/f02.product-stats';
+
+test('Store product statistics use three unfiltered pageSize=1 queries and Backend totals, not page contents', async t => {
+  const f = setup(t);
+  t.mock.method(authService, 'request', async (path: string) => {
+    f.calls.push({ path, init: {}, body: undefined });
+    const query = new URL(path, 'http://fixture.invalid').searchParams;
+    assert.equal(query.get('page'), '0'); assert.equal(query.get('pageSize'), '1');
+    assert.deepEqual([...query.keys()].sort(), query.has('status') ? ['page', 'pageSize', 'status'] : ['page', 'pageSize']);
+    return Response.json({ content: [product], totalElements: query.get('status') === 'ACTIVE' ? 240 : query.get('status') === 'INACTIVE' ? 120 : 360 });
+  });
+  const stats = await loadProductStats();
+  assert.deepEqual(stats, { total: 360, active: 240, inactive: 120 });
+  assert.equal(stats.active + stats.inactive, stats.total); assert.equal(f.calls.length, 3);
+});
+
+test('Empty Store counts are real zero; failed or malformed totals never become zero', async t => {
+  const f = setup(t);
+  f.respond(async () => Response.json({ content: [], totalElements: 0 }));
+  assert.deepEqual(await loadProductStats(), { total: 0, active: 0, inactive: 0 });
+  f.respond(async () => Response.json({ error: 'Unavailable' }, { status: 503 }));
+  await assert.rejects(loadProductStats(), /Unavailable/);
+  for (const totalElements of [undefined, null, -1, 1.5, '360', Number.MAX_SAFE_INTEGER + 1]) {
+    f.respond(async () => Response.json({ totalElements }));
+    await assert.rejects(loadProductStats(), /totals are unavailable/);
+  }
+});
 
 const categories = [{ id: 1, name: 'Dairy', status: 'ACTIVE' as const }, { id: 2, name: 'Archived', status: 'INACTIVE' as const }];
 const product: F02Product = { id: 4, sku: 'SKU-MILK-000001', name: 'Milk', unit: 'Bottle', requiresExpiry: true, category: categories[0], sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE', stockQuantity: 100 };
@@ -201,19 +229,46 @@ test('Network failures are surfaced with no automatic mutation retry or duplicat
   assert.equal(f02ErrorMessage(new TypeError('Failed to fetch')), 'Unable to connect to the server. Please check your connection and try again.');
 });
 
-test('Add Product has no SKU input and explains automatic generation', () => {
+test('Add/Edit Product labels mark required fields, retain optional Category and leave generated SKU unmarked', () => {
+  for (const selected of [undefined, product]) {
+    const html = renderToStaticMarkup(createElement(ProductFields, { form: productForm(), categories, product: selected, onChange: () => {} }));
+    for (const label of ['Product name', 'Unit', 'Status', 'Cost price', 'Selling price']) assert.ok(html.includes(`${label} *`), label);
+    assert.match(html, />Category<select/); assert.ok(html.includes('No category'));
+    assert.match(html, />SKU<input/); assert.ok(html.includes('Expiry tracking</label>'));
+    assert.doesNotMatch(html, /\(optional\)|Category \*|SKU \*|Expiry tracking \*/);
+    assert.equal(productRequest({ ...productForm(), categoryId: '' }, categories).categoryId, null);
+  }
+});
+
+test('Add Product shows a read-only SKU placeholder before any code is assigned', () => {
   const markup = renderToStaticMarkup(createElement(ProductFields, { form: productForm(), categories, onChange: () => {} }));
-  assert.ok(markup.includes('SKU will be generated automatically when the product is saved.'));
-  assert.equal(/<input[^>]*aria-label="SKU"/.test(markup), false);
+  assert.ok(markup.includes('SKU is generated automatically when the product is saved.'));
+  const input = markup.match(/<input[^>]*aria-label="SKU"[^>]*>/)?.[0];
+  assert.ok(input); assert.match(input, /readOnly=""/); assert.match(input, /value="Generated after saving"/);
+  assert.doesNotMatch(input, /\b(?:disabled|required|name)=/);
   assert.equal('sku' in emptyProductForm, false);
 });
 
-test('Edit shows returned SKU as text for generated and legacy products', () => {
+test('Edit shows the exact returned SKU in a copyable read-only input for generated and legacy products', () => {
   for (const sku of ['SKU-00000000004', 'FM26-0001', 'legacy mixed Case']) {
     const markup = renderToStaticMarkup(createElement(ProductFields, { form: productForm(), categories, product: { ...product, sku }, onChange: () => {} }));
     assert.ok(markup.includes(sku));
-    assert.equal(/<input[^>]*aria-label="SKU"/.test(markup), false);
+    const input = markup.match(/<input[^>]*aria-label="SKU"[^>]*>/)?.[0];
+    assert.ok(input); assert.match(input, /readOnly=""/); assert.ok(input.includes(`value="${sku}"`));
+    assert.doesNotMatch(input, /\b(?:disabled|required|name)=/);
+    assert.equal(markup.includes('Generated after saving'), false);
     assert.equal(markup.includes('Compatibility support is required'), false);
+  }
+});
+
+test('Batch code uses the same read-only field, with a placeholder only before creation', () => {
+  for (const code of [undefined, 'BATCH-20261123-001', 'legacy batch code']) {
+    const markup = renderToStaticMarkup(createElement(GeneratedCodeField, { label: 'Batch code', code }));
+    const input = markup.match(/<input[^>]*aria-label="Batch code"[^>]*>/)?.[0];
+    assert.ok(input); assert.match(input, /readOnly=""/); assert.ok(input.includes(`value="${code ?? 'Generated after saving'}"`));
+    assert.doesNotMatch(input, /\b(?:disabled|required|name)=/);
+    assert.equal(markup.includes('Batch code is generated automatically when the batch is saved.'), code === undefined);
+    assert.equal(markup.includes('Generated after saving'), code === undefined);
   }
 });
 

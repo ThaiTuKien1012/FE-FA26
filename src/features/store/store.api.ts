@@ -1,3 +1,4 @@
+import { storeAdminMessage } from '../../utils/storeAdminCopy';
 import { authService } from '../../services/authService';
 
 export type F02Status = 'ACTIVE' | 'INACTIVE';
@@ -28,7 +29,7 @@ export function f02ErrorMessage(error: unknown): string {
   if (error instanceof TypeError && /fetch|network|load failed/i.test(message)) return 'Unable to connect to the server. Please check your connection and try again.';
   if (/Cannot require expiry while a batch has no expiry date/i.test(message)) return 'Cannot enable expiry tracking because some existing batches have no expiry date.';
   if (/pushDay must be on or before expiryDate/i.test(message)) return 'Push Day must be on or before the expiry date.';
-  return message;
+  return storeAdminMessage(message);
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

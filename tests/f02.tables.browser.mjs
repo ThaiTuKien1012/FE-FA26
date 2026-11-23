@@ -44,6 +44,7 @@ class CDP {
 let page, closing = false;
 const calls = [], fulfilled = [], errors = [], unexpected = [], checks = [];
 const state = { role: 'STORE_ADMIN', hold: false, productConflict: '', writeError: '', readError: false, productError: false, empty: false, batchesEmpty: false, categoriesEmpty: false, pickerMany: false, unconfirmedStatus: false, heldSearches: new Set(), heldInventory: new Set(), inventoryErrors: new Set() };
+state.storeId = 1; state.statsError = false; state.heldStats = new Set();
 const categories = [{ id: 1, name: 'Dairy', status: 'ACTIVE' }];
 const products = Array.from({ length: 11 }, (_, i) => ({ id: i + 1, sku: 'SKU-' + (i + 1), name: 'Fixture product ' + (i + 1), unit: 'Bottle', requiresExpiry: i === 0, category: categories[0], sellingPrice: 12.75, costPrice: 10.25, status: 'ACTIVE', stockQuantity: 100 }));
 const batches = [{ id: 9, productId: 1, batchCode: 'BATCH-9', receivedAt: '2026-11-17T02:00:00Z', expiryDate: '2099-12-15', initialQuantity: 100, remainingQuantity: 80, status: 'ACTIVE', pushDay: '2020-12-10', createdAt: '2026-11-17T02:00:00Z', updatedAt: '2026-11-17T02:00:00Z' }];
@@ -104,10 +105,12 @@ async function fixture({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname, method = request.method;
   if (!path.startsWith('/api/')) return page.call(url.origin === origin && !path.startsWith('/videos/') ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId, ...(url.origin === origin && !path.startsWith('/videos/') ? {} : { errorReason: 'BlockedByClient' }) });
   const payload = request.postData ? JSON.parse(request.postData) : undefined;
+  const statsRequest = path === '/api/products' && method === 'GET' && url.searchParams.get('pageSize') === '1';
+  const statsStore = state.storeId;
   calls.push({ path, query: url.search, method, body: payload });
   let body, responseCode = 200;
   if (path === '/api/auth/login' || path === '/api/auth/refresh') body = { accessToken: 'fixture-only-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-only-csrf' };
-  else if (path === '/api/auth/me') body = { userId: 12, name: 'F02 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: 1, status: 'ACTIVE', emailVerified: true };
+  else if (path === '/api/auth/me') body = { userId: 12, name: 'F02 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: state.storeId, status: 'ACTIVE', emailVerified: true };
   else if (method !== 'GET') {
     while (state.hold && !closing) await sleep(20);
     if (state.writeError) { responseCode = 400; body = { error: state.writeError }; }
@@ -135,10 +138,11 @@ async function fixture({ requestId, request }) {
       else { assert.equal(method, 'PATCH'); assert.ok(Object.keys(payload).every(key => ['remainingQuantity', 'status', 'pushDay', 'expiryDate'].includes(key))); if(!state.unconfirmedStatus) Object.assign(body, Object.fromEntries(Object.entries(payload).filter(([,v])=>v!==null))); }
     } else { unexpected.push(method + ' ' + path); responseCode = 500; body = { error: 'Unexpected fixture write' }; }
   } else if (state.readError && /batches|inventory-summary/.test(path)) { responseCode = 503; body = { error: 'Controlled read unavailable' }; }
+  else if (statsRequest && state.statsError) { responseCode = 503; body = { error: 'Controlled statistics failure' }; }
   else if (path === '/api/products' && state.productError) { responseCode = 503; body = { error: 'Controlled product lookup failed' }; }
   else if (path === '/api/products') {
     const search = (url.searchParams.get('search') || '').toLowerCase(), index = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
-    const source = state.pickerMany && size === 20 ? [...products, ...extraProducts] : products;
+    const source = state.storeId === 2 ? products.slice(0, 7) : state.pickerMany && size === 20 ? [...products, ...extraProducts] : products;
     const rows = state.empty ? [] : source.filter(p => (p.sku + ' ' + p.name).toLowerCase().includes(search) && (!url.searchParams.get('status') || p.status === url.searchParams.get('status')) && (!url.searchParams.get('categoryId') || String(p.category?.id) === url.searchParams.get('categoryId')));
     const field = url.searchParams.get('sortBy') || 'name', direction = url.searchParams.get('sortDirection') === 'desc' ? -1 : 1;
     rows.sort((a,b)=> { const left=field==='category'?a.category?.name||'':a[field], right=field==='category'?b.category?.name||'':b[field]; return (typeof left==='string'?left.localeCompare(right):Number(left)-Number(right))*direction || a.id-b.id; });
@@ -160,6 +164,7 @@ async function fixture({ requestId, request }) {
   const inventoryError = inventoryId !== null && state.inventoryErrors.has(inventoryId);
   while (!closing && ((path === '/api/products' && state.heldSearches.has(search)) || (inventoryId !== null && state.heldInventory.has(inventoryId)))) await sleep(20);
   if (inventoryError) { responseCode = 503; body = { error: 'Stale inventory request failed' }; }
+  while (!closing && statsRequest && state.heldStats.has(statsStore)) await sleep(20);
   await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders, body: Buffer.from(JSON.stringify(body)).toString('base64') });
   fulfilled.push({ path, query: url.search, method });
 }
@@ -186,7 +191,75 @@ async function metrics() { return page.evaluate('(()=>{const r=document.querySel
 const closeEnough = (a,b,label) => assert.ok(Math.abs(a-b)<1.1,label+': '+a+' vs '+b);
 async function noHeaderFilters() { assert.equal(await page.evaluate("document.querySelectorAll('thead .f02-filter-button,thead [popover],thead select,thead input').length"),0,'Headers contain only sorting'); }
 async function unitKey(key) { await page.evaluate('document.querySelector(\'input[aria-label="Unit"]\').dispatchEvent(new KeyboardEvent("keydown",{key:'+JSON.stringify(key)+',bubbles:true,cancelable:true}))'); }
+const statsCalls = () => calls.filter(c => c.path === '/api/products' && new URLSearchParams(c.query).get('pageSize') === '1');
+const statsValues = () => page.evaluate("[...document.querySelectorAll('[data-product-stat]')].map(e=>e.textContent)");
+async function statsReady(expected) {
+  // Table and statistics requests finish independently after a mutation.
+  await until("document.querySelector('[aria-label=\"Store product statistics\"]')?.getAttribute('aria-busy')==='false'&&JSON.stringify([...document.querySelectorAll('[data-product-stat]')].map(e=>e.textContent))===" + JSON.stringify(JSON.stringify(expected.map(String))), 'Expected statistics settled');
+  assert.deepEqual(await statsValues(), expected.map(String));
+}
+async function statsChecks() {
+  const savedProducts = [...products];
+  await navigate('/store/categories'); await settled('Category');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f02-status-button')].every(b=>!b.querySelector('svg'))"), true, 'Category status has no Chevron');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.f02-cell-actions button')].every(b=>b.classList.contains('f02-product-edit')&&!b.querySelector('svg')&&getComputedStyle(b).borderTopWidth==='1px')"), true, 'Shared text-only Edit style');
+  const cat = categories[0], originalStatus = cat.status;
+  await ariaClick('Change status for ' + cat.name); await settled('Category');
+  await until("document.body.innerText.includes('Category status updated successfully.')", 'Category status changed');
+  assert.notEqual(cat.status, originalStatus);
+  await ariaClick('Change status for ' + cat.name); await settled('Category');
+  await until("[...document.querySelectorAll('.f02-status-button')].some(b=>b.getAttribute('aria-label')===" + JSON.stringify('Change status for ' + cat.name) + "&&b.textContent==='Active'&&!b.disabled)", 'Category status restored');
+  await click('Edit'); await has('Edit category'); await click('Cancel');
+  products.splice(0, products.length, ...Array.from({ length: 360 }, (_, i) => ({ ...savedProducts[0], id: i + 1, sku: 'STATS-' + (i + 1), name: 'Stats product ' + (i + 1), status: i < 240 ? 'ACTIVE' : 'INACTIVE' })));
+  await page.evaluate("sessionStorage.removeItem('f02-products-view-state')");
+  let count = statsCalls().length;
+  await navigate('/store/inventory'); await settled('Product'); await statsReady([360, 240, 120]);
+  assert.equal(statsCalls().length - count, 3);
+  assert.equal((await rowCells('Product')).length, 10);
+  assert.equal(await page.evaluate("document.querySelectorAll('[data-product-stat]').length===3&&!/current page|out of stock/i.test(document.querySelector('[aria-label=\"Store product statistics\"]').innerText)"), true);
+  count = statsCalls().length;
+  await click('Next'); await settled('Product'); await statsReady([360, 240, 120]);
+  await input('Search name or SKU', 'Stats product 2'); await settled('Product');
+  await input('Filter by category', '1', 'select'); await settled('Product');
+  await input('Filter by status', 'INACTIVE', 'select'); await settled('Product');
+  await ariaClick('Sort by Product name'); await settled('Product'); await statsReady([360, 240, 120]);
+  assert.equal(statsCalls().length, count, 'No statistics requests from page/search/category/status/sort');
+  await click('Clear filters'); await settled('Product');
+  await ariaClick('Refresh products'); await settled('Product'); await statsReady([360, 240, 120]);
+  assert.equal(statsCalls().length - count, 3); count = statsCalls().length;
+  await ariaClick('Sort by Product name'); await settled('Product');
+  await ariaClick('Change status for Stats product 1'); await settled('Product'); await statsReady([360, 239, 121]);
+  assert.equal(statsCalls().length - count, 3); count = statsCalls().length;
+  await click('Add product'); await input('Product name', 'Stats added'); await input('Unit', 'Box'); await input('Selling price', '12'); await input('Cost price', '10'); await click('Save product');
+  await has('Product created successfully.'); await settled('Product'); await statsReady([361, 240, 121]);
+  assert.equal(statsCalls().length - count, 3); count = statsCalls().length;
+  await input('Search name or SKU', 'Stats added'); await settled('Product'); await click('Edit'); await input('Product name', 'Stats edited'); await click('Save product');
+  await has('Product updated successfully.'); await settled('Product'); await statsReady([361, 240, 121]);
+  assert.equal(statsCalls().length - count, 3);
+  state.empty = true; await ariaClick('Refresh products'); await settled('Product'); await statsReady([0, 0, 0]);
+  state.empty = false; state.statsError = true;
+  await ariaClick('Refresh products'); await settled('Product'); await statsReady(['Unavailable', 'Unavailable', 'Unavailable']); await has('Product statistics are unavailable.');
+  state.statsError = false; await click('Retry statistics'); await statsReady([361, 240, 121]);
+  // Hold responses carrying Store 1 totals, then authenticate into Store 2.
+  state.heldStats.add(1); count = statsCalls().length;
+  await ariaClick('Refresh products'); await waitFor(() => statsCalls().length === count + 3, 'Old Store statistics held');
+  assert.deepEqual(await statsValues(), ['\u2014', '\u2014', '\u2014']);
+  const fulfilledBefore = fulfilled.filter(c => c.path === '/api/products' && new URLSearchParams(c.query).get('pageSize') === '1').length;
+  state.storeId = 2; await login(); await navigate('/store/inventory'); await settled('Product'); await statsReady([7, 6, 1]);
+  state.heldStats.delete(1);
+  await waitFor(() => fulfilled.filter(c => c.path === '/api/products' && new URLSearchParams(c.query).get('pageSize') === '1').length >= fulfilledBefore + 6, 'Old responses released');
+  await statsReady([7, 6, 1]);
+  for (const width of [1366, 820, 390]) {
+    await page.call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
+    assert.equal(await page.evaluate("(()=>{const section=document.querySelector('[aria-label=\"Store product statistics\"]'),cards=[...section.querySelectorAll('[data-product-stat]')].map(e=>e.parentElement.getBoundingClientRect());return section.scrollWidth<=section.clientWidth+1&&cards.every(r=>Math.abs(r.width-cards[0].width)<1)&&[...document.querySelectorAll('.f02-product-edit')].every(b=>!b.querySelector('svg'))})()"), true, 'Three equal responsive cards and no Edit icons at ' + width);
+  }
+  products.splice(0, products.length, ...savedProducts); state.storeId = 1;
+  await page.call('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
+  await login(); await navigate('/store/inventory'); await settled('Product');
+  checks.push('Store-wide 360/240/120 from three tiny queries; no filter/page/sort refetch; Refresh/create/update/status; empty/error/retry; late Store/session fence; three equal responsive cards; Category status and shared text-only Edit');
+}
 async function tableChecks() {
+  const tableStart = calls.length;
   await navigate('/store/categories'); await settled('Category'); await noHeaderFilters();
   const reads=calls.filter(c=>c.path==='/api/categories').length;
   await ariaClick('Sort by ID'); assert.deepEqual(await categoryIds(),Array.from({length:10},(_,i)=>i+1));
@@ -203,7 +276,7 @@ async function tableChecks() {
 
   await page.evaluate("sessionStorage.setItem('f02-products-view-state',JSON.stringify({page:1,query:'SKU-',categoryId:'1',status:'ACTIVE',sortBy:'unit',sortDirection:'desc'}))");
   await navigate('/store/inventory'); await settled('Product'); await noHeaderFilters();
-  const restoredQuery=new URLSearchParams(calls.filter(c=>c.path==='/api/products'&&c.method==='GET').at(-1).query);
+  const restoredQuery=new URLSearchParams(calls.filter(c=>c.path==='/api/products'&&c.method==='GET'&&new URLSearchParams(c.query).get('pageSize')!=='1').at(-1).query);
   assert.equal(restoredQuery.get('sortBy'),'name');assert.equal(restoredQuery.get('sortDirection'),'desc');assert.equal(restoredQuery.get('page'),'1');
   assert.equal(restoredQuery.get('search'),'SKU-');assert.equal(restoredQuery.get('categoryId'),'1');assert.equal(restoredQuery.get('status'),'ACTIVE');
   assert.equal(await page.evaluate("JSON.parse(sessionStorage.getItem('f02-products-view-state')).sortBy"),'name','Legacy Unit sorting is migrated without clearing page/filters');
@@ -233,8 +306,8 @@ async function tableChecks() {
   const during=await metrics(); before.widths.forEach((w,i)=>closeEnough(w,during.widths[i],'Held width')); closeEnough(before.height,during.height,'Held height');
   state.heldSearches.delete(''); await settled('Product'); const after=await metrics();
   before.widths.forEach((w,i)=>closeEnough(w,after.widths[i],'Sorted width')); closeEnough(before.height,after.height,'Refetch height'); closeEnough(before.y,after.y,'Window scroll'); closeEnough(before.scroll,after.scroll,'Horizontal scroll');
-  await input('Search name or SKU','FM26-0002'); await settled('Product'); await click('Edit'); await has('SKU: FM26-0002 (read-only)');
-  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"),false); await click('Cancel'); await click('Clear filters'); await settled('Product');
+  await input('Search name or SKU','FM26-0002'); await settled('Product'); await click('Edit'); await until("document.querySelector('input[aria-label=SKU]')?.value==='FM26-0002'",'Read-only legacy SKU');
+  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').readOnly"),true); await click('Cancel'); await click('Clear filters'); await settled('Product');
   await page.call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   const fullPageHeight=(await metrics()).height;
   await input('Search name or SKU',products.find(product=>product.id===3).sku); await settled('Product');
@@ -245,9 +318,9 @@ async function tableChecks() {
   checks.push('All 8 displayed Backend sort fields use single-action headers; toolbar queries whitelist; DOM/width/height/focus/scroll stable through held refetch; legacy SKU preserved');
 
   await click('Add product'); await has('Choose a previous unit or enter a new one.');
-  assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=SKU]'))"),false);
-  await has('SKU will be generated automatically when the product is saved.');
-  const unitReads=calls.filter(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('pageSize')==='100');
+  assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').readOnly"),true);
+  await has('SKU is generated automatically when the product is saved.'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=SKU]').value"),'Generated after saving');
+  const unitReads=calls.slice(tableStart).filter(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('pageSize')==='100');
   assert.deepEqual(unitReads.map(c=>new URLSearchParams(c.query).get('page')),['0','1']);
   await input('Unit',''); await page.evaluate("document.querySelector('input[aria-label=Unit]').focus()");
   await until("document.querySelector('[aria-label=\"Previous units\"]')?.textContent.includes('Store-only crate')",'Unit after first 100');
@@ -263,7 +336,7 @@ async function tableChecks() {
   assert.equal(writes().at(-1).body.unit,'Custom tray'); assert.equal(Object.hasOwn(writes().at(-1).body,'sku'),false);
   await click('Add product'); await has('Choose a previous unit or enter a new one.'); await input('Unit','Custom'); await page.evaluate("document.querySelector('input[aria-label=Unit]').focus()");
   await until("document.querySelector('[aria-label=\"Previous units\"]')?.textContent.includes('Custom tray')",'Saved custom unit cached');
-  assert.equal(calls.filter(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('pageSize')==='100').length,2,'Reopening uses cache');
+  assert.equal(calls.slice(tableStart).filter(c=>c.path==='/api/products'&&new URLSearchParams(c.query).get('pageSize')==='100').length,2,'Reopening uses cache');
   await page.call('Emulation.setDeviceMetricsOverride',{width:390,height:900,deviceScaleFactor:1,mobile:true}); await capture('add-product-mobile'); await click('Cancel');
   await page.call('Emulation.setDeviceMetricsOverride',{width:1366,height:900,deviceScaleFactor:1,mobile:false});
   await input('Search name or SKU',products.find(p=>p.name==='A new custom unit product').sku); await settled('Product'); await click('Edit');
@@ -302,6 +375,7 @@ try {
   await page.call('Emulation.setTimezoneOverride', { timezoneId: 'Asia/Ho_Chi_Minh' });
   await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false });
   await page.call('Page.navigate', { url: origin + '/login' }); await has('Sign in to the system'); await login(); await navigate('/store/inventory'); await has('Product Management'); await settled('Product');
+  await statsChecks();
   await tableChecks();
   const measurements=[];
   for(const [name,path,tableRegion] of [['products','/store/inventory','Product'],['categories','/store/categories','Category'],['batches','/store/batches','Inventory batch']]) {
@@ -315,7 +389,7 @@ try {
         assert.equal(layout.desktop,width>=1280,'Table on desktop; cards on smaller widths');
         assert.equal(layout.scrollWidth<=layout.width+1,true,'No horizontal Product scroll '+width); assert.equal(layout.sku,true,'Full SKU visible '+width); assert.equal(layout.edits,true,'Edit fits its cell/card and viewport '+width);
         if(width>=1280) assert.deepEqual(layout.headers,['SKU','Product','Category','Cost','Selling','Expiry','Stock','Status','Actions']);
-        if(width>=1280) assert.equal(await page.evaluate("(()=>{const t=document.querySelector('.f02-product-table'),r=t.tBodies[0].rows[0],name=r.cells[1].querySelector('.f02-cell-text'),unit=r.cells[1].querySelector('.f02-product-unit'),edit=r.querySelector('.f02-product-edit');return r.cells[1].getBoundingClientRect().width/t.getBoundingClientRect().width<.21&&getComputedStyle(name).webkitLineClamp==='2'&&unit.getBoundingClientRect().top>=name.getBoundingClientRect().bottom&&edit.innerText==='Edit'&&Boolean(edit.querySelector('.lucide-pencil'))&&getComputedStyle(edit).borderTopWidth==='1px'&&getComputedStyle(edit).whiteSpace==='nowrap'})()"),true,'Balanced Product column, two-line name, Unit below and bordered Pencil Edit '+width);
+        if(width>=1280) assert.equal(await page.evaluate("(()=>{const t=document.querySelector('.f02-product-table'),r=t.tBodies[0].rows[0],name=r.cells[1].querySelector('.f02-cell-text'),unit=r.cells[1].querySelector('.f02-product-unit'),edit=r.querySelector('.f02-product-edit');return r.cells[1].getBoundingClientRect().width/t.getBoundingClientRect().width<.21&&getComputedStyle(name).webkitLineClamp==='2'&&unit.getBoundingClientRect().top>=name.getBoundingClientRect().bottom&&edit.innerText==='Edit'&&!edit.querySelector('svg')&&getComputedStyle(edit).borderTopWidth==='1px'&&getComputedStyle(edit).whiteSpace==='nowrap'})()"),true,'Balanced Product column, two-line name, Unit below and bordered text-only Edit '+width);
         measurements.push({viewport:width,...layout});
         if(width===1366) {
           await page.evaluate("document.querySelector('.f02-product-edit').scrollIntoView({block:'center'})");

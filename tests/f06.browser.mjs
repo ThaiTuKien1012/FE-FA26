@@ -199,7 +199,7 @@ try {
   checks.push('unfinished source is disabled; empty Store history');
   state.noRequests = false; state.runStatus = 'COMPLETED';
   const beforeStore = calls.length;
-  await login('STORE_ADMIN'); await has("Explore product suggestions and manage review decisions.");
+  await login('STORE_ADMIN'); await has("View product suggestions, review decisions and current availability.");
   assert.equal(await page.evaluate("!!document.querySelector('#f06-generate-tab')"), false);
   assert.equal(calls.slice(beforeStore).some(c => c.path.startsWith('/api/mining/') || c.path === '/api/recommendations/config'), false, 'Store Admin does not load generation sources or Store Rules');
   assert.equal(await page.evaluate("!!document.querySelector('#f06-generate-tab')"),false);

@@ -1,3 +1,4 @@
+import { storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { formatDecimal } from '../f03.decimal';
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, CircleCheck, X } from 'lucide-react';
@@ -27,7 +28,7 @@ export function Section({ title, subtitle, children, action }: { title: string; 
 export function Notice({ error = '', notice = '' }: { error?: string; notice?: string }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => { setVisible(Boolean(notice)); if (!notice) return; const timer = window.setTimeout(() => setVisible(false), 4000); return () => window.clearTimeout(timer); }, [notice]);
-  return <>{error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}{visible && <div role="status" className="f03-success-toast"><CircleCheck size={16} aria-hidden="true" /><span>{notice}</span><button type="button" aria-label="Dismiss notification" onClick={() => setVisible(false)}><X size={16} /></button></div>}</>;
+  return <>{error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{storeAdminMessage(error)}</p>}{visible && <div role="status" className="f03-success-toast"><CircleCheck size={16} aria-hidden="true" /><span>{notice}</span><button type="button" aria-label="Dismiss notification" onClick={() => setVisible(false)}><X size={16} /></button></div>}</>;
 }
 export function warningText(value: string) { return value.replaceAll('MISSING_PUSH_DAY', 'Some batches have no Push Day and are excluded from expiry-risk analysis. Store Admin can update them in Inventory Batches.').replaceAll('SLOW_MOVING_NO_RECENT_SALES', 'No recent sales in the Sales Window. The backend reports zero expiry risk; review slow-moving stock.').replaceAll('SLOW_MOVING', 'Sales are slow within the Sales Window. Review this stock; the backend determines its expiry risk.').replaceAll('PUSH_DAY_REACHED', 'The batch has reached its Push Day.'); }
 export function Warnings({ warnings, compact = false, action = 'View All', dense = false }: { warnings?: string[]; compact?: boolean; action?: string; dense?: boolean }) {

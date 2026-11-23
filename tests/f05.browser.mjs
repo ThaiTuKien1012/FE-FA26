@@ -485,7 +485,7 @@ try{
       await click('Close Details');assert.equal(await evaluate("!!document.querySelector('#f05-details-title')"),false);
       state.storeHistory='empty';await click('Refresh history');await textIncludes('No analyses have been recorded for this store yet.');
       state.storeHistory='error';await click('Refresh history');await textIncludes('The analysis service is unavailable');
-      state.storeHistory='hold';await click('Refresh history');await textIncludes('Loading mining history');
+      state.storeHistory='hold';await click('Refresh history');await textIncludes('Loading analysis history');
       state.storeHistory='normal';await until("!!document.querySelector('button[aria-label=\"View details for analysis #17\"]')",'history restored');
       state.compare=true;
       await cdp.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});

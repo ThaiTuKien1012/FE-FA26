@@ -1,3 +1,4 @@
+import { storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { importFormat, importFormatLabel, validateImportFile } from '../f04.files';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CloudUpload, Files, FileText, Info, Loader2, ShieldAlert, Upload, X, XCircle } from 'lucide-react';
@@ -89,19 +90,19 @@ function formatErrorDetails(details: string | null): string {
         if (!entry || typeof entry !== 'object') return '';
         const item = entry as { field?: unknown; message?: unknown };
         if (typeof item.message !== 'string') return '';
-        return typeof item.field === 'string' ? `${item.field}: ${item.message}` : item.message;
+        return typeof item.field === 'string' ? storeAdminMessage(`${item.field}: ${item.message}`) : storeAdminMessage(item.message);
       }).filter(Boolean);
       if (messages.length) return messages.join('\n');
     }
   } catch { /* The backend also returns plain-text row errors. */ }
-  return details;
+  return storeAdminMessage(details);
 }
 
 function ErrorNotice({ notice }: { notice: Notice }) {
   // Avoid the global CSS selector that turns certain error divs into fixed toasts.
   return <div role="alert" className="f04-error-notice flex items-start gap-3 rounded-lg p-4 text-sm">
     <XCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-    <div className="min-w-0 space-y-1"><p className="font-semibold">{notice.title}</p><p>{notice.message}</p>{notice.detail && <p className="break-words pt-1 text-xs">Details: {notice.detail}</p>}</div>
+    <div className="min-w-0 space-y-1"><p className="font-semibold">{notice.title}</p><p>{storeAdminMessage(notice.message)}</p>{notice.detail && <p className="break-words pt-1 text-xs">Details: {storeAdminMessage(notice.detail)}</p>}</div>
   </div>;
 }
 
@@ -234,7 +235,7 @@ function ImportTransactionsContent() {
     <div className="f04-import mx-auto max-w-7xl space-y-6 bg-[#faf8f5] text-[#191c1b]">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">Import Transactions</h1>
-        <p className="mt-1 text-sm leading-6 text-[#6d7974]">Import sales transactions from a CSV or Excel file for your store.</p>
+        <p className="mt-1 text-sm leading-6 text-[#6d7974]">Upload a CSV or Excel file to add sales records to your store.</p>
       </header>
 
       <section aria-labelledby="csv-guide-heading" className="f04-prepare">
@@ -245,14 +246,8 @@ function ImportTransactionsContent() {
               <h2 id="csv-guide-heading" className="font-semibold">Prepare your file</h2>
               <button type="button" aria-expanded={guideOpen} aria-controls="csv-format-instructions" onClick={() => setGuideOpen(open => !open)} className="inline-flex items-center gap-2 rounded py-1 text-xs font-semibold text-[#1e3a2f] hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1e3a2f]">{guideOpen ? 'Hide format instructions' : 'View format instructions'}<ChevronDown aria-hidden="true" className={`h-4 w-4 ${guideOpen ? 'rotate-180' : ''}`} /></button>
             </div>
-            <ul className="f04-prepare-notes">
-              <li>CSV (UTF-8) or Excel (.xlsx, .xls)</li>
-              <li>Max 5 MiB</li>
-              <li>Max 10,000 nonblank rows</li>
-              <li>Use store-specific SKUs</li>
-              <li>Follow required header</li>
-            </ul>
-            <p className="mt-3 text-xs leading-5 text-[#575e58]">Replace sample SKU <strong>00123</strong> with an existing product SKU from your store. Order ID, SKU and timestamp must be Text in Excel.</p>
+            <p className="mt-2 text-sm text-[#575e58]">Download a template, enter your sales records, then upload the file.</p>
+            <p className="mt-2 text-xs text-[#6d7974]">Replace the sample records with your store’s sales. Maximum 5 MiB and 10,000 product rows.</p>
             <div className="mt-3 flex flex-wrap gap-2"><a className={secondaryButton + ' max-w-full whitespace-normal text-center'} href="/templates/f04/transactions-template.xlsx" download>Download XLSX template</a><a className={secondaryButton + ' max-w-full whitespace-normal text-center'} href="/templates/f04/transactions-template.xls" download>Download XLS template</a></div>
           </div>
         </div>
@@ -260,12 +255,12 @@ function ImportTransactionsContent() {
               <div id="csv-format-instructions" className="space-y-5 border-t border-[#e7e2d8] bg-[#fcfcfa] p-5 text-sm leading-6 text-[#575e58] sm:px-6">
                 <div><h3 className="font-semibold text-[#191c1b]">Required columns</h3><p className="mt-1 text-xs">Keep these column names in this exact order, with one product row on each line.</p><code className="mt-3 block break-all rounded-lg border border-[#e7e2d8] bg-white px-3 py-2 text-xs leading-6 text-[#1e3a2f]">{CSV_HEADER}</code></div>
                 <div><h3 className="font-semibold text-[#191c1b]">Sale date and time</h3><p className="mt-1 text-xs">Include the time zone in each timestamp. For example: <code className="break-all text-[#1e3a2f]">2026-10-19T09:00:00+07:00</code> (UTC+07:00).</p></div>
-                <div><h3 className="font-semibold text-[#191c1b]">Excel checklist</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Use Text cells for Order ID, SKU and timestamp, including the UTC offset.</li><li>Use one worksheet with data. Extra worksheets must be empty.</li><li>Quantity must be a positive whole number. Unit price and unit cost cannot be negative.</li><li>Do not use formulas or Excel Date/Serial cells for timestamps.</li><li>Use an existing store SKU and an order ID that identifies the original sale.</li></ul><p className="mt-2 text-xs">CSV must use UTF-8. Excel uploads return results directly; CSV imports continue in the background after acceptance.</p></div>
+                <div><h3 className="font-semibold text-[#191c1b]">Excel checklist</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Use Text cells for Order ID, SKU and timestamp, including the UTC offset.</li><li>Use one worksheet with data. Extra worksheets must be empty.</li><li>Quantity must be a positive whole number. Unit price and unit cost cannot be negative.</li><li>Do not use formulas or Excel Date/Serial cells for timestamps.</li><li>Use an existing store SKU and an order ID that identifies the original sale.</li></ul><p className="mt-2 text-xs">CSV must use UTF-8. Keep this page open for Excel results. Accepted CSV imports can continue in the background.</p></div>
                 <dl className="grid gap-4 sm:grid-cols-2">
-                  <div><dt className="font-semibold text-[#191c1b]">Duplicate orders</dt><dd className="mt-1 text-xs">The same order ID and contents already exist. These orders are skipped without creating new transactions; duplicates are not errors.</dd></div>
-                  <div><dt className="font-semibold text-[#191c1b]">Conflict orders</dt><dd className="mt-1 text-xs">The order ID already exists but its contents have changed. The existing order is kept, and the changed order is not accepted.</dd></div>
+                  <div><dt className="font-semibold text-[#191c1b]">Existing orders skipped</dt><dd className="mt-1 text-xs">The same order ID and contents already exist. These orders are skipped without creating new transactions; duplicates are not errors.</dd></div>
+                  <div><dt className="font-semibold text-[#191c1b]">Conflicting orders</dt><dd className="mt-1 text-xs">The order ID already exists but its contents have changed. The existing order is kept, and the changed order is not accepted.</dd></div>
                   <div><dt className="font-semibold text-[#191c1b]">File rows and orders</dt><dd className="mt-1 text-xs">A row represents a product in a sale. Rows sharing a source_order_id form one order, so one order may have several rows.</dd></div>
-                  <div><dt className="font-semibold text-[#191c1b]">Accepted and rejected orders</dt><dd className="mt-1 text-xs">Accepted orders are newly saved. Rejected orders did not pass validation. Rejected and conflicted orders are counted separately.</dd></div>
+                  <div><dt className="font-semibold text-[#191c1b]">Imported and rejected orders</dt><dd className="mt-1 text-xs">Imported orders are newly saved. Rejected orders need corrections. Rejected and conflicting orders are counted separately.</dd></div>
                 </dl>
               </div>
             )}
@@ -286,7 +281,7 @@ function ImportTransactionsContent() {
                   <span id="import-result-status" title={summary.status} className="f04-status-badge">{importStatusLabels[summary.status]}</span>
                 </div>
                 <p id="import-result-message" className="f04-result-message">{presentation.message}</p>
-                <p className="mt-2 text-sm text-[#6d7974]">{summary.status === 'FAILED' ? "We couldn't finish processing this file." : summary.status === 'COMPLETED_WITH_ERRORS' ? 'Some records could not be imported. Review the details below.' : 'Your transaction data has been processed successfully.'}</p>
+                <p className="mt-2 text-sm text-[#6d7974]">{summary.status === 'FAILED' ? "We couldn't finish processing this file." : summary.status === 'COMPLETED_WITH_ERRORS' ? 'Some records could not be imported. Review the details below.' : 'Check the order summary below.'}</p>
                 {quickMeaning.length > 0 && <ul id="import-quick-meaning" aria-label="Quick result summary" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium leading-5">
                   {quickMeaning.map(({ Icon: MeaningIcon, text, color }) => <li key={text} className={`f04-quick-item ${color}`}><MeaningIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />{text}</li>)}
                 </ul>}
@@ -294,7 +289,7 @@ function ImportTransactionsContent() {
                   <span className="inline-flex min-w-0 items-start gap-2"><FileText aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#707973]" /><span className="break-all">{summary.filename || 'File upload'}</span></span>
                   <span className="whitespace-nowrap text-xs">Batch ID <span className="ml-1 font-semibold tabular-nums text-[#191c1b]">#{summary.importBatchId}</span></span>
                 </div>
-                {summary.errorSummary && <p className="mt-2 break-words text-sm text-[#6d7974]">{summary.errorSummary}</p>}
+                {summary.errorSummary && <p className="mt-2 break-words text-sm text-[#6d7974]">{storeAdminMessage(summary.errorSummary)}</p>}
               </div>
             </div>
           </div>
@@ -306,10 +301,10 @@ function ImportTransactionsContent() {
             </div>
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                { label: 'New orders saved', value: summary.acceptedOrderCount, hint: 'Passed import validation', Icon: CheckCircle2, appearance: summary.acceptedOrderCount > 0 ? metricStyles.accepted : metricStyles.neutral },
-                { label: 'Duplicate orders', value: summary.duplicateOrderCount, hint: 'Already exists · skipped', Icon: Files, appearance: summary.duplicateOrderCount > 0 ? (duplicateOnly ? metricStyles.duplicatePrimary : metricStyles.duplicate) : metricStyles.neutral },
+                { label: 'Imported orders', value: summary.acceptedOrderCount, hint: 'Passed import validation', Icon: CheckCircle2, appearance: summary.acceptedOrderCount > 0 ? metricStyles.accepted : metricStyles.neutral },
+                { label: 'Existing orders skipped', value: summary.duplicateOrderCount, hint: 'Already exists · skipped', Icon: Files, appearance: summary.duplicateOrderCount > 0 ? (duplicateOnly ? metricStyles.duplicatePrimary : metricStyles.duplicate) : metricStyles.neutral },
                 { label: 'Rejected orders', value: summary.rejectedOrderCount, hint: 'Did not pass validation', Icon: AlertTriangle, appearance: summary.rejectedOrderCount > 0 ? metricStyles.rejected : metricStyles.neutral },
-                { label: 'Conflict orders', value: summary.conflictOrderCount, hint: 'Existing ID, changed data', Icon: ShieldAlert, appearance: summary.conflictOrderCount > 0 ? metricStyles.warning : metricStyles.neutral }
+                { label: 'Conflicting orders', value: summary.conflictOrderCount, hint: 'Existing ID, changed data', Icon: ShieldAlert, appearance: summary.conflictOrderCount > 0 ? metricStyles.warning : metricStyles.neutral }
               ].map(({ Icon: MetricIcon, ...item }) => (
                 <div key={item.label} className={`f04-kpi ${item.appearance}`}>
                   <dt>
@@ -323,7 +318,7 @@ function ImportTransactionsContent() {
                 </div>
               ))}
             </dl>
-            <p className="mt-4 text-xs leading-5 text-[#6d7974]">Conflicting orders have an existing Order ID with different contents; existing data is not overwritten. Saved transactions marked Not Eligible are not import errors.</p>
+            <p className="mt-4 text-xs leading-5 text-[#6d7974]">Conflicting orders differ from an order already saved; the saved order is kept. Sales excluded from analysis can still be imported.</p>
           </div>
 
           <div className="border-t border-[#e7e2d8] bg-[#fafaf7] px-5 py-5 sm:px-6">
@@ -408,7 +403,7 @@ function ImportTransactionsContent() {
               {file ? (
                 <div className={`flex flex-wrap items-center gap-3 rounded-xl border p-4 ${validationError ? 'border-[#e8c8c4] bg-[#fffaf9]' : 'border-[#d6e2d8] bg-[#f7faf7]'}`}>
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#1e3a2f]"><FileText aria-hidden="true" className="h-5 w-5" /></div>
-                  <div id="selected-file-details" className="min-w-0 flex-1 basis-40"><p className="break-all text-sm font-semibold">{file.name}</p><p className="mt-1 text-xs text-[#6d7974]">{importFormatLabel(file.name)} ? {formatFileSize(file.size)}</p></div>
+                  <div id="selected-file-details" className="min-w-0 flex-1 basis-40"><p className="break-all text-sm font-semibold">{file.name}</p><p className="mt-1 text-xs text-[#6d7974]">{importFormatLabel(file.name)} · {formatFileSize(file.size)}</p></div>
                   <div className="flex items-center gap-1">
                     <button ref={chooseFileRef} type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} aria-describedby="selected-file-details" className={secondaryButton}>Change file</button>
                     <button type="button" disabled={uploading} onClick={() => selectFile(null)} aria-label="Remove selected file" className="rounded-lg p-2 text-[#6d7974] hover:bg-white focus-visible:outline-2 focus-visible:outline-[#1e3a2f] disabled:opacity-40"><X aria-hidden="true" className="h-4 w-4" /></button>
@@ -417,8 +412,8 @@ function ImportTransactionsContent() {
               ) : (
                 <div className="flex flex-col items-start gap-4 rounded-xl border border-dashed border-[#cbd7cd] bg-[#fcfdfa] p-5 sm:flex-row sm:items-center sm:p-6">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#edf3ed] text-[#1e3a2f]"><CloudUpload aria-hidden="true" className="h-5 w-5" /></div>
-                  <div className="flex-1"><p className="text-sm font-semibold">Select a transaction file</p><p className="mt-1 text-xs leading-5 text-[#6d7974]">Choose a CSV or Excel file containing your store's sales orders.</p></div>
-                  <button ref={chooseFileRef} type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} aria-describedby="csv-file-help" className={`${secondaryButton} w-full sm:w-auto`}>Choose file</button>
+                  <div className="flex-1"><p className="text-sm font-semibold">Choose a sales file</p><p className="mt-1 text-xs leading-5 text-[#6d7974]">Choose a CSV or Excel file containing your store's sales orders.</p></div>
+                  <button ref={chooseFileRef} type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} aria-describedby="csv-file-help" className={`${secondaryButton} w-full sm:w-auto`}>Choose a sales file</button>
                 </div>
               )}
               {validationError && <p role="alert" className="flex items-start gap-2 text-sm text-[#a12b25]"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />{validationError}</p>}

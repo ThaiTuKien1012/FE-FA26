@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Ban, Check, Package, Pencil, Plus, RefreshCw, X, type LucideIcon } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Check, Package, Plus, RefreshCw, X, type LucideIcon } from 'lucide-react';
 import { ProductTableHeader } from '../../../components/common/ProductTableHeader';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Category, type F02Product, type F02Status } from '../store.api';
 import { emptyProductForm, money, productRequest, type ProductForm } from '../f02.forms';
@@ -9,19 +9,22 @@ import { F02FilterSummary, F02TableFrame, F02TablePagination, F02TableEmpty } fr
 import { ProductUnitInput, productUnitScope, rememberProductUnit } from './ProductUnitInput';
 import { nextTableSort, type SortDirection } from '../f02.tables';
 import { restoreProductViewState } from '../f02.product-view';
+import { useProductStats } from '../f02.product-stats';
+import { GeneratedCodeField } from './GeneratedCodeField';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-[#e7e2d8] bg-white p-2 outline-none focus:border-[#1e3a2f]';
 export const productForm = (p: F02Product): ProductForm => ({ name: p.name, categoryId: p.category ? String(p.category.id) : '', unit: p.unit, requiresExpiry: p.requiresExpiry, sellingPrice: String(p.sellingPrice), costPrice: String(p.costPrice), status: p.status });
 
 export function ProductFields({ form, categories, onChange, product }: { form: ProductForm; categories: F02Category[]; onChange: (form: ProductForm) => void; product?: F02Product | null }) {
   return <>
-    {product ? <div className="grid gap-2 text-sm sm:grid-cols-2"><p className="text-[#6d7974]">Product ID: <strong>{product.id}</strong> (read-only)</p><p className="min-w-0 break-words text-[#6d7974]">SKU: <strong className="text-[#191c1b]">{product.sku}</strong> (read-only)</p></div> : <p className="text-sm text-[#6d7974]">SKU will be generated automatically when the product is saved.</p>}
+    <GeneratedCodeField label="SKU" code={product?.sku} />
+    {product && <p className="text-sm text-[#6d7974]">Product ID: <strong>{product.id}</strong> (read-only)</p>}
     <ProductUnitInput value={form.unit} onChange={unit => onChange({ ...form, unit })} />
-    <label className="block">Product name<input aria-label="Product name" required maxLength={180} value={form.name} onChange={e => onChange({ ...form, name: e.target.value })} className={inputClass} /></label>
-    <div className="grid gap-3 sm:grid-cols-2"><label>Category<select aria-label="Category" value={form.categoryId} onChange={e => onChange({ ...form, categoryId: e.target.value })} className={inputClass}><option value="">No category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}{c.status === 'INACTIVE' ? ' (Inactive)' : ''}</option>)}</select></label><label>Status<select aria-label="Product status" value={form.status} onChange={e => onChange({ ...form, status: e.target.value as F02Status })} className={inputClass}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label></div>
-    <div className="grid gap-3 sm:grid-cols-2"><label>Cost price<input aria-label="Cost price" type="number" min="0" step="any" required value={form.costPrice} onChange={e => onChange({ ...form, costPrice: e.target.value })} className={inputClass} /></label><label>Selling price<input aria-label="Selling price" type="number" min="0" step="any" required value={form.sellingPrice} onChange={e => onChange({ ...form, sellingPrice: e.target.value })} className={inputClass} /></label></div>
+    <label className="block">Product name *<input aria-label="Product name" required maxLength={180} value={form.name} onChange={e => onChange({ ...form, name: e.target.value })} className={inputClass} /></label>
+    <div className="grid gap-3 sm:grid-cols-2"><label>Category<select aria-label="Category" value={form.categoryId} onChange={e => onChange({ ...form, categoryId: e.target.value })} className={inputClass}><option value="">No category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}{c.status === 'INACTIVE' ? ' (Inactive)' : ''}</option>)}</select></label><label>Status *<select aria-label="Product status" value={form.status} onChange={e => onChange({ ...form, status: e.target.value as F02Status })} className={inputClass}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label></div>
+    <div className="grid gap-3 sm:grid-cols-2"><label>Cost price *<input aria-label="Cost price" type="number" min="0" step="any" required value={form.costPrice} onChange={e => onChange({ ...form, costPrice: e.target.value })} className={inputClass} /></label><label>Selling price *<input aria-label="Selling price" type="number" min="0" step="any" required value={form.sellingPrice} onChange={e => onChange({ ...form, sellingPrice: e.target.value })} className={inputClass} /></label></div>
     {form.sellingPrice.trim() && form.costPrice.trim() && Number(form.sellingPrice) < Number(form.costPrice) && <p className="text-sm text-[#6d7974]">The selling price is below the cost price. You can still save this product.</p>}
-    <label className="flex items-center gap-2"><input aria-label="Requires expiry tracking" type="checkbox" checked={form.requiresExpiry} onChange={e => onChange({ ...form, requiresExpiry: e.target.checked })} className="accent-[#1e3a2f]" /> {form.requiresExpiry ? 'Expiry date required for every batch' : 'Expiry date optional for batches'}</label>
+    <label title={form.requiresExpiry ? 'Expiry date required for every batch' : 'Expiry date optional for batches'} className="flex items-center gap-2"><input aria-label="Requires expiry tracking" type="checkbox" checked={form.requiresExpiry} onChange={e => onChange({ ...form, requiresExpiry: e.target.checked })} className="accent-[#1e3a2f]" /> Expiry tracking</label>
     <p className="text-xs text-[#6d7974]">Stock is calculated from inventory batches and includes blocked and expired stock. Manage batches separately to adjust stock and Push Days.</p>
   </>;
 }
@@ -30,6 +33,7 @@ const productViewStateKey = 'f02-products-view-state';
 const readProductViewState = () => { try { return restoreProductViewState(sessionStorage.getItem(productViewStateKey)); } catch { return restoreProductViewState(null); } };
 export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void }> = () => {
   const canManage = canManageCatalog(), restoredState = readProductViewState(), unitScope = productUnitScope();
+  const stats = useProductStats();
   const [products, setProducts] = useState<F02Product[]>([]), [categories, setCategories] = useState<F02Category[]>([]);
   const [page, setPage] = useState(restoredState.page ?? 0), [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState<string>(restoredState.sortBy);
@@ -45,8 +49,8 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
   const productSave = useProductSave(async (saved, wasEditing) => {
     rememberProductUnit(saved.unit, unitScope);
     setEditing(saved); setForm(productForm(saved)); setShowForm(false);
-    setNotice({ type: 'success', text: `${wasEditing ? 'Product updated' : 'Product created'} successfully. ${saved.sku} · ID ${saved.id}` });
-    await load();
+    setNotice({ type: 'success', text: `${wasEditing ? 'Product updated' : 'Product created'} successfully. SKU: ${saved.sku} · ID ${saved.id}` });
+    await Promise.all([load(), stats.refresh()]);
   });
   const busy = statusBusy || productSave.saving;
   const load = async () => {
@@ -62,8 +66,7 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
   };
   useEffect(() => { try { sessionStorage.setItem(productViewStateKey, JSON.stringify({ page, query, status, categoryId, sortBy, sortDirection })); } catch { /* Catalog remains usable if preferences cannot be saved. */ } }, [page, query, status, categoryId, sortBy, sortDirection]);
   useEffect(() => { void load(); return () => { ++requestVersion.current; }; }, [query, status, categoryId, page, sortBy, sortDirection]);
-  const stats = useMemo(() => ({ total: products.length, active: products.filter(p => p.status === 'ACTIVE').length, inactive: products.filter(p => p.status === 'INACTIVE').length, noStock: products.filter(p => p.stockQuantity === 0).length }), [products]);
-  const statCards: Array<[string, number, LucideIcon, string]> = [['Products · current page', stats.total, Package, 'text-[#1e3a2f]'], ['Active · current page', stats.active, Check, 'text-[#059669]'], ['Inactive · current page', stats.inactive, AlertTriangle, 'text-[#b45309]'], ['Out of stock · current page', stats.noStock, Ban, 'text-[#dc2626]']];
+  const statCards: Array<[string, number | undefined, LucideIcon, string]> = [['TOTAL PRODUCTS', stats.values?.total, Package, 'text-[#1e3a2f]'], ['ACTIVE PRODUCTS', stats.values?.active, Check, 'text-[#059669]'], ['INACTIVE PRODUCTS', stats.values?.inactive, AlertTriangle, 'text-[#b45309]']];
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); if (pending.current || !canManage) return;
     setFormError(''); setNotice(null); productSave.clearError();
@@ -73,20 +76,23 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
   const toggleStatus = async (p: F02Product) => {
     if (pending.current || !canManage) return;
     pending.current = true; setBusy(true); setNotice(null);
-    try { await storeApi.updateProductStatus(p.id, p.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'); setNotice({ type: 'success', text: 'Product status updated successfully.' }); await load(); }
+    try { await storeApi.updateProductStatus(p.id, p.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'); setNotice({ type: 'success', text: 'Product status updated successfully.' }); await Promise.all([load(), stats.refresh()]); }
     catch (e) { setNotice({ type: 'error', text: f02ErrorMessage(e) }); }
     finally { pending.current = false; setBusy(false); }
   };
   const clearFilters = () => { setQuery(''); setCategoryId(''); setStatus(''); setPage(0); };
   const editProduct = (product: F02Product) => { setEditing(product); setForm(productForm(product)); setFormError(''); productSave.clearError(); setNotice(null); setShowForm(true); };
   const statusButton = (product: F02Product) => <button disabled={!canManage || busy || loading} onClick={() => void toggleStatus(product)} aria-label={'Change status for ' + product.name} title={'Change status for ' + product.name} className={'f02-status-button rounded-full px-2 py-1 text-xs font-semibold disabled:cursor-default ' + (product.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700')}>{product.status === 'ACTIVE' ? 'Active' : 'Inactive'}</button>;
-  const editButton = (product: F02Product) => canManage && <button disabled={busy || loading} onClick={() => editProduct(product)} aria-label={'Edit ' + product.name} title={'Edit ' + product.name} className="f02-product-edit"><Pencil aria-hidden="true" />Edit</button>;
+  const editButton = (product: F02Product) => canManage && <button disabled={busy || loading} onClick={() => editProduct(product)} aria-label={'Edit ' + product.name} title={'Edit ' + product.name} className="f02-product-edit">Edit</button>;
   const emptyMessage = loading ? 'Loading products...' : loadError ? 'Product data is unavailable. Please retry.' : query || status || categoryId ? 'No matching products.' : 'This store has no products yet.';
   return <div className="f02-product-view f02-wide-table-view mx-auto max-w-[1680px] space-y-6 bg-[#faf8f5] text-[#191c1b]">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold tracking-tight">Product Management</h1><p className="mt-1 text-[#6d7974]">Manage your store's products, pricing, status, and stock information.</p></div><div className="flex gap-2"><button aria-label="Refresh products" disabled={busy || loading} onClick={() => void load()} className="rounded-lg border border-[#e7e2d8] bg-white p-3 text-[#1e3a2f] shadow-sm disabled:opacity-40"><RefreshCw className="h-4 w-4" /></button>{canManage && <button disabled={busy || loading || Boolean(loadError)} onClick={() => { setEditing(null); setForm(emptyProductForm); setFormError(''); productSave.clearError(); setNotice(null); setShowForm(true); }} className="inline-flex items-center gap-2 rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white shadow-sm disabled:opacity-40"><Plus className="h-4 w-4" /> Add product</button>}</div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold tracking-tight">Product Management</h1><p className="mt-1 text-[#6d7974]">Manage your store's products and pricing.</p></div><div className="flex gap-2"><button aria-label="Refresh products" disabled={busy || loading || stats.loading} onClick={() => void Promise.all([load(), stats.refresh()])} className="rounded-lg border border-[#e7e2d8] bg-white p-3 text-[#1e3a2f] shadow-sm disabled:opacity-40"><RefreshCw className="h-4 w-4" /></button>{canManage && <button disabled={busy || loading || Boolean(loadError)} onClick={() => { setEditing(null); setForm(emptyProductForm); setFormError(''); productSave.clearError(); setNotice(null); setShowForm(true); }} className="inline-flex items-center gap-2 rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white shadow-sm disabled:opacity-40"><Plus className="h-4 w-4" /> Add product</button>}</div></div>
     {notice && <div role={notice.type === 'error' ? 'alert' : 'status'} className={`flex items-center justify-between rounded-xl border px-4 py-3 ${notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}><span>{notice.text}</span><button aria-label="Dismiss message" onClick={() => setNotice(null)}><X className="h-4 w-4" /></button></div>}
     {loadError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">{loadError} {products.length > 0 && <span>Showing the previous results. </span>}<button disabled={loading || busy} onClick={() => void load()} className="ml-2 underline">Retry products</button></p>}
-    {!loadError && <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{statCards.map(([label, value, Icon, iconColor]) => <div key={label} className="rounded-2xl border border-[#e7e2d8] bg-white p-5 shadow-sm"><Icon className={`mb-3 h-5 w-5 ${iconColor}`} /><div className="text-xs font-semibold uppercase tracking-wide text-[#89938f]">{label}</div><div className="mt-1 text-3xl font-bold">{loading ? '—' : value}</div></div>)}</div>}
+    <section aria-label="Store product statistics" aria-busy={stats.loading}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{statCards.map(([label, value, Icon, iconColor]) => <div key={label} className="min-w-0 rounded-2xl border border-[#e7e2d8] bg-white p-5 shadow-sm"><Icon className={`mb-3 h-5 w-5 ${iconColor}`} /><div className="text-xs font-semibold uppercase tracking-wide text-[#89938f]">{label}</div><div className={'mt-1 flex min-h-9 items-center font-bold ' + (!stats.loading && value === undefined ? 'text-base' : 'text-3xl')} data-product-stat={label}>{stats.loading ? '—' : value === undefined ? 'Unavailable' : value.toLocaleString('en-GB')}</div></div>)}</div>
+      {stats.error && <p role="alert" className="mt-2 text-sm text-red-700">Product statistics are unavailable. {stats.error} <button disabled={busy || stats.loading} onClick={() => void stats.refresh()} className="underline">Retry statistics</button></p>}
+    </section>
     <div className="f02-toolbar" role="search" aria-label="Product filters">
       <label className="f02-toolbar-search">Search<input aria-label="Search name or SKU" disabled={busy} value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} placeholder="Search name or SKU" /></label>
       <label>Category<select aria-label="Filter by category" disabled={busy} value={categoryId} onChange={e => { setCategoryId(e.target.value); setPage(0); }}><option value="">All categories</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>

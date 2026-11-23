@@ -147,7 +147,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   {currentUser && <SidebarItem screen="f04-transactions" label="Sales Transactions" icon={ReceiptText} active={currentScreen === 'f04-transactions'} onNavigate={onNavigate} />}
                 </SidebarSection>
                 <SidebarSection title="PRODUCT ANALYTICS">
-                  <SidebarItem screen="f03-product-scores" label="Utility Planner" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
+                  <SidebarItem screen="f03-product-scores" label="Product Priorities" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
                   <SidebarItem screen="f05-mining" label="Analysis History" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                   <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
                 </SidebarSection>

@@ -1,3 +1,4 @@
+import { storeAdminCopy as copy } from '../../../utils/storeAdminCopy';
 import { useState } from 'react';
 import { authService, type AuthUser } from '../../../services/authService';
 import { useMiningLocation, type MiningView } from '../f05.navigation';
@@ -17,8 +18,8 @@ function StoreWorkspace({currentUser}:Props) {
   const [locked,setLocked]=useState(Boolean(restored.pending||restored.error)),[revision,setRevision]=useState(0);
   const tab=merchant?location.view:location.view==='setup'?'history':location.view;
   return <div className="mx-auto max-w-6xl space-y-5 text-[#191C1B]">
-    <header><h1 className="text-2xl font-semibold sm:text-3xl">{merchant?'Product Combination Analysis':'Analysis History'}</h1><p className="mt-2 text-sm text-[#6D7974]">{merchant?'Discover valuable product combinations from your saved utility snapshots.':'Review completed and ongoing analyses for your store.'}</p>{!merchant&&<p className="mt-2 text-xs text-[#6D7974]">Store Admin · Read-only access</p>}</header>
-    <nav aria-label="Mining workspace" className="flex flex-wrap gap-2">
+    <header><h1 className="text-2xl font-semibold sm:text-3xl">{merchant?'Product Combination Analysis':'Analysis History'}</h1><p className="mt-2 text-sm text-[#6D7974]">{merchant?'Discover valuable product combinations from your saved utility snapshots.':'View previous and ongoing product analyses.'}</p>{!merchant&&<p className="mt-2 text-xs text-[#6D7974]">Store Admin · Read-only access</p>}</header>
+    <nav aria-label={copy('Mining workspace','Analysis navigation')} className="flex flex-wrap gap-2">
       {merchant&&<button className={miningButton} aria-current={tab==='setup'?'page':undefined} onClick={()=>navigate('setup')}>Run Analysis</button>}
       <button className={miningButton} aria-current={tab==='history'?'page':undefined} onClick={()=>navigate('history')}>Analysis History</button>
     </nav>

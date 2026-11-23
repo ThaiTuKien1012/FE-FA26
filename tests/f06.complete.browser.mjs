@@ -180,7 +180,7 @@ try {
 
   await click('Store Rules');await has('Read-only access. Store Admin manages these rules.');
   assert.equal(await page.evaluate("!!document.querySelector('dialog form')"),false);await close('Store Rules');
-  await login('STORE_ADMIN');await has('45 matching recommendations');await click('Manage Rules');await until("!!document.querySelector('#f06-rule-supportPercent')",'rule values');
+  await login('STORE_ADMIN');await has('45 matching recommendations');await click('Store Rules');await until("!!document.querySelector('#f06-rule-supportPercent')",'rule values');
   await select('f06-rule-supportPercent','12.34567');await click('Save Changes');await has('No rounding was applied');assert.equal(calls.filter(c=>c.method==='PUT').length,0);
   await select('f06-rule-supportPercent','12.3456');await select('f06-rule-confidencePercent','98.7654');await click('Save Changes');await has('Store rules saved successfully.');await has('Rules version 2');
   assert.equal(calls.filter(c=>c.method==='PUT').at(-1).payload.minSupportRatio,0.123456);

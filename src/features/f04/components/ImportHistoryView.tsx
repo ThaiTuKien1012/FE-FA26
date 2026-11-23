@@ -1,3 +1,4 @@
+import { isStoreAdmin, storeAdminCopy as copy, storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { importFormat } from '../f04.files';
 import { formatDateTime } from '../../../utils/dateTime';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -37,13 +38,14 @@ function formatDate(value: string | null) {
 }
 
 function errorMessage(error: unknown) {
-  if (!(error instanceof F04ApiError)) return error instanceof Error ? error.message : 'The request could not be completed. Please try again.';
+  if (!(error instanceof F04ApiError)) return error instanceof Error ? storeAdminMessage(error.message) : 'The request could not be completed. Please try again.';
   if (error.status === null) return 'Connection error. Check your connection and try again.';
   const help: Record<number, string> = {
     401: 'Your session has expired or is missing. Please sign in again.',
     403: 'Access denied. Use a Store Admin or Merchandiser account assigned to this store.',
     404: 'Import batch not found. It may no longer be available to your store.'
   };
+  if (isStoreAdmin()) return storeAdminMessage(help[error.status] || error.message);
   return `HTTP ${error.status} · ${help[error.status] || error.message}`;
 }
 
@@ -103,17 +105,17 @@ function formatErrorDetails(details: string | null): string {
     if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(entry =>
       entry && typeof entry === 'object' && typeof entry.message === 'string' && typeof entry.field === 'string'
     )) {
-      return parsed.map(entry => `${entry.field}: ${entry.message}`).join('\n');
+      return parsed.map(entry => storeAdminMessage(`${entry.field}: ${entry.message}`)).join('\n');
     }
   } catch { /* Plain-text messages are also part of the backend contract. */ }
-  return details;
+  return storeAdminMessage(details);
 }
 
 function ImportErrors({ batchId }: { batchId: number }) {
   const load = useCallback((page: number, size: number) => f04Api.getImportErrors(batchId, page, size), [batchId]);
   const { data, loading, error, refresh, setPage } = usePagedResults(load);
   return <section className="f04h-detail-section" aria-labelledby="f04h-errors-title">
-    <div className="f04h-section-heading"><div><h3 id="f04h-errors-title">Error details</h3><p>File rows rejected during import or linked to a conflicting order. Saved transactions marked Not Eligible are not import errors.</p></div>
+    <div className="f04h-section-heading"><div><h3 id="f04h-errors-title">Error details</h3><p>{copy("File rows rejected during import or linked to a conflicting order. Saved transactions marked Not Eligible are not import errors.","Sales records that could not be imported. Sales excluded from analysis are listed separately.")}</p></div>
       <button type="button" className="f04h-button" disabled={loading} onClick={refresh} aria-label="Refresh error details"><RefreshCw size={15} aria-hidden="true" />Refresh</button>
     </div>
     {loading ? <Loading label="Loading row errors..." /> : error ? <RequestError message={error} retry={refresh} /> : data && (
@@ -172,15 +174,15 @@ function ImportDetails({ batchId, filename, onClose }: { batchId: number; filena
           <div className="f04h-file-heading"><span className="f04h-file-icon"><FileText size={18} aria-hidden="true" /></span><div><div className="f04h-file-title"><h3>{summary.filename ?? 'Unnamed file'}</h3><StatusBadge status={summary.status} /></div>{skippedExisting(summary) && <p className="f04h-skipped">Existing orders skipped</p>}</div></div>
           <dl className="f04h-metadata"><div><dt>Batch ID</dt><dd>#{summary.importBatchId}</dd></div><div><dt>Started at</dt><dd><time dateTime={summary.startedAt}>{formatDate(summary.startedAt)}</time></dd></div><div><dt>Finished at</dt><dd>{summary.finishedAt ? <time dateTime={summary.finishedAt}>{formatDate(summary.finishedAt)}</time> : '—'}</dd></div></dl>
           <p className="f04h-time-note">Times shown in your local time zone.</p>
-          <p className="f04h-time-note">Saved transactions may still be Not Eligible for utility calculation and mining. This is separate from import validation.</p>
-          {summary.errorSummary && <div className={`f04h-summary-note f04h-tone--${summary.status === 'FAILED' ? 'danger' : 'warning'}`}><AlertCircle size={17} aria-hidden="true" /><div><h4>Import issues</h4><p>{summary.errorSummary}</p></div></div>}
+          <p className="f04h-time-note">{copy("Saved transactions may still be Not Eligible for utility calculation and mining. This is separate from import validation.","Imported sales may be excluded from analysis; this does not mean the import failed.")}</p>
+          {summary.errorSummary && <div className={`f04h-summary-note f04h-tone--${summary.status === 'FAILED' ? 'danger' : 'warning'}`}><AlertCircle size={17} aria-hidden="true" /><div><h4>Import issues</h4><p>{storeAdminMessage(summary.errorSummary)}</p></div></div>}
         </section>
-        <Metrics title="Orders" description="Orders are grouped by Order ID. Duplicates already exist and are skipped. Rejected orders did not pass validation. Conflicts have an existing Order ID with different contents; existing data is not overwritten." values={[
+        <Metrics title="Orders" description={copy("Orders are grouped by Order ID. Duplicates already exist and are skipped. Rejected orders did not pass validation. Conflicts have an existing Order ID with different contents; existing data is not overwritten.","Each order is counted once. Conflicting orders differ from saved data; the saved order is kept.")} values={[
           { label: 'Total orders', value: summary.totalOrderCount },
-          { label: 'New orders saved', value: summary.acceptedOrderCount, tone: 'success' },
-          { label: 'Duplicate orders', value: summary.duplicateOrderCount, tone: 'info' },
+          { label: copy('New orders saved','Imported orders'), value: summary.acceptedOrderCount, tone: 'success' },
+          { label: copy('Duplicate orders','Existing orders skipped'), value: summary.duplicateOrderCount, tone: 'info' },
           { label: 'Rejected orders', value: summary.rejectedOrderCount, tone: 'danger' },
-          { label: 'Conflict orders', value: summary.conflictOrderCount, tone: 'warning' }
+          { label: copy('Conflict orders','Conflicting orders'), value: summary.conflictOrderCount, tone: 'warning' }
         ]} />
         <Metrics title="File rows" description="Product rows; one order can contain several rows." values={[
           { label: 'Total rows', value: summary.totalCount },
@@ -203,7 +205,7 @@ function ImportHistoryContent() {
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const closeDetails = useCallback(() => setSelectedBatch(null), []);
   return <div className="f04-history f04h-page">
-    <header className="f04h-page-header"><div><h1>Import History</h1><p>Review your store's previous CSV and Excel imports.</p></div>
+    <header className="f04h-page-header"><div><h1>Import History</h1><p>{copy("Review your store's previous CSV and Excel imports.","View previous imports and check their results.")}</p></div>
       <button type="button" className="f04h-button" onClick={refresh} disabled={loading}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
     </header>
     <section className="f04h-card" aria-labelledby="f04h-list-title">
@@ -213,12 +215,12 @@ function ImportHistoryContent() {
           <div className="f04h-table-scroll" tabIndex={0} role="region" aria-label="Import history; scroll horizontally to see all columns">
             <table className="f04h-table f04h-history-table"><thead><tr>
               <th scope="col">Batch ID</th><th scope="col">Filename</th><th scope="col">Started at</th><th scope="col">Status</th>
-              <th scope="col" className="f04h-number">New orders<br />saved</th><th scope="col" className="f04h-number">Duplicate<br />orders</th><th scope="col" className="f04h-number">Rejected<br />orders</th><th scope="col" className="f04h-number">Conflict<br />orders</th><th scope="col">Actions</th>
+              <th scope="col" className="f04h-number">{copy('New orders saved','Imported orders')}</th><th scope="col" className="f04h-number">{copy('Duplicate orders','Existing orders skipped')}</th><th scope="col" className="f04h-number">Rejected<br />orders</th><th scope="col" className="f04h-number">{copy('Conflict orders','Conflicting orders')}</th><th scope="col">Actions</th>
             </tr></thead><tbody>{data.content.map(batch => <tr key={batch.importBatchId}>
               <th scope="row">#{batch.importBatchId}</th><td className="f04h-filename">{batch.filename ?? '—'}</td><td className="f04h-date"><time dateTime={batch.startedAt}>{formatDate(batch.startedAt)}</time></td>
               <td><StatusBadge status={batch.status} />{skippedExisting(batch) && <p className="f04h-skipped">Existing orders skipped</p>}</td>
               {[batch.acceptedOrderCount, batch.duplicateOrderCount, batch.rejectedOrderCount, batch.conflictOrderCount].map((count, index) => <td key={index} className="f04h-number">{importIsTerminal(batch.status) ? count.toLocaleString() : <span title="Final results available when processing ends">—</span>}</td>)}
-              <td><button type="button" className="f04h-details-button" aria-label={`View details for batch ${batch.importBatchId}`} aria-haspopup="dialog" onClick={() => setSelectedBatch(batch.importBatchId)}><Eye size={14} aria-hidden="true" />View Details</button></td>
+              <td><button type="button" className="f04h-details-button" aria-label={`View details for batch ${batch.importBatchId}`} aria-haspopup="dialog" onClick={() => setSelectedBatch(batch.importBatchId)}>{!isStoreAdmin() && <Eye size={14} aria-hidden="true" />}View Details</button></td>
             </tr>)}</tbody></table>
           </div>
           <Pagination data={data} onPage={setPage} label="Import history" />

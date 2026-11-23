@@ -1,3 +1,4 @@
+import { isStoreAdmin, storeAdminCopy as copy } from '../../../utils/storeAdminCopy';
 import type { F03Decimal } from '../f03.decimal';
 import { useEffect, useState } from 'react';
 import { AppDatePicker } from '../../../components/common/AppDatePicker';
@@ -59,14 +60,14 @@ export function ProductPriorityContent({ scores, onManageSeasons }: { scores: F0
         ]} /></div>
         {!scores.lambdaValid && <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Priority Strength exceeds the system range. {onManageSeasons ? 'Update Weight Settings before calculating utility.' : 'A Merchandiser must update Weight Settings before calculating utility.'}</p>}
         <Warnings compact warnings={[...scores.warnings, ...scores.expiryEvidence.warnings]} />
-        <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold text-[#356b54]">How these priorities were selected</summary><p className="mt-3 text-sm">All values are reported by the backend using current inventory, recent sales and saved season assignments.</p>
+        <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold text-[#356b54]">How these priorities were selected</summary><p className="mt-3 text-sm">{copy('All values are reported by the backend using current inventory, recent sales and saved season assignments.','Priorities reflect current stock, recent sales and assigned seasons.')}</p>
           <h3 className="mt-4 font-semibold">Active Seasons</h3>{scores.activeSeasons.length ? <ul className="mt-2 space-y-2">{scores.activeSeasons.map(season => <li key={season.seasonId}>{season.name} · Priority {utilityNumber(season.weight)} · {formatDateRange(season.startDate, season.endDate)}{season.seasonId === scores.seasonId && ' · Selected'}</li>)}</ul> : <p className="mt-2">No active season. This is a normal result.</p>}
           {onManageSeasons && <Button className={secondary + ' mt-3'} onClick={onManageSeasons}>Manage Seasons</Button>}
         </details>
         <Technical><Metrics values={[
           ['Product ID', scores.productId], ['Expiry Status', readable(scores.expiryStatus)], ['Configuration Version', scores.configVersion], ['Time Zone', scores.timeZone],
           ['Sales Window (days)', scores.expiryEvidence.salesWindowDays], ['Units Sold', scores.expiryEvidence.unitsSold], ['Daily Sales Rate', scores.expiryEvidence.dailySalesRate], ['Risk Quantity', scores.expiryEvidence.riskQuantity], ['Eligible Quantity', scores.expiryEvidence.eligibleQuantity]
-        ]} /><p>Scoring Version: {scores.scoringVersion}</p>{scores.batchesMissingPushDay.length > 0 && <p>Missing Push Day: batches {scores.batchesMissingPushDay.map(id => `#${id}`).join(', ')}. Ask a Store Admin to update Inventory Batches.</p>}<pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(scores.expiryEvidence, null, 2)}</pre></Technical>
+        ]} /><p>Scoring Version: {scores.scoringVersion}</p>{scores.batchesMissingPushDay.length > 0 && <p>Missing Push Day: batches {scores.batchesMissingPushDay.map(id => `#${id}`).join(', ')}. Ask a Store Admin to update Inventory Batches.</p>}{!isStoreAdmin() && <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(scores.expiryEvidence, null, 2)}</pre>}</Technical>
   </>;
 }
 

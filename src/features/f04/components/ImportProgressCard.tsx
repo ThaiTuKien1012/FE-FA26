@@ -1,3 +1,4 @@
+import { storeAdminCopy as copy, storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { useEffect, useRef } from 'react';
 import { AlertCircle, Clock3, FileText, Loader2, RefreshCw } from 'lucide-react';
 import type { ImportState } from '../f04.import';
@@ -33,7 +34,7 @@ export function ImportProgressCard({ state, refresh, retryUpload, acknowledge, f
         <p className="f04-progress-description" role="status">{description}</p>
       </div>
     </div>
-    {(state.filename || progress) && <div className="f04-progress-file"><FileText size={18} aria-hidden="true" /><span>{state.filename || 'CSV import'}</span>{progress && <small>Batch #{progress.importBatchId}</small>}</div>}
+    {(state.filename || progress) && <div className="f04-progress-file"><FileText size={18} aria-hidden="true" /><span>{state.filename || copy('CSV import','Sales file import')}</span>{progress && <small>Batch #{progress.importBatchId}</small>}</div>}
     {!uncertain && !excel && <div className="f04-progress-measure">
       <div className="f04-progress-numbers"><span>{progress ? 'Transaction processing' : 'File preparation'}</span><strong>{percent === null ? 'In progress' : `${percent}%`}</strong></div>
       <div className={`f04-progress-track ${percent === null ? 'f04-progress-track--unknown' : ''}`} role="progressbar" aria-label={progress ? 'Transaction processing' : 'File preparation'} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} aria-valuetext={percent === null ? 'Progress is not yet measurable' : `${percent}%`}>
@@ -41,7 +42,7 @@ export function ImportProgressCard({ state, refresh, retryUpload, acknowledge, f
       </div>
       <div className="f04-progress-detail"><p>{progress && progress.totalCount !== null ? `${progress.processedCount.toLocaleString()} of ${progress.totalCount.toLocaleString()} rows processed` : progress ? `${progress.processedCount.toLocaleString()} rows processed · Total not yet available` : 'Waiting for the server to confirm your file.'}</p><p>{progress ? stage : 'Checking file and contents…'}</p></div>
     </div>}
-    {error && <div className="f04-progress-notice" role="alert"><AlertCircle size={17} aria-hidden="true" /><p>{error}{progress && (terminal ? ' Processing has ended. Refresh to load the final result.' : ' The import may continue in the background. Refresh to check its latest status.')}</p></div>}
+    {error && <div className="f04-progress-notice" role="alert"><AlertCircle size={17} aria-hidden="true" /><p>{storeAdminMessage(error)}{progress && (terminal ? ' Processing has ended. Refresh to load the final result.' : ' The import may continue in the background. Refresh to check its latest status.')}</p></div>}
     <div className="f04-progress-footer">
       <p>{excel ? (uncertain ? 'Check Import History before uploading this workbook again.' : 'Keep this page open while awaiting the Excel result.') : progress ? 'You can leave this page while the import continues. Check Import History for updates.' : uncertain ? 'Check the latest imports to confirm whether your file was received.' : 'Your import will continue in the background once accepted.'}</p>
       <div className="f04-progress-actions">

@@ -1,3 +1,4 @@
+import { storeAdminCopy as copy, storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { formatDate } from '../../../utils/dateTime';
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { X } from 'lucide-react';
@@ -22,11 +23,11 @@ function Panel({ title, busy = false, onClose, children }: { title: string; busy
   </dialog>;
 }
 const fields: { key: keyof RuleInputs; label: string; help: string; decimal?: boolean }[] = [
-  { key: 'maxBundleSize', label: 'Maximum Bundle Size', help: 'Whole number from 2 to 256 products.' },
-  { key: 'minSupportCount', label: 'Minimum Shared Orders', help: 'At least 1 historical transaction; whole number.' },
-  { key: 'supportPercent', label: 'Minimum Shared Orders (%)', help: '0–100%. Up to four percentage decimal places.', decimal: true },
-  { key: 'confidencePercent', label: 'Minimum Cross-sell Confidence (%)', help: '0–100%. Up to four percentage decimal places.', decimal: true },
-  { key: 'minimumSellableQuantity', label: 'Minimum Sellable Quantity', help: 'At least 1 sellable unit per product; whole number.' }
+  { key: 'maxBundleSize', label: 'Maximum Bundle Size', help: 'Most products allowed in one bundle (2–256).' },
+  { key: 'minSupportCount', label: 'Minimum Shared Orders', help: 'Fewest past orders that must contain the full product group (at least 1).' },
+  { key: 'supportPercent', label: 'Minimum Shared Orders (%)', help: 'Share of past orders that must contain the full product group (0–100%).', decimal: true },
+  { key: 'confidencePercent', label: 'Minimum Cross-sell Confidence (%)', help: 'How often both products appeared together when the starting product was bought (0–100%).', decimal: true },
+  { key: 'minimumSellableQuantity', label: 'Minimum Sellable Quantity', help: 'Fewest units currently available to sell for each product (at least 1).' }
 ];
 export function F06RulesPanel({ onClose }: { onClose: () => void }) {
   const [workflow] = useState(() => new RecommendationRules());
@@ -37,7 +38,7 @@ export function F06RulesPanel({ onClose }: { onClose: () => void }) {
     <p className="text-sm leading-6 text-[#6D7974]">Updated rules apply to newly generated recommendations. Existing recommendations keep their original rules.</p>
     <button type="button" className={miningButton} disabled={state.loading || state.saving} onClick={() => void workflow.refresh()}>Refresh Rules</button>
     {state.loading && <p role="status" className="text-sm text-[#6D7974]">Loading store rules...</p>}
-    {state.error && <p role="alert" className="whitespace-pre-wrap break-words rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{state.error}</p>}
+    {state.error && <p role="alert" className="whitespace-pre-wrap break-words rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{storeAdminMessage(state.error)}</p>}
     {state.notice && <p role="status" className="rounded-xl bg-[#EDF5F0] p-4 text-sm text-[#1E3A2F]">{state.notice}</p>}
     {state.latest && <section aria-label="Current rules conflict" className="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
       <h3 className="font-semibold">Current rules · Version {state.latest.version}</h3>
@@ -64,7 +65,7 @@ export function F06ExpiryPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => { setProduct(state.productId === undefined ? '' : String(state.productId)); setSize(String(state.pageSize)); setInputError(''); }, [state.productId, state.pageSize, state.role]);
   const data = state.data;
   return <Panel title="Expiry Alerts" onClose={onClose}>
-    <p className="text-sm leading-6 text-[#6D7974]">Batch Push Day alerts for your Store, independent of mining. An alert does not by itself mean a product is unsellable. It does not change inventory or create promotions.</p>
+    <p className="text-sm leading-6 text-[#6D7974]">{copy('Batch Push Day alerts for your Store, independent of mining. An alert does not by itself mean a product is unsellable. It does not change inventory or create promotions.','Batches to prioritize by Push Day. An alert does not mean the stock is unsellable or change stock or promotions.')}</p>
     <p className="text-xs leading-5 text-[#6D7974]">Days to Push is relative to the batch Push Day, not the expiry date. Zero means today; negative values mean the Push Day has passed.</p>
     <form aria-label="Expiry alert filters" onSubmit={event => { event.preventDefault(); try { const id = product.trim() ? parseMiningId(product.trim()) : undefined; setInputError(''); void workflow.applyFilter(id, Number(size)); } catch (error) { setInputError(error instanceof Error ? error.message : 'Check the product ID.'); } }}>
       <div className="grid gap-3 sm:grid-cols-2"><label htmlFor="f06-expiry-product" className="text-sm font-semibold">Product ID<input id="f06-expiry-product" inputMode="numeric" value={product} onChange={event => setProduct(event.target.value)} placeholder="All products" className={miningInput} /></label><label htmlFor="f06-expiry-size" className="text-sm font-semibold">Items per page<select id="f06-expiry-size" value={size} onChange={event => setSize(event.target.value)} className={miningInput}>{[10, 20, 50, 100].map(value => <option key={value}>{value}</option>)}</select></label></div>

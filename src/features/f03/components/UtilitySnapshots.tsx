@@ -1,3 +1,4 @@
+import { storeAdminCopy as copy } from '../../../utils/storeAdminCopy';
 import { formatDate, formatDateRange, formatUtcDateTime } from '../../../utils/dateTime';
 import { useEffect, useRef, useState } from 'react';
 import { CircleCheck } from 'lucide-react';
@@ -87,7 +88,7 @@ export function SnapshotHistory({ refresh, readOnly, active = true }: { refresh:
     return () => { live = false; };
   }, [page, reload, refresh]);
   return <>
-    <Section title="Saved Snapshots" subtitle="Saved READY datasets, newest first. Warnings do not mean the snapshot failed." action={<Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh Snapshots</Button>}>
+    <Section title="Saved Snapshots" subtitle={copy('Saved READY datasets, newest first. Warnings do not mean the snapshot failed.','Saved analysis data, newest first. READY snapshots can still have warnings.')} action={<Button disabled={loading} className={secondary} onClick={() => setReload(x => x + 1)}>Refresh Snapshots</Button>}>
       <Notice error={error} />{loading && <p role="status">Loading saved snapshots...</p>}
       {result && <div aria-busy={loading} className={loading ? 'pointer-events-none opacity-60' : ''}>
         <MerchantSnapshotList items={result.items} busy={loading} readOnly={readOnly} onView={readOnly ? (snapshot, opener) => setSelected({ snapshot, opener }) : undefined} />

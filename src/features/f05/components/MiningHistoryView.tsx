@@ -1,3 +1,4 @@
+import { storeAdminCopy as copy } from '../../../utils/storeAdminCopy';
 import { StoreAnalysisList } from './StoreAnalysisList';
 import { AnalysisPages } from './AnalysisPages';
 import { analysisErrorMessage } from '../f05.presentation';
@@ -61,10 +62,10 @@ export function MiningHistoryView({ requestId, selectionError, onSelect, reader=
   return <div className="space-y-5">
     <section aria-labelledby="f05-history-title" className="rounded-2xl border border-[#E7E2D8] bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{system?'Analyses':'Analysis History'}</h2><p className="mt-2 text-sm text-[#6D7974]">{system?'Analyses for the selected store, newest first.':'Analyses for your store, newest first.'}</p></div>
+        <div><h2 id="f05-history-title" className="flex items-center gap-2 text-xl font-semibold"><History aria-hidden="true" className="h-5 w-5 text-[#356B54]" />{system?'Analyses':copy('Analysis History','Saved Analyses')}</h2><p className="mt-2 text-sm text-[#6D7974]">{system?'Analyses for the selected store, newest first.':'Analyses for your store, newest first.'}</p></div>
         <button type="button" disabled={loading} onClick={refresh} className={miningButton}><RefreshCw aria-hidden="true" className="mr-2 inline h-4 w-4" />Refresh history</button>
       </div>
-      {loading ? <p role="status" className="mt-6 flex items-center gap-2 text-sm text-[#6D7974]"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />Loading mining history...</p> : error ?
+      {loading ? <p role="status" className="mt-6 flex items-center gap-2 text-sm text-[#6D7974]"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" />{copy('Loading mining history...','Loading analysis history...')}</p> : error ?
         <div role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p>{error}</p><p className="mt-2">Use Refresh history to try again manually.</p></div> : data && <>
           {data.items.length === 0 ? <p className="mt-5 rounded-xl bg-[#FAF8F5] p-5 text-sm text-[#6D7974]">{system?'No analyses have been recorded for this store yet.':'No analyses have been recorded for this store yet.'}</p> :
             <div className={system ? "mt-5 overflow-hidden rounded-xl border border-[#E7E2D8]" : "mt-5"}>{system ? <SystemAnalysisList items={data.items} selectedId={requestId} onSelect={onSelect} /> : <StoreAnalysisList items={data.items} selectedId={requestId} onSelect={onSelect} />}</div>}
