@@ -53,6 +53,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-snapshots',
       'f05-mining',
       'f06-recommendations',
+      'f07-f08-workspace',
       'profile'
     ]
   },
@@ -86,6 +87,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-preview', 'f03-snapshots', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'f05-mining',
       'f06-recommendations',
+      'f07-f08-workspace',
       'profile'
     ]
   },
@@ -113,6 +115,7 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
     title: 'Recommendations',
     allowedRoles: ['Merchandiser', 'Store Admin']
   },
+  'f07-f08-workspace': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Layouts & Campaigns', allowedRoles: ['Merchandiser', 'Store Admin'] },
   // Store Admin Core Modules
   'store-inventory': {
     primaryRole: 'Store Admin',
