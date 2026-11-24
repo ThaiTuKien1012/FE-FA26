@@ -4,12 +4,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Info, Package, Plus, RefreshCw } from 'lucide-react';
 import type { ActiveNavScreen } from '../../../types/mining';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Batch, type F02InventorySummary, type F02Product } from '../store.api';
-import { batchCreateRequest, batchPatchRequest, batchPushState, emptyBatchForm, isExpired, isExpiringSoon, localDateTime, receivedDateTime, storeDate, storeTimeZone, validatePushDay } from '../f02.forms';
+import { batchCreateRequest, batchPatchRequest, emptyBatchForm, localDateTime, receivedDateTime, storeTimeZone, validatePushDay } from '../f02.forms';
 import { F02Dialog } from './F02Dialog';
 import { GeneratedCodeField } from './GeneratedCodeField';
 import { F02Toast, type F02Notice } from './F02Toast';
 import { ProductSelector } from './ProductSelector';
-import { batchTableRows, emptyBatchFilters, hasColumnFilter, nextTableSort, tablePage, type BatchFilters, type BatchSortKey, type ColumnFilterValue, type TableSort } from '../f02.tables';
+import { batchExpiryLabel, batchTableRows, emptyBatchFilters, hasColumnFilter, nextTableSort, tablePage, type BatchFilters, type BatchSortKey, type ColumnFilterValue, type TableSort } from '../f02.tables';
 import { F02FilterSummary, F02TableFrame, F02TableHeader, F02TablePagination, F02TableEmpty } from './F02Table';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-[#e7e2d8] bg-white p-2 outline-none focus:border-[#1e3a2f]';
@@ -23,7 +23,6 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
   const [form, setForm] = useState(emptyBatchForm), [editing, setEditing] = useState<F02Batch | null>(null), [open, setOpen] = useState(false), [formError, setFormError] = useState('');
   const [clearExpiryOpen, setClearExpiryOpen] = useState(false);
   const [busy, setBusy] = useState(false), pending = useRef(false), loadVersion = useRef(0), noticeId = useRef(0);
-  const [today, setToday] = useState(() => storeDate());
   const productId = selectedProduct?.id;
   const [filters, setFilters] = useState(emptyBatchFilters), [sort, setSort] = useState<TableSort<BatchSortKey> | null>(null), [page, setPage] = useState(0);
   const matching = useMemo(() => batchTableRows(batches.filter(batch => batch.productId === productId), filters, sort), [batches, productId, filters, sort]);
@@ -34,7 +33,6 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
   useEffect(() => setPage(0), [productId]);
   useEffect(() => { if (page >= totalPages) setPage(totalPages - 1); }, [page, totalPages]);
 
-  useEffect(() => { const timer = window.setInterval(() => setToday(storeDate()), 60000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (notice?.kind !== 'success') return;
     const timer = window.setTimeout(() => setNotice(current => current?.id === notice.id ? null : current), 4000);
@@ -108,7 +106,9 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
   const expiryError = /enter an expiry date|expiry date is required/i.test(formError) ? formError : '';
   const pushSaveError = /Push Day|pushDay/i.test(formError) ? formError : '';
   const generalFormError = quantityError || receivedError || expiryError || pushSaveError ? '' : formError;
-  const showMissingPushHint = selectedProduct?.requiresExpiry && !form.pushDay && !isExpired(form.expiryDate, today) && (editing ? editing.status === 'ACTIVE' && Number(form.remainingQuantity) > 0 : Number(form.initialQuantity) > 0);
+  const showMissingPushWarning = selectedProduct?.requiresExpiry && !form.pushDay && (
+    !editing || form.expiryDate !== (editing.expiryDate ?? '') || editing.effectiveStatus !== 'EXPIRED'
+  );
   if (!canManage) return <p role="alert" className="p-6 text-[#6d7974]">You do not have permission to manage inventory batches.</p>;
 
   return <div className="f02-wide-table-view mx-auto max-w-[1680px] space-y-6 text-[#191c1b]">
@@ -119,7 +119,7 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
         <div data-batch-toast-slot className="relative h-14 w-full max-w-md">{!open && <F02Toast notice={notice} onClose={() => setNotice(null)} />}</div>
       </div>
     </header>
-    {!product && <ProductSelector value={selectedProduct} disabled={busy || open} onSelect={next => { if (next.id === productId) return; ++loadVersion.current; setLoading(true); setSelectedProduct(next); setOpen(false); }} />}
+    {!product && <ProductSelector value={selectedProduct} onClear={() => { ++loadVersion.current; setSelectedProduct(null); setOpen(false); setLoading(false); }} disabled={busy || open} onSelect={next => { if (next.id === productId) return; ++loadVersion.current; setLoading(true); setSelectedProduct(next); setOpen(false); }} />}
     {selectedProduct && <section aria-label="Currently viewing" className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e7e2d8] bg-white px-4 py-3">
       <div className="flex min-w-0 items-start gap-3"><Package aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-[#6d7974]" /><div className="min-w-0"><p className="text-xs text-[#6d7974]">Currently viewing</p><h2 className="mt-0.5 font-semibold text-[#191c1b] [overflow-wrap:anywhere]">{selectedProduct.name}</h2><p className="mt-0.5 text-xs text-[#6d7974] [overflow-wrap:anywhere]">SKU: {selectedProduct.sku}</p></div></div>
       <div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-[#f0f3ef] px-2 py-1 text-xs text-[#315445]">{selectedProduct.requiresExpiry ? 'Expiry tracking enabled' : 'No expiry tracking'}</span>{selectedProduct.status === 'INACTIVE' && <span className="text-xs text-[#6d7974]">Inactive product</span>}</div>
@@ -127,16 +127,20 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">{error} <button disabled={busy || loading} onClick={() => void load()} className={buttonClass}>Retry batches</button></div>}
     {summary && summary.productId === productId && <section aria-label="Inventory summary" className="space-y-2"><dl className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">{[
       { label: 'Total stock', value: summary.totalQuantity, color: 'text-[#191c1b]', help: 'All remaining units, including expired and blocked stock.' },
-      { label: 'Sellable', value: summary.sellableQuantity, color: 'text-[#315445]', help: 'Active stock with no expiry date or expiring after today.' },
-      { label: 'Expired', value: summary.expiredQuantity, color: 'text-[#a44d4d]', help: 'Active stock expiring today or earlier.' },
-      { label: 'Blocked', value: summary.blockedQuantity, color: 'text-[#8b6547]', help: 'Remaining units in blocked batches.' },
+      { label: 'Sellable', value: summary.sellableQuantity, color: 'text-[#315445]', help: 'Active stock that has not expired, including batches expiring today.' },
+      { label: 'Expired', value: summary.expiredQuantity, color: 'text-[#a44d4d]', help: 'Remaining units in batches past their expiry date.' },
+      { label: 'Blocked', value: summary.blockedQuantity, color: 'text-[#8b6547]', help: 'Remaining units in blocked batches that have not expired.' },
       { label: 'Expiring in 7 days', value: summary.expiringSoonQuantity, color: 'text-[#8b713a]', help: 'Sellable stock expiring in the next 7 days. Already included in Sellable.' },
     ].map(({ label, value, color, help }) => <div key={label} title={help} className={`flex min-w-0 flex-col justify-between rounded-xl border px-4 py-3 shadow-sm ${label === 'Expiring in 7 days' && value > 0 ? 'border-amber-200 bg-amber-50/50' : 'border-[#e7e2d8] bg-white'}`}><dt className="min-h-8 text-xs font-medium text-[#6d7974]">{label}</dt><dd className={`mt-1 text-2xl font-semibold tabular-nums ${color}`}>{value.toLocaleString('en-GB')}</dd></div>)}</dl><p className="text-xs text-[#6d7974]">Total includes expired and blocked stock. Expiring stock is already included in Sellable.</p></section>}
     {summary && summary.productId === productId && summary.expiringSoonQuantity > 0 && <aside aria-label="Expiring stock" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-[#805f25]"><AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-medium">{summary.expiringSoonQuantity.toLocaleString('en-GB')} units expiring within 7 days</p><p className="mt-0.5 text-xs">Review the batches below to prioritize stock before expiry.</p></div></aside>}
-    <div className="space-y-2"><p title={`Store time zone: ${storeTimeZone}. Batches expiring today are expired.`} className="flex items-center gap-1.5 text-xs text-[#6d7974]"><Info aria-hidden="true" className="h-3.5 w-3.5" />Expiry status follows the store's local date.</p>
+    {summary && summary.productId === productId && summary.batchesMissingPushDay > 0 && <aside className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <AlertTriangle aria-hidden="true" className="h-4 w-4 shrink-0" />
+      Chưa đặt Push Day: {summary.batchesMissingPushDay.toLocaleString('en-GB')} lô
+    </aside>}
+    <div className="space-y-2"><p title={`Store time zone: ${storeTimeZone}. Batches remain valid on their expiry date.`} className="flex items-center gap-1.5 text-xs text-[#6d7974]"><Info aria-hidden="true" className="h-3.5 w-3.5" />Expiry status follows the store's local date.</p>
     <div className="f02-toolbar" role="search" aria-label="Batch filters">
       <label className="f02-toolbar-search">Search<input aria-label="Search batch code" placeholder="Search batch code" disabled={busy || !productId} value={filters.batchCode.text || ''} onChange={e => filter('batchCode', { text: e.target.value })} /></label>
-      <label>Status<select aria-label="Filter batch status" disabled={busy || !productId} value={filters.status.choice || ''} onChange={e => filter('status', { choice: e.target.value })}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="BLOCKED">Blocked</option></select></label>
+      <label>Status<select aria-label="Filter batch status" disabled={busy || !productId} value={filters.status.choice || ''} onChange={e => filter('status', { choice: e.target.value })}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="BLOCKED">Blocked</option><option value="EXPIRED">Đã hết hạn</option></select></label>
       <label>Expiry<select aria-label="Filter batch expiry" disabled={busy || !productId} value={filters.expiryDate.presence || ''} onChange={e => filter('expiryDate', { presence: e.target.value as ColumnFilterValue['presence'] })}><option value="">All expiry dates</option><option value="set">Date is set</option><option value="unset">Not set</option></select></label>
       <F02FilterSummary active={Object.values(filters).some(hasColumnFilter)} onClearAll={clearFilters} />
     </div>
@@ -153,14 +157,17 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
           <th scope="col">Actions</th>
         </tr></thead>
         <tbody>{visibleBatches.map(batch => {
-          const pushState = batchPushState(batch, today, selectedProduct?.requiresExpiry ?? false);
+          const expiryLabel = batchExpiryLabel(batch);
           return <tr key={batch.id}>
             <td className="font-mono text-xs"><span className="f02-cell-text" title={batch.batchCode}>{batch.batchCode}</span></td>
             <td><span className="f02-cell-text" title={receivedDateTime(batch.receivedAt)}>{receivedDateTime(batch.receivedAt)}</span></td>
-            <td><span>{formatDate(batch.expiryDate, 'Not set')}</span>{batch.status === 'ACTIVE' && isExpired(batch.expiryDate, today) ? <span className="mt-1 block text-xs font-medium text-red-700">Expired</span> : isExpiringSoon(batch, today) && <span className="mt-1 block text-xs font-medium text-[#805f25]">Expiring soon</span>}</td>
-            <td><span>{formatDate(batch.pushDay, 'Not set')}</span>{pushState && <span className={'f02-cell-text f02-batch-push-note mt-1 text-xs ' + (pushState === 'reached' ? 'font-medium text-amber-700' : 'text-[#6d7974]')} title={pushState === 'reached' ? 'Push Day reached' : 'Set a Push Day for expiry-risk analysis.'}>{pushState === 'reached' ? 'Push Day reached' : 'Set a Push Day for expiry-risk analysis.'}</span>}</td>
+            <td><span>{formatDate(batch.expiryDate, 'Not set')}</span>{expiryLabel && <span className={'mt-1 block text-xs font-medium ' + (batch.effectiveStatus === 'EXPIRED' ? 'text-red-700' : 'text-[#805f25]')}>{expiryLabel}</span>}</td>
+            <td>
+              <span>{formatDate(batch.pushDay, 'Not set')}</span>
+              {batch.warnings.includes('MISSING_PUSH_DAY') && <div className="mt-1"><span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">Chưa đặt Push Day</span></div>}
+            </td>
             <td className="f02-numeric"><span className="f02-cell-amount" title={batch.remainingQuantity + ' / ' + batch.initialQuantity}><strong>{batch.remainingQuantity.toLocaleString('en-GB')}</strong><span className="text-[#89938f]"> / {batch.initialQuantity.toLocaleString('en-GB')}</span></span></td>
-            <td><span className={'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ' + (batch.status === 'BLOCKED' ? 'bg-red-50 text-red-700' : 'bg-[#eaf2ec] text-[#315445]')}>{batch.status === 'ACTIVE' ? 'Active' : 'Blocked'}</span></td>
+            <td><span className={'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ' + (batch.effectiveStatus === 'ACTIVE' ? 'bg-[#eaf2ec] text-[#315445]' : 'bg-red-50 text-red-700')}>{{ ACTIVE: 'Active', BLOCKED: 'Blocked', EXPIRED: 'Đã hết hạn' }[batch.effectiveStatus]}</span></td>
             <td><div className="f02-cell-actions"><button disabled={busy || loading} onClick={() => editBatch(batch)} className={buttonClass}>Edit</button><button disabled={busy || loading} onClick={() => updateStatus(batch)} className={buttonClass}>{batch.status === 'BLOCKED' ? 'Unblock' : 'Block'}</button></div></td>
           </tr>;
         })}<F02TableEmpty columns={7} message={!visibleBatches.length ? loading ? 'Loading batches...' : !productId ? 'Choose a product to view its batches.' : error && !batches.length ? 'Batch data is unavailable. Please retry.' : batches.length ? 'No matching batches.' : 'No batches found.' : undefined} /></tbody>
@@ -179,8 +186,11 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
         </>}
           <label className="block text-sm">Expiry date{selectedProduct?.requiresExpiry ? ' *' : ''}<AppDatePicker aria-label="Expiry date" aria-invalid={Boolean(expiryError)} aria-describedby={expiryError ? 'f02-expiry-error' : undefined} required={selectedProduct?.requiresExpiry}  value={form.expiryDate} onChange={value => { setFormError(''); setForm({ ...form, expiryDate: value }); }} className={inputClass} /></label>{expiryError && <p id="f02-expiry-error" role="alert" className="text-sm text-red-700">{expiryError}</p>}
         {editing?.expiryDate && !selectedProduct?.requiresExpiry && <button type="button" onClick={() => setClearExpiryOpen(true)} className={buttonClass}>Clear Expiry Date</button>}
-        <label className="block text-sm">Push Day<AppDatePicker aria-label="Push Day" aria-invalid={Boolean(pushError || pushSaveError)} aria-describedby={`f02-push-help${pushError || pushSaveError ? ' f02-push-error' : ''}`}  max={form.expiryDate || undefined} value={form.pushDay} onChange={value => { setFormError(''); setForm({ ...form, pushDay: value }); }} className={inputClass} /></label>
-        <p id="f02-push-help" className="text-xs text-[#6d7974]">Set a Push Day to plan when this batch should be prioritized.{showMissingPushHint && ' Without a Push Day, this batch may be excluded from expiry analysis.'}</p>
+        <label className="block text-sm">Push Day<AppDatePicker aria-label="Push Day" aria-invalid={Boolean(pushError || pushSaveError)} aria-describedby={`f02-push-help${showMissingPushWarning ? ' f02-push-warning' : ''}${pushError || pushSaveError ? ' f02-push-error' : ''}`}  max={form.expiryDate || undefined} value={form.pushDay} onChange={value => { setFormError(''); setForm({ ...form, pushDay: value }); }} className={inputClass} /></label>
+        <p id="f02-push-help" className="text-xs text-[#6d7974]">Set a Push Day to plan when this batch should be prioritized.</p>
+        {showMissingPushWarning && <p id="f02-push-warning" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          Chưa đặt Push Day. Bạn vẫn có thể lưu.{editing?.pushDay && ' Dùng Clear Push Day để xóa ngày đã lưu trước khi lưu thay đổi khác.'}
+        </p>}
         {(pushError || pushSaveError) && <p id="f02-push-error" role="alert" className="text-sm text-red-700">{pushError || pushSaveError}</p>}
         {editing?.pushDay && <button type="button" onClick={clearPushDay} className={buttonClass}>Clear Push Day</button>}
         <div className="flex justify-end gap-2"><button type="button" onClick={() => setOpen(false)} className={buttonClass}>Cancel</button><button disabled={Boolean(pushError)} className="rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white disabled:opacity-40">{busy ? 'Saving…' : 'Save batch'}</button></div>

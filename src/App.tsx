@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen } from './types/mining';
-import { getCustomerProductId, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
+import { getCustomerProductId, getPathForScreen, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
@@ -45,6 +45,9 @@ import { ProductItem } from './types/storeInventory';
 
 const publicScreens: ActiveNavScreen[] = ['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront', 'customer-product'];
 
+const StoreManagementView = lazy(() => import('./features/storeManagement/StoreManagementView')
+  .then(module => ({ default: module.StoreManagementView })));
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
@@ -60,7 +63,7 @@ export default function App() {
 
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
   const [customerProductId, setCustomerProductId] = useState<string | null>(() => getCustomerProductId(window.location.pathname));
-  const [editingProductId, setEditingProductId] = useState<string>('prod-001');
+  const [editingProductId, setEditingProductId] = useState(() => new URLSearchParams(window.location.search).get('productId') ?? '');
   const isMiningScreen = isSystemMiningScreen(currentScreen);
   const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
   const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
@@ -91,6 +94,7 @@ export default function App() {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
       if (screenFromUrl) {
         setCustomerProductId(getCustomerProductId(window.location.pathname));
+        if (screenFromUrl === 'store-edit-product') setEditingProductId(new URLSearchParams(window.location.search).get('productId') ?? '');
         setCurrentScreen(screenFromUrl);
       }
     };
@@ -123,9 +127,14 @@ export default function App() {
 
   const handleNavigate = (screen: ActiveNavScreen) => {
     scrollPositions.current[currentScreen] = window.scrollY;
-    if (currentUser?.role==='System Admin') {
+    if (screen === 'admin-stores') {
+      window.history.pushState({ screen }, '', getPathForScreen(screen));
+      setCurrentScreen(screen);
+      window.dispatchEvent(new Event('popstate'));
+    } else if (currentUser?.role==='System Admin') {
       const target=resolveSystemScreen(screen);
-      window.history.pushState({screen:target},'',systemScreenUrl(target,window.location.search));
+      const search = currentScreen === 'admin-stores' ? '' : window.location.search;
+      window.history.pushState({screen:target},'',systemScreenUrl(target,search));
       setCurrentScreen(target);
       window.dispatchEvent(new Event('popstate'));
     } else {
@@ -137,9 +146,10 @@ export default function App() {
     });
   };
 
-  const handleEditProduct = (prod: ProductItem) => {
-    setEditingProductId(prod.id);
-    syncBrowserUrl('store-edit-product');
+  const handleEditProduct = (id: number) => {
+    setEditingProductId(String(id));
+    const params = new URLSearchParams({ productId: String(id) });
+    window.history.pushState({ screen: 'store-edit-product' }, '', getPathForScreen('store-edit-product') + '?' + params);
     setCurrentScreen('store-edit-product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -323,9 +333,7 @@ export default function App() {
 
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (
-            <ProductInventoryView
-              onNavigate={handleNavigate}
-            />
+            <ProductInventoryView onOpenProduct={handleEditProduct} />
           )}
 
           {/* F02: Store Admin - Edit Product Page */}
@@ -357,6 +365,15 @@ export default function App() {
           )}
           {currentScreen === 'f04-transactions' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
             <SalesTransactionsView />
+          )}
+
+          {currentScreen === 'admin-stores' && currentUser?.role === 'System Admin' && (
+            <Suspense fallback={<p role="status">Loading Stores…</p>}><StoreManagementView mode="system" /></Suspense>
+          )}
+          {currentScreen === 'my-store' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
+            <Suspense fallback={<p role="status">Loading My Store…</p>}>
+              <StoreManagementView key={currentUser.id} mode={currentUser.role === 'Store Admin' ? 'manage' : 'read'} />
+            </Suspense>
           )}
 
           {/* System Admin: Users & Roles */}

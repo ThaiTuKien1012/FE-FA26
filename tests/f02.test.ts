@@ -6,7 +6,7 @@ import { ProductFields } from '../src/features/store/components/ProductInventory
 import { GeneratedCodeField } from '../src/features/store/components/GeneratedCodeField';
 import { authService, ROLE_PERMISSIONS, type AuthUser } from '../src/services/authService';
 import { canManageCatalog, F02ApiError, f02ErrorMessage, needsProductNameConfirmation, storeApi, type F02Batch, type F02BatchPatchRequest, type F02Product, type F02Status } from '../src/features/store/store.api';
-import { batchCreateRequest, batchPatchRequest, batchPushState, categoryRequest, emptyBatchForm, emptyProductForm, isExpired, isExpiringSoon, localDateTime, money, productRequest, storeDate, validatePushDay } from '../src/features/store/f02.forms';
+import { batchCreateRequest, batchPatchRequest, categoryRequest, emptyBatchForm, emptyProductForm, localDateTime, money, productRequest, storeDate, validatePushDay } from '../src/features/store/f02.forms';
 import { user } from './f05.fixtures';
 import { loadProductStats } from '../src/features/store/f02.product-stats';
 
@@ -39,7 +39,7 @@ test('Empty Store counts are real zero; failed or malformed totals never become 
 const categories = [{ id: 1, name: 'Dairy', status: 'ACTIVE' as const }, { id: 2, name: 'Archived', status: 'INACTIVE' as const }];
 const product: F02Product = { id: 4, sku: 'SKU-MILK-000001', name: 'Milk', unit: 'Bottle', requiresExpiry: true, category: categories[0], sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE', stockQuantity: 100 };
 const productForm = () => ({ ...emptyProductForm, name: ' Milk ', unit: ' Bottle ', categoryId: '1', sellingPrice: '12.75', costPrice: '15.25' });
-const batch: F02Batch = { id: 9, productId: 4, batchCode: 'B-1', receivedAt: '2026-11-17T02:00:00Z', expiryDate: '2026-12-15', initialQuantity: 100, remainingQuantity: 80, pushDay: '2026-12-10', status: 'ACTIVE', createdAt: '2026-11-17T02:00:00Z', updatedAt: '2026-11-17T02:00:00Z' };
+const batch: F02Batch = { id: 9, productId: 4, batchCode: 'B-1', receivedAt: '2026-11-17T02:00:00Z', expiryDate: '2026-12-15', initialQuantity: 100, remainingQuantity: 80, pushDay: '2026-12-10', status: 'ACTIVE', effectiveStatus: 'ACTIVE', daysToExpiry: 10, warnings: [], createdAt: '2026-11-17T02:00:00Z', updatedAt: '2026-11-17T02:00:00Z' };
 const batchForm = () => ({ ...emptyBatchForm(), receivedAt: '2026-11-17T09:00', expiryDate: '2026-12-15', initialQuantity: '100', remainingQuantity: '80', pushDay: '2026-12-10' });
 function setup(t: TestContext, role: AuthUser['role'] = 'Store Admin') {
   const calls: { path: string; init: RequestInit; body: any }[] = [];
@@ -140,56 +140,11 @@ test('Store calendar date uses configured timezone, including both sides of UTC 
   assert.equal(storeDate(new Date('2026-11-16T16:59:59Z')), '2026-11-16');
   assert.equal(storeDate(new Date('2026-11-16T12:00:00Z'), 'Pacific/Kiritimati'), '2026-11-17');
   assert.equal(storeDate(new Date('2026-11-17T02:00:00Z'), 'America/Los_Angeles'), '2026-11-16');
-  assert.equal(isExpired('2026-11-17', '2026-11-17'), true); assert.equal(isExpired('2026-11-16', '2026-11-17'), true);
-  assert.equal(isExpired('2026-11-18', '2026-11-17'), false); assert.equal(isExpired(null, '2026-11-17'), false);
 });
 test('datetime-local roundtrip uses local wall time and preserves the actual Instant', () => {
   const previous = process.env.TZ; process.env.TZ = 'Asia/Ho_Chi_Minh';
   try { const instant = new Date('2026-11-17T02:00:00Z'); assert.equal(localDateTime(instant), '2026-11-17T09:00'); assert.equal(batchCreateRequest({ ...batchForm(), receivedAt: localDateTime(instant) }, true).receivedAt, instant.toISOString()); }
   finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
-});
-test('Push Day reached/missing applies only to ACTIVE, positive, unexpired batches; missing day leaves stock/status intact', () => {
-  const today = '2026-11-17';
-  assert.equal(batchPushState({ ...batch, pushDay: today }, today), 'reached');
-  assert.equal(batchPushState({ ...batch, pushDay: '2020-01-01' }, today), 'reached');
-  assert.equal(batchPushState({ ...batch, pushDay: '2026-11-18' }, today), null);
-  const missing = { ...batch, pushDay: null }; assert.equal(batchPushState(missing, today), 'missing'); assert.equal(missing.status, 'ACTIVE'); assert.equal(missing.remainingQuantity, 80);
-  for (const patch of [{ status: 'BLOCKED' as const }, { remainingQuantity: 0 }, { expiryDate: today }, { expiryDate: '2026-11-16' }]) for (const pushDay of [null, today]) assert.equal(batchPushState({ ...batch, ...patch, pushDay }, today), null);
-  assert.equal(batchPushState({ ...batch, expiryDate: null, pushDay: today }, today), 'reached');
-});
-test('No-expiry products get no missing-Push-Day reminder; a saved due date remains usable', () => {
-  const today = '2026-11-17';
-  for (const expiryDate of [null, '2026-12-15']) {
-    const current = { ...batch, expiryDate, pushDay: null };
-    const original = structuredClone(current);
-    assert.equal(batchPushState(current, today, false), null);
-    assert.deepEqual(current, original);
-    assert.equal(batchPushState(current, today, true), 'missing');
-  }
-  assert.equal(batchPushState({ ...batch, expiryDate: null, pushDay: today }, today, false), 'reached');
-  for (const patch of [{ status: 'BLOCKED' as const }, { remainingQuantity: 0 }, { expiryDate: today }]) {
-    assert.equal(batchPushState({ ...batch, ...patch, pushDay: null }, today, true), null);
-    assert.equal(batchPushState({ ...batch, ...patch, pushDay: today }, today, false), null);
-  }
-});
-test('Expiring Soon uses the inclusive seven-day Store calendar window and excludes expired, blocked and empty batches', () => {
-  const today = '2026-11-18';
-  for (const expiryDate of ['2026-11-19', '2026-11-25']) assert.equal(isExpiringSoon({ ...batch, expiryDate }, today), true);
-  for (const expiryDate of [null, '2026-11-17', today, '2026-11-26']) assert.equal(isExpiringSoon({ ...batch, expiryDate }, today), false);
-  assert.equal(isExpiringSoon({ ...batch, expiryDate: '2026-11-20', status: 'BLOCKED' }, today), false);
-  assert.equal(isExpiringSoon({ ...batch, expiryDate: '2026-11-20', remainingQuantity: 0 }, today), false);
-  assert.equal(isExpiringSoon({ ...batch, expiryDate: '2026-11-20', pushDay: null }, today), true);
-  assert.equal(isExpiringSoon({ ...batch, expiryDate: '2026-12-15', pushDay: today }, today), false, 'Push Day reached is independent of Expiring Soon');
-});
-test('Expiring Soon calendar arithmetic crosses month/year/leap/DST boundaries without changing the window', () => {
-  for (const [today, seventh, eighth] of [['2026-12-28', '2027-01-04', '2027-01-05'], ['2028-02-25', '2028-03-03', '2028-03-04'], ['2026-03-06', '2026-03-13', '2026-03-14']]) {
-    assert.equal(isExpiringSoon({ ...batch, expiryDate: seventh }, today), true);
-    assert.equal(isExpiringSoon({ ...batch, expiryDate: eighth }, today), false);
-  }
-  const today = storeDate(new Date('2026-11-17T17:00:00Z'));
-  assert.equal(today, '2026-11-18');
-  assert.equal(isExpiringSoon({ ...batch, expiryDate: '2026-11-25' }, today), true);
-  assert.equal(isExpiringSoon({ ...batch, expiryDate: '2026-11-18' }, today), false);
 });
 test('Common and custom Unit strings retain their meaning without replacing existing units', () => {
   for (const unit of ['Piece', 'Box', 'Pack', 'Bottle', 'Bag', 'cây', 'vỉ', 'hộp', 'gói', 'kg', 'EA']) assert.equal(productRequest({ ...productForm(), unit }, categories).unit, unit);
@@ -366,4 +321,20 @@ test('Product POST and PUT never retry an uncertain network response', async t =
   assert.equal(f.calls.length, 1);
   await assert.rejects(storeApi.updateProduct(4, body), /Failed to fetch/);
   assert.equal(f.calls.length, 2);
+});
+
+test('soft delete sends DELETE without a body, accepts 204, and preserves refusal details', async t => {
+  const f = setup(t);
+  f.respond(async () => new Response(null, { status: 204 }));
+  await storeApi.deleteProduct(4);
+  assert.equal(f.calls[0].init.method, 'DELETE');
+  assert.equal(f.calls[0].path, '/api/products/4');
+  assert.equal(f.calls[0].body, undefined);
+  const campaigns = [{ campaignId: 12, status: 'ACTIVE' }];
+  for (const code of ['PRODUCT_HAS_SELLABLE_STOCK', 'PRODUCT_IN_LIVE_CAMPAIGN']) {
+    f.respond(async () => Response.json({ code, error: 'Product cannot be deleted', reason: 'A specific backend reason', campaigns }, { status: 409 }));
+    await assert.rejects(storeApi.deleteProduct(4), { status: 409, code, reason: 'A specific backend reason', campaigns });
+  }
+  f.respond(async () => Response.json({ error: 'Product does not exist' }, { status: 404 }));
+  await assert.rejects(storeApi.deleteProduct(4), { status: 404 });
 });

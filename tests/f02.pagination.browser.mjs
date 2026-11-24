@@ -2,6 +2,7 @@
 // This is not E2E against a running Backend.
 // All /api requests are intercepted before navigation. No real backend writes.
 import assert from 'node:assert/strict';
+import { batchView } from './f02.batch-fixtures.mjs';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -59,9 +60,12 @@ batches.push({ ...batches[0], id:39, productId:3, batchCode:'SINGLE-159', initia
 // This simulates Backend responses inside the intercepted fixture service only.
 // Production UI always displays GET inventory-summary values and never calls this function.
 function fixtureSummary(productId) {
-  const rows = state.batchesEmpty ? [] : batches.filter(b=>b.productId===productId);
-  const sum = predicate => rows.filter(predicate).reduce((n,b)=>n+b.remainingQuantity,0);
-  return {productId,totalQuantity:sum(()=>true),blockedQuantity:sum(b=>b.status==='BLOCKED'),expiredQuantity:sum(b=>b.status==='ACTIVE'&&b.expiryDate&&b.expiryDate<=storeToday),sellableQuantity:sum(b=>b.status==='ACTIVE'&&(!b.expiryDate||b.expiryDate>storeToday)),expiringSoonQuantity:sum(b=>b.status==='ACTIVE'&&b.expiryDate>storeToday&&b.expiryDate<=dateAfter(7))};
+  const rows = state.batchesEmpty ? [] : batches.filter(b => b.productId === productId).map(batch => batchView(batch, products, storeToday));
+  const sum = predicate => rows.filter(predicate).reduce((n,b) => n + b.remainingQuantity, 0);
+  return { productId, totalQuantity: sum(() => true), blockedQuantity: sum(b => b.effectiveStatus === 'BLOCKED'),
+    expiredQuantity: sum(b => b.effectiveStatus === 'EXPIRED'), sellableQuantity: sum(b => b.effectiveStatus === 'ACTIVE'),
+    expiringSoonQuantity: sum(b => b.effectiveStatus === 'ACTIVE' && b.daysToExpiry !== null && b.daysToExpiry >= 0 && b.daysToExpiry <= 7),
+    batchesMissingPushDay: rows.filter(b => b.warnings.includes('MISSING_PUSH_DAY')).length };
 }
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/services/authService.ts').name))).authService";
 async function until(expression, label) { const end = Date.now() + 12000; while (Date.now() < end) { if (await page.evaluate(expression)) return; await sleep(40); } throw new Error('UI timeout: ' + label); }
@@ -160,7 +164,12 @@ async function fixture({ requestId, request }) {
   const inventoryError = inventoryId !== null && state.inventoryErrors.has(inventoryId);
   while (!closing && ((path === '/api/products' && state.heldSearches.has(search)) || (inventoryId !== null && state.heldInventory.has(inventoryId)))) await sleep(20);
   if (inventoryError) { responseCode = 503; body = { error: 'Stale inventory request failed' }; }
-  await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders, body: Buffer.from(JSON.stringify(body)).toString('base64') });
+  if (responseCode < 300 && Array.isArray(body) && /^\/api\/products\/\d+\/batches$/.test(path)) {
+    body = body.map(batch => batchView(batch, products, storeToday));
+  } else if (responseCode < 300 && body?.batchCode) {
+    body = batchView(body, products, storeToday);
+  }
+  await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders, body: responseCode === 204 ? '' : Buffer.from(JSON.stringify(body)).toString('base64') });
   fulfilled.push({ path, query: url.search, method });
 }
 
