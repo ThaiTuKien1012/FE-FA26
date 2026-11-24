@@ -2,6 +2,7 @@
 // This is not E2E against a running Backend.
 // All /api requests are intercepted before navigation. No real backend writes.
 import assert from 'node:assert/strict';
+import { batchView } from './f02.batch-fixtures.mjs';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -53,15 +54,18 @@ const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', y
 const storeToday = ['year','month','day'].map(type=>parts.find(p=>p.type===type).value).join('-');
 function dateAfter(days) { const day = new Date(storeToday+'T00:00:00Z'); day.setUTCDate(day.getUTCDate()+days); return day.toISOString().slice(0,10); }
 batches[0].remainingQuantity = 10;
-for (const [id,batchCode,expiryDate,remainingQuantity,status] of [[29,'SOON',dateAfter(7),40,'ACTIVE'],[30,'EXPIRED',storeToday,15,'ACTIVE'],[31,'BLOCKED-SOON',dateAfter(3),25,'BLOCKED'],[32,'EMPTY-SOON',dateAfter(2),0,'ACTIVE'],[33,'LATER',dateAfter(8),10,'ACTIVE']]) batches.push({ ...batches[0], id, batchCode, expiryDate, initialQuantity: remainingQuantity || 10, remainingQuantity, status, pushDay: null });
+for (const [id,batchCode,expiryDate,remainingQuantity,status] of [[29,'SOON',dateAfter(7),40,'ACTIVE'],[30,'EXPIRED',dateAfter(-1),15,'BLOCKED'],[34,'TODAY',storeToday,0,'ACTIVE'],[35,'TOMORROW',dateAfter(1),0,'ACTIVE'],[31,'BLOCKED-SOON',dateAfter(3),25,'BLOCKED'],[32,'EMPTY-SOON',dateAfter(2),0,'ACTIVE'],[33,'LATER',dateAfter(8),10,'ACTIVE']]) batches.push({ ...batches[0], id, batchCode, expiryDate, initialQuantity: remainingQuantity || 10, remainingQuantity, status, pushDay: null });
 products[2].requiresExpiry = true;
 batches.push({ ...batches[0], id:39, productId:3, batchCode:'SINGLE-159', initialQuantity:159, remainingQuantity:159, expiryDate:dateAfter(5), pushDay:dateAfter(4) });
 // This simulates Backend responses inside the intercepted fixture service only.
 // Production UI always displays GET inventory-summary values and never calls this function.
 function fixtureSummary(productId) {
-  const rows = state.batchesEmpty ? [] : batches.filter(b=>b.productId===productId);
-  const sum = predicate => rows.filter(predicate).reduce((n,b)=>n+b.remainingQuantity,0);
-  return {productId,totalQuantity:sum(()=>true),blockedQuantity:sum(b=>b.status==='BLOCKED'),expiredQuantity:sum(b=>b.status==='ACTIVE'&&b.expiryDate&&b.expiryDate<=storeToday),sellableQuantity:sum(b=>b.status==='ACTIVE'&&(!b.expiryDate||b.expiryDate>storeToday)),expiringSoonQuantity:sum(b=>b.status==='ACTIVE'&&b.expiryDate>storeToday&&b.expiryDate<=dateAfter(7))};
+  const rows = state.batchesEmpty ? [] : batches.filter(b => b.productId === productId).map(batch => batchView(batch, products, storeToday));
+  const sum = predicate => rows.filter(predicate).reduce((n,b) => n + b.remainingQuantity, 0);
+  return { productId, totalQuantity: sum(() => true), blockedQuantity: sum(b => b.effectiveStatus === 'BLOCKED'),
+    expiredQuantity: sum(b => b.effectiveStatus === 'EXPIRED'), sellableQuantity: sum(b => b.effectiveStatus === 'ACTIVE'),
+    expiringSoonQuantity: sum(b => b.effectiveStatus === 'ACTIVE' && b.daysToExpiry !== null && b.daysToExpiry >= 0 && b.daysToExpiry <= 7),
+    batchesMissingPushDay: rows.filter(b => b.warnings.includes('MISSING_PUSH_DAY')).length };
 }
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e=>new URL(e.name).pathname==='/src/services/authService.ts').name))).authService";
 async function until(expression, label) { const end = Date.now() + 12000; while (Date.now() < end) { if (await page.evaluate(expression)) return; await sleep(40); } throw new Error('UI timeout: ' + label); }
@@ -129,6 +133,14 @@ async function fixture({ requestId, request }) {
   else if (method !== 'GET') {
     while (state.hold && !closing) await sleep(20);
     if (state.writeError) { responseCode = 400; body = { error: state.writeError }; }
+    else if (method === 'DELETE' && /^\/api\/products\/\d+$/.test(path)) {
+      assert.equal(payload, undefined);
+      if (state.deleteResponse) ({ responseCode, body } = state.deleteResponse);
+      else {
+        products.splice(products.findIndex(p => p.id === Number(path.split('/').at(-1))), 1);
+        responseCode = 204;
+      }
+    }
     else if (path === '/api/products' || /^\/api\/products\/\d+$/.test(path)) {
       assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
       if (state.productConflict === 'sku' || state.productConflict === 'other' || (state.productConflict === 'name' && !payload.confirmSimilarName)) {
@@ -178,7 +190,12 @@ async function fixture({ requestId, request }) {
   const inventoryError = inventoryId !== null && state.inventoryErrors.has(inventoryId);
   while (!closing && ((path === '/api/products' && state.heldSearches.has(search)) || (inventoryId !== null && state.heldInventory.has(inventoryId)))) await sleep(20);
   if (inventoryError) { responseCode = 503; body = { error: 'Stale inventory request failed' }; }
-  await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders, body: Buffer.from(JSON.stringify(body)).toString('base64') });
+  if (responseCode < 300 && Array.isArray(body) && /^\/api\/products\/\d+\/batches$/.test(path)) {
+    body = body.map(batch => batchView(batch, products, storeToday));
+  } else if (responseCode < 300 && body?.batchCode) {
+    body = batchView(body, products, storeToday);
+  }
+  await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders, body: responseCode === 204 ? '' : Buffer.from(JSON.stringify(body)).toString('base64') });
   fulfilled.push({ path, query: url.search, method });
 }
 try {
@@ -275,13 +292,24 @@ try {
   for(let number=1;number<=6;number++) { const before = fulfilled.length; await click('Load more products'); await waitFor(()=>fulfilled.slice(before).some(c=>c.path==='/api/products'&&c.query.includes('page='+number)), 'Load more page '+number); }
   await until("Boolean([...document.querySelectorAll('[role=option]')].find(e=>e.id.endsWith('-option-1109')))", 'Product beyond first 100');
   assert.equal(await page.evaluate("Boolean(document.querySelector('[aria-label=\"Currently viewing\"]'))"), false, 'Load more never changes selection');
-  await page.evaluate("[...document.querySelectorAll('[role=option]')].find(e=>e.id.endsWith('-option-1')).click()"); await has('BATCH-9'); await has('Push Day reached');
+  await page.evaluate("[...document.querySelectorAll('[role=option]')].find(e=>e.id.endsWith('-option-1')).click()"); await has('BATCH-9');
   assert.deepEqual(await summaryValues(), {'Total stock':100,Sellable:60,Expired:15,Blocked:25,'Expiring in 7 days':40});
   await has('40 units expiring within 7 days');
   const info = await page.evaluate("document.querySelector('[aria-label=\"Currently viewing\"]').textContent"); assert.ok(info.includes('Fixture product 1')&&info.includes('SKU: SKU-1')&&info.includes('Expiry tracking enabled'));
   const badges = await page.evaluate("Object.fromEntries([...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:not(.f02-table-empty)')].map(r=>[r.querySelector('td').textContent,r.children[2].textContent]))");
-  assert.ok(badges.SOON.includes('Expiring soon')); assert.ok(badges.EXPIRED.includes('Expired')&&!badges.EXPIRED.includes('Expiring soon'));
-  for(const code of ['BATCH-9','BLOCKED-SOON','EMPTY-SOON','LATER']) assert.equal(badges[code].includes('Expiring soon'),false,code);
+  assert.ok(badges.SOON.includes('Expiring soon')); assert.ok(badges.EXPIRED.includes('Đã hết hạn')&&!badges.EXPIRED.includes('Expiring soon'));
+  for(const code of ['BATCH-9','LATER']) assert.equal(badges[code].includes('Expiring soon'),false,code);
+  for (const code of ['TODAY', 'TOMORROW', 'BLOCKED-SOON', 'EMPTY-SOON']) assert.match(badges[code], /Expiring soon/);
+  await input('Filter batch status', 'EXPIRED', 'select'); await has('EXPIRED');
+  const statuses = await page.evaluate("Array.from(document.querySelectorAll('.f02-batch-table tbody tr:not(.f02-table-empty)')).map(row => row.children[5].textContent)");
+  assert.deepEqual(statuses, ['Đã hết hạn']);
+  await input('Filter batch status', '', 'select');
+  const pushBadges = await page.evaluate("Object.fromEntries([...document.querySelectorAll('[aria-label=\"Inventory batch table\"] tbody tr:not(.f02-table-empty)')].map(r=>[r.children[0].textContent,r.children[3].textContent]))");
+  for (const code of ['SOON', 'BLOCKED-SOON', 'EMPTY-SOON', 'LATER']) assert.match(pushBadges[code], /Chưa đặt Push Day/);
+  for (const code of ['BATCH-9', 'EXPIRED']) assert.doesNotMatch(pushBadges[code], /Chưa đặt Push Day/);
+  await batchAction('EMPTY-SOON', 'Edit');
+  await has('Chưa đặt Push Day. Bạn vẫn có thể lưu.');
+  await click('Cancel');
   const inventoryReadsBeforeSearch=calls.filter(c=>/\/(batches|inventory-summary)$/.test(c.path)).length;
   await page.evaluate("document.querySelector('input[aria-label=\"Select product\"]').click()"); await input('Select product','does-not-exist'); await has('No matching products'); await has('BATCH-9');
   assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Currently viewing\"] h2').textContent"),'Fixture product 1');
@@ -301,7 +329,7 @@ try {
   await page.evaluate("document.querySelector('input[aria-label=\"Select product\"]').click()"); await input('Select product','SKU-2'); await until("document.querySelectorAll('[role=option]').length===1",'Keyboard result');
   await selectorKey('ArrowDown'); assert.ok(await page.evaluate("document.querySelector('input[role=combobox]').getAttribute('aria-activedescendant')")); await selectorKey('Enter'); await has('NO-EXPIRY-BATCH'); await has('No expiry tracking');
   assert.equal((await summaryValues())['Total stock'],22); assert.equal(await page.evaluate("Boolean(document.querySelector('[aria-label=\"Expiring stock\"]'))"),false);
-  assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Inventory batch table\"]').textContent.includes('Set a Push Day')"),false);
+  assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Inventory batch table\"]').textContent.includes('Chưa đặt Push Day')"),false);
   await batchAction('NO-EXPIRY-BATCH', 'Edit');
   await checkCodeField('Batch code', 'NO-EXPIRY-BATCH'); await checkFormLabels({'Batch code':'Batch code','Remaining quantity':'Remaining quantity *','Expiry date':'Expiry date','Push Day':'Push Day'});
   assert.equal(await page.evaluate("Boolean(document.querySelector('input[aria-label=\"Received at\"],input[aria-label=\"Initial quantity\"]'))"),false);
@@ -362,14 +390,17 @@ try {
   await until("!document.body.innerText.includes('Loading batches')", 'Batch refresh'); assert.ok(calls.slice(beforeRefresh).some(c => c.path.endsWith('/batches') && c.method === 'GET')); assert.ok(calls.slice(beforeRefresh).some(c => c.path.endsWith('/inventory-summary')));
   await click('Edit'); await checkCodeField('Batch code','BATCH-9'); const beforeBlank = writes().length; await input('Push Day', ''); await click('Save batch'); await has('Use Clear Push Day to remove the saved date.'); assert.equal(writes().length, beforeBlank);
   await click('Clear Push Day'); await has('Push Day cleared successfully.'); assert.equal(writes().at(-1).method, 'DELETE'); assert.equal(writes().at(-1).path, '/api/inventory-batches/9/push-day'); assert.equal(writes().at(-1).body, undefined);
-  await click('Cancel'); await has('Set a Push Day for expiry-risk analysis.'); await has('Not set');
+  await click('Cancel'); await has('Chưa đặt Push Day'); await has('Not set');
   await click('Edit'); await input('Remaining quantity', '40'); await click('Save batch'); await has('Batch updated successfully.'); assert.deepEqual(writes().at(-1).body, { remainingQuantity: 40 });
   await batchAction('BATCH-9','Block'); await has('Batch blocked successfully.'); assert.deepEqual(writes().at(-1).body, { status: 'BLOCKED' }); await batchAction('BATCH-9','Unblock'); await has('Batch unblocked successfully.');
   checks.push('Batch Push Day validation/equality, minimal PATCH, explicit DELETE, immutable fields, summary refresh, quantity, block/unblock');
   state.nextBatchCode = 'BATCH-20261118-947'; await click('Add batch'); await checkCodeField('Batch code', 'Generated after saving'); await has('Batch code is generated automatically when the batch is saved.'); await checkFormLabels({'Batch code':'Batch code','Received at':'Received at *','Initial quantity':'Initial quantity *','Expiry date':'Expiry date *','Push Day':'Push Day'}); await input('Initial quantity', '10'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Expiry date\"]').required"), true);
   await input('Received at', '2026-11-18T14:30'); await checkCodeField('Batch code','Generated after saving'); const receivedInstant = await page.evaluate("new Date('2026-11-18T14:30').toISOString()"); await input('Expiry date', '2099-12-15'); await input('Push Day', '2020-01-01'); await capture('batch-create-filled-desktop'); state.writeError = 'Controlled batch save rejection'; await click('Save batch'); await has('Controlled batch save rejection'); assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Initial quantity\"]').value"), '10');
   state.writeError = ''; await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.pushDay, '2020-01-01'); assert.equal(writes().at(-1).body.receivedAt, receivedInstant); await has(batches.at(-1).batchCode); assert.equal(batches.at(-1).batchCode, 'BATCH-20261118-947'); await has('Inventory batch added successfully. Batch code: BATCH-20261118-947'); assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Inventory batch table\"] tbody').textContent.includes('BATCH-20261118-947')"),true); for(const key of ['id','productId','batchCode']) assert.equal(key in writes().at(-1).body,false); assert.equal(writes().at(-1).body.expiryDate, '2099-12-15'); assert.equal('remainingQuantity' in writes().at(-1).body, false);
-  await click('Add batch'); await input('Initial quantity', '2'); await input('Expiry date', '2099-12-15'); await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.pushDay, null);
+  await click('Add batch'); await has('Chưa đặt Push Day. Bạn vẫn có thể lưu.');
+  await input('Initial quantity', '2'); await input('Expiry date', '2099-12-15');
+  assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Push Day\"]').value"), '');
+  await click('Save batch'); await has('Inventory batch added successfully.'); assert.equal(writes().at(-1).body.pushDay, null);
   checks.push('Create Batch with past Push Day or without Push Day; expiry required; save failure keeps fields');
   state.readError = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh batches\"]').click()"); await has('Controlled read unavailable'); const beforeRetry = writes().length; state.readError = false; await click('Retry batches'); await has('BATCH-9'); assert.equal(writes().length, beforeRetry);
   state.batchesEmpty = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh batches\"]').click()"); await has('No batches found.'); state.batchesEmpty = false;
@@ -392,19 +423,32 @@ try {
   await navigate('/store/inventory'); await has('Edited fixture product'); state.empty = true; await page.evaluate("document.querySelector('button[aria-label=\"Refresh products\"]').click()"); await has('This store has no products yet.'); state.empty = false;
   for (const path of ['/store/categories', '/store/inventory']) { await navigate(path); await has(path.endsWith('categories') ? 'Dairy edited' : 'Edited fixture product'); for (const width of [390, 820, 1440]) { await page.call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 }); assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'), true, path + ' responsive ' + width); } }
   await capture('products-desktop');
-  // Mount the existing detail component with an explicit real-shaped ID. The app's
-  // direct detail URL has no selected product, so never guess one in production.
-  products.find(p=>p.id===1).sku='SKU-MILK-000001';
   await navigate('/store/edit-product'); await has('No product was selected.');
   products.find(p=>p.id===1).sku = 'FM26-DetailLegacy';
-  await page.evaluate("(async()=>{const resources=performance.getEntriesByType('resource');const React=await import(resources.find(e=>new URL(e.name).pathname==='/node_modules/.vite/deps/react.js').name);const ReactDOM=await import(resources.find(e=>new URL(e.name).pathname==='/node_modules/.vite/deps/react-dom_client.js').name);const {EditProductView}=await import('/src/features/store/components/EditProductView.tsx');const host=document.createElement('div');host.id='detail-fixture';document.querySelector('main').append(host);window.detailFixtureRoot=(ReactDOM.createRoot||ReactDOM.default.createRoot)(host);window.detailFixtureRoot.render((React.createElement||React.default.createElement)(EditProductView,{productId:'1',onNavigate:()=>{}}));})()");
+  await navigate('/store/edit-product?productId=1');
   await has('Catalog information'); await checkCodeField('SKU', 'FM26-DetailLegacy'); await has('BATCH-9'); await input('Category', '2', 'select'); await click('Save changes'); await has('Product updated successfully.'); assert.equal(writes().at(-1).body.categoryId, 2); assert.equal(Object.hasOwn(writes().at(-1).body,'sku'),false); assert.equal(products.find(p=>p.id===1).sku,'FM26-DetailLegacy');
   await input('Product name', 'Unsaved catalog draft'); products.find(p=>p.id===1).stockQuantity = 123;
-  await page.evaluate("[...document.querySelectorAll('#detail-fixture button')].find(b=>b.textContent.trim()==='Edit').click()"); await input('Push Day', '2099-12-01'); const detailReads = calls.length; await click('Save batch'); await has('Batch updated successfully.');
-  await until("[...document.querySelectorAll('#detail-fixture strong')].some(e=>e.textContent==='123')", 'Detail stock refreshed'); assert.ok(calls.slice(detailReads).some(c=>c.path==='/api/products/1'&&c.method==='GET'));
+  await page.evaluate("[...document.querySelectorAll('main button')].find(b=>b.textContent.trim()==='Edit').click()"); await input('Push Day', '2099-12-01'); const detailReads = calls.length; await click('Save batch'); await has('Batch updated successfully.');
+  await until("[...document.querySelectorAll('main strong')].some(e=>e.textContent==='123')", 'Detail stock refreshed'); assert.ok(calls.slice(detailReads).some(c=>c.path==='/api/products/1'&&c.method==='GET'));
   assert.equal(await page.evaluate("document.querySelector('input[aria-label=\"Product name\"]').value"), 'Unsaved catalog draft');
-  await page.evaluate("window.detailFixtureRoot.unmount();document.querySelector('#detail-fixture').remove()");
   checks.push('Existing detail form preserves Category and unsaved edits; Batch changes refresh Product stock and Summary');
+  products.push({ ...products[0], id: 9001, name: 'Disposable fixture item', sku: 'SKU-QA-9001' });
+  await navigate('/store/inventory'); await has('Product Management'); await input('Search name or SKU', 'Disposable fixture item'); await has('Disposable fixture item');
+  const openDelete = () => ariaClick('Xóa sản phẩm Disposable fixture item');
+  const beforeDelete = writes().length;
+  await openDelete(); await has('SKU-QA-9001'); await click('Hủy'); assert.equal(writes().length, beforeDelete);
+  for (const [code, reason] of [['PRODUCT_HAS_SELLABLE_STOCK','Fixture has sellable stock'], ['PRODUCT_IN_LIVE_CAMPAIGN','Fixture is in a live campaign']]) {
+    state.deleteResponse = { responseCode: 409, body: { code, error: 'Product cannot be deleted', reason, campaigns: [{campaignId: 123, status: 'PUBLISHED'}] } };
+    await openDelete(); await click('Xóa sản phẩm'); await has(reason); await has('Campaign #123'); await click('Hủy');
+  }
+  state.deleteResponse = { responseCode: 404, body: { error: 'Product could not be found' } };
+  await openDelete(); await click('Xóa sản phẩm'); await has('Product could not be found'); await click('Hủy');
+  state.deleteResponse = null;
+  await openDelete(); await click('Xóa sản phẩm'); await has('Đã xóa sản phẩm.'); await has('No matching products.');
+  assert.equal(writes().filter(write => write.method === 'DELETE' && write.path === '/api/products/9001').length, 4);
+  assert.ok(calls.slice(-10).some(call => call.method === 'GET' && call.path === '/api/products' && call.query.includes('pageSize=1')));
+  await navigate('/store/batches'); await input('Select product', 'SKU-QA-9001'); await has('No matching products');
+  checks.push('Delete dialog cancel, stock/campaign conflicts, 404, refreshed list/counts and selector');
   for (const role of ['MERCHANDISER', 'SYSTEM_ADMIN', 'END_CUSTOMER']) { await login(role); for (const path of ['/store/inventory', '/store/categories', '/store/batches', '/store/edit-product']) { await navigate(path); await has('Access Restricted'); assert.equal(await page.evaluate("!!document.querySelector('dialog')"), false); } }
   checks.push('Store empty versus filtered empty, Product/Category responsive, unauthorized direct F02 routes denied');
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);

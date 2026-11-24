@@ -1,3 +1,4 @@
+import { subscribeToProductDeletion } from '../f02.catalog-changes';
 import React, { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { authService } from '../../../services/authService';
@@ -5,6 +6,7 @@ import { storeApi } from '../store.api';
 import { ProductUnitCache, uniqueUnits, type UnitSuggestions } from '../f02.units';
 
 const cache = new ProductUnitCache();
+subscribeToProductDeletion(() => cache.clear());
 export const productUnitScope = () => { const user = authService.getCurrentUser(); return `${authService.getSessionId()}:${user?.id}:${user?.storeId}`; };
 let lastScope = productUnitScope();
 authService.subscribe(() => { const next = productUnitScope(); if (next !== lastScope) { cache.clear(); lastScope = next; } });
@@ -15,6 +17,7 @@ export function ProductUnitInput({ value, onChange }: { value: string; onChange:
   const session = useSyncExternalStore(authService.subscribe, authService.getSnapshot, authService.getSnapshot), currentScope = productUnitScope();
   const [result, setResult] = useState<{ scope: string; data: UnitSuggestions } | null>(null);
   const [loading, setLoading] = useState(true), [open, setOpen] = useState(false), [all, setAll] = useState(false), [active, setActive] = useState(-1), [retry, setRetry] = useState(0);
+  useEffect(() => subscribeToProductDeletion(() => { setResult(null); setRetry(n => n + 1); }), []);
   useEffect(() => {
     let live = true; setLoading(true);
     if (!session.user) { setResult(null); setLoading(false); return; }

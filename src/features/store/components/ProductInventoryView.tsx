@@ -1,3 +1,4 @@
+import { ProductDeleteDialog } from './ProductDeleteDialog';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Package, Plus, RefreshCw, X, type LucideIcon } from 'lucide-react';
 import { ProductTableHeader } from '../../../components/common/ProductTableHeader';
@@ -31,7 +32,7 @@ export function ProductFields({ form, categories, onChange, product }: { form: P
 
 const productViewStateKey = 'f02-products-view-state';
 const readProductViewState = () => { try { return restoreProductViewState(sessionStorage.getItem(productViewStateKey)); } catch { return restoreProductViewState(null); } };
-export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void }> = () => {
+export const ProductInventoryView: React.FC<{ onOpenProduct?: (id: number) => void }> = ({ onOpenProduct }) => {
   const canManage = canManageCatalog(), restoredState = readProductViewState(), unitScope = productUnitScope();
   const stats = useProductStats();
   const [products, setProducts] = useState<F02Product[]>([]), [categories, setCategories] = useState<F02Category[]>([]);
@@ -46,6 +47,7 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
   const [loading, setLoading] = useState(true), [statusBusy, setBusy] = useState(false), [loadError, setLoadError] = useState(''), [formError, setFormError] = useState('');
   const [notice, setNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [form, setForm] = useState(emptyProductForm), [editing, setEditing] = useState<F02Product | null>(null), [showForm, setShowForm] = useState(false);
+  const [deleting, setDeleting] = useState<F02Product | null>(null);
   const productSave = useProductSave(async (saved, wasEditing) => {
     rememberProductUnit(saved.unit, unitScope);
     setEditing(saved); setForm(productForm(saved)); setShowForm(false);
@@ -84,6 +86,14 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
   const editProduct = (product: F02Product) => { setEditing(product); setForm(productForm(product)); setFormError(''); productSave.clearError(); setNotice(null); setShowForm(true); };
   const statusButton = (product: F02Product) => <button disabled={!canManage || busy || loading} onClick={() => void toggleStatus(product)} aria-label={'Change status for ' + product.name} title={'Change status for ' + product.name} className={'f02-status-button rounded-full px-2 py-1 text-xs font-semibold disabled:cursor-default ' + (product.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700')}>{product.status === 'ACTIVE' ? 'Active' : 'Inactive'}</button>;
   const editButton = (product: F02Product) => canManage && <button disabled={busy || loading} onClick={() => editProduct(product)} aria-label={'Edit ' + product.name} title={'Edit ' + product.name} className="f02-product-edit">Edit</button>;
+  const detailButton = (product: F02Product) => canManage && onOpenProduct && <button type="button" disabled={busy || loading}
+    onClick={() => onOpenProduct(product.id)} aria-label={'Chi tiết ' + product.name} className="min-h-5 whitespace-nowrap text-xs font-semibold text-[#1e3a2f] underline-offset-2 hover:underline disabled:opacity-40">Chi tiết</button>;
+  const deleteButton = (product: F02Product) => canManage && <button type="button" disabled={busy || loading}
+    onClick={() => setDeleting(product)} aria-label={'Xóa sản phẩm ' + product.name} className="min-h-5 whitespace-nowrap text-xs font-semibold text-red-700 underline-offset-2 hover:underline disabled:opacity-40">Xóa</button>;
+  const refreshDeleted = (id: number) => {
+    setProducts(current => current.filter(product => product.id !== id));
+    void Promise.all([load(), stats.refresh()]);
+  };
   const emptyMessage = loading ? 'Loading products...' : loadError ? 'Product data is unavailable. Please retry.' : query || status || categoryId ? 'No matching products.' : 'This store has no products yet.';
   return <div className="f02-product-view f02-wide-table-view mx-auto max-w-[1680px] space-y-6 bg-[#faf8f5] text-[#191c1b]">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold tracking-tight">Product Management</h1><p className="mt-1 text-[#6d7974]">Manage your store's products and pricing.</p></div><div className="flex gap-2"><button aria-label="Refresh products" disabled={busy || loading || stats.loading} onClick={() => void Promise.all([load(), stats.refresh()])} className="rounded-lg border border-[#e7e2d8] bg-white p-3 text-[#1e3a2f] shadow-sm disabled:opacity-40"><RefreshCw className="h-4 w-4" /></button>{canManage && <button disabled={busy || loading || Boolean(loadError)} onClick={() => { setEditing(null); setForm(emptyProductForm); setFormError(''); productSave.clearError(); setNotice(null); setShowForm(true); }} className="inline-flex items-center gap-2 rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white shadow-sm disabled:opacity-40"><Plus className="h-4 w-4" /> Add product</button>}</div></div>
@@ -111,16 +121,20 @@ export const ProductInventoryView: React.FC<{ onNavigate?: (screen: any) => void
           <td className="f02-numeric"><span className="f02-cell-amount" title={money(product.sellingPrice)}>{money(product.sellingPrice)}</span></td>
           <td><span className="f02-cell-text" title={product.requiresExpiry ? 'Expiry required' : 'Expiry optional'}>{product.requiresExpiry ? 'Expiry required' : 'Expiry optional'}</span></td>
           <td className="f02-numeric font-semibold"><span className="f02-cell-amount" title={product.stockQuantity.toLocaleString('en-GB')}>{product.stockQuantity.toLocaleString('en-GB')}</span></td>
-          <td>{statusButton(product)}</td>{canManage && <td>{editButton(product)}</td>}
+          <td>{statusButton(product)}</td>{canManage && <td><div className="grid justify-items-start gap-0.5">{editButton(product)}<div className="flex gap-2">{detailButton(product)}{deleteButton(product)}</div></div></td>}
         </tr>)}<F02TableEmpty columns={canManage ? 9 : 8} message={!products.length ? emptyMessage : undefined} /></tbody>
       </table>
       <div className="f02-product-cards" aria-label="Product cards">{products.map(product => <article key={product.id} className="f02-product-card">
         <div className="f02-product-card-heading"><span className="f02-product-sku font-mono" title={product.sku}>{product.sku}</span>{editButton(product)}</div>
         <h2 className="f02-cell-text font-semibold" title={product.name}>{product.name}</h2><span className="f02-product-unit">{product.unit}</span>
         <dl><div><dt>Category</dt><dd className="f02-cell-text" title={product.category?.name || 'Uncategorized'}>{product.category?.name || 'Uncategorized'}</dd></div><div><dt>Cost price</dt><dd>{money(product.costPrice)}</dd></div><div><dt>Selling price</dt><dd>{money(product.sellingPrice)}</dd></div><div><dt>Expiry</dt><dd>{product.requiresExpiry ? 'Expiry required' : 'Expiry optional'}</dd></div><div><dt>Total stock</dt><dd>{product.stockQuantity.toLocaleString('en-GB')}</dd></div><div><dt>Status</dt><dd>{statusButton(product)}</dd></div></dl>
+        {canManage && <div className="mt-2 flex gap-4">{detailButton(product)}{deleteButton(product)}</div>}
       </article>)}{!products.length && <p className="f02-empty-card-message">{emptyMessage}</p>}</div>
     </F02TableFrame></div>
     <F02TablePagination label="Products" page={page} totalPages={totalPages} total={totalElements} count={products.length} disabled={busy || loading} onPage={setPage} />
+    {deleting && canManage && <ProductDeleteDialog product={deleting} onClose={() => setDeleting(null)}
+      onDeleted={() => { refreshDeleted(deleting.id); setDeleting(null); setNotice({ type: 'success', text: 'Đã xóa sản phẩm.' }); }}
+      onNotFound={() => { void Promise.all([load(), stats.refresh()]); }} />}
     {showForm && canManage && <F02Dialog title={editing ? 'Edit product' : 'Add product'} busy={busy} onClose={() => setShowForm(false)}><form onSubmit={submit}><fieldset disabled={busy || Boolean(productSave.confirmation)} className="space-y-4">{(formError || productSave.error) && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">{formError || productSave.error}</p>}<ProductFields form={form} categories={categories} onChange={setForm} product={editing} /><div className="flex justify-end gap-2"><button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-[#e7e2d8] px-4 py-2">Cancel</button><button className="rounded-lg bg-[#1e3a2f] px-4 py-2 font-semibold text-white disabled:opacity-40">{busy ? 'Saving…' : 'Save product'}</button></div></fieldset></form></F02Dialog>}
     <ProductNameConfirmation save={productSave} />
   </div>;

@@ -45,14 +45,19 @@ function dateMatches(value: string | null, filter: ColumnFilterValue): boolean {
   if (value === null) return !filter.presence && !filter.min && !filter.max;
   return inRange(value, filter);
 }
+export function batchExpiryLabel(batch: Pick<F02Batch, 'effectiveStatus' | 'daysToExpiry'>) {
+  if (batch.effectiveStatus === 'EXPIRED') return 'Đã hết hạn';
+  if (batch.daysToExpiry !== null && batch.daysToExpiry >= 0 && batch.daysToExpiry <= 7) return 'Expiring soon';
+  return null;
+}
 export function batchTableRows(rows: readonly F02Batch[], filters: BatchFilters, sort: TableSort<BatchSortKey> | null): F02Batch[] {
   const matching = rows.filter(row => includesText(row.batchCode, filters.batchCode.text)
     && inRange(storeDate(new Date(row.receivedAt)), filters.receivedAt)
     && dateMatches(row.expiryDate, filters.expiryDate)
     && dateMatches(row.pushDay, filters.pushDay)
-    && (!filters.status.choice || row.status === filters.status.choice)
+    && (!filters.status.choice || row.effectiveStatus === filters.status.choice)
     && inRange(row.remainingQuantity, filters.remainingQuantity));
-  return sort ? sortTableRows(matching, sort.direction, row => sort.by === 'receivedAt' ? Date.parse(row.receivedAt) : row[sort.by]) : matching;
+  return sort ? sortTableRows(matching, sort.direction, row => sort.by === 'receivedAt' ? Date.parse(row.receivedAt) : sort.by === 'status' ? row.effectiveStatus : row[sort.by]) : matching;
 }
 
 export function tablePage<T>(rows: readonly T[], page: number, pageSize = 10): T[] {

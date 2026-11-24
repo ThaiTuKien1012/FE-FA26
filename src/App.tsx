@@ -57,7 +57,7 @@ export default function App() {
   });
 
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
-  const [editingProductId, setEditingProductId] = useState<string>('prod-001');
+  const [editingProductId, setEditingProductId] = useState(() => new URLSearchParams(window.location.search).get('productId') ?? '');
   const isMiningScreen = isSystemMiningScreen(currentScreen);
   const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
   const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
@@ -87,6 +87,7 @@ export default function App() {
     const handlePopState = () => {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
       if (screenFromUrl) {
+        if (screenFromUrl === 'store-edit-product') setEditingProductId(new URLSearchParams(window.location.search).get('productId') ?? '');
         setCurrentScreen(screenFromUrl);
       }
     };
@@ -138,9 +139,10 @@ export default function App() {
     });
   };
 
-  const handleEditProduct = (prod: ProductItem) => {
-    setEditingProductId(prod.id);
-    syncBrowserUrl('store-edit-product');
+  const handleEditProduct = (id: number) => {
+    setEditingProductId(String(id));
+    const params = new URLSearchParams({ productId: String(id) });
+    window.history.pushState({ screen: 'store-edit-product' }, '', getPathForScreen('store-edit-product') + '?' + params);
     setCurrentScreen('store-edit-product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -307,9 +309,7 @@ export default function App() {
 
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (
-            <ProductInventoryView
-              onNavigate={handleNavigate}
-            />
+            <ProductInventoryView onOpenProduct={handleEditProduct} />
           )}
 
           {/* F02: Store Admin - Edit Product Page */}

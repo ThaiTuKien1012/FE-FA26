@@ -115,7 +115,7 @@ function ImportErrors({ batchId }: { batchId: number }) {
   const load = useCallback((page: number, size: number) => f04Api.getImportErrors(batchId, page, size), [batchId]);
   const { data, loading, error, refresh, setPage } = usePagedResults(load);
   return <section className="f04h-detail-section" aria-labelledby="f04h-errors-title">
-    <div className="f04h-section-heading"><div><h3 id="f04h-errors-title">Error details</h3><p>{copy("File rows rejected during import or linked to a conflicting order. Saved transactions marked Not Eligible are not import errors.","Sales records that could not be imported. Sales excluded from analysis are listed separately.")}</p></div>
+    <div className="f04h-section-heading"><div><h3 id="f04h-errors-title">Error details</h3><p>{copy("File rows rejected during import or linked to a conflicting order. Imported rows with warnings also appear here.","Sales rows that could not be imported and warnings for rows that were imported.")}</p></div>
       <button type="button" className="f04h-button" disabled={loading} onClick={refresh} aria-label="Refresh error details"><RefreshCw size={15} aria-hidden="true" />Refresh</button>
     </div>
     {loading ? <Loading label="Loading row errors..." /> : error ? <RequestError message={error} retry={refresh} /> : data && (
@@ -124,7 +124,7 @@ function ImportErrors({ batchId }: { batchId: number }) {
           <table className="f04h-table f04h-errors-table"><thead><tr><th scope="col">Row number</th><th scope="col">Order ID</th><th scope="col">Status</th><th scope="col">Error details</th></tr></thead>
             <tbody>{data.content.map(row => <tr key={row.rowNumber}>
               <th scope="row">{row.rowNumber}</th><td className="f04h-order-id">{row.sourceOrderId ?? '—'}</td>
-              <td><span className="f04h-row-status f04h-tone--danger">{row.status}</span></td>
+              <td><span className={'f04h-row-status ' + (row.status === 'PROCESSED' ? 'f04h-tone--warning' : 'f04h-tone--danger')}>{row.status === 'PROCESSED' ? 'Imported with warning' : row.status}</span></td>
               <td className="f04h-error-details">{formatErrorDetails(row.errorDetails)}</td>
             </tr>)}</tbody>
           </table>

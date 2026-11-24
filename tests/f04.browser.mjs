@@ -112,6 +112,9 @@ async function fixture({ requestId, request }) {
   else if (/^\/api\/transactions\/imports\/\d+\/errors$/.test(path)) {
     const index = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
     body = { content: Array.from({ length: index === 0 ? size : 1 }, (_, i) => ({ rowNumber: index * size + i + 2, sourceOrderId: 'ORDER-' + i, status: 'REJECTED', errorDetails: '[{"field":"sku","message":"Unknown product"}]' })), page: index, pageSize: size, totalElements: 21 };
+    if (path.endsWith('/52/errors')) body = { content: [{ rowNumber: 2, sourceOrderId: 'QA-DELETED', status: 'PROCESSED',
+      errorDetails: JSON.stringify([{ rowNumber: 2, field: 'sku', message: 'PRODUCT_DELETED: SKU belongs to a deleted product' }]) }],
+      page: index, pageSize: size, totalElements: 1 };
   } else if (/^\/api\/transactions\/imports\/\d+$/.test(path)) body = excelHistory.get(Number(path.split('/').at(-1))) ?? (path.endsWith('/43') ? summary({ importBatchId: 43, filename: 'legacy.csv' }) : { ...state.result, importBatchId: Number(path.split('/').at(-1)) });
   else if (path === '/api/transactions/imports') {
     const index = Number(url.searchParams.get('page') || 0);
@@ -208,6 +211,12 @@ try {
   const templateLinks=await page.evaluate("[...document.querySelectorAll('a[download]')].map(a=>({href:a.getAttribute('href'),download:a.hasAttribute('download')}))");
   assert.deepEqual(templateLinks.map(a=>a.href),['/templates/f04/transactions-template.xlsx','/templates/f04/transactions-template.xls']);
   for(const item of templateLinks)assert.equal((await fetch(origin+item.href)).status,200);
+  await choose('warnings.xlsx');
+  state.excelResult = summary({ importBatchId: 52, status: 'COMPLETED', acceptedOrderCount: 1,
+    rejectedOrderCount: 0, conflictOrderCount: 0, rejectedCount: 0 });
+  await click('Import Excel'); await has('Row warnings'); await has('Imported with warning'); await has('PRODUCT_DELETED');
+  await click('Import another file');
+  checks.push('A successful import with PRODUCT_DELETED still displays its accepted row warning');
   for(const extension of ['xlsx','xls']) {
     await choose('orders.'+extension);state.holdExcel=true;state.excelResult=summary({importBatchId:51,filename:'orders.'+extension,status:'COMPLETED_WITH_ERRORS',acceptedOrderCount:1,duplicateOrderCount:2,rejectedOrderCount:1,conflictOrderCount:1,rejectedCount:2});
     const progressBefore=progressReads().length,postBefore=excelPosts().length;
