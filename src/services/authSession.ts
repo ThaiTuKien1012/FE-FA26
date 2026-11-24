@@ -22,6 +22,13 @@ export interface SessionState<U> {
 export class SessionError extends Error {
   constructor(public status: number | null, message: string) { super(message); }
 }
+const STORE_INACTIVE_NOTICE = 'Your store is inactive. Contact your system administrator before signing in again.';
+class StoreInactiveError extends SessionError {
+  constructor() { super(403, STORE_INACTIVE_NOTICE); }
+}
+async function isStoreInactive(response: Response) {
+  return response.status === 403 && (await response.clone().json().catch(() => null))?.code === 'STORE_INACTIVE';
+}
 const META_KEY = 'paspm_session_coordination';
 export const INACTIVITY_MS = 15 * 60 * 1000;
 // Opt in only on the Vite development server. Production builds replace DEV
@@ -140,6 +147,7 @@ export class AuthSession<U> {
     catch { throw new SessionError(null, 'Could not reach the server. Check your connection and try again.'); }
   }
   private async tokenResponse(response: Response, startedAt: number): Promise<Credentials> {
+    if (await isStoreInactive(response)) throw new StoreInactiveError();
     if (!response.ok) {
       const messages: Record<number, string> = {
         401: 'Your session has ended or your account access changed. Please sign in again.',
@@ -160,6 +168,7 @@ export class AuthSession<U> {
   }
   private async validate(credentials: Credentials): Promise<U> {
     const response = await this.raw('/api/auth/me', { headers: { Authorization: `Bearer ${credentials.accessToken}` } });
+    if (await isStoreInactive(response)) throw new StoreInactiveError();
     if (!response.ok) throw new SessionError(response.status, response.status === 401 || response.status === 403 ? 'Your account session is no longer available. Please sign in again.' : 'Could not verify your account. Please try again.');
     return this.mapUser(await response.json());
   }
@@ -177,12 +186,19 @@ export class AuthSession<U> {
       const before = this.meta().epoch;
       const startedAt = this.now();
       const response = await this.raw(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (await isStoreInactive(response)) {
+        if (this.meta().epoch === before) this.endLocal(STORE_INACTIVE_NOTICE);
+        throw new StoreInactiveError();
+      }
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new SessionError(response.status, data.error || (response.status === 429 ? 'Too many sign-in requests. Please wait and try again.' : 'Sign-in failed. Check your credentials and account status.'));
       }
       const credentials = await this.tokenResponse(response, startedAt);
-      const user = await this.validate(credentials);
+      const user = await this.validate(credentials).catch(error => {
+        if (error instanceof StoreInactiveError && this.meta().epoch === before) this.endLocal(error.message);
+        throw error;
+      });
       if (this.meta().epoch !== before) throw new SessionError(401, 'Sign-in was cancelled because the session changed.');
       const epoch = freshEpoch();
       this.writeMeta({ epoch, signedOut: false });
@@ -248,7 +264,7 @@ export class AuthSession<U> {
       if (explicit) this.lastActivity = this.now();
     }).catch(error => {
       if (this.meta().epoch === epoch && !this.meta().signedOut) {
-        if (error instanceof SessionError && error.status === 401) this.endLocal(error.message);
+        if ((error instanceof StoreInactiveError || (error instanceof SessionError && error.status === 401))) this.endLocal(error.message);
         else this.update({ attention: true, notice: this.message(error) });
       }
       throw error;
@@ -323,6 +339,10 @@ export class AuthSession<U> {
     const options = { ...init, headers, credentials: 'include' as RequestCredentials };
     signal?.throwIfAborted();
     const response = await fetch(input, options);
+    if (await isStoreInactive(response)) {
+      if (epoch === this.epoch) this.endLocal(STORE_INACTIVE_NOTICE);
+      return response;
+    }
     const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
     const expiryFailure = response.status === 401 && token && (
       (this.credentials?.expiresAt ?? Infinity) <= this.now() ||
@@ -336,7 +356,11 @@ export class AuthSession<U> {
     if (epoch !== this.epoch) return response;
     headers.set('Authorization', `Bearer ${this.getToken()}`);
     const retried = await fetch(input, { ...options, headers });
-    if (retried.status === 401 && epoch === this.epoch) this.endLocal('Your account session is no longer available. Please sign in again.');
+    const inactiveStore = await isStoreInactive(retried);
+    if (epoch === this.epoch) {
+      if (inactiveStore) this.endLocal(STORE_INACTIVE_NOTICE);
+      else if (retried.status === 401) this.endLocal('Your account session is no longer available. Please sign in again.');
+    }
     return retried;
   };
   checkActivity = () => {
