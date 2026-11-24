@@ -21,6 +21,7 @@ test('auto arrangement grows to more than one row without losing products', () =
 
 test('saved frame positions reject malformed or negative coordinates', () => {
   assert.deepEqual(parseProductFrames('{"11":{"x":120,"y":80},"12":{"x":-10,"y":20},"bad":{"x":1,"y":1}}'), { '11': { x: 120, y: 80 } });
+  assert.deepEqual(parseProductFrames('{}'), {});
   assert.equal(parseProductFrames('invalid'), null);
 });
 

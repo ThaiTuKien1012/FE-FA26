@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Flame, Gift, Grip, LayoutGrid, Map as MapIcon, Package, Plus, RefreshCw, Save, Search, Sparkles, Trash2, TrendingUp, WandSparkles, X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Gift, Grip, LayoutGrid, Map as MapIcon, Package, Plus, RefreshCw, RotateCcw, Save, Search, Sparkles, Trash2, TrendingUp, WandSparkles, X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { F02Product, storeApi } from '../store.api';
 import {
   CANVAS_WIDTH, FRAME_HEIGHT, FRAME_STORAGE_KEY, FRAME_WIDTH,
@@ -11,7 +11,7 @@ import {
 } from '../storeLayoutMerchandising';
 import { illustratedPackshot, layoutImageFor, mockLayoutProduct } from '../storeLayoutMockCatalog';
 import { authService } from '../../../services/authService';
-import { comboFacts, comboStorageKey, emptyComboState, parseComboState, suggestCombos, type ComboPlan, type ComboState } from '../storeLayoutCombos';
+import { comboDraftError, comboFacts, comboStorageKey, emptyComboState, parseComboState, suggestCombos, type ComboPlan, type ComboState } from '../storeLayoutCombos';
 import { StoreLayoutComboDialog } from './StoreLayoutComboDialog';
 import { StoreLayoutStockDialog } from './StoreLayoutStockDialog';
 
@@ -107,7 +107,7 @@ export const StoreLayoutView: React.FC = () => {
         setProducts(items);
         setFrames(current => {
           const itemGroups = Object.fromEntries(items.map(item => [String(item.id), singleProductGroup(item, groupOverrides)])) as Record<string, ProductGroup>;
-          if (!current) return arrangeMerchandisingProducts(items.slice(0, 30), itemGroups, { combo: comboState.combos.length });
+          if (!current) return {};
           if (!showZones) return current;
           const placed = visibleProducts(items, current);
           return restoreMerchandisingFrames(current, placed, itemGroups, comboState.combos.length, localStorage.getItem(layoutSignatureKey));
@@ -191,12 +191,9 @@ export const StoreLayoutView: React.FC = () => {
 
   const saveCombo = (approve: boolean) => {
     if (!editingCombo) return;
+    const validationError = comboDraftError(editingCombo, products, approve);
+    if (validationError) { setComboError(validationError); return; }
     const name = editingCombo.name.trim();
-    const facts = comboFacts(editingCombo, products);
-    if (!name || !facts.valid) { setComboError('Nhập tên và chọn ít nhất hai sản phẩm khác nhau, với số lượng hợp lệ.'); return; }
-    if (editingCombo.price !== null && (!Number.isSafeInteger(editingCombo.price) || editingCombo.price <= 0)) { setComboError('Giá combo phải là số nguyên dương hợp lệ.'); return; }
-    if (approve && editingCombo.price === null) { setComboError('Cần nhập giá combo trước khi duyệt.'); return; }
-    if (approve && facts.stock < 1) { setComboError('Combo đang thiếu hàng; chưa thể duyệt.'); return; }
     const updated: ComboPlan = { ...editingCombo, name, status: approve ? 'approved' : 'suggested' };
     const currentIndex = comboState.combos.findIndex(combo => combo.id === updated.id);
     const combos = [...comboState.combos];
@@ -275,6 +272,33 @@ export const StoreLayoutView: React.FC = () => {
     setNotice(classified.length
       ? `Đã xếp ${products.length} sản phẩm và ${nextCombos.combos.length} combo. Combo mới là đề xuất, cần xem và duyệt trước khi sử dụng.`
       : `Đã xếp ${products.length} sản phẩm vào Sản phẩm thường. Hãy gán mục cho sản phẩm rồi bấm Tự động xếp.`);
+  };
+
+  const resetLayout = () => {
+    const emptyCombos = emptyComboState();
+    try {
+      localStorage.setItem(FRAME_STORAGE_KEY, '{}');
+      localStorage.setItem(GROUPED_LAYOUT_KEY, '1');
+      localStorage.setItem(layoutSignatureKey, merchandisingLayoutSignature([], {}, 0));
+      localStorage.setItem(MERCHANDISING_STORAGE_KEY, '{}');
+      localStorage.setItem(comboKey, JSON.stringify(emptyCombos));
+    } catch {
+      setError('Không thể đặt lại bố cục trong trình duyệt này.');
+      return;
+    }
+    setFrames({});
+    setGroupOverrides({});
+    setComboState(emptyCombos);
+    setShowZones(true);
+    setSelectedProductId(null);
+    setPendingProductId(null);
+    setEditingCombo(null);
+    setComboError('');
+    setQuery('');
+    setListFilter('all');
+    viewportRef.current?.scrollTo({ left: 0, top: 0 });
+    setNotice('Mặt bằng đã trống. Bấm Tự động xếp để tạo đề xuất mới.');
+    setError('');
   };
 
   const focusProduct = (id: number) => {
@@ -385,6 +409,7 @@ export const StoreLayoutView: React.FC = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => window.location.reload()} className="rounded-xl border border-[#E7E2D8] bg-white px-3 py-2 text-sm"><RefreshCw className="mr-2 inline h-4 w-4" />Tải lại</button>
+          <button type="button" onClick={resetLayout} disabled={loading} className="rounded-xl border border-[#E7E2D8] bg-white px-3 py-2 text-sm font-semibold text-[#314A5E] disabled:opacity-50"><RotateCcw className="mr-2 inline h-4 w-4" />Đặt lại</button>
           <button onClick={autoArrange} disabled={loading || !products.length} className="rounded-xl bg-[#E8EEF2] px-3 py-2 text-sm font-bold text-[#263B4A] disabled:opacity-50"><WandSparkles className="mr-2 inline h-4 w-4" />Tự động xếp</button>
           <button onClick={save} disabled={loading} className="rounded-xl bg-[#263B4A] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"><Save className="mr-2 inline h-4 w-4" />Lưu bố cục</button>
         </div>

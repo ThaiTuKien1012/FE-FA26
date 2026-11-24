@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { F02Product } from '../src/features/store/store.api';
-import { comboFacts, comboStorageKey, emptyComboState, parseComboState, suggestCombos, type ComboPlan } from '../src/features/store/storeLayoutCombos';
+import { comboDraftError, comboFacts, comboStorageKey, emptyComboState, parseComboState, suggestCombos, type ComboPlan } from '../src/features/store/storeLayoutCombos';
 import { arrangeMerchandisingProducts, merchandisingLayoutSignature, merchandisingZones, rebaseMerchandisingFrames, restoreMerchandisingFrames, validMerchandisingPlacement } from '../src/features/store/storeLayoutMerchandising';
 
 function product(id: number, sku: string, stockQuantity: number, sellingPrice: number): F02Product {
@@ -33,6 +33,18 @@ test('combo stock follows the limiting ingredient and no discount is inferred fr
   assert.equal(facts.subtotal, 142000);
   assert.equal(comboFacts(combo, [product(1, 'MILK', 21, 1), product(2, 'COFFEE', 8, 1)]).subtotal, null);
   assert.equal(comboFacts(combo, [product(1, 'MILK', 0, 32000), product(2, 'COFFEE', 8, 78000)]).stock, 0);
+});
+
+test('combo editor reports the missing name separately from valid products, price and stock', () => {
+  const products = [product(1, 'POWDER', 20, 145000), product(2, 'TUNA', 20, 35000)];
+  const draft: ComboPlan = {
+    id: 'manual:test', name: '', source: 'manual', status: 'suggested', price: 100000,
+    items: [{ productId: 1, quantity: 1 }, { productId: 2, quantity: 1 }],
+  };
+  assert.equal(comboDraftError(draft, products, true), 'Vui lòng nhập tên combo.');
+  assert.equal(comboDraftError({ ...draft, name: 'Combo bữa sáng' }, products, true), null);
+  assert.equal(comboDraftError({ ...draft, name: 'Combo bữa sáng', items: [{ productId: 1, quantity: 1 }, { productId: 1, quantity: 1 }] }, products, true),
+    'Mỗi sản phẩm chỉ được chọn một lần trong combo.');
 });
 
 test('combo cards reserve their own layout row without assigning single products to Combo', () => {

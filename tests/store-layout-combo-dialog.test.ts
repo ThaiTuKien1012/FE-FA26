@@ -21,6 +21,10 @@ test('combo editor shows ingredients, stock, API subtotal, and review actions', 
   assert.match(html, /role="dialog"/);
   assert.match(html, /Combo bữa sáng/);
   assert.match(html, /Sản phẩm trong combo/);
+  assert.match(html, /Tổng giá khi mua lẻ/);
+  assert.match(html, /Tối đa có thể bán/);
+  assert.match(html, /6 combo/);
+  assert.doesNotMatch(html, /từ API/);
   assert.match(html, /110\.000/);
   assert.match(html, /Tiết kiệm 11\.000/);
   assert.match(html, /Duyệt combo/);

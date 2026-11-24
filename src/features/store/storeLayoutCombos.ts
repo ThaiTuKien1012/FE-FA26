@@ -48,6 +48,21 @@ export function comboFacts(combo: ComboPlan, products: F02Product[]) {
   return { items, valid, stock, subtotal };
 }
 
+export function comboDraftError(combo: ComboPlan, products: F02Product[], approve: boolean): string | null {
+  if (!combo.name.trim()) return 'Vui lòng nhập tên combo.';
+  if (combo.items.length < 2 || combo.items.some(item => !products.some(product => product.id === item.productId)))
+    return 'Chọn ít nhất hai sản phẩm cho combo.';
+  if (new Set(combo.items.map(item => item.productId)).size !== combo.items.length)
+    return 'Mỗi sản phẩm chỉ được chọn một lần trong combo.';
+  if (combo.items.some(item => !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 99))
+    return 'Số lượng mỗi sản phẩm phải từ 1 đến 99.';
+  if (combo.price !== null && (!Number.isSafeInteger(combo.price) || combo.price <= 0))
+    return 'Giá combo phải là số nguyên dương hợp lệ.';
+  if (approve && combo.price === null) return 'Cần nhập giá combo trước khi duyệt.';
+  if (approve && comboFacts(combo, products).stock < 1) return 'Combo đang thiếu hàng; chưa thể duyệt.';
+  return null;
+}
+
 export function parseComboState(value: string | null): ComboState {
   if (!value) return emptyComboState();
   try {
