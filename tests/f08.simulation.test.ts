@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { simulationUnavailableReason } from '../src/features/f07f08/f08.simulation';
+import { formatPriorityCoverage, simulationUnavailableReason } from '../src/features/f07f08/f08.simulation';
 import type { CampaignStatus, LayoutStatus } from '../src/features/f07f08/f07f08.api';
 
 const state = {
@@ -38,4 +38,11 @@ test('unsaved changes, in-progress actions and unready or invalid layouts block 
     assert.match(simulationUnavailableReason({ ...state, [role]: { ...state[role], status: 'DRAFT' } })!, /READY/);
     assert.match(simulationUnavailableReason({ ...state, [role]: { ...state[role], valid: false } })!, /validation/);
   }
+});
+
+test('priorityCoverage null (not implemented on the Backend) renders as "chưa có", never 0', () => {
+  assert.equal(formatPriorityCoverage(null), 'chưa có');
+  assert.equal(formatPriorityCoverage(undefined), 'chưa có');
+  assert.equal(formatPriorityCoverage(0), '0%');
+  assert.equal(formatPriorityCoverage(0.5), '50%');
 });

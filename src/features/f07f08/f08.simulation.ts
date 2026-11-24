@@ -22,3 +22,9 @@ export function simulationUnavailableReason({ campaign, a, b, merchant, busy, di
   if (!a.valid || !b.valid) return 'Both saved layouts must pass validation before simulation.';
   return null;
 }
+
+/** priorityCoverage is decided (DEC-20261117-02) but not computed by the Backend yet, so it arrives as null. */
+export function formatPriorityCoverage(value: number | null | undefined): string {
+  if (value == null) return 'chưa có';
+  return new Intl.NumberFormat('en-GB', { style: 'percent', maximumFractionDigits: 2 }).format(value);
+}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowUpRight, FlaskConical, Play, RotateCcw, Send } from 'lucide-react';
 import type { ActiveLayout, CampaignReport, CampaignView, LayoutSnapshot, LayoutView, Metric } from '../f07f08.api';
 import { matchingReport } from '../f07.designer';
-import { simulationUnavailableReason } from '../f08.simulation';
+import { formatPriorityCoverage, simulationUnavailableReason } from '../f08.simulation';
 import { LayoutStatus } from './F07LayoutDesigner';
 
 const nextDay = (date: string) => { const day = new Date(date + 'T00:00:00Z'); day.setUTCDate(day.getUTCDate() + 1); return day.toISOString().slice(0, 10); };
@@ -57,8 +57,8 @@ export function F08CampaignPanel({ campaign, a, b, reports, snapshot, merchant, 
       {report ? <>
         <div className="f07-actions"><span className="f07-status">{report.simulated ? 'SIMULATED' : 'REPORT'}</span><small className="f07-muted">{report.evaluationCount} evaluation transactions</small></div>
         {!currentReport && <p className="f07-warning">Historical report: A/B versions differ from the current layouts.</p>}
-        <div className="f07-metric-grid">{report.layouts.map(row => <div key={row.layoutId} className="f07-report-layout"><h3>Layout {row.role} <small>v{row.layoutVersion}</small></h3><dl><dt>Hit rate</dt><dd>{rate(row.hitRate)}</dd><dt>Bundle conversion</dt><dd>{rate(row.bundleConversion)}</dd><dt>Captured utility</dt><dd>{rate(row.capturedUtility)}</dd><dt>Priority coverage</dt><dd>{row.priorityCoverage == null ? 'N/A' : row.priorityCoverage}</dd></dl></div>)}</div>
-        <details className="f07-report-details"><summary>Dataset & comparison details</summary><p>{report.algorithmVersion === 'OFFLINE_REPLAY_V2' ? 'Equal-size comparison: B versus the first N products of A.' : 'Historical comparison: baseline A was measured in full.'}</p><p>Report #{report.reportId} · {report.rangeStart} – {report.rangeEnd}</p><p>Dataset hash: {report.datasetHash}</p><pre>{JSON.stringify(report.assumptions, null, 2)}</pre><p>N/A means the metric is unavailable or has a zero denominator.</p></details>
+        <div className="f07-metric-grid">{report.layouts.map(row => <div key={row.layoutId} className="f07-report-layout"><h3>Layout {row.role} <small>v{row.layoutVersion}</small></h3><dl><dt>Hit rate</dt><dd>{rate(row.hitRate)}</dd><dt>Bundle conversion</dt><dd>{rate(row.bundleConversion)}</dd><dt>Captured utility</dt><dd>{rate(row.capturedUtility)}</dd><dt>Priority coverage</dt><dd>{formatPriorityCoverage(row.priorityCoverage)}</dd></dl></div>)}</div>
+        <details className="f07-report-details"><summary>Dataset & comparison details</summary><p>{report.algorithmVersion === 'OFFLINE_REPLAY_V2' ? 'Equal-size comparison: B versus the first N products of A.' : 'Historical comparison: baseline A was measured in full.'}</p><p>Report #{report.reportId} · {report.rangeStart} – {report.rangeEnd}</p><p>Dataset hash: {report.datasetHash}</p><pre>{JSON.stringify(report.assumptions, null, 2)}</pre><p>N/A means the metric is unavailable or has a zero denominator. Priority coverage shows “chưa có” until the Backend computes it.</p></details>
       </> : <div className="f07-empty"><FlaskConical size={28} /><strong>No simulation reports yet</strong><p>{merchant ? 'Choose an evaluation period after training to compare the two ready layouts.' : 'Saved simulation reports from your Merchandiser will appear here.'}</p></div>}
     </div>
   </section>;
