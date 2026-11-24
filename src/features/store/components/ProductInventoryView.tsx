@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Package, Plus, RefreshCw, X, type LucideIcon } from 'lucide-react';
 import { ProductTableHeader } from '../../../components/common/ProductTableHeader';
 import { canManageCatalog, f02ErrorMessage, storeApi, type F02Category, type F02Product, type F02Status } from '../store.api';
-import { emptyProductForm, money, productRequest, type ProductForm } from '../f02.forms';
+import { emptyProductForm, money, productRequest, type ProductForm, IMAGE_URL_MAX, DESCRIPTION_MAX } from '../f02.forms';
 import { F02Dialog } from './F02Dialog';
 import { ProductNameConfirmation, useProductSave } from './ProductNameConfirmation';
 import { F02FilterSummary, F02TableFrame, F02TablePagination, F02TableEmpty } from './F02Table';
@@ -14,7 +14,7 @@ import { useProductStats } from '../f02.product-stats';
 import { GeneratedCodeField } from './GeneratedCodeField';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-[#e7e2d8] bg-white p-2 outline-none focus:border-[#1e3a2f]';
-export const productForm = (p: F02Product): ProductForm => ({ name: p.name, categoryId: p.category ? String(p.category.id) : '', unit: p.unit, requiresExpiry: p.requiresExpiry, sellingPrice: String(p.sellingPrice), costPrice: String(p.costPrice), status: p.status });
+export const productForm = (p: F02Product): ProductForm => ({ name: p.name, categoryId: p.category ? String(p.category.id) : '', unit: p.unit, requiresExpiry: p.requiresExpiry, sellingPrice: String(p.sellingPrice), costPrice: String(p.costPrice), status: p.status, imageUrl: p.imageUrl ?? '', description: p.description ?? '' });
 
 export function ProductFields({ form, categories, onChange, product }: { form: ProductForm; categories: F02Category[]; onChange: (form: ProductForm) => void; product?: F02Product | null }) {
   return <>
@@ -26,6 +26,9 @@ export function ProductFields({ form, categories, onChange, product }: { form: P
     <div className="grid gap-3 sm:grid-cols-2"><label>Cost price *<input aria-label="Cost price" type="number" min="0" step="any" required value={form.costPrice} onChange={e => onChange({ ...form, costPrice: e.target.value })} className={inputClass} /></label><label>Selling price *<input aria-label="Selling price" type="number" min="0" step="any" required value={form.sellingPrice} onChange={e => onChange({ ...form, sellingPrice: e.target.value })} className={inputClass} /></label></div>
     {form.sellingPrice.trim() && form.costPrice.trim() && Number(form.sellingPrice) < Number(form.costPrice) && <p className="text-sm text-[#6d7974]">The selling price is below the cost price. You can still save this product.</p>}
     <label title={form.requiresExpiry ? 'Expiry date required for every batch' : 'Expiry date optional for batches'} className="flex items-center gap-2"><input aria-label="Requires expiry tracking" type="checkbox" checked={form.requiresExpiry} onChange={e => onChange({ ...form, requiresExpiry: e.target.checked })} className="accent-[#1e3a2f]" /> Expiry tracking</label>
+    <label className="block">Image URL<input aria-label="Image URL" type="url" inputMode="url" maxLength={IMAGE_URL_MAX} placeholder="https://…" value={form.imageUrl} onChange={e => onChange({ ...form, imageUrl: e.target.value })} className={inputClass} /></label>
+    <label className="block">Description<textarea aria-label="Description" maxLength={DESCRIPTION_MAX} rows={3} value={form.description} onChange={e => onChange({ ...form, description: e.target.value })} className={inputClass} /></label>
+    <p className="text-xs text-[#6d7974]">Image URL and description are shown on the public storefront. Use a full http(s) link; image upload is not supported. Leave empty to show none.</p>
     <p className="text-xs text-[#6d7974]">Stock is calculated from inventory batches and includes blocked and expired stock. Manage batches separately to adjust stock and Push Days.</p>
   </>;
 }

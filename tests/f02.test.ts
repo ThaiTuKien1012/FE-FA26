@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ProductFields } from '../src/features/store/components/ProductInventoryView';
+import { ProductFields, productForm as productFormFromView } from '../src/features/store/components/ProductInventoryView';
 import { GeneratedCodeField } from '../src/features/store/components/GeneratedCodeField';
 import { authService, ROLE_PERMISSIONS, type AuthUser } from '../src/services/authService';
 import { canManageCatalog, F02ApiError, f02ErrorMessage, needsProductNameConfirmation, storeApi, type F02Batch, type F02BatchPatchRequest, type F02Product, type F02Status } from '../src/features/store/store.api';
@@ -37,7 +37,7 @@ test('Empty Store counts are real zero; failed or malformed totals never become 
 });
 
 const categories = [{ id: 1, name: 'Dairy', status: 'ACTIVE' as const }, { id: 2, name: 'Archived', status: 'INACTIVE' as const }];
-const product: F02Product = { id: 4, sku: 'SKU-MILK-000001', name: 'Milk', unit: 'Bottle', requiresExpiry: true, category: categories[0], sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE', stockQuantity: 100 };
+const product: F02Product = { id: 4, sku: 'SKU-MILK-000001', name: 'Milk', unit: 'Bottle', requiresExpiry: true, category: categories[0], sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE', stockQuantity: 100, imageUrl: null, description: null };
 const productForm = () => ({ ...emptyProductForm, name: ' Milk ', unit: ' Bottle ', categoryId: '1', sellingPrice: '12.75', costPrice: '15.25' });
 const batch: F02Batch = { id: 9, productId: 4, batchCode: 'B-1', receivedAt: '2026-11-17T02:00:00Z', expiryDate: '2026-12-15', initialQuantity: 100, remainingQuantity: 80, pushDay: '2026-12-10', status: 'ACTIVE', effectiveStatus: 'ACTIVE', daysToExpiry: 10, warnings: [], createdAt: '2026-11-17T02:00:00Z', updatedAt: '2026-11-17T02:00:00Z' };
 const batchForm = () => ({ ...emptyBatchForm(), receivedAt: '2026-11-17T09:00', expiryDate: '2026-12-15', initialQuantity: '100', remainingQuantity: '80', pushDay: '2026-12-10' });
@@ -55,7 +55,7 @@ function setup(t: TestContext, role: AuthUser['role'] = 'Store Admin') {
 
 test('Product create/edit payloads select only V26 writable fields; decimal prices and below-cost sales survive', async t => {
   const f = setup(t), request = productRequest(productForm(), categories);
-  assert.deepEqual(request, { name: 'Milk', unit: 'Bottle', categoryId: 1, requiresExpiry: false, sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE' });
+  assert.deepEqual(request, { name: 'Milk', unit: 'Bottle', categoryId: 1, requiresExpiry: false, sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE', imageUrl: null, description: null });
   const generated = { ...product, sku: 'SKU-00000000004' };
   f.respond(async () => Response.json(generated));
   const contaminated = { ...request, sku: 'attempted manual SKU', expiryPushDays: 7, stockQuantity: 999, category: categories[0], id: 44, pushDay: '2026-12-10', storeId: 99 };
@@ -337,4 +337,49 @@ test('soft delete sends DELETE without a body, accepts 204, and preserves refusa
   }
   f.respond(async () => Response.json({ error: 'Product does not exist' }, { status: 404 }));
   await assert.rejects(storeApi.deleteProduct(4), { status: 404 });
+});
+
+test('F09 display fields: edit prefills imageUrl/description and an untouched save sends them back unchanged', async t => {
+  const f = setup(t);
+  const shown: F02Product = { ...product, imageUrl: 'https://images.example/milk.jpg', description: 'Fresh milk, 1 L' };
+  const form = productFormFromView(shown);
+  assert.equal(form.imageUrl, 'https://images.example/milk.jpg');
+  assert.equal(form.description, 'Fresh milk, 1 L');
+  const request = productRequest(form, categories);
+  assert.equal(request.imageUrl, 'https://images.example/milk.jpg');
+  assert.equal(request.description, 'Fresh milk, 1 L');
+  await storeApi.updateProduct(4, { ...request, stockQuantity: 1, sku: 'x' } as any);
+  assert.deepEqual(f.calls[0].body, { name: 'Milk', unit: 'Bottle', categoryId: 1, requiresExpiry: true, sellingPrice: 12.75, costPrice: 15.25, status: 'ACTIVE', imageUrl: 'https://images.example/milk.jpg', description: 'Fresh milk, 1 L' });
+});
+
+test('F09 display fields: blanks become null, values are trimmed, and the Backend limits are enforced', () => {
+  const blank = productRequest({ ...productForm(), imageUrl: '   ', description: '  ' }, categories);
+  assert.equal(blank.imageUrl, null); assert.equal(blank.description, null);
+  const trimmed = productRequest({ ...productForm(), imageUrl: ' http://cdn.example/a.png ', description: ' Hi ' }, categories);
+  assert.equal(trimmed.imageUrl, 'http://cdn.example/a.png'); assert.equal(trimmed.description, 'Hi');
+  for (const bad of ['javascript:alert(1)', 'ftp://example.com/a.png', '/images/a.png', 'images/a.png', 'https://'])
+    assert.throws(() => productRequest({ ...productForm(), imageUrl: bad }, categories), /HTTP or HTTPS/);
+  const longUrl = 'https://example.com/' + 'a'.repeat(2048 - 20);
+  assert.equal(productRequest({ ...productForm(), imageUrl: longUrl }, categories).imageUrl, longUrl);
+  assert.throws(() => productRequest({ ...productForm(), imageUrl: longUrl + 'a' }, categories), /2048/);
+  assert.equal(productRequest({ ...productForm(), description: 'd'.repeat(2000) }, categories).description?.length, 2000);
+  assert.throws(() => productRequest({ ...productForm(), description: 'd'.repeat(2001) }, categories), /2000/);
+});
+
+test('F09 display fields: a product without them (pre-V29 data) prefills empty and sends null, never undefined', () => {
+  const legacy = { ...product } as Partial<F02Product> as F02Product;
+  delete (legacy as any).imageUrl; delete (legacy as any).description;
+  const form = productFormFromView(legacy);
+  assert.equal(form.imageUrl, ''); assert.equal(form.description, '');
+  const request = productRequest(form, categories);
+  assert.equal(request.imageUrl, null); assert.equal(request.description, null);
+});
+
+test('Product form renders Image URL and Description inputs with the Backend limits', () => {
+  const html = renderToStaticMarkup(createElement(ProductFields, { form: { ...emptyProductForm, imageUrl: 'https://images.example/milk.jpg', description: 'Fresh' }, categories, onChange: () => {}, product }));
+  assert.match(html, /aria-label="Image URL"[^>]*maxLength="2048"|maxLength="2048"[^>]*aria-label="Image URL"/);
+  assert.match(html, /value="https:\/\/images.example\/milk.jpg"/);
+  assert.match(html, /aria-label="Description"/);
+  assert.match(html, /maxLength="2000"/);
+  assert.match(html, />Fresh</);
 });
