@@ -1,4 +1,5 @@
 import { authService } from '../../services/authService';
+import { parseSafeMiningJson } from '../f05/f05.numbers';
 
 export type LayoutRole = 'A' | 'B';
 export type LayoutStatus = 'DRAFT' | 'READY' | 'ARCHIVED';
@@ -126,11 +127,23 @@ export interface ActiveLayout {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const user = authService.getCurrentUser();
+  const write = init.method && init.method !== 'GET';
+  const adminAction = /\/(activate|end|rollback)$/.test(path);
+  if (!user || !['Merchandiser', 'Store Admin'].includes(user.role)) throw new Error('Please sign in with a Store staff account.');
+  if (write && user.role !== (adminAction ? 'Store Admin' : 'Merchandiser')) throw new Error('This action is not available to your role.');
+  const scope = JSON.stringify([authService.getSessionId(), user.id, user.storeId, user.role]);
   const response = await authService.request(path, {
     ...init,
     headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(init.headers || {}) }
   });
-  const data = await response.json().catch(() => ({}));
+  const body = await response.text();
+  const current = authService.getCurrentUser();
+  init.signal?.throwIfAborted();
+  if (scope !== JSON.stringify([authService.getSessionId(), current?.id, current?.storeId, current?.role])) throw new Error('Your session changed. Reload the current Store.');
+  let data: any;
+  try { data = response.ok ? parseSafeMiningJson(body) : JSON.parse(body); }
+  catch (error) { if (response.ok) throw error; data = {}; }
   if (!response.ok) {
     const message = typeof data?.error === 'string' ? data.error : typeof data?.message === 'string' ? data.message : `Request failed (${response.status})`;
     const error = new Error(message) as Error & { status?: number };
@@ -142,24 +155,41 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
+export interface LayoutSnapshot { snapshotId: number; status: string; rangeStart: string; rangeEnd: string; asOfDate: string; }
+export interface LayoutProduct { id: number; name: string; sku: string; }
+
+// Every picker follows server pagination rather than silently truncating at 100.
+async function allPages<T>(path: string, signal?: AbortSignal): Promise<Page<T>> {
+  const items: T[] = [];
+  let result: Page<T>;
+  let page = 0;
+  do {
+    result = await request<Page<T>>(`${path}${path.includes('?') ? '&' : '?'}page=${page++}&pageSize=100`, { signal });
+    items.push(...result.items);
+  } while (items.length < result.totalElements && result.items.length > 0);
+  return { ...result, items, page: 0, pageSize: items.length };
+}
+
 export const f07f08Api = {
-  policy: () => request<LayoutPolicy>('/api/layouts/policy'),
-  recommendations: (snapshotId: number) => request<Page<RecommendationOption>>(`/api/layouts/recommendations?snapshotId=${encodeURIComponent(snapshotId)}&page=0&pageSize=100`),
+  policy: (signal?: AbortSignal) => request<LayoutPolicy>('/api/layouts/policy', { signal }),
+  recommendations: (snapshotId: number, signal?: AbortSignal) => allPages<RecommendationOption>(`/api/layouts/recommendations?snapshotId=${encodeURIComponent(snapshotId)}`, signal),
+  snapshots: (signal?: AbortSignal) => allPages<LayoutSnapshot>('/api/mining/snapshots', signal),
+  product: (id: number, signal?: AbortSignal) => request<LayoutProduct>(`/api/products/${id}`, { signal }),
   layouts: (campaignId?: number) => request<Page<LayoutSummary>>(`/api/layouts?page=0&pageSize=100${campaignId ? `&campaignId=${campaignId}` : ''}`),
-  layout: (id: number) => request<LayoutView>(`/api/layouts/${id}`),
-  preview: (id: number) => request<LayoutView>(`/api/layouts/${id}/preview`),
+  layout: (id: number, signal?: AbortSignal) => request<LayoutView>(`/api/layouts/${id}`, { signal }),
+  preview: (id: number, signal?: AbortSignal) => request<LayoutView>(`/api/layouts/${id}/preview`, { signal }),
   savePlacements: (id: number, expectedVersion: number, recommendationIds: number[]) => request<LayoutView>(`/api/layouts/${id}/placements`, json('PUT', { expectedVersion, recommendationIds })),
   ready: (id: number, expectedVersion: number) => request<LayoutView>(`/api/layouts/${id}/ready`, json('POST', { expectedVersion })),
-  campaigns: () => request<Page<CampaignView>>('/api/campaigns?page=0&pageSize=100'),
-  campaign: (id: number) => request<CampaignView>(`/api/campaigns/${id}`),
+  campaigns: (signal?: AbortSignal) => allPages<CampaignView>('/api/campaigns', signal),
+  campaign: (id: number, signal?: AbortSignal) => request<CampaignView>(`/api/campaigns/${id}`, { signal }),
   createCampaign: (name: string, snapshotId: number, recommendationIds: number[]) => request<CampaignView>('/api/campaigns', json('POST', { name, snapshotId, recommendationIds })),
   decision: (id: number, expectedVersion: number, decision: 'KEEP_A' | 'CHOOSE_B', reportId?: number) => request<CampaignView>(`/api/campaigns/${id}/decision`, json('PUT', { expectedVersion, decision, ...(reportId ? { reportId } : {}) })),
   simulate: (id: number, body: { expectedCampaignVersion: number; expectedLayoutAVersion: number; expectedLayoutBVersion: number; rangeStart: string; rangeEnd: string }) => request<CampaignReport>(`/api/campaigns/${id}/simulations`, json('POST', body)),
-  reports: (id: number) => request<Page<CampaignReport>>(`/api/campaigns/${id}/reports?page=0&pageSize=100`),
+  reports: (id: number, signal?: AbortSignal) => allPages<CampaignReport>(`/api/campaigns/${id}/reports`, signal),
   publish: (id: number, expectedVersion: number) => request<CampaignView>(`/api/campaigns/${id}/publish`, json('POST', { expectedVersion })),
   withdraw: (id: number, expectedVersion: number) => request<CampaignView>(`/api/campaigns/${id}/withdraw`, json('POST', { expectedVersion })),
   activate: (id: number, expectedVersion: number) => request<CampaignView>(`/api/campaigns/${id}/activate`, json('POST', { expectedVersion })),
   end: (id: number, expectedVersion: number) => request<CampaignView>(`/api/campaigns/${id}/end`, json('POST', { expectedVersion })),
-  rollback: (id: number, expectedVersion: number) => request<CampaignView>(`/api/campaigns/${id}/rollback`, json('POST', { expectedVersion })),
-  activeLayout: () => request<ActiveLayout>('/api/storefront/active-layout')
+  rollback: (id: number, expectedVersion: number) => request<ActiveLayout>(`/api/campaigns/${id}/rollback`, json('POST', { expectedVersion })),
+  activeLayout: (signal?: AbortSignal) => request<ActiveLayout>('/api/storefront/active-layout', { signal })
 };

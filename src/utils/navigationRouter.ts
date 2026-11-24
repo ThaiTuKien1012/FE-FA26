@@ -12,7 +12,6 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'customer-storefront': '/storefront',
   'customer-home': '/customer-home',
   'customer-product': '/product',
-  'store-layout': '/store/layout',
 
   // Merchandiser Screens
   'merchandiser-recommendations': '/merchandiser/recommendations',
@@ -70,6 +69,8 @@ const PATH_TO_SCREEN: Record<string, ActiveNavScreen> = Object.entries(SCREEN_TO
 );
 
 // Legacy F03 links remain valid; the singular action now opens the snapshot tab.
+// Existing bookmarks open the API-backed F07 workspace.
+for (const path of ['/store/layout', '/store/layout/', '/store-layout', '/store-layout/']) PATH_TO_SCREEN[path] = 'f07-f08-workspace';
 PATH_TO_SCREEN['/f03/snapshot'] = 'f03-snapshots';
 PATH_TO_SCREEN['/f03/snapshot/'] = 'f03-snapshots';
 PATH_TO_SCREEN['/f03-snapshot'] = 'f03-snapshots';

@@ -14,7 +14,6 @@ import { ProductInventoryView } from './features/store/components/ProductInvento
 import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
-import { StoreLayoutView } from './features/store/components/StoreLayoutView';
 import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
 import { CustomerProductDetailView } from './features/customer/components/CustomerProductDetailView';
 import { LoginView } from './features/auth/components/LoginView';
@@ -319,8 +318,7 @@ export default function App() {
 
           {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
           {currentScreen === 'f06-recommendations' && <F06WorkspaceView />}
-          {currentScreen === 'f07-f08-workspace' && <F07F08WorkspaceView />}
-          {currentScreen === 'store-layout' && <StoreLayoutView key={`${currentUser?.id}:${currentUser?.storeId}`} />}
+          {currentScreen === 'f07-f08-workspace' && <F07F08WorkspaceView key={`${currentUser?.id}:${currentUser?.storeId}`} />}
           {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <F03WorkspaceView currentUser={currentUser} section="f03-configuration" />}
 
           {/* F02: Store Admin - Product & Inventory */}

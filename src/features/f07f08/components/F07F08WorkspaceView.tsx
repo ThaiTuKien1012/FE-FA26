@@ -1,109 +1,192 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, RotateCcw, Save, Send, ShoppingBag, Target, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircle, CheckCircle2, LayoutGrid, Loader2, Plus, RefreshCw, Rocket, X } from 'lucide-react';
 import { authService } from '../../../services/authService';
-import { f07f08Api, CampaignReport, CampaignView, LayoutPolicy, LayoutView, RecommendationOption } from '../f07f08.api';
+import { f07f08Api, type ActiveLayout, type CampaignReport, type CampaignView, type LayoutPolicy, type LayoutProduct, type LayoutSnapshot, type LayoutView, type RecommendationOption } from '../f07f08.api';
+import { matchingReport, placementIds, sameIds } from '../f07.designer';
+import { F07LayoutDesigner, LayoutStatus } from './F07LayoutDesigner';
+import { F08CampaignPanel } from './F08CampaignPanel';
+import './F07Workspace.css';
 
-const primary = 'inline-flex items-center justify-center gap-2 rounded-lg bg-[#1e3a2f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2d604a] disabled:cursor-not-allowed disabled:opacity-50';
-const secondary = 'inline-flex items-center justify-center gap-2 rounded-lg border border-[#d9e2dc] bg-white px-3 py-2 text-sm font-semibold text-[#315445] hover:bg-[#f0f5ee] disabled:cursor-not-allowed disabled:opacity-50';
-const input = 'w-full rounded-lg border border-[#d9e2dc] bg-white px-3 py-2 text-sm outline-none focus:border-[#356b54] focus:ring-2 focus:ring-[#356b54]/15';
-
-function message(error: unknown) {
-  return error instanceof Error ? error.message : 'Unable to complete the request.';
+interface Bundle {
+  campaign: CampaignView; a: LayoutView; b: LayoutView;
+  recommendations: RecommendationOption[]; reports: CampaignReport[]; products: Record<number, LayoutProduct>;
 }
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—';
-  return new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function Status({ value }: { value: string }) {
-  const style = value === 'ACTIVE' || value === 'READY' ? 'bg-emerald-50 text-emerald-800' : value === 'PUBLISHED' ? 'bg-amber-50 text-amber-800' : value === 'ENDED' || value === 'ARCHIVED' ? 'bg-slate-100 text-slate-700' : 'bg-[#edf5f0] text-[#315445]';
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}>{value}</span>;
-}
-
-function LayoutCard({ label, layout }: { label: string; layout: LayoutView | null }) {
-  if (!layout) return <div className="rounded-xl border border-dashed border-[#d9e2dc] p-4 text-sm text-[#6d7974]">{label} is not loaded.</div>;
-  return <article className="rounded-xl border border-[#e7e2d8] bg-white p-4">
-    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-[#6d7974]">Layout {layout.role}</p><h3 className="mt-1 font-semibold">{layout.name}</h3></div><Status value={layout.status} /></div>
-    <dl className="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs text-[#6d7974]">Version</dt><dd className="font-semibold">{layout.version}</dd></div><div><dt className="text-xs text-[#6d7974]">Weighted utility</dt><dd className="font-semibold">{layout.weightedUtilityScore ?? '—'}</dd></div><div><dt className="text-xs text-[#6d7974]">Placements</dt><dd className="font-semibold">{layout.placements.length}</dd></div><div><dt className="text-xs text-[#6d7974]">Valid</dt><dd className={layout.valid ? 'font-semibold text-emerald-700' : 'font-semibold text-red-700'}>{layout.valid ? 'Yes' : 'No'}</dd></div></dl>
-    {layout.validationErrors.length > 0 && <ul className="mt-3 space-y-1 text-xs text-red-700">{layout.validationErrors.map(error => <li key={error}>• {error}</li>)}</ul>}
-  </article>;
-}
-
-function PolicyPanel({ policy }: { policy: LayoutPolicy | null }) {
-  return <section className="rounded-2xl border border-[#e7e2d8] bg-white p-5"><div className="flex items-start gap-3"><Target className="mt-0.5 h-5 w-5 text-[#356b54]" /><div><h2 className="font-semibold">Layout policy</h2><p className="mt-1 text-sm text-[#6d7974]">{policy?.utilityScoreLabel || 'Weighted utility (snapshot)'}</p></div></div>{policy && <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="border-b border-[#e7e2d8] text-xs uppercase tracking-wider text-[#6d7974]"><tr><th className="px-2 py-2">Zone</th><th className="px-2 py-2">Type</th><th className="px-2 py-2">Max blocks</th><th className="px-2 py-2">Max products</th></tr></thead><tbody>{policy.zones.map(zone => <tr key={zone.zone} className="border-b border-[#f0eee9]"><td className="px-2 py-2 font-medium">{zone.zone}</td><td className="px-2 py-2">{zone.recommendationType || 'Baseline'}</td><td className="px-2 py-2">{zone.maxBlocks ?? 'Unbounded'}</td><td className="px-2 py-2">{zone.maxProducts ?? 'Unbounded'}</td></tr>)}</tbody></table></div>}</section>;
-}
+const message = (error: unknown) => error instanceof Error ? error.message : 'Unable to complete this action. Refresh to check the current state.';
 
 export function F07F08WorkspaceView() {
   const user = authService.getCurrentUser();
-  const canEdit = user?.role === 'Merchandiser';
-  const canActivate = user?.role === 'Store Admin';
+  const merchant = user?.role === 'Merchandiser';
   const [policy, setPolicy] = useState<LayoutPolicy | null>(null);
-  const [recommendations, setRecommendations] = useState<RecommendationOption[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignView[]>([]);
-  const [active, setActive] = useState<{ defaultLayout: boolean; campaign: CampaignView | null }>({ defaultLayout: true, campaign: null });
-  const [selected, setSelected] = useState<CampaignView | null>(null);
-  const [layoutA, setLayoutA] = useState<LayoutView | null>(null);
-  const [layoutB, setLayoutB] = useState<LayoutView | null>(null);
-  const [selectedRecommendationIds, setSelectedRecommendationIds] = useState<number[]>([]);
-  const [report, setReport] = useState<CampaignReport | null>(null);
-  const [name, setName] = useState('Local layout campaign');
-  const [snapshotId, setSnapshotId] = useState('1');
-  const [rangeStart, setRangeStart] = useState('2026-10-03');
-  const [rangeEnd, setRangeEnd] = useState('2026-10-31');
+  const [snapshots, setSnapshots] = useState<LayoutSnapshot[]>([]);
+  const [snapshotError, setSnapshotError] = useState('');
+  const [active, setActive] = useState<ActiveLayout | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [bundle, setBundle] = useState<Bundle | null>(null);
+  const [ids, setIds] = useState<number[]>([]);
+  const [tab, setTab] = useState<'layout' | 'campaign'>('layout');
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [snapshotId, setSnapshotId] = useState('');
+  const detailRequest = useRef<AbortController | null>(null);
+  const actionLock = useRef(false);
+  const alive = useRef(true);
+  const createFocus = useRef<HTMLButtonElement | null>(null);
+  const dialog = useRef<HTMLDialogElement | null>(null);
+  const dirty = !!bundle && !sameIds(ids, placementIds(bundle.b));
+  const working = loading || detailLoading || busy;
 
-  const load = useCallback(async () => {
-    setBusy(true); setError('');
-    try {
-      const [nextPolicy, nextCampaigns, nextActive] = await Promise.all([f07f08Api.policy(), f07f08Api.campaigns(), f07f08Api.activeLayout()]);
-      setPolicy(nextPolicy); setCampaigns(nextCampaigns.items); setActive({ defaultLayout: nextActive.defaultLayout, campaign: nextActive.campaign });
-      if (nextCampaigns.items.length && !selected) setSelected(nextCampaigns.items[0]);
-    } catch (e) { setError(message(e)); }
-    finally { setBusy(false); }
-  }, [selected]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const loadCampaign = useCallback(async (campaign: CampaignView) => {
-    setBusy(true); setError(''); setNotice('');
-    try {
-      const [detail, a, b, available, reports] = await Promise.all([
-        f07f08Api.campaign(campaign.campaignId), f07f08Api.layout(campaign.layoutAId), f07f08Api.layout(campaign.layoutBId), f07f08Api.recommendations(campaign.snapshotId), f07f08Api.reports(campaign.campaignId)
-      ]);
-      setSelected(detail); setLayoutA(a); setLayoutB(b); setRecommendations(available.items); setSelectedRecommendationIds(b.placements.map(item => item.recommendationId).filter((id): id is number => id !== null)); setReport(reports.items[0] || null);
-    } catch (e) { setError(message(e)); }
-    finally { setBusy(false); }
+  const overview = useCallback(async (signal?: AbortSignal) => {
+    const [nextPolicy, nextCampaigns, nextActive] = await Promise.all([f07f08Api.policy(signal), f07f08Api.campaigns(signal), f07f08Api.activeLayout(signal)]);
+    if (!alive.current || signal?.aborted) return;
+    setPolicy(nextPolicy); setCampaigns(nextCampaigns.items); setActive(nextActive);
+    setSelectedId(current => current && nextCampaigns.items.some(item => item.campaignId === current) ? current : nextCampaigns.items[0]?.campaignId ?? null);
   }, []);
 
-  useEffect(() => { if (selected) void loadCampaign(selected); }, [selected?.campaignId]);
+  const loadSnapshots = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const result = await f07f08Api.snapshots(signal);
+      if (!alive.current || signal?.aborted) return;
+      const ready = result.items.filter(item => item.status === 'READY');
+      setSnapshots(ready); setSnapshotId(current => current || String(ready[0]?.snapshotId || '')); setSnapshotError('');
+    } catch (e) { if (alive.current && !signal?.aborted) setSnapshotError(message(e)); }
+  }, []);
 
-  const run = async (action: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await action(); } catch (e) { setError(message(e)); } finally { setBusy(false); } };
-  const refreshSelected = async (next: CampaignView) => { setSelected(next); setCampaigns(current => current.map(item => item.campaignId === next.campaignId ? next : item)); await loadCampaign(next); };
+  const loadDetails = useCallback(async (id: number) => {
+    detailRequest.current?.abort();
+    const controller = new AbortController(); detailRequest.current = controller;
+    const signal = controller.signal;
+    setDetailLoading(true); setBundle(null); setIds([]);
+    try {
+      const campaign = await f07f08Api.campaign(id, signal);
+      const [a, b, recommendations, reports] = await Promise.all([
+        f07f08Api.layout(campaign.layoutAId, signal), f07f08Api.layout(campaign.layoutBId, signal),
+        f07f08Api.recommendations(campaign.snapshotId, signal), f07f08Api.reports(id, signal)
+      ]);
+      const products: Record<number, LayoutProduct> = {};
+      for (const row of [...a.placements, ...b.placements]) products[row.productId] = { id: row.productId, name: row.productName, sku: row.sku };
+      const missing = [...new Set(recommendations.items.flatMap(item => item.productIds))].filter(product => !products[product]);
+      for (let offset = 0; offset < missing.length; offset += 8) {
+        signal.throwIfAborted();
+        const results = await Promise.allSettled(missing.slice(offset, offset + 8).map(product => f07f08Api.product(product, signal)));
+        for (const result of results) if (result.status === 'fulfilled') products[result.value.id] = result.value;
+      }
+      signal.throwIfAborted();
+      if (!alive.current) return;
+      setBundle({ campaign, a, b, recommendations: recommendations.items, reports: reports.items, products });
+      setIds(placementIds(b));
+      setCampaigns(current => current.map(item => item.campaignId === id ? campaign : item));
+      return true;
+    } catch (e) {
+      if (alive.current && !signal.aborted) setError(message(e));
+      return false;
+    } finally { if (alive.current && detailRequest.current === controller) setDetailLoading(false); }
+  }, []);
 
-  const create = () => void run(async () => { const created = await f07f08Api.createCampaign(name.trim(), Number(snapshotId), []); setCampaigns(current => [created, ...current]); setSelected(created); setNotice(`Campaign ${created.campaignId} created.`); });
-  const saveB = () => { if (!layoutB) return; void run(async () => { const updated = await f07f08Api.savePlacements(layoutB.layoutId, layoutB.version, selectedRecommendationIds); setLayoutB(updated); setSelectedRecommendationIds(updated.placements.map(item => item.recommendationId).filter((id): id is number => id !== null)); setNotice('Layout B placements saved.'); }); };
-  const markReady = () => { if (!layoutB) return; void run(async () => { const updated = await f07f08Api.ready(layoutB.layoutId, layoutB.version); setLayoutB(updated); setNotice('Layout B is ready.'); }); };
-  const decide = (decision: 'KEEP_A' | 'CHOOSE_B') => { if (!selected) return; void run(async () => { const next = await f07f08Api.decision(selected.campaignId, selected.version, decision, report?.reportId); await refreshSelected(next); setNotice(`Decision ${decision} recorded.`); }); };
-  const mutateCampaign = (kind: 'publish' | 'withdraw' | 'activate' | 'end' | 'rollback') => { if (!selected) return; void run(async () => { const next = await f07f08Api[kind](selected.campaignId, selected.version); await refreshSelected(next); setNotice(`Campaign ${kind} completed.`); }); };
-  const simulate = () => { if (!selected || !layoutA || !layoutB) return; void run(async () => { const next = await f07f08Api.simulate(selected.campaignId, { expectedCampaignVersion: selected.version, expectedLayoutAVersion: layoutA.version, expectedLayoutBVersion: layoutB.version, rangeStart, rangeEnd }); setReport(next); setNotice(`Simulation report ${next.reportId} saved.`); }); };
+  useEffect(() => {
+    alive.current = true;
+    const controller = new AbortController();
+    void overview(controller.signal).catch(e => { if (!controller.signal.aborted) setError(message(e)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    void loadSnapshots(controller.signal);
+    return () => { alive.current = false; controller.abort(); detailRequest.current?.abort(); };
+  }, [overview, loadSnapshots]);
+  useEffect(() => { if (selectedId !== null) void loadDetails(selectedId); }, [selectedId, loadDetails]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  useEffect(() => {
+    if (createOpen) dialog.current?.showModal();
+    else dialog.current?.close();
+  }, [createOpen]);
 
-  const availableById = useMemo(() => new Map(recommendations.map(item => [item.recommendationId, item])), [recommendations]);
-  return <div className="mx-auto max-w-7xl space-y-5 text-[#191c1b]">
-    <header className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#356b54]">F07 / F08</p><h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Layouts & campaigns</h1><p className="mt-2 max-w-3xl text-sm text-[#6d7974]">Store-scoped layout editing, offline simulation and campaign lifecycle backed by the live API.</p></div><button className={secondary} disabled={busy} onClick={() => void load()}><RefreshCw className="h-4 w-4" />Refresh</button></header>
-    {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
-    {notice && <div role="status" className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{notice}</div>}
-    <div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]"><PolicyPanel policy={policy} /><section className="rounded-2xl border border-[#e7e2d8] bg-white p-5"><div className="flex items-start gap-3"><ShoppingBag className="mt-0.5 h-5 w-5 text-[#356b54]" /><div><h2 className="font-semibold">Active storefront</h2><p className="mt-1 text-sm text-[#6d7974]">{active.defaultLayout ? 'Default layout is currently active.' : active.campaign ? `${active.campaign.name} · ${active.campaign.status}` : 'No active campaign.'}</p></div></div><div className="mt-4 flex items-center gap-2 text-sm">{active.defaultLayout ? <XCircle className="h-4 w-4 text-[#6d7974]" /> : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}<span>{active.defaultLayout ? 'Campaign activation has no storefront effect yet.' : 'A campaign layout is active.'}</span></div></section></div>
-    <div className="grid gap-5 lg:grid-cols-[.8fr_1.2fr]">
-      <section className="rounded-2xl border border-[#e7e2d8] bg-white p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold">Campaigns</h2><p className="mt-1 text-xs text-[#6d7974]">{campaigns.length} campaign{campaigns.length === 1 ? '' : 's'} in this Store</p></div>{canEdit && <button className={secondary} disabled={busy} onClick={create}><Save className="h-4 w-4" />Create draft</button>}</div>{canEdit && <div className="mt-4 space-y-2 border-b border-[#e7e2d8] pb-4"><input className={input} value={name} onChange={event => setName(event.target.value)} aria-label="Campaign name" placeholder="Campaign name" /><input className={input} value={snapshotId} onChange={event => setSnapshotId(event.target.value)} aria-label="Snapshot ID" inputMode="numeric" placeholder="Snapshot ID" /></div>}<div className="mt-4 space-y-2">{campaigns.length === 0 && <p className="rounded-lg bg-[#f7f8f5] p-3 text-sm text-[#6d7974]">No campaigns yet. Create one from a snapshot.</p>}{campaigns.map(campaign => <button key={campaign.campaignId} type="button" onClick={() => setSelected(campaign)} className={`w-full rounded-xl border p-3 text-left transition ${selected?.campaignId === campaign.campaignId ? 'border-[#356b54] bg-[#edf5f0]' : 'border-[#e7e2d8] hover:bg-[#f7f8f5]'}`}><div className="flex items-start justify-between gap-2"><span className="font-semibold">{campaign.name}</span><Status value={campaign.status} /></div><p className="mt-1 text-xs text-[#6d7974]">#{campaign.campaignId} · snapshot {campaign.snapshotId} · v{campaign.version}</p></button>)}</div></section>
-      <section className="space-y-5"><div className="rounded-2xl border border-[#e7e2d8] bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-[#6d7974]">Selected campaign</p><h2 className="mt-1 text-xl font-semibold">{selected?.name || 'Choose a campaign'}</h2></div>{selected && <Status value={selected.status} />}</div>{selected && <><div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div><p className="text-xs text-[#6d7974]">Campaign</p><p className="font-semibold">#{selected.campaignId}</p></div><div><p className="text-xs text-[#6d7974]">Snapshot</p><p className="font-semibold">#{selected.snapshotId}</p></div><div><p className="text-xs text-[#6d7974]">Decision</p><p className="font-semibold">{selected.decision || 'Pending'}</p></div><div><p className="text-xs text-[#6d7974]">Created</p><p className="font-semibold">{formatDate(selected.createdAt)}</p></div></div><div className="mt-4 grid gap-3 md:grid-cols-2"><LayoutCard label="Layout A" layout={layoutA} /><LayoutCard label="Layout B" layout={layoutB} /></div></>}</div>
-        {selected && canEdit && layoutB && <section className="rounded-2xl border border-[#e7e2d8] bg-white p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">Edit Layout B</h2><p className="mt-1 text-sm text-[#6d7974]">Choose whole recommendation blocks. The backend validates caps and eligibility.</p></div><span className="text-xs text-[#6d7974]">v{layoutB.version}</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{recommendations.map(option => <label key={option.recommendationId} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${selectedRecommendationIds.includes(option.recommendationId) ? 'border-[#356b54] bg-[#edf5f0]' : 'border-[#e7e2d8]'}`}><input type="checkbox" checked={selectedRecommendationIds.includes(option.recommendationId)} onChange={() => setSelectedRecommendationIds(current => current.includes(option.recommendationId) ? current.filter(id => id !== option.recommendationId) : [...current, option.recommendationId])} className="mt-1 accent-[#356b54]" /><span><span className="font-semibold">#{option.recommendationId} · {option.type}</span><span className="mt-1 block text-xs text-[#6d7974]">{option.productIds.length} products · utility {option.utility}</span></span></label>)}{recommendations.length === 0 && <p className="text-sm text-[#6d7974]">No approved, ready recommendations are available for snapshot {selected.snapshotId}.</p>}</div><div className="mt-4 flex flex-wrap gap-2"><button className={secondary} disabled={busy} onClick={saveB}><Save className="h-4 w-4" />Save placements</button><button className={primary} disabled={busy || !layoutB.valid} onClick={markReady}><CheckCircle2 className="h-4 w-4" />Mark B ready</button></div></section>}
-        {selected && <section className="rounded-2xl border border-[#e7e2d8] bg-white p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">Campaign actions</h2><p className="mt-1 text-sm text-[#6d7974]">Actions stay synchronous; the returned version is used for the next mutation.</p></div><RotateCcw className="h-5 w-5 text-[#6d7974]" /></div><div className="mt-4 flex flex-wrap gap-2">{canEdit && selected.status === 'DRAFT' && <><button className={secondary} disabled={busy} onClick={() => decide('KEEP_A')}>Keep A</button><button className={secondary} disabled={busy} onClick={() => decide('CHOOSE_B')}>Choose B</button><button className={primary} disabled={busy || selected.decision === null} onClick={() => mutateCampaign('publish')}><Send className="h-4 w-4" />Publish</button></>}{canEdit && selected.status === 'PUBLISHED' && <button className={secondary} disabled={busy} onClick={() => mutateCampaign('withdraw')}>Withdraw</button>}{canActivate && selected.status === 'PUBLISHED' && <button className={primary} disabled={busy} onClick={() => mutateCampaign('activate')}>Activate</button>}{canActivate && selected.status === 'ACTIVE' && <><button className={secondary} disabled={busy} onClick={() => mutateCampaign('end')}>End campaign</button><button className={secondary} disabled={busy} onClick={() => mutateCampaign('rollback')}>Rollback</button></>}</div></section>}
-        {selected && canEdit && layoutA && layoutB && <section className="rounded-2xl border border-[#e7e2d8] bg-white p-5"><div><h2 className="font-semibold">Offline A/B simulation</h2><p className="mt-1 text-sm text-[#6d7974]">Use an evaluation period strictly after snapshot {selected.snapshotId}'s training range.</p></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm">Start date<input className={input} type="date" value={rangeStart} onChange={event => setRangeStart(event.target.value)} /></label><label className="text-sm">End date<input className={input} type="date" value={rangeEnd} onChange={event => setRangeEnd(event.target.value)} /></label></div><button className={`${primary} mt-4`} disabled={busy || !layoutA.valid || !layoutB.valid} onClick={simulate}><Loader2 className={`h-4 w-4 ${busy ? 'animate-spin' : 'hidden'}`} />Run simulation</button>{report && <div className="mt-4 rounded-xl bg-[#f7f8f5] p-4 text-sm"><p className="font-semibold">Report #{report.reportId} · {report.algorithmVersion}</p><p className="mt-1 text-xs text-[#6d7974]">{report.evaluationCount} evaluation transactions · {report.rangeStart} → {report.rangeEnd}</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{report.layouts.map(item => <div key={item.layoutId} className="rounded-lg border border-[#e7e2d8] bg-white p-3"><p className="font-semibold">Layout {item.role}</p><p className="mt-1 text-xs">Hit rate: {item.hitRate?.rate == null ? 'N/A' : `${(item.hitRate.rate * 100).toFixed(1)}%`}</p><p className="text-xs">Captured utility: {item.capturedUtility?.rate == null ? 'N/A' : `${(item.capturedUtility.rate * 100).toFixed(1)}%`}</p></div>)}</div></div>}</section>}
-      </section>
-    </div>
-    {busy && <p role="status" className="flex items-center gap-2 text-xs text-[#6d7974]"><Loader2 className="h-3.5 w-3.5 animate-spin" />Loading live F07/F08 data…</p>}
+  const run = async (action: () => Promise<void>) => {
+    if (actionLock.current) return;
+    actionLock.current = true; setBusy(true); setError(''); setNotice('');
+    try { await action(); }
+    catch (e) { if (alive.current) setError(message(e) + ((e as { status?: number }).status === 409 ? ' Reload the latest layout before making another change.' : '')); }
+    finally { actionLock.current = false; if (alive.current) setBusy(false); }
+  };
+  const discardAllowed = () => !dirty || window.confirm('Discard unsaved Layout B changes?');
+  const refresh = () => { if (!discardAllowed()) return; void run(async () => { await overview(); await loadSnapshots(); if (selectedId !== null) await loadDetails(selectedId); }); };
+  const chooseCampaign = (id: number) => { if (!discardAllowed()) return; setError(''); setNotice(''); setSelectedId(id); };
+  const reloadCampaign = async (id: number) => {
+    const [loaded] = await Promise.all([loadDetails(id), overview()]);
+    if (!loaded) throw new Error('The change may have been saved, but its current state could not be loaded. Refresh before submitting another change.');
+  };
+  const save = () => { if (!bundle) return; void run(async () => {
+    await f07f08Api.savePlacements(bundle.b.layoutId, bundle.b.version, ids);
+    await reloadCampaign(bundle.campaign.campaignId); setNotice('Layout B saved. Scores and validation are up to date.');
+  }); };
+  const ready = () => { if (!bundle) return; void run(async () => {
+    await f07f08Api.ready(bundle.b.layoutId, bundle.b.version); await reloadCampaign(bundle.campaign.campaignId); setNotice('Layout B is ready for the campaign decision.');
+  }); };
+  const preview = () => { if (!bundle || dirty) return; void run(async () => {
+    const b = await f07f08Api.preview(bundle.b.layoutId);
+    const options = await f07f08Api.recommendations(bundle.campaign.snapshotId);
+    setBundle({ ...bundle, b, recommendations: options.items }); setIds(placementIds(b));
+    setNotice(b.valid ? 'Saved layout is valid. Recommendations were rechecked.' : 'Validation found issues. Review the highlighted blocks.');
+  }); };
+  const create = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || !snapshots.some(item => item.snapshotId === Number(snapshotId))) return;
+    void run(async () => {
+      const created = await f07f08Api.createCampaign(name.trim(), Number(snapshotId), []);
+      setCreateOpen(false); setName(''); await overview(); setSelectedId(created.campaignId); setTab('layout'); setNotice('Campaign created. Add approved recommendations to Layout B.');
+    });
+  };
+  const decide = (decision: 'KEEP_A' | 'CHOOSE_B', report: CampaignReport | null) => {
+    if (!bundle || dirty) return;
+    void run(async () => {
+      await f07f08Api.decision(bundle.campaign.campaignId, bundle.campaign.version, decision, matchingReport(report, bundle.a, bundle.b) ? report!.reportId : undefined);
+      await reloadCampaign(bundle.campaign.campaignId); setNotice('Campaign decision saved.');
+    });
+  };
+  const campaignAction = (kind: 'publish' | 'withdraw' | 'activate' | 'end' | 'rollback') => {
+    if (!bundle || dirty) return;
+    void run(async () => {
+      await f07f08Api[kind](bundle.campaign.campaignId, bundle.campaign.version);
+      await reloadCampaign(bundle.campaign.campaignId); setNotice('Campaign ' + kind + ' completed.');
+    });
+  };
+  const simulate = (rangeStart: string, rangeEnd: string) => {
+    if (!bundle || dirty) return;
+    void run(async () => {
+      const report = await f07f08Api.simulate(bundle.campaign.campaignId, { expectedCampaignVersion: bundle.campaign.version, expectedLayoutAVersion: bundle.a.version, expectedLayoutBVersion: bundle.b.version, rangeStart, rangeEnd });
+      setBundle(current => current ? { ...current, reports: [report, ...current.reports] } : current);
+      setNotice('Offline simulation report saved.');
+    });
+  };
+
+  if (!user || !['Merchandiser', 'Store Admin'].includes(user.role)) return <p role="alert">Sign in with a Store staff account to view layouts.</p>;
+  return <div className="f07-workspace">
+    <header className="f07-page-heading"><div><span className="f07-eyebrow">MERCHANDISING WORKSPACE</span><h1>Layout Simulator</h1><p className="f07-muted">Arrange approved product recommendations into a clear, balanced storefront.</p></div><div className="f07-actions"><button className="f07-button" disabled={working} onClick={refresh}><RefreshCw size={15} />Refresh</button>{merchant && <button ref={createFocus} className="f07-button f07-primary" disabled={working} onClick={() => { if (discardAllowed()) setCreateOpen(true); }}><Plus size={16} />New campaign</button>}</div></header>
+    {error && <div role="alert" className="f07-alert"><AlertCircle size={17} /><span>{error}</span></div>}
+    {notice && <div role="status" className="f07-success"><CheckCircle2 size={16} /><span>{notice}</span></div>}
+    {loading ? <p role="status" className="f07-loading"><Loader2 size={20} className="animate-spin" />Loading your layouts…</p> : <>
+      <div className="f07-context"><div><label className="f07-context-label" htmlFor="f07-campaign">WORKING CAMPAIGN</label><select id="f07-campaign" aria-label="Working campaign" value={selectedId ?? ''} disabled={working || !campaigns.length} onChange={e => chooseCampaign(Number(e.target.value))}>{!campaigns.length && <option value="">No campaigns yet</option>}{campaigns.map(item => <option key={item.campaignId} value={item.campaignId}>{item.name} · #{item.campaignId}</option>)}</select></div><div className="f07-context-meta">{bundle && <><span>Snapshot #{bundle.campaign.snapshotId}</span><span>Campaign v{bundle.campaign.version}</span><LayoutStatus value={bundle.campaign.status} /></>}<span>{active?.defaultLayout ? 'Storefront: default layout' : 'Active: ' + (active?.campaign?.name || '—')}</span></div></div>
+      <nav className="f07-tabs" aria-label="Layout and campaign views"><button role="tab" aria-selected={tab === 'layout'} onClick={() => setTab('layout')}><LayoutGrid size={15} />F07 · Layout design</button><button role="tab" aria-selected={tab === 'campaign'} onClick={() => setTab('campaign')}><Rocket size={15} />F08 · Campaign & simulation</button></nav>
+      {detailLoading ? <p role="status" className="f07-loading"><Loader2 size={20} className="animate-spin" />Loading this campaign…</p> : bundle && policy ? (tab === 'layout' ?
+        <F07LayoutDesigner key={bundle.campaign.campaignId} a={bundle.a} b={bundle.b} policy={policy} recommendations={bundle.recommendations} products={bundle.products} ids={ids} dirty={dirty} canEdit={merchant && bundle.campaign.status === 'DRAFT'} busy={working} onChange={setIds} onSave={save} onPreview={preview} onReady={ready} onReset={() => { if (discardAllowed()) setIds(placementIds(bundle.b)); }} /> :
+        <F08CampaignPanel campaign={bundle.campaign} a={bundle.a} b={bundle.b} reports={bundle.reports} snapshot={snapshots.find(item => item.snapshotId === bundle.campaign.snapshotId)} dirty={dirty} busy={working} merchant={merchant} active={active} onDecide={decide} onAction={campaignAction} onSimulate={simulate} onDesign={() => setTab('layout')} />
+      ) : !campaigns.length ? <div className="f07-panel f07-empty"><LayoutGrid size={38} /><strong>Your first layout starts here</strong><p>{merchant ? 'Create a campaign from a ready snapshot. Baseline A is generated automatically, then you can build Layout B with approved F06 recommendations.' : 'A Merchandiser can create a campaign. Its A/B layouts will appear here for review.'}</p>{merchant && <button className="f07-button f07-primary" onClick={() => setCreateOpen(true)}><Plus size={15} />Create first campaign</button>}</div> : <div className="f07-panel f07-empty"><AlertCircle size={30} /><strong>Layout could not be loaded</strong><button className="f07-button" onClick={refresh}>Retry loading</button></div>}
+    </>}
+    <dialog ref={dialog} className="f07-modal f07-panel" onCancel={event => { if (busy) event.preventDefault(); else setCreateOpen(false); }} onClose={() => { setCreateOpen(false); createFocus.current?.focus(); }}>
+      <form onSubmit={create}><div className="f07-panel-heading"><div><span className="f07-eyebrow">START A NEW ARRANGEMENT</span><h2>Create a campaign</h2></div><button type="button" className="f07-icon-button" aria-label="Close create campaign" disabled={busy} onClick={() => setCreateOpen(false)}><X size={18} /></button></div><p className="f07-muted">Choose the snapshot used by your approved recommendations. A and B always share the same source.</p>
+        {error && <p role="alert" className="f07-alert">{error}</p>}
+        <label className="f07-field">Campaign name<input autoFocus required maxLength={120} value={name} disabled={busy} onChange={e => setName(e.target.value)} placeholder="e.g. Weekend essentials" /></label>
+        <label className="f07-field">Ready snapshot<select required aria-label="Ready snapshot" value={snapshotId} disabled={busy || !snapshots.length} onChange={e => setSnapshotId(e.target.value)}><option value="" disabled>Select a snapshot</option>{snapshots.map(item => <option key={item.snapshotId} value={item.snapshotId}>Snapshot #{item.snapshotId} · {item.rangeStart} – {item.rangeEnd}</option>)}</select></label>
+        {snapshotError && <div role="alert" className="f07-warning">{snapshotError}<button type="button" className="f07-button" disabled={busy} onClick={() => void loadSnapshots()}>Retry</button></div>}
+        {!snapshots.length && !snapshotError && <p className="f07-warning">No ready snapshot is available. Create one in Utility Planner first.</p>}
+        <div className="f07-actions"><button type="button" className="f07-button" disabled={busy} onClick={() => setCreateOpen(false)}>Cancel</button><button className="f07-button f07-primary" disabled={busy || !name.trim() || !snapshotId || !snapshots.length}>{busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}Create campaign</button></div>
+      </form>
+    </dialog>
   </div>;
 }
