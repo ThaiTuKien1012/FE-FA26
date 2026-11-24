@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen } from './types/mining';
-import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
+import { getCustomerProductId, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
@@ -14,6 +14,9 @@ import { ProductInventoryView } from './features/store/components/ProductInvento
 import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
+import { StoreLayoutView } from './features/store/components/StoreLayoutView';
+import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
+import { CustomerProductDetailView } from './features/customer/components/CustomerProductDetailView';
 import { LoginView } from './features/auth/components/LoginView';
 import { ForgotPasswordView } from './features/auth/components/ForgotPasswordView';
 import { RegisterView } from './features/auth/components/RegisterView';
@@ -41,6 +44,8 @@ import { F07F08WorkspaceView } from './features/f07f08/components/F07F08Workspac
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
+const publicScreens: ActiveNavScreen[] = ['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront', 'customer-product'];
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
@@ -50,11 +55,12 @@ export default function App() {
       return screenFromUrl;
     }
     const user = authService.getCurrentUser();
-    // Default to login page if unauthenticated
-    return user ? user.defaultScreen : 'login';
+    // Guests can browse the customer home before signing in.
+    return user ? user.defaultScreen : 'customer-home';
   });
 
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
+  const [customerProductId, setCustomerProductId] = useState<string | null>(() => getCustomerProductId(window.location.pathname));
   const [editingProductId, setEditingProductId] = useState<string>('prod-001');
   const isMiningScreen = isSystemMiningScreen(currentScreen);
   const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
@@ -85,6 +91,7 @@ export default function App() {
     const handlePopState = () => {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
       if (screenFromUrl) {
+        setCustomerProductId(getCustomerProductId(window.location.pathname));
         setCurrentScreen(screenFromUrl);
       }
     };
@@ -96,7 +103,7 @@ export default function App() {
 
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
-    if (!currentUser && !['login', 'register', 'activate', 'forgot-password'].includes(currentScreen)) {
+    if (!currentUser && !publicScreens.includes(currentScreen)) {
       syncBrowserUrl('login', true);
       setCurrentScreen('login');
     }
@@ -138,6 +145,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCustomerProduct = (id: string) => {
+    window.history.pushState({ screen: 'customer-product' }, '', `/product/${encodeURIComponent(id)}`);
+    setCustomerProductId(id);
+    setCurrentScreen('customer-product');
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
   const handleLoginSuccess = (user: AuthUser, destinationScreen: ActiveNavScreen) => {
     setCurrentUser(user);
     syncBrowserUrl(destinationScreen);
@@ -158,7 +172,7 @@ export default function App() {
       'store-admin': 'store-inventory',
       'system-admin': 'overview',
       'merchandiser': 'merchandiser-recommendations',
-      'customer': 'customer-storefront'
+      'customer': 'customer-home'
     };
     const dest = roleScreens[roleKey] || 'overview';
     syncBrowserUrl(dest);
@@ -167,7 +181,7 @@ export default function App() {
   };
 
   // 1. If currently on Login screen, render LoginView standalone full-screen
-  if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password'].includes(currentScreen))) {
+  if (currentScreen === 'login' || (!currentUser && !publicScreens.includes(currentScreen))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -213,12 +227,21 @@ export default function App() {
     );
   }
 
-  // 2. If Customer role on customer-storefront, render full-screen Kiosk
-  if (currentScreen === 'customer-storefront' && currentUser?.role === 'End-Customer') {
+  if (currentScreen === 'customer-home' && (!currentUser || currentUser.role === 'End-Customer')) {
+    return <CustomerHomeView user={currentUser} onLogin={() => handleNavigate('login')} onRegister={() => handleNavigate('register')} onExplore={() => handleNavigate('customer-storefront')} onProduct={handleCustomerProduct} onProfile={() => handleNavigate('profile')} onLogout={handleLogout} />;
+  }
+
+  if (currentScreen === 'customer-product' && (!currentUser || currentUser.role === 'End-Customer')) {
+    return <CustomerProductDetailView productId={customerProductId} user={currentUser} onBack={() => handleNavigate('customer-storefront')} onHome={() => handleNavigate('customer-home')} onStore={() => handleNavigate('customer-storefront')} onProduct={handleCustomerProduct} onLogin={() => handleNavigate('login')} onProfile={() => handleNavigate('profile')} onLogout={handleLogout} />;
+  }
+
+  if (currentScreen === 'customer-storefront' && (!currentUser || currentUser.role === 'End-Customer')) {
     return (
       <CustomerStorefrontView
-        products={storeProducts}
         user={currentUser}
+        onHome={() => handleNavigate('customer-home')}
+        onLogin={() => handleNavigate('login')}
+        onProduct={handleCustomerProduct}
         onLogout={handleLogout}
         onProfile={() => handleNavigate('profile')}
       />
@@ -297,6 +320,7 @@ export default function App() {
           {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
           {currentScreen === 'f06-recommendations' && <F06WorkspaceView />}
           {currentScreen === 'f07-f08-workspace' && <F07F08WorkspaceView />}
+          {currentScreen === 'store-layout' && <StoreLayoutView key={`${currentUser?.id}:${currentUser?.storeId}`} />}
           {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <F03WorkspaceView currentUser={currentUser} section="f03-configuration" />}
 
           {/* F02: Store Admin - Product & Inventory */}

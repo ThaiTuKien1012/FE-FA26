@@ -46,6 +46,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'store-edit-product',
       'store-categories',
       'store-batches',
+      'store-layout',
       'f04-import-transactions',
       'f04-import-history',
       'f04-transactions',
@@ -93,8 +94,10 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
   },
   'End-Customer': {
     department: 'Retail Loyalty Customer',
-    defaultScreen: 'customer-storefront',
+    defaultScreen: 'customer-home',
     allowedScreens: [
+      'customer-home',
+      'customer-product',
       'customer-storefront',
       'profile'
     ]
@@ -109,6 +112,9 @@ export interface ScreenOwnerInfo {
 }
 
 export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>> = {
+  'store-layout': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'Store Layout', allowedRoles: ['Store Admin'] },
+  'customer-home': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Customer Home', allowedRoles: ['End-Customer'] },
+  'customer-product': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Product Details', allowedRoles: ['End-Customer'] },
   'f06-recommendations': {
     primaryRole: 'Merchandiser',
     roleKey: 'merchandiser',

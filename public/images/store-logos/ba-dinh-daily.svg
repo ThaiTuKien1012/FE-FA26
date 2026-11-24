@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <title>Ba Dinh Daily</title>
+  <rect width="96" height="96" rx="24" fill="#FCF1E6"/>
+  <path d="M25 27H49C62 27 70 33.2 70 43C70 49.2 66.7 53.8 61 56C68.7 58 73 63.3 73 70C73 79.5 64 84 50 84H25V27Z" fill="#A65B36"/>
+  <path d="M39 39H48.5C54.4 39 57 41.1 57 44.5C57 48 54.4 50 48.5 50H39V39ZM39 61H50C56.2 61 59.5 63 59.5 66.5C59.5 70.3 56.2 72 50 72H39V61Z" fill="#FCF1E6"/>
+  <path d="M36 19L33 13M49 17V10M62 19L65 13" stroke="#D69B53" stroke-width="4.5" stroke-linecap="round"/>
+</svg>

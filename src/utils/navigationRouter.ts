@@ -10,6 +10,9 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'f06-recommendations': '/recommendations',
   'f07-f08-workspace': '/layouts-campaigns',
   'customer-storefront': '/storefront',
+  'customer-home': '/customer-home',
+  'customer-product': '/product',
+  'store-layout': '/store/layout',
 
   // Merchandiser Screens
   'merchandiser-recommendations': '/merchandiser/recommendations',
@@ -85,6 +88,7 @@ export function getPathForScreen(screen: ActiveNavScreen): string {
  */
 export function getScreenFromPathname(pathname: string): ActiveNavScreen | null {
   const normalized = pathname.trim().toLowerCase();
+  if (/^\/product\/[^/]+\/?$/.test(normalized)) return 'customer-product';
   if (normalized === '' || normalized === '/') {
     return null;
   }
@@ -96,6 +100,7 @@ export function getScreenFromPathname(pathname: string): ActiveNavScreen | null 
  */
 export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
   if (typeof window === 'undefined') return;
+  if (screen === 'customer-product' && getCustomerProductId(window.location.pathname)) return;
   const targetPath = getPathForScreen(screen);
   const currentPath = window.location.pathname;
 
@@ -106,4 +111,10 @@ export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
       window.history.pushState({ screen }, '', targetPath);
     }
   }
+}
+
+export function getCustomerProductId(pathname: string): string | null {
+  const match = /^\/product\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return null;
+  try { return decodeURIComponent(match[1]); } catch { return null; }
 }

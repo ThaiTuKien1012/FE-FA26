@@ -138,6 +138,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             {isStoreAdmin && (
               <>
                 <SidebarSection title="CATALOG & INVENTORY">
+                  <SidebarItem screen="store-layout" label="Store Layout" icon={LayoutGrid} active={currentScreen === 'store-layout'} onNavigate={onNavigate} />
                   <SidebarItem screen="store-categories" label="Categories" icon={Layers} active={currentScreen === 'store-categories'} onNavigate={onNavigate} />
                   <SidebarItem screen="store-inventory" label="Products" icon={Package} active={currentScreen === 'store-inventory' || currentScreen === 'store-edit-product'} onNavigate={onNavigate} />
                   <SidebarItem screen="store-batches" label="Inventory Batches" icon={ShoppingBag} active={currentScreen === 'store-batches'} onNavigate={onNavigate} />
