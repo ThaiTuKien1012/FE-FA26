@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowUpRight, FlaskConical, Play, RotateCcw, Send } from 'lucide-react';
 import type { ActiveLayout, CampaignReport, CampaignView, LayoutSnapshot, LayoutView, Metric } from '../f07f08.api';
 import { matchingReport } from '../f07.designer';
+import { simulationUnavailableReason } from '../f08.simulation';
 import { LayoutStatus } from './F07LayoutDesigner';
 
 const nextDay = (date: string) => { const day = new Date(date + 'T00:00:00Z'); day.setUTCDate(day.getUTCDate() + 1); return day.toISOString().slice(0, 10); };
@@ -23,6 +24,8 @@ export function F08CampaignPanel({ campaign, a, b, reports, snapshot, merchant, 
   const minimumDate = snapshot ? nextDay(snapshot.rangeEnd) : undefined;
   const datesValid = !!start && !!end && start <= end && (!minimumDate || start >= minimumDate);
   const disabled = busy || dirty;
+  const simulationReason = simulationUnavailableReason({ campaign, a, b, merchant, busy, dirty });
+  const simulationDatesDisabled = busy || campaign.status !== 'DRAFT';
   const selected = campaign.selectedLayoutId === b.layoutId ? b : campaign.selectedLayoutId === a.layoutId ? a : null;
   return <section className="f07-campaign-grid" aria-label="F08 Campaign and simulation">
     <div className="f07-panel f07-campaign-card">
@@ -44,11 +47,11 @@ export function F08CampaignPanel({ campaign, a, b, reports, snapshot, merchant, 
     <div className="f07-panel f07-campaign-card">
       <div className="f07-panel-heading"><div><span className="f07-eyebrow">OFFLINE EVALUATION</span><h2>A/B simulation</h2></div><FlaskConical size={22} /></div>
       <p className="f07-muted">Replay historical transactions after the snapshot training period. This report does not measure a live customer experiment.</p>
-      {merchant && <form onSubmit={event => { event.preventDefault(); if (datesValid) onSimulate(start, end); }}>
+      {merchant && <form onSubmit={event => { event.preventDefault(); if (datesValid && !simulationReason) onSimulate(start, end); }}>
         {snapshot && <p className="f07-muted">Training: {snapshot.rangeStart} – {snapshot.rangeEnd}. Evaluation starts from {minimumDate}.</p>}
-        <div className="f07-date-grid"><label className="f07-field">Evaluation start<input aria-label="Evaluation start" type="date" min={minimumDate} required value={start} disabled={busy} onChange={e => setStart(e.target.value)} /></label><label className="f07-field">Evaluation end<input aria-label="Evaluation end" type="date" min={start || minimumDate} required value={end} disabled={busy} onChange={e => setEnd(e.target.value)} /></label></div>
-        <button className="f07-button f07-primary" disabled={disabled || !datesValid || !a.valid || !b.valid || a.status !== 'READY' || b.status !== 'READY'}><FlaskConical size={15} />Run offline simulation</button>
-        {(a.status !== 'READY' || b.status !== 'READY') && <p className="f07-muted">Both saved layouts must be READY before simulation.</p>}
+        <div className="f07-date-grid"><label className="f07-field">Evaluation start<input aria-label="Evaluation start" type="date" min={minimumDate} required value={start} disabled={simulationDatesDisabled} onChange={e => setStart(e.target.value)} /></label><label className="f07-field">Evaluation end<input aria-label="Evaluation end" type="date" min={start || minimumDate} required value={end} disabled={simulationDatesDisabled} onChange={e => setEnd(e.target.value)} /></label></div>
+        <button className="f07-button f07-primary" disabled={!!simulationReason || !datesValid} aria-describedby={simulationReason ? 'f08-simulation-status' : undefined}><FlaskConical size={15} />Run offline simulation</button>
+        {simulationReason && <p id="f08-simulation-status" role="status" className="f07-muted">{simulationReason}</p>}
       </form>}
       {reports.length > 0 && <label className="f07-field">Saved reports<select aria-label="Saved simulation reports" value={report?.reportId} onChange={e => setReportId(Number(e.target.value))}>{reports.map(item => <option key={item.reportId} value={item.reportId}>Report #{item.reportId} · {item.rangeStart} – {item.rangeEnd}</option>)}</select></label>}
       {report ? <>

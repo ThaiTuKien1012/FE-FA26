@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, LayoutGrid, Loader2, Plus, RefreshCw, Rocket
 import { authService } from '../../../services/authService';
 import { f07f08Api, type ActiveLayout, type CampaignReport, type CampaignView, type LayoutPolicy, type LayoutProduct, type LayoutSnapshot, type LayoutView, type RecommendationOption } from '../f07f08.api';
 import { matchingReport, placementIds, sameIds } from '../f07.designer';
+import { simulationUnavailableReason } from '../f08.simulation';
 import { F07LayoutDesigner, LayoutStatus } from './F07LayoutDesigner';
 import { F08CampaignPanel } from './F08CampaignPanel';
 import './F07Workspace.css';
@@ -157,7 +158,9 @@ export function F07F08WorkspaceView() {
     });
   };
   const simulate = (rangeStart: string, rangeEnd: string) => {
-    if (!bundle || dirty) return;
+    if (!bundle) return;
+    const reason = simulationUnavailableReason({ campaign: bundle.campaign, a: bundle.a, b: bundle.b, merchant, busy: working, dirty });
+    if (reason) { setError(reason); return; }
     void run(async () => {
       const report = await f07f08Api.simulate(bundle.campaign.campaignId, { expectedCampaignVersion: bundle.campaign.version, expectedLayoutAVersion: bundle.a.version, expectedLayoutBVersion: bundle.b.version, rangeStart, rangeEnd });
       setBundle(current => current ? { ...current, reports: [report, ...current.reports] } : current);

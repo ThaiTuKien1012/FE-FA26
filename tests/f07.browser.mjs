@@ -116,6 +116,26 @@ try {
   await click('Publish campaign'); await until("document.body.innerText.includes('Campaign publish completed')");
   await capture('f08-campaign'); await click('F07 · Layout design');
   checks.push('offline simulation, matching report decision and publishing use current versions');
+  // Keep dates valid: empty date fields used to hide the missing campaign-state guard.
+  const fillSimulationDates = async () => evaluate("(()=>{for(const [label,value] of [['Evaluation start','2026-11-11'],['Evaluation end','2026-11-20']]){const input=document.querySelector('[aria-label=\"'+label+'\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));}})()");
+  for (const status of ['PUBLISHED', 'ACTIVE', 'ENDED']) {
+    campaign.status = status;
+    await go('/layouts-campaigns');
+    await until("Boolean(document.querySelector('[aria-label=\"Placed recommendation 101\"]'))");
+    await click('F08 · Campaign & simulation');
+    await fillSimulationDates();
+    await until("document.querySelector('[aria-label=\"Evaluation end\"]').value==='2026-11-20'");
+    assert.equal(await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Run offline simulation').disabled"), true, status + ' must disable simulation even with valid dates and READY layouts');
+    const simulationsBefore = calls.filter(item => item.path.endsWith('/simulations')).length;
+    await evaluate("document.querySelector('[aria-label=\"Evaluation start\"]').form.requestSubmit()");
+    await sleep(120);
+    assert.equal(calls.filter(item => item.path.endsWith('/simulations')).length, simulationsBefore, status + ' form submission must not send an API request');
+    assert.equal(await evaluate("Boolean(document.querySelector('[aria-label=\"Saved simulation reports\"]'))"), true, 'Historical reports remain readable');
+  }
+  checks.push('PUBLISHED, ACTIVE and ENDED block simulation with valid dates, including direct form submission; reports remain readable');
+  campaign.status = 'PUBLISHED';
+  await go('/layouts-campaigns');
+  await until("Boolean(document.querySelector('[aria-label=\"Placed recommendation 101\"]'))");
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await capture('f07-mobile'); assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+2'), false, 'No mobile page overflow');
   checks.push('read-only A and mobile layout');
