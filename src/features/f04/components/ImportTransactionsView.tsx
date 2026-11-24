@@ -139,6 +139,8 @@ function ImportTransactionsContent() {
   const resultStyle = presentation ? resultStyles[presentation.tone] : null;
   const ResultIcon = resultStyle?.Icon ?? Info;
   const showErrors = summary ? hasImportErrors(summary) : false;
+  const loadRowDetails = Boolean(summary && (showErrors || (summary.status === 'COMPLETED' && summary.acceptedOrderCount > 0)));
+  const showRowDetails = showErrors || (loadRowDetails && Boolean(errorsError || (errorPage?.totalElements ?? 0) > 0));
   const duplicateOnly = summary?.status === 'COMPLETED' && summary.acceptedOrderCount === 0 && summary.duplicateOrderCount > 0 && !showErrors;
   const quickMeaning = summary ? [
     { show: presentation?.tone === 'warning' && summary.acceptedOrderCount > 0, Icon: CheckCircle2, color: 'f04-quick--success', text: `${summary.acceptedOrderCount.toLocaleString()} new ${summary.acceptedOrderCount === 1 ? 'order' : 'orders'} saved` },
@@ -199,7 +201,7 @@ function ImportTransactionsContent() {
   };
 
   useEffect(() => {
-    if (summary && hasImportErrors(summary)) void loadErrors(summary.importBatchId, 0);
+    if (summary && loadRowDetails) void loadErrors(summary.importBatchId, 0);
     return () => { importRun.current++; errorsPending.current = false; };
   }, [summary]);
 
@@ -345,10 +347,10 @@ function ImportTransactionsContent() {
             <button type="button" onClick={reviewErrors} aria-controls="import-errors-section" className={`${secondaryButton} shrink-0`}><AlertTriangle aria-hidden="true" className="h-4 w-4" />Review errors</button>
           </div>}
 
-          {showErrors && (
+          {showRowDetails && (
             <div ref={errorsRef} id="import-errors-section" className="f04-errors scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-6">
-                <div><h3 ref={errorsHeadingRef} id="import-errors-heading" tabIndex={-1} className="flex items-center gap-2 rounded text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1e3a2f]"><AlertTriangle aria-hidden="true" className="h-4 w-4 text-orange-800" />Error Details</h3><p className="mt-1 text-xs leading-5 text-[#6d7974]">Rejected and conflicted file rows. Row numbers include the header.</p></div>
+                <div><h3 ref={errorsHeadingRef} id="import-errors-heading" tabIndex={-1} className="flex items-center gap-2 rounded text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1e3a2f]"><AlertTriangle aria-hidden="true" className="h-4 w-4 text-orange-800" />{showErrors ? 'Error Details' : 'Row warnings'}</h3><p className="mt-1 text-xs leading-5 text-[#6d7974]">Rejected or conflicted rows and warnings for rows that were imported. Row numbers include the header.</p></div>
                 <button type="button" disabled={errorsLoading} onClick={() => void loadErrors(summary.importBatchId, errorPage?.page ?? 0)} className={secondaryButton}>{errorsError ? 'Retry loading errors' : 'Refresh errors'}</button>
               </div>
               {errorsError && <div className="px-5 pb-4 sm:px-6"><ErrorNotice notice={errorsError} /></div>}
@@ -366,7 +368,7 @@ function ImportTransactionsContent() {
                           <tr key={row.rowNumber} className="border-b border-[#eee7df] last:border-b-0 hover:bg-[#fcfcfa]">
                             <td className="px-5 py-4 font-mono text-xs sm:pl-6">{row.rowNumber}</td>
                             <td className="max-w-52 break-words px-4 py-4 font-medium">{row.sourceOrderId || 'Not provided'}</td>
-                            <td className="px-4 py-4"><span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${row.status === 'REJECTED' ? 'f04-error-badge' : 'f04-warning-badge'}`}><AlertTriangle aria-hidden="true" className="h-3 w-3 shrink-0" />{row.status}</span></td>
+                            <td className="px-4 py-4"><span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${row.status === 'REJECTED' ? 'f04-error-badge' : 'f04-warning-badge'}`}><AlertTriangle aria-hidden="true" className="h-3 w-3 shrink-0" />{row.status === 'PROCESSED' ? 'Imported with warning' : row.status}</span></td>
                             <td className="min-w-64 max-w-xl whitespace-pre-wrap break-words px-4 py-4 text-[#575e58]">{formatErrorDetails(row.errorDetails)}</td>
                           </tr>
                         ))}

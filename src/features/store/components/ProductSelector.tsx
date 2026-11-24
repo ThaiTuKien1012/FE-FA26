@@ -1,12 +1,14 @@
+import { subscribeToProductDeletion } from '../f02.catalog-changes';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, Loader2, Search } from 'lucide-react';
 import { f02ErrorMessage, storeApi, type F02Product } from '../store.api';
 
-export function ProductSelector({ value, onSelect, disabled = false }: { value: F02Product | null; onSelect: (product: F02Product) => void; disabled?: boolean }) {
+export function ProductSelector({ value, onSelect, onClear, disabled = false }: { value: F02Product | null; onSelect: (product: F02Product) => void; onClear?: () => void; disabled?: boolean }) {
   const id = useId(), root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null);
   const version = useRef(0), pending = useRef(false), activeOption = useRef<HTMLLIElement>(null);
   const [open, setOpen] = useState(false), [query, setQuery] = useState(''), [rows, setRows] = useState<F02Product[]>([]);
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [nextPage, setNextPage] = useState(0), [hasMore, setHasMore] = useState(false), [active, setActive] = useState(-1);
+  const [revision, setRevision] = useState(0);
   const close = () => { ++version.current; pending.current = false; setOpen(false); setActive(-1); };
   const load = async (page: number, currentVersion: number) => {
     if (pending.current) return;
@@ -25,7 +27,13 @@ export function ProductSelector({ value, onSelect, disabled = false }: { value: 
     pending.current = false; setRows([]); setNextPage(0); setHasMore(false); setError(''); setLoading(true); setActive(-1);
     const timer = window.setTimeout(() => { void load(0, current); }, 300);
     return () => { window.clearTimeout(timer); ++version.current; pending.current = false; };
-  }, [open, query, disabled]);
+  }, [open, query, disabled, revision]);
+  useEffect(() => subscribeToProductDeletion(id => {
+    ++version.current; pending.current = false;
+    if (value?.id === id) onClear?.();
+    setRows(current => current.filter(row => row.id !== id));
+    setRevision(current => current + 1);
+  }), [value, onClear]);
   useEffect(() => { if (disabled) close(); }, [disabled]);
   useEffect(() => {
     const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) close(); };

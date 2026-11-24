@@ -9,19 +9,6 @@ export function storeDate(now = new Date(), timeZone = storeTimeZone): string {
   const part = (name: string) => parts.find(p => p.type === name)!.value;
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
-export const isExpired = (expiryDate: string | null | undefined, today = storeDate()) => Boolean(expiryDate && expiryDate <= today);
-export function isExpiringSoon(batch: F02Batch, today = storeDate()): boolean {
-  if (batch.status !== 'ACTIVE' || batch.remainingQuantity <= 0 || !batch.expiryDate || batch.expiryDate <= today) return false;
-  // Calendar arithmetic matches LocalDate.plusDays(7), including month/year and DST boundaries.
-  const through = new Date(`${today}T00:00:00Z`);
-  through.setUTCDate(through.getUTCDate() + 7);
-  return batch.expiryDate <= through.toISOString().slice(0, 10);
-}
-export function batchPushState(batch: F02Batch, today = storeDate(), requiresExpiry = true): 'reached' | 'missing' | null {
-  if (batch.status !== 'ACTIVE' || batch.remainingQuantity <= 0 || isExpired(batch.expiryDate, today)) return null;
-  if (!batch.pushDay) return requiresExpiry ? 'missing' : null;
-  return batch.pushDay <= today ? 'reached' : null;
-}
 export function localDateTime(date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;

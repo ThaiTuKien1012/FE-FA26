@@ -12,7 +12,7 @@ export interface SeasonRequest { name: string; startDate: string; endDate: strin
 export interface SeasonView extends SeasonRequest { seasonId: number; storeId: number; version: number; productCount: number; activeToday: boolean; createdBy: number; updatedBy: number; createdAt: string; updatedAt: string; }
 export interface Page<T> { items: T[]; page: number; pageSize: number; totalElements: number; }
 export type SeasonPage = Page<SeasonView>;
-export interface SeasonProduct { productId: number; sku: string; name: string; status: 'ACTIVE' | 'INACTIVE'; assignedBy: number; assignedAt: string; }
+export interface SeasonProduct { productId: number; sku: string; name: string; status: 'ACTIVE' | 'INACTIVE'; assignedBy: number; assignedAt: string; deleted: boolean; }
 export type SeasonProductPage = Page<SeasonProduct>;
 export interface SeasonCopy extends SeasonRequest { seasonId: number; version: number; productIds: number[]; }
 export interface RiskBatch { batchId: number; pushDay: string | null; expiryDate: string | null; remainingQuantity: number; daysToPush: number | null; expectedSoldQuantity: F03Decimal | null; riskQuantity: F03Decimal | null; eligible: boolean; warnings: string[]; }

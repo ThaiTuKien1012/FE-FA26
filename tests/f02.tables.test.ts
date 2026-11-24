@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { batchTableRows, categoryTableRows, emptyBatchFilters, emptyCategoryFilters, nextTableSort, sortTableRows, tablePage } from '../src/features/store/f02.tables';
+import { batchExpiryLabel, batchTableRows, categoryTableRows, emptyBatchFilters, emptyCategoryFilters, nextTableSort, sortTableRows, tablePage } from '../src/features/store/f02.tables';
 import type { F02Batch, F02Category } from '../src/features/store/store.api';
 
 const categories: F02Category[] = [
@@ -8,8 +8,8 @@ const categories: F02Category[] = [
   { id: 11, name: 'Ăn vặt', status: 'INACTIVE' }, { id: 1, name: 'Áo', status: 'ACTIVE' },
   { id: 20, name: 'Bánh', status: 'INACTIVE' }, { id: 9, name: 'Bánh', status: 'ACTIVE' }
 ];
-const batch: F02Batch = { id: 1, productId: 4, batchCode: 'BATCH-2', receivedAt: '2026-11-18T18:00:00Z', expiryDate: '2027-01-01', pushDay: '2026-12-25', initialQuantity: 100, remainingQuantity: 10, status: 'ACTIVE', createdAt: '2026-11-18T18:00:00Z', updatedAt: '2026-11-18T18:00:00Z' };
-const batches: F02Batch[] = [batch, { ...batch, id: 2, batchCode: 'BATCH-10', receivedAt: '2026-11-18T16:00:00Z', expiryDate: null, pushDay: null, remainingQuantity: 2, status: 'BLOCKED' }, { ...batch, id: 3, batchCode: 'BATCH-1', receivedAt: '2026-11-20T01:00:00Z', expiryDate: '2026-12-30', remainingQuantity: 100, initialQuantity: 200 }, { ...batch, id: 4, batchCode: 'BATCH-2' }];
+const batch: F02Batch = { id: 1, productId: 4, batchCode: 'BATCH-2', receivedAt: '2026-11-18T18:00:00Z', expiryDate: '2027-01-01', pushDay: '2026-12-25', initialQuantity: 100, remainingQuantity: 10, status: 'ACTIVE', effectiveStatus: 'ACTIVE', daysToExpiry: 10, warnings: [], createdAt: '2026-11-18T18:00:00Z', updatedAt: '2026-11-18T18:00:00Z' };
+const batches: F02Batch[] = [batch, { ...batch, id: 2, batchCode: 'BATCH-10', receivedAt: '2026-11-18T16:00:00Z', expiryDate: null, pushDay: null, remainingQuantity: 2, status: 'BLOCKED', effectiveStatus: 'BLOCKED' }, { ...batch, id: 3, batchCode: 'BATCH-1', receivedAt: '2026-11-20T01:00:00Z', expiryDate: '2026-12-30', remainingQuantity: 100, initialQuantity: 200 }, { ...batch, id: 4, batchCode: 'BATCH-2' }];
 const ids = (rows: Array<{ id: number }>) => rows.map(row => row.id);
 
 test('Category ID sort is numeric, both directions; data is not mutated', () => {
@@ -91,4 +91,17 @@ test('Batch filter/sort before pagination does not mutate inventory totals or or
 
 test('Null values and equal numeric/text values consistently tie-break by ID', () => {
   assert.deepEqual(ids(sortTableRows([{ id: 5 }, { id: 2 }], 'desc', () => null)), [2, 5]);
+});
+
+test('batch expiry label and Status filtering and sorting follow effective backend fields', () => {
+  assert.equal(batchExpiryLabel({ effectiveStatus: 'ACTIVE', daysToExpiry: 1 }), 'Expiring soon');
+  assert.equal(batchExpiryLabel({ effectiveStatus: 'ACTIVE', daysToExpiry: 0 }), 'Expiring soon');
+  assert.equal(batchExpiryLabel({ effectiveStatus: 'BLOCKED', daysToExpiry: 7 }), 'Expiring soon');
+  assert.equal(batchExpiryLabel({ effectiveStatus: 'ACTIVE', daysToExpiry: 8 }), null);
+  assert.equal(batchExpiryLabel({ effectiveStatus: 'ACTIVE', daysToExpiry: null }), null);
+  const expired: F02Batch = { ...batch, id: 5, status: 'BLOCKED', effectiveStatus: 'EXPIRED', daysToExpiry: -1 };
+  assert.equal(batchExpiryLabel(expired), 'Đã hết hạn');
+  const rows = [expired, batches[1], batch];
+  assert.deepEqual(ids(batchTableRows(rows, { ...emptyBatchFilters(), status: { choice: 'EXPIRED' } }, null)), [5]);
+  assert.deepEqual(ids(batchTableRows(rows, emptyBatchFilters(), { by: 'status', direction: 'asc' })), [1, 2, 5]);
 });
