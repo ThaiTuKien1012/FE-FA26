@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+import assert from './f06.assert';
 import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -19,8 +19,8 @@ test('W2 current eligibility accepts products without expiryPushDays and preserv
   assert.equal('expiryPushDays' in item.currentEligibility.products[0], false);
   assert.equal(item.currentEligibility.products[0].expiryPriorityScore, null);
   const html = renderToStaticMarkup(createElement(F06EligibilityCheck, { title: 'Current', check: item.currentEligibility }));
-  assert.match(html, /Expiry risk score.*N\/A/);
-  assert.match(html, /W2_EXPIRY_SEASON_V1/);
+  assert.match(html, /Expiry risk.*N\/A/);
+  assert.equal(html.includes('W2_EXPIRY_SEASON_V1'),false);assert.equal(item.currentEligibility.scoringVersion,'W2_EXPIRY_SEASON_V1');
   assert.doesNotMatch(html, /Reminder days|Historical reminder days/);
 });
 
@@ -32,7 +32,7 @@ test('mixed legacy creation/review evidence and W2 current checks retain separat
   const before = JSON.stringify(item);
   assert.equal(isRecView(item), true);
   const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item }));
-  for (const text of ['Legacy V1', 'Historical reminder days', 'Old check', 'W2 check', 'W2_EXPIRY_SEASON_V1']) assert.ok(html.includes(text));
+  for (const text of ['Saved reminder period', 'Old check', 'W2 check','Current availability']) assert.ok(html.includes(text));
   assert.equal(JSON.stringify(item), before);
   assert.equal(isRecView(recommendation({ generationEligibility: { ...legacy, scoringVersion: null } })), true);
 });
@@ -81,7 +81,7 @@ test('season warning displays backend names/dates without changing readiness or 
   const before = JSON.stringify(item);
   assert.equal(isRecView(item), true);
   const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item }));
-  for (const text of ['Season ended', 'Autumn sale', '31/10/2026', 'Backend frozen-season explanation', 'Approved and currently available']) assert.ok(html.includes(text));
+  for (const text of ['Historical season has ended','Autumn sale','31/10/2026','Ready for Layout']) assert.ok(html.includes(text));
   assert.equal(JSON.stringify(item), before);
   const list = renderToStaticMarkup(createElement(F06RecommendationTable, { data: { items: [item], page: 0, pageSize: 20, totalElements: 1, ordering: 'CREATED_DESC' }, onOpen: () => {} }));
   assert.equal(list.includes('Season ended'),false,'Season warning is shown in Details, not the compact summary');
@@ -127,6 +127,6 @@ for (const mode of ['LOSSLESS', 'WHOLE_UNIT_HALF_UP'] as const) test(`${mode} F0
   assert.deepEqual(Object.keys(generate.mock.calls[0].arguments[0]!).sort(), ['miningRunId', 'types']);
   runs.mock.mockImplementation(async () => [{ ...conversionRunFixture(mode, 'COMPLETED'), inputHash: 'different-frozen-input' }]);
   await workflow.selectRequest(17); workflow.selectRun(42); await workflow.generate();
-  assert.match(workflow.getSnapshot().runsError, /Mismatched mining source/);
+  assert.match(workflow.getSnapshot().runsError, /could not be verified/);
   assert.equal(generate.mock.callCount(), 1);
 });

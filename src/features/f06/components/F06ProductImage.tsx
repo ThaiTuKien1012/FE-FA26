@@ -33,6 +33,7 @@ export function F06ProductImage({ id, name, imageUrl }: { id:number;name:string;
   </div>;
 }
 
-export function F06ProductTiles({ ids, names={}, images={}, limit=4 }: { ids:number[];names?:Record<number,string>;images?:Record<number,string>;limit?:number }) {
-  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{ids.slice(0,limit).map(id=><figure key={id} className="min-w-0"><F06ProductImage id={id} name={names[id]??'Product #'+id} imageUrl={images[id]} /><figcaption className="mt-2 line-clamp-2 break-words text-xs font-medium leading-5 text-[#243B30]" title={names[id]??'Product #'+id}>{names[id]??'Product #'+id}</figcaption></figure>)}{ids.length>limit&&<p className="col-span-full text-xs text-[#6D7974]">+{ids.length-limit} products in Details</p>}</div>;
+export function F06ProductTiles({ ids, names={}, images={}, limit=4,retail=false }: { ids:number[];names?:Record<number,string>;images?:Record<number,string>;limit?:number;retail?:boolean }) {
+  const name=(id:number)=>names[id]??(retail?'Product name unavailable':'Product #'+id);
+  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{ids.slice(0,limit).map(id=><figure key={id} className="min-w-0"><F06ProductImage id={id} name={name(id)} imageUrl={images[id]} /><figcaption className="mt-2 line-clamp-2 break-words text-xs font-medium leading-5 text-[#243B30]" title={name(id)}>{name(id)}</figcaption></figure>)}{ids.length>limit&&<p className="col-span-full text-xs text-[#6D7974]">+{ids.length-limit} products in Details</p>}</div>;
 }

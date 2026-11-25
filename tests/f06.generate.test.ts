@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+import assert from './f06.assert';
 import { test, type TestContext } from 'node:test';
 import { setImmediate as flush } from 'node:timers/promises';
 import { createElement } from 'react';
@@ -82,8 +82,8 @@ test('Store Admin retains source/policy access but opens the recommendation list
   const html = renderToStaticMarkup(createElement(F06WorkspaceView));
   assert.ok(html.includes('View product suggestions, review decisions and current availability.'));
   assert.ok(html.includes('f06-dashboard-title')); assert.equal(html.includes('f06-generate-tab'), false);
-  assert.equal(html.includes('Store Rules'), true); assert.ok(html.includes('f06-filter-snapshot'));
-  assert.ok(html.includes('Recommendation filters')); assert.equal(html.includes('Generate recommendations'), false);
+  assert.equal(html.includes('Store Rules'), true); assert.equal(html.includes('f06-filter-snapshot'),false);
+  assert.ok(html.includes('Choose Analysis')); assert.equal(html.includes('Generate recommendations'), false);
 });
 test('empty request history and no completed runs get explicit empty states', async t => {
   const f = setup(t); f.requests.mock.mockImplementation(async () => page([]));
@@ -110,13 +110,13 @@ test('COMPLETED run under FAILED request/comparison remains selectable; statuses
   f.requests.mock.mockImplementation(async () => page([request])); f.detail.mock.mockImplementation(async () => request);
   await select(f.workflow); await f.workflow.generate();
   assert.equal(f.submit.mock.callCount(), 1);
-  assert.deepEqual(f.submit.mock.calls[0].arguments[0], { miningRunId: 42, types: ['BUNDLE'] });
+  assert.deepEqual(f.submit.mock.calls[0].arguments[0], { miningRunId: 42, types: ['BUNDLE','CROSS_SELL','FBT','BANNER'] });
   const html = renderToStaticMarkup(createElement(F06RunPicker, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
   assert.ok(html.includes('run status: COMPLETED'));assert.equal(html.includes('comparison status:'),false);
 });
 test('no selected types blocks submission; toggling never produces duplicates', async t => {
   const f = setup(t); await select(f.workflow);
-  f.workflow.toggleType('BUNDLE'); await f.workflow.generate();
+  for(const type of ['BUNDLE','CROSS_SELL','FBT','BANNER'] as const)f.workflow.toggleType(type); await f.workflow.generate();
   assert.equal(f.submit.mock.callCount(), 0); assert.match(f.workflow.getSnapshot().generationError, /at least one/);
   f.workflow.toggleType('FBT'); f.workflow.toggleType('FBT'); f.workflow.toggleType('FBT');
   f.workflow.toggleType('CROSS_SELL'); await f.workflow.generate();
@@ -158,7 +158,7 @@ test('409 retains backend detail and waits for a new manual action, without auto
   const f = setup(t); await select(f.workflow);
   f.submit.mock.mockImplementation(async () => { throw new F06ApiError(409, 'Frozen mining source is inconsistent or unavailable'); });
   await f.workflow.generate(); await flush();
-  assert.match(f.workflow.getSnapshot().generationError, /Frozen mining source.*409.*manually/);
+  assert.match(f.workflow.getSnapshot().generationError, /saved analysis cannot be used/);
   assert.equal(f.workflow.getSnapshot().result, null); assert.equal(f.workflow.getSnapshot().pending, false);
   assert.equal(f.submit.mock.callCount(), 1); assert.equal(f.runs.mock.callCount(), 1);
   await f.workflow.generate(); assert.equal(f.submit.mock.callCount(), 2);
@@ -167,7 +167,7 @@ for (const status of [400, 401, 403, 404, null]) test(`generate handles ${status
   const f = setup(t); await select(f.workflow);
   f.submit.mock.mockImplementation(async () => { throw new F06ApiError(status, 'Controlled failure'); });
   await f.workflow.generate();
-  assert.match(f.workflow.getSnapshot().generationError, /Controlled failure/);
+  assert.match(f.workflow.getSnapshot().generationError, /Check your selection|session has ended|permission|unavailable|could not be confirmed/);
   assert.equal(f.workflow.getSnapshot().result, null); assert.equal(f.submit.mock.callCount(), 1);
 });
 test('double submit and changing selection during an outstanding write cannot start another mutation', async t => {
@@ -176,7 +176,7 @@ test('double submit and changing selection during an outstanding write cannot st
   const first = f.workflow.generate(); const second = f.workflow.generate();
   assert.equal(f.workflow.getSnapshot().pending, true); assert.equal(f.submit.mock.callCount(), 1);
   f.workflow.toggleType('BANNER'); await f.workflow.refreshHistory(); await f.workflow.selectRequest(17);
-  assert.deepEqual(f.workflow.getSnapshot().types, ['BUNDLE']); assert.equal(f.requests.mock.callCount(), 1);
+  assert.deepEqual(f.workflow.getSnapshot().types, ['BUNDLE','CROSS_SELL','FBT','BANNER']); assert.equal(f.requests.mock.callCount(), 1);
   pending.resolve(generation); await Promise.all([first, second]); assert.equal(f.workflow.getSnapshot().pending, false);
 });
 test('request pagination and manual refresh use real F05 API and clear the previous source/result', async t => {
@@ -231,7 +231,7 @@ test('source/policy failures remain errors with manual refresh and never become 
   f.requests.mock.mockImplementation(async () => { throw new F05ApiError(404, 'Source unavailable'); });
   f.config.mock.mockImplementation(async () => { throw new F06ApiError(403, 'Policy unavailable'); });
   f.workflow.start(); await flush();
-  assert.equal(f.workflow.getSnapshot().history, null); assert.match(f.workflow.getSnapshot().historyError, /404/);
-  assert.equal(f.workflow.getSnapshot().policy, null); assert.match(f.workflow.getSnapshot().policyError, /403/);
+  assert.equal(f.workflow.getSnapshot().history, null); assert.match(f.workflow.getSnapshot().historyError, /unavailable/);
+  assert.equal(f.workflow.getSnapshot().policy, null); assert.match(f.workflow.getSnapshot().policyError, /permission/);
   assert.equal(f.submit.mock.callCount(), 0);
 });

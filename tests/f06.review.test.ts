@@ -1,15 +1,16 @@
-import assert from 'node:assert/strict';
+import assert from './f06.assert';
 import { test, type TestContext } from 'node:test';
 import { setImmediate as flush } from 'node:timers/promises';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { authService, type AuthUser } from '../src/services/authService';
 import { f06Api, F06ApiError } from '../src/features/f06/f06.api';
+import { f05Api } from '../src/features/f05/f05.api';
 import { RecommendationBrowser } from '../src/features/f06/f06.browse';
 import { F06ReviewForm } from '../src/features/f06/components/F06ReviewForm';
 import type { RecListParams, RecView } from '../src/features/f06/f06.types';
 import { recommendation, eligibility } from './f06.fixtures';
-import { user } from './f05.fixtures';
+import { user,runFixture,requestFixture } from './f05.fixtures';
 
 const reason = 'Reviewed historical evidence and current availability.';
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
@@ -20,6 +21,8 @@ function setup(t: TestContext, role: AuthUser['role'] = 'Merchandiser') {
   t.mock.method(authService, 'subscribe', (callback: () => void) => { changed = callback; return () => {}; });
   t.mock.method(authService, 'request', async () => Response.json({}));
   t.mock.method(globalThis, 'fetch', async () => { throw new Error('Live HTTP is not allowed'); });
+  t.mock.method(f05Api,'getRun',async()=>runFixture('COMPLETED'));t.mock.method(f05Api,'getRequest',async()=>requestFixture());
+  t.mock.method(f05Api,'listRequests',async()=>({items:[],page:0,pageSize:20,totalElements:0}));
   const list = t.mock.method(f06Api, 'list', async (params: RecListParams = {}) => ({ items: [recommendation({ rank: params.miningRunId ? 21 : null })], page: params.page ?? 0, pageSize: params.pageSize ?? 20, totalElements: 45, ordering: params.miningRunId ? 'RANKED_WITHIN_SOURCE_RUN' as const : 'CREATED_DESC' as const }));
   const get = t.mock.method(f06Api, 'get', async () => recommendation());
   const decision = (status: 'APPROVED' | 'REJECTED') => recommendation({ version: 2, reviewStatus: status, reviewedBy: 7, reviewedAt: '2026-11-10T00:00:00Z', reviewReason: reason,
@@ -68,6 +71,7 @@ test('double confirmation is fenced synchronously and pending review cannot clos
 });
 test('successful review refetches server ranking without replacing it with null detail rank or losing filters/page', async t => {
   const f = setup(t); await open(f.workflow);
+  await f.workflow.selectSource(42);
   await f.workflow.applyFilters({ type: 'BUNDLE', reviewStatus: 'PENDING_REVIEW', pageSize: 20 }); await f.workflow.setPage(1); await f.workflow.openDetail(62);
   f.workflow.prepareReview('approve', reason); await f.workflow.confirmReview();
   assert.equal(f.workflow.getSnapshot().page, 1); assert.equal(f.workflow.getSnapshot().filters.type, 'BUNDLE');
@@ -80,7 +84,7 @@ test('409 reloads changed version/inventory and requires a fresh human confirmat
   f.workflow.prepareReview('approve', reason); await f.workflow.confirmReview(); await flush();
   assert.equal(f.approve.mock.callCount(), 1); assert.equal(f.get.mock.callCount(), 2);
   assert.equal(f.workflow.getSnapshot().detail!.version, 2); assert.equal(f.workflow.getSnapshot().reviewConfirmation, null);
-  assert.match(f.workflow.getSnapshot().reviewError, /Inventory changed.*409/);
+  assert.match(f.workflow.getSnapshot().reviewError, /recommendation has changed/);
   f.workflow.prepareReview('approve', reason); assert.equal(f.workflow.getSnapshot().reviewConfirmation, null);
   f.workflow.prepareReview('reject', reason); assert.equal(f.workflow.getSnapshot().reviewConfirmation!.expectedVersion, 2);
 });
@@ -94,8 +98,8 @@ test('lost response is reconciled via GET without claiming failure or replaying 
   const f = setup(t); await open(f.workflow); f.approve.mock.mockImplementation(async () => { throw new F06ApiError(null, 'Response lost'); });
   f.get.mock.mockImplementation(async () => f.decision('APPROVED'));
   f.workflow.prepareReview('approve', reason); await f.workflow.confirmReview();
-  assert.equal(f.workflow.getSnapshot().detail!.reviewStatus, 'APPROVED'); assert.match(f.workflow.getSnapshot().reviewError, /not confirmed/);
-  assert.equal(f.approve.mock.callCount(), 1); assert.equal(f.workflow.getSnapshot().reviewNotice, '');
+  assert.equal(f.workflow.getSnapshot().detail!.reviewStatus, 'APPROVED'); assert.equal(f.workflow.getSnapshot().reviewError,'');assert.ok(f.workflow.getSnapshot().reviewNotice.includes('Recommendation approved'));
+  assert.equal(f.approve.mock.callCount(), 1); assert.equal(f.workflow.getSnapshot().reviewedId,62);
 });
 test('a failed reconciliation blocks another write until a manual detail read succeeds', async t => {
   const f = setup(t); await open(f.workflow); f.approve.mock.mockImplementation(async () => { throw new F06ApiError(null, 'Offline'); });

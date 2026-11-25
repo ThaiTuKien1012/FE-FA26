@@ -51,7 +51,7 @@ for(const mode of ['LOSSLESS','WHOLE_UNIT_HALF_UP'] as const)test(mode+' actual 
  const history=await f05Api.listRequests();assert.equal(String(history.items[0].snapshot.totalWeightedUtility),'12345678901.123456');
  const workflow=new RecommendationGeneration();t.after(workflow.stop);workflow.start();await new Promise(r=>setTimeout(r,20));
  await workflow.selectRequest(17);workflow.selectRun(42);await workflow.generate();
- assert.equal(workflow.getSnapshot().generationError,'');assert.deepEqual(writes,[{miningRunId:42,types:['BUNDLE']}]);
+ assert.equal(workflow.getSnapshot().generationError,'');assert.deepEqual(writes,[{miningRunId:42,types:['BUNDLE','CROSS_SELL','FBT','BANNER']}]);
  assert.equal(formatMiningNumber((await f05Api.getRun(42)).runtimeMillis),'9,007,199,254,740,993');
 });
 test('Request/History/Pattern/Progress preserve precise values and enforce errors/session fences without mining replay',async t=>{

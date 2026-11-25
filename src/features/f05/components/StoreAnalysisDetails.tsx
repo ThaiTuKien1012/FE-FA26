@@ -1,7 +1,9 @@
 import { storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { useEffect, useRef } from 'react';
 import { formatDateRange } from '../../../utils/dateTime';
-import { algorithmName, formatMiningNumber, miningButton, miningDate } from '../f05.display';
+import { algorithmName, formatMiningNumber, miningButton, miningPrimaryButton, miningDate } from '../f05.display';
+import { authService } from '../../../services/authService';
+import { openRunRecommendations } from '../../f06/f06.navigation';
 import { analysisFailure, analysisRoundingNote, friendlyAnalysisText } from '../f05.presentation';
 import type { MiningProgress } from '../f05.progress';
 import { MiningPatternsView } from './MiningPatternsView';
@@ -11,6 +13,8 @@ import { MiningStatusBadge } from './MiningStatusBadge';
 export function StoreAnalysisContent({ data, selectedRunId, onRun, onReadError }: { data: MiningProgress; selectedRunId: number | null; onRun: (id: number | null) => void; onReadError: (error: unknown) => void }) {
   const {request, runs, progress, runDetail} = data;
   const note = analysisRoundingNote(request);
+  const user=authService.getCurrentUser();
+  const canView=runDetail?.status==='COMPLETED'&&runDetail.runId===selectedRunId&&runDetail.requestId===request.requestId&&runDetail.snapshotId===request.snapshotId&&runs.some(run=>run.runId===runDetail.runId&&run.status==='COMPLETED')&&runDetail.storeId===user?.storeId&&request.storeId===user?.storeId&&(user?.role==='Merchandiser'||user?.role==='Store Admin');
   return <>
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="font-medium">Snapshot #{request.snapshotId}<span className="mt-1 block text-sm font-normal text-[#6D7974]">{formatDateRange(request.snapshot.rangeStart, request.snapshot.rangeEnd)}</span></p><MiningStatusBadge friendly kind="request" status={request.status} /></div>
     <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-xs text-[#6D7974]">Created At</dt><dd className="mt-1">{miningDate(request.createdAt, false)}</dd></div>{request.status==='COMPLETED'&&runs.length===1&&runs[0].status==='COMPLETED'&&runs[0].patternCount!==null&&<div><dt className="text-xs text-[#6D7974]">Product combinations found</dt><dd className="mt-1 font-semibold">{formatMiningNumber(runs[0].patternCount)}</dd></div>}</dl>
@@ -25,6 +29,7 @@ export function StoreAnalysisContent({ data, selectedRunId, onRun, onReadError }
       {run.status==='COMPLETED'&&<button type="button" data-analysis-run={run.runId} aria-expanded={selectedRunId===run.runId} className={miningButton+' mt-3'} onClick={()=>onRun(selectedRunId===run.runId?null:run.runId)}>{selectedRunId===run.runId?'Hide Results':'View Results'}</button>}
     </article>)}</div>}
     {runDetail && <MiningPatternsView compact showRoundingNote={false} key={runDetail.runId} run={runDetail} onReadError={onReadError} />}
+    {canView&&<div className="mt-5 flex justify-end border-t border-[#E7E2D8] pt-4"><button type="button" className={miningPrimaryButton} onClick={()=>openRunRecommendations(runDetail!.runId)}>View Recommendations</button></div>}
   </>;
 }
 

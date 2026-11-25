@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+import assert from './f06.assert';
 import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';

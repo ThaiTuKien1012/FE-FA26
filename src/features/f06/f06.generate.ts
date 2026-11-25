@@ -5,6 +5,8 @@ import type { Page, RequestView, RunView } from '../f05/f05.types';
 import { f06Api, F06ApiError } from './f06.api';
 import type { RecGenerationResult, RecPolicy, RecType } from './f06.types';
 import { REC_TYPES } from './f06.validation';
+import type { RecommendationSource } from './f06.source';
+import { recommendationError } from './f06.errors';
 
 export interface GenerationState {
   role: AuthUser['role'] | null;
@@ -33,19 +35,11 @@ const context = () => {
 const readable = (role: GenerationState['role']) => role === 'Merchandiser' || role === 'Store Admin';
 const initial = (): GenerationState => ({
   role: authService.getCurrentUser()?.role ?? null, page: 0, history: null, historyLoading: false, historyError: '',
-  request: null, runs: [], runsLoading: false, runsError: '', selectedRunId: null, types: ['BUNDLE'],
+  request: null, runs: [], runsLoading: false, runsError: '', selectedRunId: null, types: [...REC_TYPES],
   policy: null, policyLoading: false, policyError: '', pending: false, result: null, resultTypes: [], generationError: ''
 });
 
-export function generationErrorMessage(error: unknown): string {
-  if (!(error instanceof F06ApiError) && !(error instanceof F05ApiError)) return error instanceof Error ? error.message : 'The request could not be completed. Try again manually.';
-  const help: Record<number, string> = {
-    400: 'Check your selection.', 401: 'Please sign in again or complete session recovery.',
-    403: 'Your role or Store does not have access.', 404: 'This source is unavailable for your Store.',
-    409: 'Refresh the source and review your selection before trying again manually.'
-  };
-  return `${error.message}${error.status === null ? ' Check your connection. A submitted change may already have persisted.' : ` (HTTP ${error.status}) ${help[error.status] || ''}`}`.trim();
-}
+export function generationErrorMessage(error:unknown):string { return recommendationError(error,'generate'); }
 
 /** Owns one visible workflow, never a background job. All writes are explicit.
  * Separate abort controllers cancel superseded reads; context fences also drop
@@ -81,14 +75,19 @@ export class RecommendationGeneration {
     this.update({});
     if (readable(this.state.role) && authService.getToken()) { void this.refreshHistory(); void this.refreshPolicy(); }
   };
-  start = () => {
+  start = (source?: RecommendationSource) => {
     if (this.started) return;
     this.started = true;
     this.scope = context();
     this.unsubscribeAuth = authService.subscribe(this.syncContext);
     this.state = initial();
     this.update({});
-    if (readable(this.state.role) && authService.getToken()) { void this.refreshHistory(); void this.refreshPolicy(); }
+    if (readable(this.state.role) && authService.getToken()) {
+      if(source&&source.run.status==='COMPLETED'&&source.run.storeId===authService.getCurrentUser()?.storeId&&source.request.requestId===source.run.requestId&&source.request.storeId===source.run.storeId&&source.request.snapshotId===source.run.snapshotId&&sameMiningInput(source.request,source.run)) {
+        this.update({request:source.request,runs:[source.run],selectedRunId:this.state.role==='Merchandiser'?source.run.runId:null});
+      } else if(!source) void this.refreshHistory();
+      void this.refreshPolicy();
+    }
   };
   stop = () => {
     this.started = false;

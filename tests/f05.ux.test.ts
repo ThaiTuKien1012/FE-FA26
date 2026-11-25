@@ -76,12 +76,12 @@ test('F03 snapshot presentation can hide technical dumps without changing saved 
   const warnings=render(createElement(SnapshotWarnings,{snapshot:{...snapshot(),warnings:['MISSING_PUSH_DAY','MISSING_PUSH_DAY']},originals:false}));assert.ok(warnings.includes('Repeated 2 times'));assert.equal(warnings.includes('<pre'),false);
 });
 
-test('Merchandiser recommendation details collapse source references while retaining rules, availability and frozen evidence', () => {
+test('Merchandiser recommendation details hide source diagnostics while retaining availability and immutable frozen evidence', () => {
   const item=recommendation(),before=JSON.stringify(item);
   const html=render(createElement(F06RecommendationDetailContent,{item,technical:false}));
   assert.equal(/Technical stock reference|<pre/.test(html),false);
-  assert.match(html,/<details[^>]*><summary[^>]*>Technical source references/);
-  for(const label of ['Input hash','Matrix hash','SPMF threshold','Library version'])assert.ok(html.includes(label),label);
-  for(const label of ['Rules Applied','Current availability','Availability when created','Review History','Historical utility'])assert.ok(html.includes(label),label);
+  assert.doesNotMatch(html,/Technical source references|Input hash|Matrix hash|SPMF threshold|Library version/);
+  assert.match(html,/<details[^>]*><summary[^>]*>Additional analysis evidence/);
+  for(const label of ['Why this recommendation?','Current availability','Availability when created','Review history','Historical utility'])assert.ok(html.includes(label),label);
   assert.equal(JSON.stringify(item),before);
 });

@@ -1,22 +1,15 @@
 import type { ReactNode } from 'react';
 import type { Decimal, EligibilityStatus, RecPolicy, RecType, RecView } from '../f06.types';
-import { ExactRecommendationNumber, recommendationDecimalText } from '../f06.numbers';
+export { recommendationNumber, recommendationPercent } from '../f06.format';
+import { recommendationNumber, recommendationPercent } from '../f06.format';
 
 export const recommendationValue = (value: string | Decimal | null | undefined) => value == null ? 'N/A' : String(value);
 export const recommendationYesNo = (value: boolean) => value ? 'Yes' : 'No';
-export const recommendationNumber = (value: Decimal | null | undefined) => {
-  if (value == null) return 'N/A';
-  if (!(value instanceof ExactRecommendationNumber)) return value.toLocaleString('en-US', { maximumSignificantDigits: 21 });
-  const text = String(value);
-  if (/[eE]/.test(text)) return text;
-  const [whole, fraction] = text.split('.');
-  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (fraction === undefined ? '' : '.' + fraction);
-};
 const labels: Record<string, string> = {
   BUNDLE: 'Bundle', CROSS_SELL: 'Cross-sell', FBT: 'Frequently bought together', BANNER: 'Banner',
   APPROVED: 'Approved', REJECTED: 'Rejected', PENDING_REVIEW: 'Needs review',
-  ELIGIBLE: 'Available', INELIGIBLE: 'Unavailable', NEEDS_RECHECK: 'Needs checking',
-  AVAILABLE: 'Available', EVIDENCE_UNAVAILABLE: 'Shopping evidence unavailable', ZERO_ANCHOR_SUPPORT: 'No recorded purchases of the starting product',
+  ELIGIBLE: 'Available', INELIGIBLE: 'Currently unavailable', NEEDS_RECHECK: 'Needs recheck',
+  AVAILABLE: 'Available', EVIDENCE_UNAVAILABLE: 'Historical purchase data is unavailable', ZERO_ANCHOR_SUPPORT: 'No recorded purchases of the starting product',
   NOT_APPLICABLE: 'N/A', NO_SELLABLE_BATCH: 'No sellable stock', MISSING_METADATA: 'Missing expiry information', UNAVAILABLE: 'Unavailable',
   ACTIVE: 'Active', INACTIVE: 'Inactive', BLOCKED: 'Blocked', COMPLETED: 'Completed', FAILED: 'Failed',
   RUNNING: 'Running', PENDING: 'Pending', TIMED_OUT: 'Timed out', MATCH: 'Matched', NOT_REQUESTED: 'Not compared'
@@ -31,31 +24,19 @@ export const recommendationAvailability = (status: EligibilityStatus) => ({
  * recalculating eligibility. Rejected decisions are never called pending.
  */
 export function recommendationReadiness(item: Pick<RecView, 'readyForConsumption' | 'reviewStatus' | 'currentEligibility'>): string {
-  if (item.readyForConsumption) return 'Approved and currently available. Recheck availability at the time of use.';
+  if (item.readyForConsumption) return 'Ready for Layout. Availability will be checked again before use.';
   const availability = item.currentEligibility.status;
-  const review = item.reviewStatus === 'REJECTED' ? 'Rejected' : item.reviewStatus === 'APPROVED' ? 'Approved' : 'Awaiting approval';
-  if (availability === 'INELIGIBLE') return `${review}; current selling conditions are not met.`;
-  if (availability === 'NEEDS_RECHECK') return `${review}; product availability needs a recheck.`;
+  const review = item.reviewStatus === 'REJECTED' ? 'Rejected' : item.reviewStatus === 'APPROVED' ? 'Approved' : 'Needs review';
+  if (availability === 'INELIGIBLE') return `${review}. Currently unavailable for Layout.`;
+  if (availability === 'NEEDS_RECHECK') return `${review}. Product availability needs rechecking before Layout.`;
   if (item.reviewStatus === 'REJECTED') return 'Rejected; this suggestion is not approved for use.';
-  if (item.reviewStatus !== 'APPROVED') return 'Awaiting approval. Products are currently available.';
-  return 'Readiness could not be confirmed by the latest check. Refresh details before use.';
+  if (item.reviewStatus !== 'APPROVED') return 'Needs review. Products are currently available.';
+  return 'Approved, but not yet ready for Layout. Refresh availability before use.';
 }
 
 /** Display only: shift decimal digits without binary multiplication/rounding.
  * Never change the API value or use the percentage to re-evaluate a rule.
  */
-export function recommendationPercent(value: Decimal | null | undefined): string {
-  if (value == null || typeof value === 'number' && !Number.isFinite(value)) return 'N/A';
-  if (value instanceof ExactRecommendationNumber) return recommendationDecimalText(value.source, 2).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '') + '%';
-  const [, sign, whole, fraction = '', exponent = '0'] = String(value).match(/^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i)!;
-  const digits = whole + fraction;
-  const point = whole.length + Number(exponent) + 2;
-  const shifted = point <= 0 ? `0.${'0'.repeat(-point)}${digits}` : point >= digits.length
-    ? digits + '0'.repeat(point - digits.length) : `${digits.slice(0, point)}.${digits.slice(point)}`;
-  const [integer, decimal = ''] = shifted.split('.');
-  const tail = decimal.replace(/0+$/, '');
-  return `${sign}${integer.replace(/^0+(?=\d)/, '')}${tail ? `.${tail}` : ''}%`;
-}
 export function RecommendationBadge({ status }: { status: string }) {
   const color = status === 'APPROVED' || status === 'ELIGIBLE' ? 'bg-emerald-50 text-emerald-800' :
     status === 'REJECTED' || status === 'INELIGIBLE' ? 'bg-red-50 text-red-800' :

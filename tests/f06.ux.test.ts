@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+import assert from './f06.assert';
 import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -16,9 +16,9 @@ test('F06 landing prioritizes saved suggestions and limits Generate to Merchandi
   for(const role of ['Merchandiser','Store Admin'] as const){
     t.mock.method(authService,'getCurrentUser',()=>({...user,role,storeId:1}));
     const html=renderToStaticMarkup(createElement(F06WorkspaceView));
-    assert.ok(html.includes('Recommendation Library'));assert.ok(html.includes('Recommendation filters'));
-    assert.equal(html.includes('f06-generate-tab'),role==='Merchandiser');
-    assert.equal(/f06-source-title|f06-generate-form/.test(html),false);assert.ok(html.includes('role="tablist"'));
+    assert.ok(html.includes('Choose Analysis'));assert.ok(html.includes('f06-dashboard-title'));
+    assert.equal(html.includes('f06-generate-tab'),false);
+    assert.equal(/f06-source-title|f06-generate-form/.test(html),false);assert.equal(html.includes('role="tablist"'),false,'Choose an analysis before browsing types');
   }
 });
 test('F06 pager hides a single page and shows exact server page size with compact navigation',()=>{
@@ -33,11 +33,10 @@ test('F06 pager hides a single page and shows exact server page size with compac
 test('F06 details put review history before collapsed sources and retain references without raw dumps',()=>{
   const item=recommendation(),before=JSON.stringify(item);
   const html=renderToStaticMarkup(createElement(F06RecommendationDetailContent,{item,technical:false,names:{31:'Milk',32:'Bread'}}));
-  for(const label of ['Products','Why this was suggested','Availability','Review History','Source Details','Product references','Product #31','Shopping data snapshot','Rules Applied'])assert.ok(html.includes(label),label);
-  assert.ok(html.indexOf('Review History')<html.indexOf('>Source Details</summary>'));
+  for(const label of ['Products in this suggestion','Why this recommendation?','Current availability','Review history','Additional analysis evidence','Milk','Bread'])assert.ok(html.includes(label),label);
   assert.equal(/<pre|Technical stock reference/.test(html),false);
-  assert.match(html,/<details[^>]*><summary[^>]*>Technical source references/);
-  assert.ok(html.includes('Input hash'));assert.ok(html.includes('SPMF threshold'));
+  assert.match(html,/<details[^>]*><summary[^>]*>Additional analysis evidence/);
+  assert.equal(/Input hash|SPMF threshold|Fingerprint|Rule version|Product #31/.test(html),false);
   assert.equal(JSON.stringify(item),before);
 });
 test('F06 source picker keeps completed legacy results selectable without presenting debug or comparison codes',t=>{

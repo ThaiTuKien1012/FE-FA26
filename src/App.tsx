@@ -37,6 +37,7 @@ import { SalesTransactionsView } from './features/f04/components/SalesTransactio
 import { isSystemMiningScreen, resolveSystemScreen, systemMiningView, systemScreenUrl } from './features/f05/f05.navigation';
 import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
 import { F06WorkspaceView } from './features/f06/components/F06WorkspaceView';
+import { recommendationReturnPath } from './features/f06/f06.navigation';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
@@ -45,9 +46,14 @@ const StoreManagementView = lazy(() => import('./features/storeManagement/StoreM
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
+  const recommendationReturn=useRef(recommendationReturnPath(window.location.search));
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
     const screenFromUrl = typeof window !== 'undefined' ? getScreenFromPathname(window.location.pathname) : null;
-    if (screenFromUrl === 'login' && authService.getCurrentUser()) return authService.getCurrentUser()!.defaultScreen;
+    if (screenFromUrl === 'login' && authService.getCurrentUser()) {
+      const user=authService.getCurrentUser()!;
+      if(recommendationReturnPath(window.location.search)&&(user.role==='Merchandiser'||user.role==='Store Admin'))return 'f06-recommendations';
+      return user.defaultScreen;
+    }
     if (screenFromUrl) {
       return screenFromUrl;
     }
@@ -82,7 +88,9 @@ export default function App() {
 
   // Synchronize browser URL bar on load and handle back/forward browser buttons
   useEffect(() => {
-    syncBrowserUrl(currentScreen, true);
+    const returnTo=currentScreen==='f06-recommendations'&&window.location.pathname===getPathForScreen('login')?recommendationReturnPath(window.location.search):null;
+    if(returnTo){window.history.replaceState({screen:'f06-recommendations'},'',returnTo);window.dispatchEvent(new Event('popstate'));}
+    else syncBrowserUrl(currentScreen, true);
 
     const handlePopState = () => {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
@@ -100,7 +108,10 @@ export default function App() {
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
     if (!currentUser && !['login', 'register', 'activate', 'forgot-password'].includes(currentScreen)) {
+      const returnTo=currentScreen==='f06-recommendations'&&window.location.pathname===getPathForScreen('f06-recommendations')?window.location.pathname+window.location.search:null;
+      if(returnTo)recommendationReturn.current=returnTo;
       syncBrowserUrl('login', true);
+      if(returnTo)window.history.replaceState({screen:'login'},'',getPathForScreen('login')+'?'+new URLSearchParams({returnTo}));
       setCurrentScreen('login');
     }
   }, [currentScreen, currentUser, needsAdminSession]);
@@ -149,6 +160,12 @@ export default function App() {
 
   const handleLoginSuccess = (user: AuthUser, destinationScreen: ActiveNavScreen) => {
     setCurrentUser(user);
+    const returnTo=recommendationReturnPath(window.location.search)??recommendationReturn.current;
+    if(returnTo&&(user.role==='Merchandiser'||user.role==='Store Admin')){
+      // SessionBoundary may already have restored this route in the new App instance.
+      if(window.location.pathname===getPathForScreen('login'))window.history.replaceState({screen:'f06-recommendations'},'',returnTo);
+      setCurrentScreen('f06-recommendations');return;
+    }
     syncBrowserUrl(destinationScreen);
     setCurrentScreen(destinationScreen);
     window.scrollTo({ top: 0, behavior: 'smooth' });

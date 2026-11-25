@@ -10,6 +10,14 @@ const skippedReason: Record<string, string> = {
   SUPPORT_POLICY_NOT_MET: 'These products were not bought together often enough to meet the store’s rules.',
   CONFIDENCE_POLICY_NOT_MET: 'Shoppers buying the starting product did not buy this group often enough to meet the store’s rule.'
 };
+export function F06GenerationSummary({result}:{result:RecGenerationResult}) {
+  const reasons=[...new Set(result.skipped.map(item=>skippedReason[item.reason]||item.reason.replace(/_/g,' ').toLowerCase()))];
+  return <section aria-label="Generation summary" className="rounded-xl border border-[#CADACF] bg-[#EDF5F0] p-4 text-sm">
+    <p role="status" className="font-semibold">{result.createdCount} new {result.createdCount===1?'suggestion':'suggestions'} · {result.reusedCount} reused {result.reusedCount===1?'suggestion':'suggestions'}.</p>
+    <p className="mt-1 text-xs text-[#6D7974]">{result.recommendationIds.length?'Saved suggestions for this analysis are shown below. Reused suggestions keep their review decisions.':'No suggestions were created. Check the reasons below or select different types.'}</p>
+    {reasons.length>0&&<details className="mt-3"><summary className="cursor-pointer font-medium">Why some suggestions were skipped ({result.skipped.length})</summary><ul className="mt-2 list-disc space-y-1 pl-5">{reasons.map(reason=><li key={reason}>{reason}</li>)}</ul></details>}
+  </section>;
+}
 export function F06GenerationResult({ result, types, onViewRecommendations }: { result: RecGenerationResult; types: RecType[]; onViewRecommendations?: () => void }) {
   const references = <ul aria-label="Generated recommendation IDs" className="mt-3 flex max-h-48 flex-wrap gap-2 overflow-auto">{result.recommendationIds.map(id => <li key={id} className="max-w-full break-all rounded-lg border border-[#E7E2D8] px-3 py-2 text-sm">#{id}</li>)}</ul>;
   return <section aria-labelledby="f06-result-title" className="rounded-2xl border border-[#CADACF] bg-white p-5 shadow-sm sm:p-6">
