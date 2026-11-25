@@ -9,6 +9,10 @@ export interface F02Product {
   id: number; sku: string; name: string; unit: string; requiresExpiry: boolean;
   category: F02Category | null; sellingPrice: number; costPrice: number;
   status: F02Status; stockQuantity: number;
+  /** F09 display metadata (BE V29): absolute http(s) URL, max 2048; null when unset. */
+  imageUrl: string | null;
+  /** F09 display metadata (BE V29): max 2000; null when unset. */
+  description: string | null;
 }
 export type F02ProductRequest = Omit<F02Product, 'id' | 'sku' | 'category' | 'stockQuantity'> & { categoryId?: number | null; confirmSimilarName?: boolean };
 export interface F02ProductPage { content: F02Product[]; page: number; pageSize: number; totalElements: number; totalPages: number; }
@@ -57,8 +61,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 // Select only writable contract fields, even when the caller holds a response object.
-const productBody = ({ name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName }: F02ProductRequest) =>
-  JSON.stringify({ name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName });
+// PUT replaces the whole product, so imageUrl/description are always sent (null clears, a value keeps it).
+const productBody = ({ name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName, imageUrl, description }: F02ProductRequest) =>
+  JSON.stringify({ name, categoryId, unit, requiresExpiry, sellingPrice, costPrice, status, confirmSimilarName, imageUrl: imageUrl ?? null, description: description ?? null });
 
 export const storeApi = {
   listCategories: () => request<F02Category[]>('/api/categories'),
