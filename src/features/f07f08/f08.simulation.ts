@@ -1,4 +1,4 @@
-import type { CampaignView, LayoutView } from './f07f08.api';
+import type { CampaignReport, CampaignView, LayoutView } from './f07f08.api';
 
 interface SimulationState {
   campaign: Pick<CampaignView, 'status'>;
@@ -23,8 +23,22 @@ export function simulationUnavailableReason({ campaign, a, b, merchant, busy, di
   return null;
 }
 
-/** priorityCoverage is decided (DEC-20261117-02) but not computed by the Backend yet, so it arrives as null. */
+/** Historical or unavailable coverage stays distinct from numeric zero. */
 export function formatPriorityCoverage(value: number | null | undefined): string {
   if (value == null) return 'chưa có';
   return new Intl.NumberFormat('en-GB', { style: 'percent', maximumFractionDigits: 2 }).format(value);
+}
+
+export function comparisonLabel(report: Pick<CampaignReport, 'algorithmVersion' | 'assumptions'>): string {
+  if (report.algorithmVersion === 'OFFLINE_REPLAY_V1') return 'Historical comparison: baseline A was measured in full.';
+  const { comparisonMode, nExceedsBaseline, comparedProductCountN, baselineProductsCompared } = report.assumptions;
+  if (comparisonMode !== 'EQUAL_SIZE_TOP_N_OF_A' && !/^OFFLINE_REPLAY_V[234]$/.test(report.algorithmVersion)) {
+    return 'Comparison mode is unavailable.';
+  }
+  if (nExceedsBaseline === true) {
+    const counts = typeof baselineProductsCompared === 'number' && typeof comparedProductCountN === 'number'
+      ? ` (A: ${baselineProductsCompared} products, B: ${comparedProductCountN} products)` : '';
+    return `All of baseline A was used because B contains more products${counts}.`;
+  }
+  return 'Equal-size comparison: B versus the first N products of A.';
 }
