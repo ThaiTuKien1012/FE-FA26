@@ -1,72 +1,33 @@
-import React from 'react';
-import { ArrowUpRight, Heart, Package, ShoppingCart } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowUpRight, Loader2, Package, Store } from 'lucide-react';
+import { publicImageUrl } from '../customer.api';
 import type { CustomerDisplayProduct } from '../customer.types';
-import { formatCustomerPrice as money } from '../data/customerCatalog';
 import { unitLabel } from '../data/customerLocale';
+import { APP_BRAND } from '../../../app/branding';
 
-export type { CustomerDisplayProduct } from '../customer.types';
 export const containerClass = 'mx-auto w-[calc(100%_-_80px)] max-w-[1280px] max-[1100px]:w-[calc(100%_-_56px)] max-[800px]:w-[calc(100%_-_40px)] max-[580px]:w-[calc(100%_-_32px)]';
+export const formatCustomerPrice = (price: number) => `${new Intl.NumberFormat('vi-VN').format(price)} ₫`;
+export const customerButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-[#088178] px-5 py-2 text-sm font-medium text-white hover:bg-[#06685f] disabled:cursor-default disabled:opacity-40';
 
-type PillButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { compact?: boolean; fullWidth?: boolean };
-export function PillButton({ children, compact = false, fullWidth = false, className = '', ...props }: PillButtonProps) {
-  return (
-    <button {...props} className={`fm-pill-button inline-flex items-center whitespace-nowrap rounded-full border-0 bg-[#088178] font-medium text-white hover:bg-[#06685f] ${fullWidth ? 'w-full justify-between' : 'justify-center'} ${compact ? 'min-h-[29px] gap-[15px] py-1 pr-[5px] pl-3 text-[9px] max-[580px]:min-h-6 max-[580px]:gap-2 max-[580px]:py-[3px] max-[580px]:pr-1 max-[580px]:pl-[9px] max-[580px]:text-[7px]' : 'min-h-9 gap-[18px] py-[6px] pr-[7px] pl-[17px] text-[10px] max-[580px]:min-h-[30px] max-[580px]:gap-[13px] max-[580px]:py-1 max-[580px]:pr-[5px] max-[580px]:pl-3 max-[580px]:text-[8px]'} ${className}`}>
-      {children}
-      <span className={`flex shrink-0 items-center justify-center rounded-full bg-white text-[#088178] ${compact ? 'size-[21px] max-[580px]:size-[18px]' : 'size-[25px] max-[580px]:size-[22px]'}`}><ArrowUpRight size={16} /></span>
+export function ProductImage({ product, className = '' }: { product: CustomerDisplayProduct; className?: string }) {
+  const url = publicImageUrl(product.imageUrl);
+  const [failedUrl, setFailedUrl] = useState<string>();
+  return url && url !== failedUrl ? <img src={url} alt={product.name} loading="lazy" className={`object-contain ${className}`} onError={() => setFailedUrl(url)} /> : <div className={`grid place-items-center text-[#8fa99c] ${className}`} role="img" aria-label="Chưa có ảnh sản phẩm"><Package size={48} strokeWidth={1.2} /></div>;
+}
+export function ProductCard({ product, onOpen }: { product: CustomerDisplayProduct; onOpen: () => void }) {
+  return <article className="fm-product min-w-0 rounded-2xl border border-[#e8eeea] bg-white p-2 text-[#212529]">
+    <button onClick={onOpen} aria-label={`Xem ${product.name}`} className="group block w-full text-left">
+      <div className="fm-product-picture flex h-48 items-center justify-center rounded-xl bg-[#f5f8f5] p-5 max-[580px]:h-36"><ProductImage product={product} className="size-full transition-transform group-hover:scale-105" /></div>
+      <div className="px-2 py-3"><p className="text-xs text-[#6c8578]">{product.category?.name || 'Chưa phân loại'}</p><h3 className="mt-2 min-h-10 text-sm font-semibold leading-5">{product.name}</h3><p className="mt-3 flex flex-wrap items-baseline gap-1"><strong className="text-base text-[#176a55]">{formatCustomerPrice(product.sellingPrice)}</strong><span className="text-xs text-[#7c8e84]">/ {unitLabel(product.unit)}</span></p>
+      <p className={`mt-2 text-xs ${product.availability === 'AVAILABLE' ? 'text-[#088178]' : 'text-[#96664d]'}`}>{product.availability === 'AVAILABLE' ? 'Có hàng' : 'Tạm hết hàng'}</p><span className="mt-4 flex items-center gap-2 text-xs font-medium text-[#088178]">Xem chi tiết<ArrowUpRight size={14} /></span></div>
     </button>
-  );
+  </article>;
 }
-
-export function SectionHeading({ id, title, children }: { id?: string; title: string; children?: React.ReactNode }) {
-  return (
-    <div className="fm-section-heading mb-[22px] flex items-center justify-between gap-[18px] max-[580px]:mb-[17px] max-[580px]:gap-[10px]">
-      <h2 id={id} className="m-0 text-[29px] leading-[1.25] font-[650] tracking-[-1.1px] max-[800px]:text-[26px] max-[580px]:text-[23px] max-[580px]:tracking-[-0.9px]">{title}</h2>
-      {children}
-    </div>
-  );
+export function PublicState({ loading, error, empty, onRetry }: { loading?: boolean; error?: string; empty?: string; onRetry?: () => void }) {
+  return <div className="my-4 flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-[#e0eae4] bg-[#f6faf7] p-6 text-center text-sm text-[#567365]" role={error ? 'alert' : 'status'}>
+    {loading ? <><Loader2 size={24} className="animate-spin" />Đang tải…</> : <><Store size={24} /><p>{error || empty}</p>{error && onRetry && <button className={customerButton} onClick={onRetry}>Thử lại</button>}</>}
+  </div>;
 }
-
-export function AddToCartButton({ onClick, quantity = 0 }: { onClick: () => void; quantity?: number }) {
-  return (
-    <button className="fm-add-cart flex min-h-8 w-full items-center justify-center gap-[7px] rounded-full border-0 bg-[#088178] px-[10px] py-2 text-[10px] text-white hover:bg-[#06685f] max-[800px]:gap-[5px] max-[800px]:p-[7px] max-[800px]:text-[9px] max-[580px]:min-h-[29px] max-[580px]:p-[6px]" onClick={onClick}>
-      <ShoppingCart size={14} />Thêm vào giỏ
-      {quantity > 0 && <span className="fm-in-cart grid size-4 min-w-4 place-items-center rounded-full bg-white/20 text-[8px]">{quantity}</span>}
-    </button>
-  );
-}
-
-export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, storeLabel }: {
-  product: CustomerDisplayProduct; saved: boolean; quantity: number;
-  onSave: () => void; onOpen: () => void; onAdd: () => void; storeLabel?: string;
-}) {
-  return (
-    <article className="fm-product min-w-0 cursor-pointer rounded-[15px] border border-white bg-white p-1 text-[#212529] max-[580px]:rounded-xl max-[580px]:p-[3px]" onClick={event => {
-      if (!(event.target instanceof Element) || !event.target.closest('button')) onOpen();
-    }}>
-      <div className="fm-product-picture relative h-[220px] overflow-hidden rounded-xl bg-[#f5f5f5] max-[1100px]:h-[195px] max-[800px]:h-40 max-[580px]:h-[170px] max-[580px]:rounded-[9px] max-[360px]:h-[150px]">
-        {product.discountPercent && product.discountPercent > 0 && <span className="absolute top-2 left-2 z-1 rounded-full bg-[#e85d4a] px-2 py-1 text-[8px] font-bold text-white max-[580px]:top-[6px] max-[580px]:left-[6px] max-[580px]:px-1.5 max-[580px]:py-0.5 max-[580px]:text-[7px]">-{product.discountPercent}%</span>}
-        <button className={`fm-favorite absolute top-2 right-2 z-1 grid size-7 place-items-center rounded-full border border-[#dfe4e1] hover:bg-[#fff2ef] hover:text-[#c6564b] max-[580px]:top-[6px] max-[580px]:right-[6px] max-[580px]:size-[25px] ${saved ? 'bg-[#fff2ef] text-[#c6564b]' : 'bg-[#f9faf8] text-[#78837d]'}`} aria-label={`${saved ? 'Bỏ lưu' : 'Lưu'} ${product.name}`} aria-pressed={saved} onClick={onSave}>
-          <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
-        </button>
-        <button className="fm-picture-button group flex size-full items-center justify-center border-0 bg-transparent p-[23px] max-[1100px]:p-[18px] max-[800px]:px-[10px] max-[580px]:px-3 max-[580px]:pt-[22px] max-[580px]:pb-3" onClick={onOpen} aria-label={`Xem ${product.name}`}>
-          {product.image ? <img className="size-full object-contain drop-shadow-[0_5px_3px_#152c1c0c] transition-transform duration-250 group-hover:scale-[1.06]" src={product.image} alt={product.name} loading="lazy" /> : <Package className="size-16 text-[#9daea5]" aria-label="Product image unavailable" />}
-        </button>
-      </div>
-      <div className="fm-product-copy px-2 pt-[11px] pb-[6px] max-[800px]:px-[5px] max-[800px]:pt-[10px] max-[800px]:pb-[5px] max-[580px]:pt-[9px]">
-        <div className="fm-product-brand flex items-center justify-between gap-[7px] text-[9px] text-[#088178] max-[800px]:text-[8px]">
-          {product.brand || product.category}<span className="text-[8px] text-[#a0a7a4] max-[580px]:text-[6px]">{unitLabel(product.unit || 'item')}</span>
-        </div>
-        {storeLabel && <div className="mt-1 truncate text-[8px] text-[#7b8f84] max-[580px]:text-[7px]">Bán tại {storeLabel}</div>}
-        <h3 className="mt-[7px] mb-2 text-xs leading-normal font-semibold max-[1100px]:min-h-[33px] max-[1100px]:text-[11px] max-[800px]:min-h-[30px] max-[800px]:text-[10px] max-[580px]:min-h-[33px] max-[580px]:text-[11px]">
-          <button className="border-0 bg-transparent p-0 text-left hover:text-[#088178]" onClick={onOpen}>{product.name}</button>
-        </h3>
-        <div className="fm-product-price mb-[11px] flex flex-wrap items-baseline gap-x-1 gap-y-0.5 max-[580px]:mb-[9px]">
-          <strong className="text-[15px] font-bold max-[1100px]:text-sm max-[800px]:text-xs max-[580px]:text-[13px]">{money(product.priceVnd)}</strong>
-          {product.originalPriceVnd && product.originalPriceVnd > product.priceVnd && <del className="text-[9px] text-[#a0a7a4] max-[800px]:text-[8px]">{money(product.originalPriceVnd)}</del>}
-          <span className="text-[9px] text-[#8e9692] max-[800px]:text-[8px]">/ {unitLabel(product.unit || 'item')}</span>
-        </div>
-        <AddToCartButton onClick={onAdd} quantity={quantity} />
-      </div>
-    </article>
-  );
+export function CustomerFooter() {
+  return <footer className="mt-12 bg-[#032724] py-8 text-[#b8d0c4]"><div className={`${containerClass} flex flex-wrap justify-between gap-3`}><strong className="text-xl text-white">{APP_BRAND.name}</strong><p className="text-sm">Khám phá cửa hàng và sản phẩm.</p></div></footer>;
 }

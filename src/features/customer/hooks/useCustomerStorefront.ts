@@ -1,107 +1,68 @@
-import { useEffect, useRef, useState } from 'react';
-import { APP_BRAND } from '../../../app/branding';
-import type { CustomerDisplayProduct, ProductItem } from '../customer.types';
-import { CUSTOMER_STORES, getCustomerStoreId, rememberCustomerStore } from '../data/customerStores';
-import { getCustomerProducts } from '../data/customerCatalog';
-import { categoryLabel, normalizeCustomerSearch } from '../data/customerLocale';
-import { useCustomerShopping } from './useCustomerShopping';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { customerApi, storefrontError } from '../customer.api';
+import type { PublicCategory } from '../customer.types';
+import { getCustomerStoreId, rememberCustomerStore, storeSlugFromPath, storefrontPath } from '../data/customerStores';
 
-type SortOrder = 'featured' | 'price-asc' | 'price-desc' | 'name';
-type DemoReceipt = {
-  id: string;
-  storeName: string;
-  items: { product: CustomerDisplayProduct; quantity: number }[];
-  total: number;
-};
-
-export function useCustomerStorefront(productsByStore?: Record<string, ProductItem[]>) {
-  const { storeCarts, saved, changeQuantity, clearCart, toggleSaved } = useCustomerShopping();
-  const [selectedStoreId, setSelectedStoreId] = useState(getCustomerStoreId);
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('All Products');
-  const [brand, setBrand] = useState('All Products');
-  const [savedOnly, setSavedOnly] = useState(false);
-  const [sort, setSort] = useState<SortOrder>('featured');
-  const [selectedProduct, setSelectedProduct] = useState<CustomerDisplayProduct | null>(null);
-  const [dialogMode, setDialogMode] = useState<'product' | 'cart'>('product');
-  const [receipt, setReceipt] = useState<DemoReceipt | null>(null);
-  const [notice, setNotice] = useState('');
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const receiptRef = useRef<HTMLDialogElement>(null);
-  const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  const selectedStore = CUSTOMER_STORES.find(store => store.id === selectedStoreId) || CUSTOMER_STORES[0];
-  const storeProducts: CustomerDisplayProduct[] = productsByStore?.[selectedStore.id] ?? getCustomerProducts(selectedStore.id);
-  const categories = ['All Products', ...new Set(storeProducts.map(product => product.category))];
-  const brands = [...new Set(storeProducts.map(product => product.brand || product.category))];
-  const cart = storeCarts[selectedStore.id] || {};
-  const cartProducts = storeProducts.filter(product => cart[product.id] > 0);
-  const cartCount = cartProducts.reduce((sum, product) => sum + cart[product.id], 0);
-  const cartTotal = cartProducts.reduce((sum, product) => sum + product.priceVnd * cart[product.id], 0);
-  const search = normalizeCustomerSearch(query.trim());
-  const filteredProducts = storeProducts.filter(product =>
-    (category === 'All Products' || category === product.category) &&
-    (brand === 'All Products' || brand === (product.brand || product.category)) &&
-    (!savedOnly || saved.includes(product.id)) &&
-    normalizeCustomerSearch(`${product.name} ${product.sku} ${product.brand || ''} ${product.category} ${categoryLabel(product.category)}`).includes(search),
-  ).sort((a, b) => sort === 'price-asc' ? a.priceVnd - b.priceVnd
-    : sort === 'price-desc' ? b.priceVnd - a.priceVnd
-      : sort === 'name' ? a.name.localeCompare(b.name) : 0);
-  const hasFilters = Boolean(query || savedOnly || category !== 'All Products' || brand !== 'All Products');
-  const bundles = [storeProducts.slice(0, 2), storeProducts.slice(2, 4)].filter(items => items.length === 2);
-
+/** Keying each result prevents old Store/search data from flashing during a new request. */
+export function usePublicRead<T>(key: string, load: (signal: AbortSignal) => Promise<T>) {
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<{ key: string; data?: T; error: string; loading: boolean }>({ key: '', error: '', loading: false });
   useEffect(() => {
-    const previousTitle = document.title;
-    document.title = `${APP_BRAND.name} | Cửa hàng`;
-    return () => { document.title = previousTitle; clearTimeout(noticeTimer.current); };
+    if (!key) return;
+    const controller = new AbortController();
+    setState({ key, loading: true, error: '' });
+    void Promise.resolve().then(() => load(controller.signal)).then(data => {
+      if (!controller.signal.aborted) setState({ key, data, loading: false, error: '' });
+    }).catch(error => {
+      if (!controller.signal.aborted) setState({ key, loading: false, error: storefrontError(error) });
+    });
+    return () => controller.abort();
+  }, [key, load, attempt]);
+  return { data: key && state.key === key ? state.data : undefined, error: key && state.key === key ? state.error : '', loading: Boolean(key) && (key !== state.key || state.loading), retry: () => setAttempt(value => value + 1) };
+}
+
+export function useCustomerStorefront() {
+  const stores = usePublicRead('stores', customerApi.stores);
+  const [selectedSlug, setSelectedSlug] = useState(getCustomerStoreId);
+  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [sort, setSort] = useState('name');
+  const [page, setPage] = useState(0);
+  const slug = selectedSlug || stores.data?.[0]?.storeSlug || '';
+  const loadHome = useCallback((signal: AbortSignal) => customerApi.home(slug, signal), [slug]);
+  const home = usePublicRead(slug, loadHome);
+  const sortBy = sort === 'name' ? 'name' : 'sellingPrice';
+  const sortDirection = sort === 'price-desc' ? 'desc' : 'asc';
+  const productKey = slug ? JSON.stringify([slug, search, categoryId, sort, page]) : '';
+  const loadProducts = useCallback((signal: AbortSignal) => customerApi.products(slug, { search, categoryId: categoryId ? Number(categoryId) : undefined, sortBy, sortDirection, page, pageSize: 20 }, signal), [slug, search, categoryId, sortBy, sortDirection, page]);
+  const products = usePublicRead(productKey, loadProducts);
+
+  useEffect(() => { const timer = setTimeout(() => { setSearch(query); setPage(0); }, 300); return () => clearTimeout(timer); }, [query]);
+  useEffect(() => { if (slug) rememberCustomerStore(slug); }, [slug]);
+  useEffect(() => {
+    const onPop = () => { setSelectedSlug(getCustomerStoreId()); setQuery(''); setSearch(''); setCategoryId(''); setPage(0); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
-
-  const scrollTo = (id = 'shop-products') => document.getElementById(id === 'fm-products' ? 'shop-products' : id)?.scrollIntoView({
-    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start',
-  });
-  const resetFilters = () => { setQuery(''); setCategory('All Products'); setBrand('All Products'); setSavedOnly(false); };
-  const chooseStore = (storeId: string) => {
-    if (!CUSTOMER_STORES.some(store => store.id === storeId)) return;
-    setSelectedStoreId(storeId);
-    rememberCustomerStore(storeId);
-    resetFilters();
-    setSort('featured');
-    setNotice('');
+  const categories = useMemo(() => {
+    const items = new Map<number, PublicCategory>();
+    for (const category of home.data?.catalog ?? []) if (category.categoryId !== null) items.set(category.categoryId, { categoryId: category.categoryId, name: category.name });
+    const rows = [...(products.data?.items ?? []), ...(home.data?.zones.flatMap(zone => zone.placements.flatMap(placement => placement.products)) ?? [])];
+    for (const product of rows) if (product.category) items.set(product.category.categoryId, product.category);
+    return [...items.values()];
+  }, [home.data, products.data]);
+  const chooseStore = (next: string) => {
+    if (!stores.data?.some(store => store.storeSlug === next)) return;
+    rememberCustomerStore(next); setSelectedSlug(next); setQuery(''); setSearch(''); setCategoryId(''); setSort('name'); setPage(0);
+    if (storeSlugFromPath(window.location.pathname)) {
+      window.history.pushState({ screen: 'customer-storefront' }, '', storefrontPath(next));
+      window.dispatchEvent(new Event('popstate'));
+    }
   };
-  const toggleSavedOnly = () => {
-    const next = !savedOnly;
-    resetFilters();
-    setSavedOnly(next);
-    scrollTo();
-  };
-  const addToCart = (product: CustomerDisplayProduct) => {
-    if (!storeProducts.some(item => item.id === product.id)) return;
-    changeQuantity(selectedStore.id, product.id, 1);
-    setNotice(`Đã thêm ${product.name} vào giỏ của ${selectedStore.name}`);
-    clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => setNotice(''), 3000);
-  };
-  const updateQuantity = (id: string, difference: number) => {
-    if (storeProducts.some(product => product.id === id)) changeQuantity(selectedStore.id, id, difference);
-  };
-  const openProduct = (product: CustomerDisplayProduct) => {
-    setSelectedProduct(product); setDialogMode('product'); dialogRef.current?.showModal();
-  };
-  const openCart = () => { setDialogMode('cart'); dialogRef.current?.showModal(); };
-  const closeDialog = () => dialogRef.current?.close();
-  const completeDemoOrder = () => {
-    if (!cartProducts.length) return;
-    setReceipt({ id: `DEMO-${Date.now().toString(36).toUpperCase()}`, storeName: selectedStore.name,
-      items: cartProducts.map(product => ({ product, quantity: cart[product.id] })), total: cartTotal });
-    clearCart(selectedStore.id);
-    closeDialog();
-    receiptRef.current?.showModal();
-  };
-
-  return { selectedStore, storeProducts, categories, brands, bundles,
-    query, setQuery, category, setCategory, brand, setBrand, saved, savedOnly,
-    sort, setSort, filteredProducts, hasFilters, resetFilters, chooseStore, toggleSavedOnly,
-    cart, cartProducts, cartCount, cartTotal, addToCart, updateQuantity, toggleSaved,
-    selectedProduct, dialogMode, dialogRef, openProduct, openCart, closeDialog,
-    receipt, receiptRef, completeDemoOrder, notice, setNotice, scrollTo };
+  const visibleProducts = query === search ? products : { ...products, data: undefined, error: '', loading: true };
+  return { stores, slug, selectedStore: stores.data?.find(store => store.storeSlug === slug) ?? home.data?.store, home, products: visibleProducts, categories,
+    query, setQuery, categoryId, setCategoryId: (value: string) => { setCategoryId(value); setPage(0); },
+    sort, setSort: (value: string) => { setSort(value); setPage(0); }, page, setPage, chooseStore,
+    resetFilters: () => { setQuery(''); setSearch(''); setCategoryId(''); setSort('name'); setPage(0); } };
 }

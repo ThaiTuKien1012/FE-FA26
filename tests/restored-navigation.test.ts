@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { getCustomerProductId, getPathForScreen, getScreenFromPathname } from '../src/utils/navigationRouter';
 import { ROLE_PERMISSIONS } from '../src/services/authService';
-import { CUSTOMER_PRODUCTS } from '../src/features/customer/data/customerCatalog';
-import { CUSTOMER_STORES } from '../src/features/customer/data/customerStores';
+import { productPath, storeSlugFromPath } from '../src/features/customer/data/customerStores';
 
 test('restored routes coexist with live F03–F08 routes and decode product deep links', () => {
   for (const screen of ['customer-home', 'customer-storefront', 'customer-product', 'f03-seasons', 'f04-import-transactions', 'f05-mining', 'f06-recommendations', 'f07-f08-workspace'] as const) {
@@ -25,15 +22,11 @@ test('old Store Layout links open F07 and campaigns retain both staff roles', ()
   for (const screen of ['customer-home', 'customer-product', 'customer-storefront'] as const) assert.ok(ROLE_PERMISSIONS['End-Customer'].allowedScreens.includes(screen));
 });
 
-test('customer demo catalog references existing stores and committed local images', () => {
-  const ids = new Set<string>();
-  for (const product of CUSTOMER_PRODUCTS) {
-    assert.ok(!ids.has(product.id));
-    ids.add(product.id);
-    assert.ok(CUSTOMER_STORES.some(store => store.id === product.storeId));
-    for (const value of Object.values(product)) {
-      if (typeof value === 'string' && /^\/(images|products)\//.test(value)) assert.ok(existsSync(join(process.cwd(), 'public', value)), value);
-    }
-  }
-  for (const store of CUSTOMER_STORES) assert.ok(existsSync(join(process.cwd(), 'public', store.logo)), store.logo);
+test('F09 product links retain the public Store slug across direct links and reloads', () => {
+  const path = productPath('cửa-hàng-abc', '123');
+  assert.equal(getScreenFromPathname(path), 'customer-product');
+  assert.equal(getCustomerProductId(path), '123');
+  assert.equal(storeSlugFromPath(path), 'cửa-hàng-abc');
+  assert.equal(getScreenFromPathname('/storefront/shop-a/'), 'customer-storefront');
+  assert.equal(storeSlugFromPath('/storefront/%E0%A4/products/1'), null);
 });

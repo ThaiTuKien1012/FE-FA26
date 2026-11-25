@@ -1,137 +1,76 @@
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronRight, Clock, Leaf, MapPin, Search, ShoppingCart, Store, X } from 'lucide-react';
+import { useEffect } from 'react';
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid, Store } from 'lucide-react';
 import type { AuthUser } from '../../../services/authService';
-import type { ProductItem } from '../customer.types';
 import { APP_BRAND } from '../../../app/branding';
-import { AppLogo } from '../../../components/common/AppLogo';
-import { CUSTOMER_STORES } from '../data/customerStores';
-import { formatCustomerPrice as money } from '../data/customerCatalog';
-import { categoryLabel } from '../data/customerLocale';
 import { useCustomerStorefront } from '../hooks/useCustomerStorefront';
-import { CustomerBannerCarousel } from './CustomerBannerCarousel';
 import { CustomerHeader } from './CustomerHeader';
-import { CustomerStoreLogo } from './CustomerStoreLogo';
-import { CustomerShoppingDialog } from './CustomerShoppingDialog';
-import { containerClass, PillButton, ProductCard } from './CustomerCommerce';
+import { containerClass, CustomerFooter, customerButton, ProductCard, PublicState } from './CustomerCommerce';
 
-interface CustomerStorefrontViewProps {
-  productsByStore?: Record<string, ProductItem[]>;
+export interface CustomerStorefrontViewProps {
   user?: AuthUser | null;
-  onLogout: () => void;
-  onProfile: () => void;
+  onLogout?: () => void;
+  onProfile?: () => void;
   onHome: () => void;
   onLogin: () => void;
   onProduct: (id: string) => void;
+  onExplore?: () => void;
+  landing?: boolean;
 }
+const zoneLabels: Record<string, string> = { BASELINE: 'Sản phẩm trưng bày', BANNER: 'Sản phẩm nổi bật', BUNDLE: 'Gợi ý kết hợp', CROSS_SELL: 'Gợi ý thêm cho bạn', FBT: 'Thường được mua cùng' };
+const scrollToProducts = () => document.getElementById('shop-products')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
 
-export function CustomerStorefrontView({ productsByStore, user, onLogout, onProfile, onHome, onLogin, onProduct }: CustomerStorefrontViewProps) {
-  const shop = useCustomerStorefront(productsByStore);
-  const {
-    selectedStore, storeProducts, categories, brands, bundles,
-    query, setQuery, category, setCategory, brand, setBrand, saved, savedOnly,
-    sort, setSort, filteredProducts, hasFilters, resetFilters, chooseStore, toggleSavedOnly,
-    cart, cartProducts, cartCount, cartTotal, addToCart, updateQuantity, toggleSaved,
-    selectedProduct, dialogMode, dialogRef, openCart, closeDialog,
-    receipt, receiptRef, completeDemoOrder, notice, setNotice, scrollTo,
-  } = shop;
+export function CustomerStorefrontView({ user, onLogout, onProfile, onHome, onLogin, onProduct, onExplore, landing = false }: CustomerStorefrontViewProps) {
+  const shop = useCustomerStorefront();
+  const { stores, selectedStore, slug, home, products, query, setQuery, categoryId, setCategoryId, categories, sort, setSort, page, setPage, chooseStore, resetFilters } = shop;
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${selectedStore?.name || 'Cửa hàng'} | ${APP_BRAND.name}`;
+    return () => { document.title = previous; };
+  }, [selectedStore?.name]);
+  const total = products.data?.totalElements ?? 0;
+  const pageCount = Math.ceil(total / 20);
+  const openProduct = (id: number) => onProduct(String(id));
+  const homeHasProducts = Boolean(home.data?.zones.some(zone => zone.placements.some(block => block.products.length)) || home.data?.catalog.some(category => category.products.length));
 
-  return (
-    <div className="customer-storefront isolate min-h-screen bg-white text-sm leading-normal text-[#212529] [&_button]:cursor-pointer [&_button]:transition-colors [&_:focus-visible]:outline-2 [&_:focus-visible]:outline-offset-4 [&_:focus-visible]:outline-[#088178] motion-reduce:[&_*]:transition-none" lang="vi">
-      <a className="absolute -top-25 left-4 z-100 bg-white p-3 focus:top-2" href="#shop-main">Chuyển đến nội dung chính</a>
-      <CustomerHeader query={query} setQuery={setQuery} onSearch={() => scrollTo()} savedCount={saved.length} savedOnly={savedOnly} toggleSavedOnly={toggleSavedOnly} cartCount={cartCount} openCart={openCart} onLogin={onLogin} onHome={onHome} user={user} onProfile={onProfile} onLogout={onLogout} />
-      <div className="border-y border-[#e9eded]">
-        <div className={`${containerClass} flex min-h-14 items-center justify-between gap-4 text-[11px] max-[580px]:min-h-12 max-[580px]:text-[10px]`}>
-          <nav aria-label="Điều hướng cửa hàng" className="flex items-center gap-6 whitespace-nowrap max-[580px]:gap-4">
-            <a href="/customer-home" onClick={event => { event.preventDefault(); onHome(); }} className="flex items-center gap-1.5 text-[#6f7c76] hover:text-[#088178]"><ArrowLeft size={13} />Trang chủ</a>
-            <a href="/storefront" aria-current="page" className="font-semibold text-[#088178]">Cửa hàng</a>
-            <a href="#shop-stores" className="hover:text-[#088178]">Các cửa hàng</a>
-            <a href="#shop-pairs" className="hover:text-[#088178] max-[580px]:hidden">Gợi ý kết hợp</a>
-          </nav>
-          <span className="flex items-center gap-1.5 text-[10px] text-[#6f7c76] max-[580px]:text-[8px] max-[360px]:hidden"><Leaf size={13} className="text-[#088178]" />Gần bạn mỗi ngày</span>
-        </div>
-      </div>
-
-      <main id="shop-main" className="pb-14 max-[580px]:pb-20">
-        <div className={`${containerClass} flex items-center justify-between gap-3 py-5 max-[580px]:py-4`}>
-          <div className="flex min-w-0 items-center gap-2 text-[10px] text-[#94a099] max-[580px]:text-[9px]"><span>Cửa hàng</span><ChevronRight size={11} /><span className="truncate text-[#557065]">{selectedStore.name}</span></div>
-          <label className="flex shrink-0 items-center gap-2 text-[10px] text-[#617a6e] max-[580px]:text-[8px]"><Store size={14} /><span className="max-[360px]:hidden">Đang xem</span><select aria-label="Chọn cửa hàng" value={selectedStore.id} onChange={event => chooseStore(event.target.value)} className="max-w-[190px] rounded-full border border-[#dce9e1] bg-[#f0f7f3] py-1.5 pr-6 pl-3 text-[#266b57] max-[580px]:max-w-[145px] max-[580px]:py-1 max-[580px]:pl-2">{CUSTOMER_STORES.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
-        </div>
-
-        <CustomerBannerCarousel variant="shop" selectedStore={selectedStore} featuredProduct={storeProducts[0]} onBrowseProducts={() => { resetFilters(); scrollTo(); }} onBrowseStores={() => scrollTo('shop-stores')} onShopStore={storeId => { chooseStore(storeId); scrollTo(); }} onBannerStoreChange={chooseStore} />
-        <div className={`${containerClass} mt-4 rounded-xl border border-[#dcebe1] bg-[#f5faf6] px-4 py-3 text-[11px] text-[#436858]`}>Bản xem thử tại {selectedStore.name}. Giá và tồn kho chỉ mang tính minh họa; chưa hỗ trợ giao hàng hoặc thanh toán thật.</div>
-
-        <section id="shop-stores" aria-labelledby="shop-stores-title" className={`${containerClass} scroll-mt-5 pt-9 pb-10 max-[580px]:pt-7 max-[580px]:pb-7`}>
-          <div className="mb-4 flex items-center justify-between gap-3"><h2 id="shop-stores-title" className="text-xl font-[650] tracking-[-0.6px] max-[580px]:text-lg">Cửa hàng quanh bạn</h2><span className="text-[9px] text-[#8a9990]">{CUSTOMER_STORES.length} cửa hàng</span></div>
-          <div className="storefront-store-grid grid grid-cols-4 gap-3 max-[800px]:grid-cols-2 max-[580px]:gap-2">
-            {CUSTOMER_STORES.map(store => {
-              const selected = store.id === selectedStore.id;
-              return <button key={store.id} onClick={() => chooseStore(store.id)} aria-label={`Mua tại ${store.name}`} aria-pressed={selected} className={`storefront-store-card relative flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left max-[1100px]:gap-2 max-[580px]:p-2 ${selected ? 'border-[#088178] bg-[#f0f8f4]' : 'border-[#e8edeb] bg-white hover:border-[#b5d7c7] hover:bg-[#f7fbf8]'}`}>
-                <CustomerStoreLogo store={store} className="size-14 rounded-lg max-[1100px]:size-11 max-[580px]:size-10" />
-                <span className="min-w-0"><strong className="block text-[11px] leading-[1.4] font-semibold max-[1100px]:text-[10px] max-[580px]:text-[9px]">{store.name}</strong><span className="mt-1 block text-[8px] text-[#8a9990] max-[580px]:text-[7px]">{store.area}</span><span className={`mt-1.5 flex items-center gap-1 text-[8px] max-[580px]:text-[7px] ${selected ? 'text-[#088178]' : 'text-[#8a9990]'}`}>{selected ? <Check size={10} /> : <span className="size-1 rounded-full bg-[#78b08c]" />}{selected ? 'Đang chọn' : 'Xem cửa hàng'}</span></span>
-              </button>;
-            })}
-          </div>
+  return <div className={`${landing ? 'customer-home' : 'customer-storefront'} min-h-screen bg-white text-[#212529] [&_button]:cursor-pointer [&_:focus-visible]:outline-2 [&_:focus-visible]:outline-offset-4 [&_:focus-visible]:outline-[#088178]`} lang="vi">
+    <a href="#shop-main" className="absolute -top-20 left-4 z-50 bg-white p-3 focus:top-2">Chuyển đến nội dung chính</a>
+    <CustomerHeader query={query} setQuery={setQuery} onSearch={scrollToProducts} onLogin={onLogin} onHome={onHome} user={user} onProfile={onProfile} onLogout={onLogout} />
+    <nav className="border-y border-[#e6eee8]" aria-label="Điều hướng cửa hàng"><div className={`${containerClass} flex min-h-14 flex-wrap items-center gap-6 text-sm`}>
+      {!landing && <button onClick={onHome} className="flex items-center gap-2 text-[#607c6b]"><ArrowLeft size={15} />Trang chủ</button>}
+      <a href="#shop-stores" className="text-[#088178]">Cửa hàng</a><a href="#shop-products">Sản phẩm</a>
+      {selectedStore && <span className="ml-auto text-xs text-[#6c8577]">{selectedStore.name}</span>}
+    </div></nav>
+    <main id="shop-main">
+      <section className={`${containerClass} mt-7 overflow-hidden rounded-3xl bg-[#eaf5ef] p-8 max-[580px]:p-5`}>
+        <div className="flex items-center justify-between gap-5"><div className="max-w-2xl"><p className="text-xs font-medium tracking-widest text-[#367b60]">KHÁM PHÁ CỬA HÀNG</p><h1 className="mt-3 text-4xl font-semibold leading-tight tracking-tight max-[580px]:text-3xl">{landing ? 'Sản phẩm mỗi ngày, từ cửa hàng bạn chọn.' : selectedStore?.name || 'Chọn cửa hàng của bạn'}</h1><p className="mt-4 text-sm leading-6 text-[#5f7b6d]">{landing ? 'Chọn một cửa hàng để xem danh mục, sản phẩm và những gợi ý đang được trưng bày.' : home.data?.campaignName || 'Xem sản phẩm được công khai tại cửa hàng.'}</p><button className={`${customerButton} mt-5`} onClick={landing && onExplore ? onExplore : scrollToProducts}>{landing ? 'Khám phá sản phẩm' : 'Xem danh mục'}<ArrowRight size={16} /></button></div><Store size={116} strokeWidth={.8} className="shrink-0 text-[#85b49d] max-[800px]:hidden" /></div>
+      </section>
+      <section id="shop-stores" className={`${containerClass} scroll-mt-5 py-9`} aria-labelledby="shop-stores-title">
+        <div className="mb-4 flex items-center justify-between gap-4"><h2 id="shop-stores-title" className="text-2xl font-semibold tracking-tight">Chọn cửa hàng</h2>{stores.data && <span className="text-xs text-[#6b8377]">{stores.data.length} cửa hàng</span>}</div>
+        {stores.loading || stores.error ? <PublicState loading={stores.loading} error={stores.error} onRetry={stores.retry} /> : stores.data?.length === 0 ? <PublicState empty="Chưa có cửa hàng nào được mở công khai." /> : <div className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[420px]:grid-cols-1">{stores.data?.map(store => <button key={store.storeSlug} onClick={() => chooseStore(store.storeSlug)} aria-pressed={store.storeSlug === slug} className={`flex min-h-24 items-center gap-3 rounded-2xl border p-4 text-left ${store.storeSlug === slug ? 'border-[#088178] bg-[#eff8f2]' : 'border-[#e1eae5] hover:bg-[#f6faf7]'}`}><span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#e4f1e9] text-[#088178]"><Store size={24} /></span><span className="min-w-0"><strong className="block text-sm">{store.name}</strong><span className="mt-2 flex items-center gap-1 text-xs text-[#5c806d]">{store.storeSlug === slug ? <><Check size={13} />Đang chọn</> : 'Xem cửa hàng'}</span></span></button>)}</div>}
+      </section>
+      {slug && <>
+        <section aria-label="Trưng bày tại cửa hàng" className={`${containerClass} pb-8`}>
+          {home.loading || home.error ? <PublicState loading={home.loading} error={home.error} onRetry={home.retry} /> : home.data && <>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-semibold">{home.data.campaignName || 'Danh mục cửa hàng'}</h2>{home.data.fallbackType === 'DEFAULT_CATALOG' && <span className="text-xs text-[#6c8577]">Danh mục hiện có</span>}</div>
+            {home.data.zones.map(zone => <section key={zone.name} className="mb-7" aria-label={zoneLabels[zone.name] || zone.name}><h3 className="mb-3 flex items-center gap-2 text-lg font-medium text-[#306f56]"><LayoutGrid size={18} />{zoneLabels[zone.name] || zone.name}</h3><div className="grid gap-4">{zone.placements.map(block => <div key={`${zone.name}-${block.blockNo}`} className="rounded-2xl border border-[#e0eae4] bg-[#f5f9f6] p-4"><div className="mb-3 text-xs text-[#5d7b69]">Nhóm {block.blockNo}</div><div className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-3 max-[650px]:grid-cols-2">{block.products.map(product => <ProductCard key={product.productId} product={product} onOpen={() => openProduct(product.productId)} />)}</div></div>)}</div></section>)}
+            {landing && home.data.catalog.map(category => <section key={category.categoryId ?? 'uncategorized'} className="mb-7"><h3 className="mb-3 text-lg font-medium text-[#306f56]">{category.name}</h3><div className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-3 max-[650px]:grid-cols-2">{category.products.map(product => <ProductCard key={product.productId} product={product} onOpen={() => openProduct(product.productId)} />)}</div></section>)}
+            {!homeHasProducts && <p className="text-sm text-[#738b7d]">Cửa hàng chưa có sản phẩm trưng bày.</p>}
+          </>}
         </section>
-
-        <section id="shop-products" aria-labelledby="shop-products-title" className="storefront-catalog scroll-mt-4 bg-[#f5f5f5] py-10 max-[580px]:py-7">
-          <div className={containerClass}>
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-3 max-[580px]:mb-5">
-              <div><span className="text-[8px] tracking-[1.5px] text-[#088178]">SẢN PHẨM TỪ CỬA HÀNG</span><h2 id="shop-products-title" className="mt-2 text-[29px] leading-tight font-[650] tracking-[-1px] max-[580px]:text-[23px]">{savedOnly ? 'Sản phẩm đã lưu' : `Sản phẩm tại ${selectedStore.name}`}</h2><p className="mt-2 flex items-center gap-1 text-[9px] text-[#8b9991]"><MapPin size={12} />{selectedStore.area}<span className="mx-1">·</span>{selectedStore.description}</p></div>
-              <button onClick={openCart} className="flex shrink-0 items-center gap-2 rounded-full border border-[#d5e6de] bg-white px-4 py-2 text-[10px] text-[#088178] hover:bg-[#e9f5ef]"><ShoppingCart size={14} />Giỏ hàng ({cartCount})<ArrowUpRight size={13} /></button>
-            </div>
-
-            <div className="grid grid-cols-[185px_minmax(0,1fr)] items-start gap-6 max-[1100px]:grid-cols-[155px_minmax(0,1fr)] max-[1100px]:gap-4 max-[800px]:grid-cols-1">
-              <aside className="rounded-xl bg-white p-4 max-[800px]:p-3" aria-label="Danh mục sản phẩm">
-                <h3 className="mb-4 text-xs font-semibold max-[800px]:mb-3">Mua theo danh mục</h3>
-                <div className="flex flex-col gap-1 max-[800px]:flex-row max-[800px]:overflow-x-auto max-[800px]:pb-1" aria-label="Lọc theo danh mục">
-                  {categories.map(item => <button key={item} aria-pressed={category === item} onClick={() => setCategory(item)} className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-[10px] whitespace-nowrap max-[800px]:shrink-0 max-[800px]:rounded-full max-[800px]:border max-[800px]:px-4 max-[800px]:py-2 ${category === item ? 'border-[#088178] bg-[#edf7f1] text-[#088178]' : 'border-[#e8edeb] text-[#79877f] hover:bg-[#f6f9f7]'}`}>{categoryLabel(item)}<span className="text-[8px] text-[#8faa9b] max-[800px]:hidden">{item === 'All Products' ? storeProducts.length : storeProducts.filter(product => product.category === item).length}</span></button>)}
-                </div>
-                <div className="mt-5 border-t border-[#edf1ee] pt-4 max-[800px]:hidden"><span className="text-[8px] tracking-wider text-[#93a39a]">CỬA HÀNG ĐANG XEM</span><p className="mt-2 text-xs font-medium text-[#386c56]">{selectedStore.name}</p><p className="mt-1 text-[9px] leading-relaxed text-[#94a198]">{selectedStore.address}</p><p className="mt-3 flex items-center gap-1.5 text-[9px] text-[#6d987e]"><Clock size={12} />{selectedStore.hours}</p></div>
-              </aside>
-
-              <div className="min-w-0">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-[9px] text-[#8a9991]">
-                  <p role="status" aria-live="polite">Hiển thị {filteredProducts.length}/{storeProducts.length} sản phẩm{query.trim() && ` cho “${query.trim()}”`}</p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {hasFilters && <button onClick={resetFilters} className="flex items-center gap-1 text-[#088178]">Xóa bộ lọc<X size={11} /></button>}
-                    <select aria-label="Lọc theo thương hiệu" value={brand} onChange={event => setBrand(event.target.value)} className="max-w-[145px] rounded-full border border-[#e2e8e4] bg-white py-2 pr-6 pl-3 text-[9px] text-[#6d7e73]"><option value="All Products">Tất cả thương hiệu</option>{brands.map(item => <option key={item}>{item}</option>)}</select>
-                    <select aria-label="Sắp xếp sản phẩm" value={sort} onChange={event => setSort(event.target.value as typeof sort)} className="rounded-full border border-[#e2e8e4] bg-white py-2 pr-6 pl-3 text-[9px] text-[#6d7e73]"><option value="featured">Nổi bật</option><option value="price-asc">Giá tăng dần</option><option value="price-desc">Giá giảm dần</option><option value="name">Tên A–Z</option></select>
-                  </div>
-                </div>
-                <div className="storefront-product-grid grid grid-cols-3 gap-x-4 gap-y-5 max-[1100px]:gap-x-3 max-[580px]:grid-cols-2 max-[580px]:gap-x-2">
-                  {filteredProducts.map(product => <ProductCard key={product.id} product={product} saved={saved.includes(product.id)} quantity={cart[product.id] || 0} onSave={() => toggleSaved(product.id)} onOpen={() => onProduct(product.id)} onAdd={() => addToCart(product)} />)}
-                </div>
-                {filteredProducts.length === 0 && <div className="flex min-h-[260px] flex-col items-center justify-center gap-3 rounded-xl bg-white p-7 text-center"><Search size={27} className="text-[#9ab8a8]" /><h3 className="text-lg font-medium">{savedOnly ? 'Chưa có sản phẩm đã lưu tại cửa hàng này' : 'Không tìm thấy sản phẩm'}</h3><p className="mb-2 text-[11px] text-[#8a9991]">Thử từ khóa khác hoặc đổi bộ lọc.</p><PillButton onClick={resetFilters}>Xem tất cả sản phẩm</PillButton></div>}
-                <p className="mt-5 text-right text-[8px] text-[#9ca69f]">Sản phẩm và giá minh họa · VND</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {bundles.length > 0 && <section id="shop-pairs" aria-labelledby="shop-pairs-title" className={`${containerClass} scroll-mt-5 pt-10 max-[580px]:pt-7`}>
-          <div className="mb-5 flex items-center justify-between gap-3"><div><span className="text-[8px] tracking-[1.2px] text-[#088178]">GỢI Ý KẾT HỢP</span><h2 id="shop-pairs-title" className="mt-2 text-[25px] font-[650] tracking-[-0.7px] max-[580px]:text-[22px]">Thêm món cho giỏ hàng</h2></div><span className="text-[9px] text-[#8a9991] max-[580px]:max-w-20 max-[580px]:text-right">Từ cửa hàng này</span></div>
-          <div className="grid grid-cols-2 gap-4 max-[580px]:grid-cols-1 max-[580px]:gap-3">{bundles.map((items, index) => <article key={`${selectedStore.id}-${index}`} className={`storefront-bundle-card flex items-center justify-between gap-4 overflow-hidden rounded-xl p-5 max-[800px]:p-4 ${index === 0 ? 'bg-[#edf5e8]' : 'bg-[#fcf1e6]'}`}>
-            <div className="min-w-0"><p className="text-[8px] text-[#7f9587]">GỢI Ý CHO BẠN</p><h3 className="mt-2 max-w-[210px] text-sm leading-[1.5] font-semibold max-[800px]:text-xs">{items.map(item => item.name).join(' + ')}</h3><strong className="mt-2 block text-sm text-[#2f6450]">{money(items.reduce((sum, item) => sum + item.priceVnd, 0))}</strong><button onClick={() => items.forEach(addToCart)} className="mt-4 flex items-center gap-3 rounded-full bg-[#088178] py-2 pr-2 pl-3 text-[9px] text-white hover:bg-[#06685f]">Thêm cả hai<span className="grid size-5 place-items-center rounded-full bg-white text-[#088178]"><ArrowUpRight size={12} /></span></button></div>
-            <div className="flex shrink-0 items-center gap-1">{items.map(item => <div key={item.id} className="grid h-28 w-16 place-items-center rounded-xl bg-white/55 p-2 max-[1100px]:h-24 max-[1100px]:w-12">{item.image ? <img className="size-full object-contain" src={item.image} alt={item.name} loading="lazy" /> : <Store className="text-[#a3b3a9]" />}</div>)}</div>
-          </article>)}</div>
-        </section>}
-      </main>
-
-      <footer className="bg-[#032724] py-7 text-[#b8d0c4] max-[580px]:pb-24">
-        <div className={`${containerClass} flex items-center justify-between gap-6 max-[580px]:flex-col max-[580px]:items-start max-[580px]:gap-4`}>
-          <a href="/customer-home" onClick={event => { event.preventDefault(); onHome(); }} className="inline-flex items-center gap-2 text-xl font-bold tracking-[-0.8px] text-[#e3f0e7]"><AppLogo className="size-7" variant="system-contrast" />{APP_BRAND.name}</a>
-          <p className="text-[10px] leading-relaxed text-[#83a79b]">Nhiều cửa hàng trong một nơi.<br /><span className="text-[8px]">Bản xem thử · Không thu tiền.</span></p>
-          <button onClick={onHome} className="flex items-center gap-2 text-[10px] hover:text-white">Về trang chủ<ArrowRight size={14} /></button>
-        </div>
-      </footer>
-
-      {cartCount > 0 && <button onClick={openCart} className="fixed inset-x-4 bottom-4 z-20 hidden items-center justify-between gap-3 rounded-full bg-[#088178] py-3 pr-4 pl-3 text-white shadow-lg max-[580px]:flex" aria-label={`Xem giỏ hàng (${cartCount})`}><span className="flex items-center gap-2 text-[11px]"><span className="grid size-7 place-items-center rounded-full bg-white/15"><ShoppingCart size={15} /></span>Giỏ hàng ({cartCount})</span><span className="flex items-center gap-2 text-xs font-semibold">{money(cartTotal)}<ArrowUpRight size={15} /></span></button>}
-      {notice && <div role="status" className="fixed bottom-6 left-1/2 z-40 flex w-max max-w-[calc(100%_-_32px)] -translate-x-1/2 items-center gap-2.5 rounded-xl bg-[#032724] px-4 py-3.5 text-xs text-white shadow-lg max-[580px]:bottom-20 max-[580px]:text-[10px]"><Check size={16} className="shrink-0 text-[#91d3b7]" /><span>{notice}</span><button aria-label="Đóng thông báo" onClick={() => setNotice('')} className="ml-1 text-[#96b4a5]"><X size={14} /></button></div>}
-
-      <CustomerShoppingDialog dialogRef={dialogRef} dialogMode={dialogMode} selectedProduct={selectedProduct} storeName={selectedStore.name} cart={cart} cartProducts={cartProducts} cartCount={cartCount} cartTotal={cartTotal} saved={saved} addToCart={addToCart} toggleSaved={toggleSaved} updateQuantity={updateQuantity} closeDialog={closeDialog} onCartAction={completeDemoOrder} scrollTo={scrollTo} cartActionLabel="Tạo đơn xem thử" />
-      <dialog ref={receiptRef} aria-labelledby="demo-receipt-title" className="fixed inset-0 m-auto max-h-[90dvh] w-[min(460px,calc(100%_-_32px))] overflow-auto rounded-[18px] border-0 bg-white p-7 text-[#212529] shadow-xl backdrop:bg-[#03272470] backdrop:backdrop-blur-[4px]" onClick={event => { if (event.target === event.currentTarget) receiptRef.current?.close(); }}>
-        <button aria-label="Đóng đơn xem thử" onClick={() => receiptRef.current?.close()} className="absolute top-3 right-3 rounded-full p-1 text-[#8a9991]"><X size={20} /></button>
-        {receipt && <><span className="mx-auto mt-2 grid size-12 place-items-center rounded-full bg-[#edf7f1] text-[#088178]"><CheckCircle2 size={26} /></span><h2 id="demo-receipt-title" className="mt-4 text-center text-2xl font-semibold tracking-[-0.7px]">Đơn xem thử đã tạo</h2><p className="mt-2 text-center text-[10px] leading-relaxed text-[#8a9991]">Đây chỉ là mô phỏng. Không có đơn hàng hoặc thanh toán thật.</p><div className="mt-5 rounded-xl bg-[#f5f8f5] p-4"><span className="text-[8px] text-[#8a9991]">{receipt.id}</span><h3 className="mt-1 text-xs font-semibold text-[#2f6450]">{receipt.storeName}</h3><div className="my-4 space-y-3 border-y border-[#e2ebe5] py-4">{receipt.items.map(({ product, quantity }) => <div key={product.id} className="flex justify-between gap-4 text-[10px]"><span>{product.name} × {quantity}</span><strong className="shrink-0 font-medium">{money(product.priceVnd * quantity)}</strong></div>)}</div><div className="flex items-center justify-between gap-4 text-xs"><span>Tổng</span><strong className="text-lg text-[#088178]">{money(receipt.total)}</strong></div></div><button onClick={() => receiptRef.current?.close()} className="mt-5 w-full rounded-full bg-[#088178] py-3 text-[11px] text-white hover:bg-[#06685f]">Tiếp tục xem sản phẩm</button></>}
-      </dialog>
-    </div>
-  );
+        <section id="shop-products" aria-labelledby="shop-products-title" className="scroll-mt-4 bg-[#f5f7f5] py-9"><div className={containerClass}>
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs tracking-widest text-[#088178]">DANH MỤC SẢN PHẨM</p><h2 id="shop-products-title" className="mt-2 text-2xl font-semibold">{selectedStore?.name || 'Sản phẩm cửa hàng'}</h2></div><div className="flex flex-wrap gap-3">
+            <select aria-label="Lọc theo danh mục" value={categoryId} onChange={event => setCategoryId(event.target.value)} className="max-w-56 rounded-full border border-[#dce7df] bg-white px-4 py-2 text-sm"><option value="">Tất cả danh mục</option>{categoryId && !categories.some(category => String(category.categoryId) === categoryId) && <option value={categoryId}>Danh mục đang chọn</option>}{categories.map(category => <option key={category.categoryId} value={category.categoryId}>{category.name}</option>)}</select>
+            <select aria-label="Sắp xếp sản phẩm" value={sort} onChange={event => setSort(event.target.value)} className="rounded-full border border-[#dce7df] bg-white px-4 py-2 text-sm"><option value="name">Tên A–Z</option><option value="price-asc">Giá tăng dần</option><option value="price-desc">Giá giảm dần</option></select>
+          </div></div>
+          {query || categoryId ? <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-[#637d6d]">{query && <span>Tìm “{query}”</span>}<button className="text-[#088178] underline" onClick={resetFilters}>Xóa bộ lọc</button></div> : null}
+          {products.loading || products.error ? <PublicState loading={products.loading} error={products.error} onRetry={products.retry} /> : <>
+            <p role="status" className="mb-4 text-xs text-[#658271]">{total ? `${page * 20 + 1}–${page * 20 + (products.data?.items.length ?? 0)} / ${total} sản phẩm` : '0 sản phẩm'}</p>
+            <div className="grid grid-cols-4 gap-4 max-[1000px]:grid-cols-3 max-[650px]:grid-cols-2">{products.data?.items.map(product => <ProductCard key={product.productId} product={product} onOpen={() => openProduct(product.productId)} />)}</div>
+            {!products.data?.items.length && <PublicState empty={query || categoryId ? 'Không tìm thấy sản phẩm phù hợp.' : 'Cửa hàng chưa có sản phẩm công khai.'} />}
+            {pageCount > 1 && <nav aria-label="Phân trang sản phẩm" className="mt-7 flex items-center justify-center gap-4"><button className={customerButton} disabled={page === 0} onClick={() => { setPage(page - 1); scrollToProducts(); }}><ChevronLeft size={16} />Trước</button><span className="text-sm">Trang {page + 1} / {pageCount}</span><button className={customerButton} disabled={page + 1 >= pageCount} onClick={() => { setPage(page + 1); scrollToProducts(); }}>Sau<ChevronRight size={16} /></button></nav>}
+          </>}
+        </div></section>
+      </>}
+    </main><CustomerFooter />
+  </div>;
 }

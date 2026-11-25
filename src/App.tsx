@@ -22,6 +22,7 @@ import { RegisterView } from './features/auth/components/RegisterView';
 import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
+import { getCustomerStoreId, productPath } from './features/customer/data/customerStores';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
 import { PublishedCampaignStatusView } from './features/merchandiser/components/PublishedCampaignStatusView';
@@ -145,7 +146,9 @@ export default function App() {
   };
 
   const handleCustomerProduct = (id: string) => {
-    window.history.pushState({ screen: 'customer-product' }, '', `/product/${encodeURIComponent(id)}`);
+    const slug = getCustomerStoreId();
+    if (!slug) return;
+    window.history.pushState({ screen: 'customer-product' }, '', productPath(slug, id));
     setCustomerProductId(id);
     setCurrentScreen('customer-product');
     window.scrollTo({ top: 0, behavior: 'auto' });

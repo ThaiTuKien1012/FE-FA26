@@ -1,4 +1,5 @@
 import { ActiveNavScreen } from '../types/mining';
+import { getCustomerStoreId, storefrontPath } from '../features/customer/data/customerStores';
 
 export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'login': '/login',
@@ -89,6 +90,8 @@ export function getPathForScreen(screen: ActiveNavScreen): string {
  */
 export function getScreenFromPathname(pathname: string): ActiveNavScreen | null {
   const normalized = pathname.trim().toLowerCase();
+  if (/^\/storefront\/[^/]+\/products\/[^/]+\/?$/.test(normalized)) return 'customer-product';
+  if (/^\/storefront\/[^/]+\/?$/.test(normalized)) return 'customer-storefront';
   if (/^\/product\/[^/]+\/?$/.test(normalized)) return 'customer-product';
   if (normalized === '' || normalized === '/') {
     return null;
@@ -102,7 +105,8 @@ export function getScreenFromPathname(pathname: string): ActiveNavScreen | null 
 export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
   if (typeof window === 'undefined') return;
   if (screen === 'customer-product' && getCustomerProductId(window.location.pathname)) return;
-  const targetPath = getPathForScreen(screen);
+  const slug = screen === 'customer-storefront' ? getCustomerStoreId() : '';
+  const targetPath = slug ? storefrontPath(slug) : getPathForScreen(screen);
   const currentPath = window.location.pathname;
 
   if (currentPath !== targetPath) {
@@ -115,7 +119,7 @@ export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
 }
 
 export function getCustomerProductId(pathname: string): string | null {
-  const match = /^\/product\/([^/]+)\/?$/.exec(pathname);
+  const match = /^\/product\/([^/]+)\/?$/.exec(pathname) || /^\/storefront\/[^/]+\/products\/([^/]+)\/?$/.exec(pathname);
   if (!match) return null;
   try { return decodeURIComponent(match[1]); } catch { return null; }
 }

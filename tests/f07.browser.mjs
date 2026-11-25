@@ -54,18 +54,19 @@ async function fixture({ requestId, request }) {
   else if (path === '/api/campaigns') body = page([campaign]);
   else if (path === '/api/mining/snapshots') body = page([{ snapshotId: 1, status: 'READY', rangeStart: '2026-11-01', rangeEnd: '2026-11-10', asOfDate: '2026-11-10' }]);
   else if (path === '/api/layouts/recommendations') body = page(emptyRecommendations ? [] : options);
+  else if (path === '/api/layouts/products') body = page([8, 9, 10].map(id => ({ productId: id, productName: product(id).name, sku: product(id).sku, productStatus: 'ACTIVE', deleted: false, sellableQuantity: id === 10 ? 0 : 8, snapshotWeightedUtility: 18000, eligible: id !== 10, validationErrors: id === 10 ? ['No sellable inventory'] : [] })));
   else if (path === '/api/layouts/1') body = a;
   else if (path === '/api/layouts/2' || path === '/api/layouts/2/preview') body = b;
   else if (path === '/api/layouts/2/placements') {
-    const value = JSON.parse(request.postData); assert.deepEqual(Object.keys(value).sort(), ['expectedVersion', 'recommendationIds']);
+    const value = JSON.parse(request.postData); assert.deepEqual(Object.keys(value).sort(), ['expectedVersion', 'placements']);
     if (conflict || value.expectedVersion !== b.version) { conflict = false; code = 409; body = { error: 'Layout version is stale' }; }
-    else { b.version++; b.status = 'DRAFT'; b.placements = value.recommendationIds.flatMap(id => { const option = options.find(item => item.recommendationId === id); return option.productIds.map((id, index) => placement(id, option, index)); }); b.valid = b.placements.length > 0; b.validationErrors = []; b.weightedUtilityScore = b.placements.length * 18000; b.equalSizeProductCount = b.placements.length; b.equalSizeBaselineScore = b.placements.length * 17000; campaign.version++; campaign.decision = null; body = b; }
+    else { b.version++; b.status = 'DRAFT'; b.placements = value.placements.map(row => ({ ...placement(row.productId), ...row, recommendationId: row.sourceRecommendationId })); b.valid = b.placements.length > 0; b.validationErrors = []; b.weightedUtilityScore = b.placements.length * 18000; b.equalSizeProductCount = b.placements.length; b.equalSizeBaselineScore = b.placements.length * 17000; campaign.version++; campaign.decision = null; body = b; }
   } else if (path === '/api/layouts/2/ready') { assert.equal(JSON.parse(request.postData).expectedVersion, b.version); b.status = 'READY'; body = b; }
   else if (path === '/api/campaigns/1/reports') body = page(reports);
   else if (path === '/api/campaigns/1/simulations') {
     const value = JSON.parse(request.postData);
     assert.equal(value.expectedCampaignVersion, campaign.version); assert.equal(value.expectedLayoutBVersion, b.version);
-    body = { reportId: 1, campaignId: 1, snapshotId: 1, rangeStart: value.rangeStart, rangeEnd: value.rangeEnd, datasetHash: 'fixture-dataset-hash', evaluationCount: 20, simulated: true, algorithmVersion: 'OFFLINE_REPLAY_V2', assumptions: { comparisonMode: 'EQUAL_SIZE_TOP_N_OF_A', comparedProductCountN: b.placements.length }, layouts: [a, b].map(layout => ({ layoutId: layout.layoutId, role: layout.role, layoutVersion: layout.version, hitRate: { numerator: 10, denominator: 20, rate: 0.5 }, capturedUtility: { numerator: 200, denominator: 400, rate: 0.5 }, priorityCoverage: null })) };
+    body = { reportId: 1, campaignId: 1, snapshotId: 1, rangeStart: value.rangeStart, rangeEnd: value.rangeEnd, datasetHash: 'fixture-dataset-hash', evaluationCount: 20, simulated: true, algorithmVersion: 'OFFLINE_REPLAY_V3', assumptions: { comparisonMode: 'EQUAL_SIZE_TOP_N_OF_A', comparedProductCountN: b.placements.length }, layouts: [a, b].map(layout => ({ layoutId: layout.layoutId, role: layout.role, layoutVersion: layout.version, hitRate: { numerator: 10, denominator: 20, rate: 0.5 }, capturedUtility: { numerator: 200, denominator: 400, rate: 0.5 }, priorityCoverage: null })) };
     reports.push(body);
   }
   else if (path === '/api/campaigns/1/decision') { const value = JSON.parse(request.postData); assert.equal(value.expectedVersion, campaign.version); assert.equal(value.reportId, 1); campaign.decision = value.decision; campaign.selectedLayoutId = value.decision === 'KEEP_A' ? 1 : 2; campaign.version++; body = campaign; }
@@ -92,25 +93,33 @@ try {
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')");
   assert.equal(await evaluate('(async()=> (await ' + service + ".login({email:'fixture@example.invalid',password:'fixture'})).success)()"), true);
   await go('/layouts-campaigns');
-  await until("Boolean(document.querySelector('[aria-label=\"Add recommendation 101\"]'))");
-  await click('Add recommendation 101');
-  assert.equal(await evaluate("document.querySelector('[aria-label=\"Add recommendation 105\"]').disabled"), true, 'Overlapping-product block is disabled');
-  await click('Add recommendation 102'); await click('Add recommendation 103'); await click('Add recommendation 104'); await click('Add recommendation 106');
-  await click('Move block 106 up');
+  await until("Boolean(document.querySelector('[aria-label=\"Add product 1 from recommendation 101\"]'))");
+  await click('Add product 1 from recommendation 101');
+  assert.equal(await evaluate("document.querySelector('[aria-label=\"Add product 1 from recommendation 105\"]').disabled"), true, 'Overlapping-product block is disabled');
+  await click('Add product 2 from recommendation 101');
+  await click('Add product 3 from recommendation 102');
+  await click('Move product 2 up');
+  await click('Snapshot products');
+  await until("Boolean(document.querySelector('[aria-label=\"Add manual product 8\"]'))");
+  assert.equal(await evaluate("document.querySelector('[aria-label=\"Add manual product 10\"]').disabled"), true);
+  await click('Add manual product 8');
   await capture('f07-draft-desktop');
   await click('Save layout'); await until("document.body.innerText.includes('Proposed layout saved.')");
-  assert.deepEqual(JSON.parse(calls.find(item => item.path.endsWith('/placements')).body).recommendationIds, [106, 102, 103, 104, 101]);
+  const saved = JSON.parse(calls.find(item => item.path.endsWith('/placements')).body).placements;
+  assert.deepEqual(saved.map(row => row.productId), [2, 1, 3, 8]);
+  assert.equal(saved.find(row => row.productId === 8).sourceRecommendationId, null);
+  assert.deepEqual(saved.filter(row => row.zone === 'BUNDLE').map(row => row.position), [1, 2]);
   await click('Check products'); await until("document.body.innerText.includes('Product checks passed')");
   await click('Finish layout'); await until("document.body.innerText.includes('Proposed layout is ready.')");
-  checks.push('full-block add, duplicate prevention, reorder, API save/version, preview and READY');
+  checks.push('individual add, duplicate prevention, manual snapshot source, reorder, API save/version, preview and READY');
   await capture('f07-saved-desktop');
-  await click('Remove recommendation 102'); conflict = true; await click('Save layout'); await until("document.body.innerText.includes('This campaign has changed since you opened it.')");
+  await click('Remove product 3'); conflict = true; await click('Save layout'); await until("document.body.innerText.includes('This campaign has changed since you opened it.')");
   assert.equal(await evaluate("document.querySelector('.f07-alert details').open"), false, 'Raw service errors stay collapsed');
   await evaluate("document.querySelector('.f07-alert details').open=true");
   assert.equal(await evaluate("document.body.innerText.includes('Layout version is stale')"), true, 'Original error remains available for support');
-  await click('Refresh'); await until("Boolean(document.querySelector('[aria-label=\"Remove recommendation 102\"]'))");
+  await click('Refresh'); await until("Boolean(document.querySelector('[aria-label=\"Remove product 3\"]'))");
   checks.push('409 conflict preserves draft until explicit refresh');
-  await click('A · Reference'); assert.equal(await evaluate("document.querySelector('[aria-label=\"Add recommendation 101\"]')===null||document.querySelector('[aria-label=\"Add recommendation 101\"]').disabled"), true);
+  await click('A · Reference'); assert.equal(await evaluate("document.querySelector('[aria-label=\"Add product 1 from recommendation 101\"]')===null||document.querySelector('[aria-label=\"Add product 1 from recommendation 101\"]').disabled"), true);
   await capture('f07-baseline'); await click('B · Proposed');
   await click('Compare & apply');
   await evaluate("(()=>{for(const [label,value] of [['Comparison start','2026-11-11'],['Comparison end','2026-11-20']]){const input=document.querySelector('[aria-label=\"'+label+'\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));}})()");
@@ -124,7 +133,7 @@ try {
   for (const status of ['PUBLISHED', 'ACTIVE', 'ENDED']) {
     campaign.status = status;
     await go('/layouts-campaigns');
-    await until("Boolean(document.querySelector('[aria-label=\"Placed recommendation 101\"]'))");
+    await until("Boolean(document.querySelector('[aria-label=\"Add product 1 from recommendation 101\"]'))");
     await click('Compare & apply');
     await fillSimulationDates();
     await until("document.querySelector('[aria-label=\"Comparison end\"]').value==='2026-11-20'");
@@ -138,19 +147,19 @@ try {
   checks.push('PUBLISHED, ACTIVE and ENDED block simulation with valid dates, including direct form submission; reports remain readable');
   campaign.status = 'PUBLISHED';
   await go('/layouts-campaigns');
-  await until("Boolean(document.querySelector('[aria-label=\"Placed recommendation 101\"]'))");
+  await until("Boolean(document.querySelector('[aria-label=\"Add product 1 from recommendation 101\"]'))");
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await capture('f07-mobile'); assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+2'), false, 'No mobile page overflow');
   checks.push('read-only A and mobile layout');
-  role = 'STORE_ADMIN'; await go('/store/layout'); await until("document.body.innerText.includes('View-only.')");
+  role = 'STORE_ADMIN'; await go('/store/layout'); await until("document.body.innerText.includes('Only the merchandising team can edit a draft campaign.')");
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Save layout')"), false);
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Store Layout')"), false);
   checks.push('Store Admin read-only and legacy route opens F07 without duplicate navigation');
   await click('Compare & apply'); await click('Apply to storefront'); await until("document.body.innerText.includes('Campaign applied to the storefront')");
   await click('Restore previous layout'); await until("document.body.innerText.includes('Previous storefront layout restored')");
   checks.push('Store Admin activation and rollback consume their correct response types');
-  emptyRecommendations = true; await go('/layouts-campaigns'); await until("document.body.innerText.includes('no longer approved and ready')");
-  checks.push('previously saved ineligible blocks remain visible');
+  emptyRecommendations = true; b.placements[0].valid = false; b.placements[0].validationErrors = ['Inventory changed']; await go('/layouts-campaigns'); await until("document.body.innerText.includes('Inventory changed')");
+  checks.push('previously saved invalid products remain visible');
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);
   console.log(JSON.stringify({ result: 'PASS', checks, realBackendWrites: 0, artifacts }, null, 2));
 } finally { ws?.close(); chrome.kill(); }
