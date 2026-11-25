@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <title>Ninh Kieu Market</title>
+  <rect width="96" height="96" rx="24" fill="#EDF4E6"/>
+  <path d="M50 55V19" stroke="#5F7546" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M49 35C37 34 32 29 33 20C44 20 50 25 49 35ZM51 45C63 44 69 38 68 29C57 29 51 35 51 45Z" fill="#829653"/>
+  <path d="M49 49C38 48 31 43 31 35C42 34 49 40 49 49ZM51 29C61 28 66 22 65 14C55 15 50 21 51 29Z" fill="#BD9B4D"/>
+  <path d="M17 56C34 61 62 61 79 52L72 67C68 75 61 79 50 79H43C31 79 22 70 17 56Z" fill="#50683E"/>
+  <path d="M31 85C39 82 47 82 55 85C61 87 67 87 73 84" stroke="#94AD76" stroke-width="4" stroke-linecap="round"/>
+</svg>

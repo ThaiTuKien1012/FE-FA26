@@ -10,7 +10,10 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'profile': '/profile',
   'f05-mining': '/mining',
   'f06-recommendations': '/recommendations',
+  'f07-f08-workspace': '/layouts-campaigns',
   'customer-storefront': '/storefront',
+  'customer-home': '/customer-home',
+  'customer-product': '/product',
 
   // Merchandiser Screens
   'merchandiser-recommendations': '/merchandiser/recommendations',
@@ -68,6 +71,8 @@ const PATH_TO_SCREEN: Record<string, ActiveNavScreen> = Object.entries(SCREEN_TO
 );
 
 // Legacy F03 links remain valid; the singular action now opens the snapshot tab.
+// Existing bookmarks open the API-backed F07 workspace.
+for (const path of ['/store/layout', '/store/layout/', '/store-layout', '/store-layout/']) PATH_TO_SCREEN[path] = 'f07-f08-workspace';
 PATH_TO_SCREEN['/f03/snapshot'] = 'f03-snapshots';
 PATH_TO_SCREEN['/f03/snapshot/'] = 'f03-snapshots';
 PATH_TO_SCREEN['/f03-snapshot'] = 'f03-snapshots';
@@ -86,6 +91,7 @@ export function getPathForScreen(screen: ActiveNavScreen): string {
  */
 export function getScreenFromPathname(pathname: string): ActiveNavScreen | null {
   const normalized = pathname.trim().toLowerCase();
+  if (/^\/product\/[^/]+\/?$/.test(normalized)) return 'customer-product';
   if (normalized === '' || normalized === '/') {
     return null;
   }
@@ -97,6 +103,7 @@ export function getScreenFromPathname(pathname: string): ActiveNavScreen | null 
  */
 export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
   if (typeof window === 'undefined') return;
+  if (screen === 'customer-product' && getCustomerProductId(window.location.pathname)) return;
   const targetPath = getPathForScreen(screen);
   const currentPath = window.location.pathname;
 
@@ -107,4 +114,10 @@ export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
       window.history.pushState({ screen }, '', targetPath);
     }
   }
+}
+
+export function getCustomerProductId(pathname: string): string | null {
+  const match = /^\/product\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return null;
+  try { return decodeURIComponent(match[1]); } catch { return null; }
 }
