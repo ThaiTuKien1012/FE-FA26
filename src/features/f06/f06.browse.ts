@@ -20,6 +20,9 @@ export interface RecommendationBrowseState {
   miningRunId: number | null;
   sourceRun: RunView | null;
   sourceLoading: boolean;
+  runTotal: number | null;
+  availabilityLoading: boolean;
+  availabilityError: string;
   list: RecPage | null;
   loading: boolean;
   error: string;
@@ -56,7 +59,7 @@ const scopeKey = () => {
 };
 const initial = (): RecommendationBrowseState => ({
   role: authService.getCurrentUser()?.role ?? null, mode: 'ranked', filters: { pageSize: 20,type:'BUNDLE' }, page: 0,
-  sourceRun: null, sourceLoading: false,
+  sourceRun: null, sourceLoading: false,runTotal:null,availabilityLoading:false,availabilityError:'',
   miningRunId: null, list: null, loading: false, error: '', detailId: null, detail: null, detailLoading: false, detailError: '',
   names: {}, listNames: {}, images: {}, namesLoading: false, namesUnavailable: false, requests: null, requestPage: 0, requestsLoading: false,
   requestsError: '', request: null, runs: [], runsLoading: false, runsError: '',
@@ -97,7 +100,7 @@ export async function readRecommendationProductNames(ids: number[], signal: Abor
   return names;
 }
 
-type ReadKind = 'next' | 'source' | 'list' | 'detail' | 'names' | 'listNames' | 'requests' | 'runs' | 'review';
+type ReadKind = 'availability' | 'next' | 'source' | 'list' | 'detail' | 'names' | 'listNames' | 'requests' | 'runs' | 'review';
 /** State for one mounted dashboard. Reviews require an explicit confirmation.
  * No polling or client ranking. Every late result is context-fenced.
  */
@@ -151,7 +154,7 @@ export class RecommendationBrowser {
   }
   private syncContext = () => {
     if (scopeKey() === this.scope) return;
-    this.abort('next','source', 'list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
+    this.abort('availability','next','source', 'list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
     this.productNames.clear(); this.productImages.clear();
     this.scope = scopeKey();
     this.state = initial(); this.update({});
@@ -166,7 +169,7 @@ export class RecommendationBrowser {
     if (loadChoices && this.allowed()) void this.loadRequests(0);
   };
   stop = () => {
-    this.active = false; this.abort('next','source', 'list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
+    this.active = false; this.abort('availability','next','source', 'list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
     this.productNames.clear(); this.productImages.clear();
     this.unsubscribeAuth?.(); this.unsubscribeAuth = null;
   };
@@ -174,7 +177,7 @@ export class RecommendationBrowser {
     // Legacy callers can choose an analysis, but cannot restore an unscoped Library.
     if (mode !== 'ranked' || !this.state.requests) void this.loadRequests(0);
   };
-  applyFilters = async (filters: BrowseFilters) => {
+  applyFilters = async (filters: BrowseFilters, checkAvailability = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
     try {
       if (filters.snapshotId !== undefined) recommendationInteger(filters.snapshotId, 'snapshotId', 1, INT32_MAX);
@@ -184,13 +187,30 @@ export class RecommendationBrowser {
     } catch (error) { this.update({ error: recommendationReadError(error) }); return; }
     this.closeDetail();
     this.update({ filters: { ...filters,type:filters.type??this.state.filters.type??'BUNDLE',pageSize:filters.pageSize??20 }, page: 0 });
-    await this.refresh();
+    await this.refresh(false,false,checkAvailability);
   };
   setPage = async (page: number) => {
     if (!this.allowed() || this.state.reviewPending || !Number.isInteger(page) || page < 0 || page > INT32_MAX) return;
     this.closeDetail(); this.update({ page }); await this.refresh();
   };
-  refresh = async (refreshNames = false, preserveDetail = false) => {
+  private readRunAvailability = async () => {
+    const run=this.state.sourceRun;if(!run)return false;
+    const job=this.begin('availability');
+    this.update({runTotal:null,availabilityLoading:true,availabilityError:''});
+    try {
+      // One row proves run-wide availability. Never apply type/status filters here.
+      const page=await f06Api.list({miningRunId:run.runId,page:0,pageSize:1},job.signal);
+      if(!job.current())return false;
+      if(page.ordering!=='RANKED_WITHIN_SOURCE_RUN')throw new F06ApiError(200,'Recommendation availability could not be verified.');
+      page.items.forEach(item=>{this.checkStore(item.storeId);if(item.snapshotId!==run.snapshotId||!item.sources.some(source=>source.runId===run.runId&&source.snapshotId===run.snapshotId))throw new F06ApiError(200,'Recommendation availability does not match the selected analysis.');});
+      this.update({runTotal:page.totalElements,availabilityLoading:false});return true;
+    } catch(error) {
+      const message=recommendationReadError(error);
+      if(job.current())this.update({runTotal:null,availabilityLoading:false,availabilityError:/too many suggestions to load at once/i.test(message)?'This analysis exceeds the recommendation loading limit. Choose another analysis or contact your administrator.':message});
+      return false;
+    }
+  };
+  refresh = async (refreshNames = false, preserveDetail = false, checkAvailability = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
     // Explicit refresh can pick up catalog renames; paging/filtering
     // reuses labels and does not repeat one F02 request for each row.
@@ -201,6 +221,11 @@ export class RecommendationBrowser {
     if (!preserveDetail) this.closeDetail();
     const job = this.begin('list');
     if (!this.state.sourceRun || this.state.sourceRun.runId !== this.state.miningRunId) { this.update({ list: null, loading: false }); return; }
+    if(checkAvailability||refreshNames||this.state.runTotal===null){
+      this.update({list:null,loading:false});
+      if(!await this.readRunAvailability()||!job.current())return;
+    }
+    if(this.state.runTotal===0){this.update({list:null,loading:false,error:''});return;}
     const params: RecListParams = { ...this.state.filters,type:this.state.filters.type??'BUNDLE', page: this.state.page,
       miningRunId: this.state.sourceRun.runId };
     this.update({ list: null, loading: true, error: '' });
@@ -228,23 +253,23 @@ export class RecommendationBrowser {
   selectSource = async (runId:number) => {
     if(!this.allowed())return;
     this.abort('review');this.update({reviewPending:false});
-    this.closeDetail();this.abort('next','list','listNames','requests','runs','names');
+    this.closeDetail();this.abort('availability','next','list','listNames','requests','runs','names');
     const job=this.begin('source');
-    this.update({mode:'ranked',miningRunId:null,sourceRun:null,sourceLoading:true,page:0,filters:{pageSize:20,type:'BUNDLE'},request:null,runs:[],list:null,error:'',loading:false,requestsLoading:false,runsLoading:false,listNames:{},images:{}});
+    this.update({mode:'ranked',miningRunId:null,sourceRun:null,sourceLoading:true,runTotal:null,availabilityLoading:false,availabilityError:'',page:0,filters:{pageSize:20,type:'BUNDLE'},request:null,runs:[],list:null,error:'',loading:false,requestsLoading:false,runsLoading:false,listNames:{},images:{}});
     try {
       const {request,run}=await readRecommendationSource(runId,job.signal);
       if(!job.current())return;
       this.update({request,runs:[run],sourceRun:run,miningRunId:run.runId,sourceLoading:false});
-      await this.refresh();
+      await this.refresh(false,false,true);
     } catch(error) { if(job.current())this.update({sourceLoading:false,error:recommendationReadError(error)}); }
   };
   loadRequests = async (page = this.state.requestPage) => {
     if (!this.allowed() || this.state.mode !== 'ranked') return;
     this.abort('review');this.update({reviewPending:false});
-    this.closeDetail(); this.abort('next','source', 'list', 'listNames', 'names', 'runs');
+    this.closeDetail(); this.abort('availability','next','source', 'list', 'listNames', 'names', 'runs');
     const job = this.begin('requests');
     this.update({ requestPage: page, requests: null, requestsLoading: true, requestsError: '',
-      request: null, runs: [], runsLoading: false, runsError: '', miningRunId: null, sourceRun:null,sourceLoading:false,page: 0, list: null, loading: false, error: '',listNames:{},images:{} });
+      request: null, runs: [], runsLoading: false, runsError: '', miningRunId: null, sourceRun:null,sourceLoading:false,runTotal:null,availabilityLoading:false,availabilityError:'',page: 0, list: null, loading: false, error: '',listNames:{},images:{} });
     try {
       const requests = await f05Api.listRequests(page, 20, job.signal);
       if (!job.current()) return;
@@ -258,9 +283,9 @@ export class RecommendationBrowser {
     if (!this.allowed() || this.state.reviewPending || this.state.mode !== 'ranked') return;
     const request = this.state.requests?.items.find(item => item.requestId === id);
     if (!request) return;
-    this.closeDetail(); this.abort('next','source','list','listNames','names');
+    this.closeDetail(); this.abort('availability','next','source','list','listNames','names');
     const job = this.begin('runs');
-    this.update({ request, runs: [], runsLoading: true, runsError: '', miningRunId: null, sourceRun:null,sourceLoading:false,page: 0, list: null, loading: false, error: '' });
+    this.update({ request, runs: [], runsLoading: true, runsError: '', miningRunId: null, sourceRun:null,sourceLoading:false,runTotal:null,availabilityLoading:false,availabilityError:'',page: 0, list: null, loading: false, error: '' });
     try {
       const runs = await f05Api.listRuns(id, job.signal);
       if (!job.current()) return;

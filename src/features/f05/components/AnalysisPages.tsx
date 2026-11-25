@@ -1,10 +1,10 @@
-import { paginationItems, paginationRange } from '../../store/f02.tables';
+import { paginationItems } from '../../store/f02.tables';
 import type { Page } from '../f05.types';
 
 export function AnalysisPages({ page, label, busy = false, onPage }: { page: Page<unknown>; label: string; busy?: boolean; onPage: (page: number) => void }) {
   const pages = Math.ceil(page.totalElements / page.pageSize);
   if (pages <= 1) return null;
-  const range = paginationRange(page.page, page.totalElements, page.items.length);
+  const range = {from:page.items.length?page.page*page.pageSize+1:0,to:page.items.length?Math.min(page.totalElements,page.page*page.pageSize+page.items.length):0};
   const items = label === 'Snapshot' ? 'snapshots' : label === 'Analysis History' ? 'analyses' : 'product combinations';
   return <div className="f02-pagination mt-4"><span className="f02-page-range" role="status">Showing {range.from}–{range.to} of {page.totalElements.toLocaleString('en-GB')} {items}</span><nav aria-label={label + ' pages'}>
     <button type="button" className="f02-page-step" disabled={busy || page.page === 0} onClick={() => onPage(page.page - 1)}>Previous</button>

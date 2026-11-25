@@ -34,8 +34,9 @@ function setup(t:TestContext,role:AuthUser['role']='Merchandiser') {
     [65,recommendation({recommendationId:65,type:'FBT'})],[66,recommendation({recommendationId:66,type:'BANNER',productIds:[31]})]
   ]);
   const listRead=async(params:RecListParams={}):Promise<RecPage>=>{
-    assert.ok(params.miningRunId&&params.type,'Every main/next request must specify the run and type');
-    const items=[...records.values()].filter(item=>item.type===params.type&&(!params.reviewStatus||item.reviewStatus===params.reviewStatus));
+    assert.ok(params.miningRunId,'Every request must specify the run');
+    if(!params.type)assert.deepEqual(params,{miningRunId:42,page:0,pageSize:1},'Only the bounded run-wide check omits type/status');
+    const items=[...records.values()].filter(item=>(!params.type||item.type===params.type)&&(!params.reviewStatus||item.reviewStatus===params.reviewStatus));
     const page=params.page??0,size=params.pageSize??20;
     return{items:items.slice(page*size,(page+1)*size),page,pageSize:size,totalElements:items.length,ordering:'RANKED_WITHIN_SOURCE_RUN' as const};
   };
@@ -100,8 +101,9 @@ test('cards retain every ID/type/direction/decision in Backend order without tec
 test('four server-filtered tabs keep run/review status and reset pages without main-screen technical controls',async t=>{
   const f=setup(t);await f.browser.selectSource(42);await f.browser.applyFilters({reviewStatus:'PENDING_REVIEW'});
   for(const type of ['CROSS_SELL','FBT','BANNER','BUNDLE'] as const){await f.browser.setPage(0);await f.browser.applyFilters({...f.browser.getSnapshot().filters,type});assert.equal(f.browser.getSnapshot().page,0);assert.ok(f.browser.getSnapshot().list!.items.every(item=>item.type===type));}
-  assert.ok(f.list.mock.calls.every(call=>call.arguments[0]?.miningRunId===42&&call.arguments[0]?.type));
-  assert.ok(f.list.mock.calls.slice(1).every(call=>call.arguments[0]?.reviewStatus==='PENDING_REVIEW'));
+  assert.ok(f.list.mock.calls.every(call=>call.arguments[0]?.miningRunId===42));
+  assert.deepEqual(f.list.mock.calls[0].arguments[0],{miningRunId:42,page:0,pageSize:1});
+  assert.ok(f.list.mock.calls.slice(2).every(call=>call.arguments[0]?.type&&call.arguments[0]?.reviewStatus==='PENDING_REVIEW'));
   const html=render(createElement(F06DashboardContent,{state:f.browser.getSnapshot(),workflow:f.browser}));
   assert.equal((html.match(/role="tab"/g)??[]).length,4);assert.ok(html.includes('id="f06-type-BUNDLE"'));
   assert.doesNotMatch(html,/f06-filter-snapshot|f06-filter-type|All saved suggestions|Analysis scope|Apply Filters|Reset Filters|Product groups/);
@@ -121,7 +123,7 @@ test('successful review preserves exact ID/version/reason and Review Next opens 
   assert.deepEqual(f.approve.mock.calls[0].arguments.slice(0,2),[62,{expectedVersion:1,reason:'Reviewed the recorded evidence.'}]);
   assert.deepEqual(f.browser.getSnapshot().list!.items.map(item=>item.recommendationId),[63]);await f.browser.reviewNext();
   assert.equal(f.browser.getSnapshot().detailId,63);assert.equal(f.browser.getSnapshot().detail!.reviewStatus,'PENDING_REVIEW');assert.equal(f.browser.getSnapshot().reviewedId,null);
-  assert.equal(f.records.get(64)!.reviewStatus,'PENDING_REVIEW');assert.ok(f.list.mock.calls.every(call=>call.arguments[0]?.type==='BUNDLE'&&call.arguments[0]?.miningRunId===42));
+  assert.equal(f.records.get(64)!.reviewStatus,'PENDING_REVIEW');assert.ok(f.list.mock.calls.every(call=>call.arguments[0]?.miningRunId===42&&(!call.arguments[0]?.type||call.arguments[0]?.type==='BUNDLE')));
   const reads=f.list.mock.callCount();await f.browser.reviewNext();assert.equal(f.list.mock.callCount(),reads,'Review Next cannot skip a suggestion before a saved decision');
 });
 test('Review Next skips a candidate whose decision changed between list and fresh GET',async t=>{

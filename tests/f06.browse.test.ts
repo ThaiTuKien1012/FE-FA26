@@ -80,7 +80,7 @@ test('opening group candidates retains cached product images; explicit refresh r
 for (const role of ['Merchandiser', 'Store Admin'] as const) test(`${role} selects a completed F05 run even with failed request comparison and reads server ranks`, async t => {
   const f = setup(t, role); f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, [recommendation({ rank: params.miningRunId ? 21 : null })]));
   await startSelected(f.workflow); f.workflow.setMode('ranked'); await flush();
-  assert.equal(f.list.mock.callCount(), 1, 'no ranked request until run selected');
+  assert.equal(f.list.mock.callCount(), 2, 'one availability check and one typed page after selecting the run');
   await f.workflow.selectRequest(17); await f.workflow.selectRun(42);
   assert.equal(f.list.mock.calls.at(-1)!.arguments[0]?.miningRunId, 42);
   assert.ok(table(f.workflow.getSnapshot().list!).includes('data-rank="21"'));
@@ -91,7 +91,7 @@ test('ranked source selection ignores incomplete runs and supports empty/error/m
   const f = setup(t); f.runs.mock.mockImplementation(async () => [runFixture('RUNNING')]);
   await startSelected(f.workflow); f.workflow.setMode('ranked'); await flush();
   await f.workflow.selectRequest(17); await f.workflow.selectRun(42);
-  assert.equal(f.workflow.getSnapshot().miningRunId, null); assert.equal(f.list.mock.callCount(), 1);
+  assert.equal(f.workflow.getSnapshot().miningRunId, null); assert.equal(f.list.mock.callCount(), 2);
   f.requests.mock.mockImplementation(async () => ({ items: [], page: 0, pageSize: 20, totalElements: 0 }));
   await f.workflow.loadRequests(); assert.equal(f.workflow.getSnapshot().requests?.items.length, 0);
   f.requests.mock.mockImplementation(async () => { throw new F06ApiError(403, 'Source access denied'); });
@@ -110,16 +110,16 @@ test('filters reset page to zero and pagination uses backend totalElements/pageS
 test('invalid filter values do not issue a list request', async t => {
   const f = setup(t); await startSelected(f.workflow);
   for (const filters of [{ snapshotId: 2147483648 }, { snapshotId: 1.5 }, { pageSize: 101 }]) await f.workflow.applyFilters(filters);
-  assert.equal(f.list.mock.callCount(), 1); assert.match(f.workflow.getSnapshot().error, /selection/);
+  assert.equal(f.list.mock.callCount(), 2); assert.match(f.workflow.getSnapshot().error, /selection/);
 });
 test('empty/loading/error list states stay distinct and do not display stale rows', async t => {
-  const f = setup(t); const pending = deferred<RecPage>(); f.list.mock.mockImplementation(() => pending.promise);
+  const f = setup(t); const pending = deferred<RecPage>(); f.list.mock.mockImplementation((params:RecListParams={}) => params.type?pending.promise:Promise.resolve(resultPage(params)));
   await startSelected(f.workflow); assert.equal(f.workflow.getSnapshot().loading, true);
   let html = renderToStaticMarkup(createElement(F06DashboardContent, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
   assert.ok(html.includes('Loading recommendations')); assert.equal(html.includes('No recommendations match'), false);
   pending.resolve(resultPage({miningRunId:42}, [])); await flush();
   html = renderToStaticMarkup(createElement(F06DashboardContent, { state: f.workflow.getSnapshot(), workflow: f.workflow }));
-  assert.ok(html.includes('No bundle recommendations were found for this analysis'));
+  assert.ok(html.includes('No bundle recommendations found for this analysis'));
   f.list.mock.mockImplementation(async () => { throw new F06ApiError(null, 'Offline'); }); await f.workflow.refresh();
   assert.equal(f.workflow.getSnapshot().list, null); assert.match(f.workflow.getSnapshot().error, /connect/);
 });
@@ -127,8 +127,8 @@ test('ranked 409 retains backend message and recommends narrower filters without
   const f = setup(t); await startSelected(f.workflow); f.workflow.setMode('ranked'); await flush(); await f.workflow.selectRequest(17);
   f.list.mock.mockImplementation(async () => { throw new F06ApiError(409, 'Rank scope exceeds 10000 candidates'); });
   await f.workflow.selectRun(42); await flush();
-  assert.match(f.workflow.getSnapshot().error, /Narrow the review status/);
-  assert.equal(f.list.mock.callCount(), 2); await f.workflow.refresh(); assert.equal(f.list.mock.callCount(), 3);
+  assert.match(f.workflow.getSnapshot().availabilityError, /Choose another analysis/);
+  assert.equal(f.list.mock.callCount(), 3); await f.workflow.refresh(); assert.equal(f.list.mock.callCount(), 4);
 });
 test('detail success loads optional product names using GET only; source evidence/history stay intact', async t => {
   const f = setup(t); await startSelected(f.workflow); await f.workflow.openDetail(62);
@@ -175,7 +175,7 @@ for (const status of [400, 401, 403, 404, 409, null]) test(`list and detail hand
   f.list.mock.mockImplementation(async () => { throw new F06ApiError(status, 'Controlled list failure'); });
   f.detail.mock.mockImplementation(async () => { throw new F06ApiError(status, 'Controlled detail failure'); });
   await startSelected(f.workflow); await f.workflow.openDetail(62); await flush();
-  assert.ok(f.workflow.getSnapshot().error);assert.ok(f.workflow.getSnapshot().detailError);assert.equal(/HTTP|Controlled/.test(f.workflow.getSnapshot().error+f.workflow.getSnapshot().detailError),false);
+  assert.ok(f.workflow.getSnapshot().availabilityError);assert.ok(f.workflow.getSnapshot().detailError);assert.equal(/HTTP|Controlled/.test(f.workflow.getSnapshot().availabilityError+f.workflow.getSnapshot().detailError),false);
   assert.equal(f.list.mock.callCount(), 1); assert.equal(f.detail.mock.callCount(), 1); assert.equal(f.products.mock.callCount(), 0);
 });
 for (const role of ['System Admin', 'End-Customer'] as const) test(`${role} cannot load list/detail or mining sources`, async t => {
@@ -250,7 +250,7 @@ test('available product names precede IDs and unknown products retain a clear re
   assert.equal(renderToStaticMarkup(createElement(RecommendationProduct, { id: null })), 'N/A');
 });
 test('friendly filter options keep exact backend enum values and the drawer keeps six clear sections', t => {
-  const f=setup(t);const state={...f.workflow.getSnapshot(),sourceRun:runFixture('COMPLETED'),miningRunId:42,request:requestFixture()};const html=renderToStaticMarkup(createElement(F06DashboardContent,{state,workflow:f.workflow}));
+  const f=setup(t);const state={...f.workflow.getSnapshot(),sourceRun:runFixture('COMPLETED'),miningRunId:42,request:requestFixture(),runTotal:1};const html=renderToStaticMarkup(createElement(F06DashboardContent,{state,workflow:f.workflow}));
   assert.ok(html.includes('value="APPROVED">Approved</option>')); assert.ok(html.includes('id="f06-type-CROSS_SELL"'));
   assert.ok(html.includes('Items per page')); assert.equal(html.includes('f06-analysis-scope'),false); assert.ok(html.includes('Selected analysis'));
   const detail = content(recommendation());
@@ -288,7 +288,7 @@ test('Store Admin list stays focused on business status and preserves backend ev
   for (const text of ['Bought together in 2 of 6','Purchase frequency']) assert.ok(html.includes(text));
   assert.equal(html.includes('Snapshot #'),false);
   assert.ok(html.includes('Approved'));assert.ok(html.includes('Currently unavailable'));const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items:[item],onSelect:()=>{}}));assert.ok(options.includes('Approved'));assert.ok(options.includes('Currently unavailable'));
-  const dashboard=renderToStaticMarkup(createElement(F06DashboardContent,{state:{...f.workflow.getSnapshot(),sourceRun:runFixture('COMPLETED'),request:requestFixture(),miningRunId:42},workflow:f.workflow}));
+  const dashboard=renderToStaticMarkup(createElement(F06DashboardContent,{state:{...f.workflow.getSnapshot(),sourceRun:runFixture('COMPLETED'),request:requestFixture(),miningRunId:42,runTotal:1},workflow:f.workflow}));
   for(const id of ['f06-type-BUNDLE','f06-filter-size'])assert.ok(dashboard.includes(id));assert.equal(dashboard.includes('f06-analysis-scope'),false);assert.equal(dashboard.includes('Generate New'),false);
   assert.equal(dashboard.includes('f06-filter-type'),false); assert.ok(dashboard.includes('f06-filter-review'));
   assert.equal(JSON.stringify(item), original);

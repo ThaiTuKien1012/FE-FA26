@@ -1,4 +1,4 @@
-import { StoreAnalysisDetails } from './StoreAnalysisDetails';
+import { initialCompletedRunId, StoreAnalysisDetails } from './StoreAnalysisDetails';
 import { analysisErrorMessage } from '../f05.presentation';
 import { MiningConversionDetails } from './MiningConversionDetails';
 import { MiningProgressCard } from './MiningProgressCard';
@@ -35,6 +35,7 @@ export function RequestDetails({ requestId, onUpdated, onReadError, reader=store
     const stop = watchMiningRequest(requestId, data => {
       setResult({ key, token, data });
       onUpdated(data.request);
+      if(reader.kind==='store'&&runId===null){const completed=initialCompletedRunId(data);if(completed!==null)setRunId(completed);}
     }, error => {
       setResult({ key, token, error: reader.kind==='store'?analysisErrorMessage(error):miningErrorMessage(error) });
       onReadError(error);

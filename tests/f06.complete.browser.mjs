@@ -104,10 +104,10 @@ async function fixture({ requestId, request }) {
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F06 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: state.storeId, status: 'ACTIVE', emailVerified: true };
   else if (path === '/api/recommendations') {
     assert.equal(url.searchParams.get('miningRunId'),'42');
-    const type=url.searchParams.get('type');assert.ok(['BUNDLE','CROSS_SELL','FBT','BANNER'].includes(type));
+    const type=url.searchParams.get('type');if(type)assert.ok(['BUNDLE','CROSS_SELL','FBT','BANNER'].includes(type));else{assert.equal(url.searchParams.get('pageSize'),'1');assert.equal(url.searchParams.has('reviewStatus'),false);}
     const p = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
-    const candidates=(state.groupRecords?[...state.groupRecords.keys()].map(id=>item(id)):[item()]).filter(record=>record.type===type&&(!url.searchParams.get('reviewStatus')||record.reviewStatus===url.searchParams.get('reviewStatus')));
-    body = { items:candidates, page: p, pageSize: size, totalElements:state.groupRecords?candidates.length:45, ordering:url.searchParams.has('miningRunId')?'RANKED_WITHIN_SOURCE_RUN':'CREATED_DESC' };
+    const candidates=(state.groupRecords?[...state.groupRecords.keys()].map(id=>item(id)):[item()]).filter(record=>(!type||record.type===type)&&(!url.searchParams.get('reviewStatus')||record.reviewStatus===url.searchParams.get('reviewStatus')));
+    body = { items:type?candidates:candidates.slice(0,1), page: p, pageSize: size, totalElements:state.groupRecords?candidates.length:45, ordering:url.searchParams.has('miningRunId')?'RANKED_WITHIN_SOURCE_RUN':'CREATED_DESC' };
   } else if (/^\/api\/recommendations\/\d+$/.test(path)) body = item(Number(path.split('/').at(-1)));
   else if (/^\/api\/recommendations\/\d+\/(approve|reject)$/.test(path)) {
     assert.equal(request.method, 'POST'); assert.equal(state.role, 'MERCHANDISER');
@@ -278,7 +278,7 @@ try {
   await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');await click('Review Next');await has('No pending recommendations remain for this analysis and type.');
   assert.equal(state.groupRecords.get(63).reviewStatus,'PENDING_REVIEW','Review Next never crosses to Cross-sell');
   assert.equal(calls.some(call=>/^\/api\/(layouts|campaigns)/.test(call.path)),false,'No fake Layout/Campaign creation or handoff');
-  await click('Back to Recommendations');await has('No needs review bundle recommendations match this selection.');
+  await click('Back to Recommendations');await has('No recommendations match the selected review status.');
   assert.equal(writes().at(-2).payload.expectedVersion,21);assert.equal(writes().at(-1).payload.expectedVersion,25);
   checks.push('Review Next: exact versions/reasons, filtered page removal, fresh same-type pending GET, no pending state, required 1000-character limit, Backend readiness notice only, no Layout handoff action or campaign/layout calls');
   assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);

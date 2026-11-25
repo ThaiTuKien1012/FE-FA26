@@ -12,7 +12,7 @@ import { RecommendationGeneration, generationErrorMessage } from '../src/feature
 import { readRecommendationLocation, recommendationPath, recommendationReturnPath } from '../src/features/f06/f06.navigation';
 import { F06DashboardContent } from '../src/features/f06/components/F06DashboardView';
 import { F06GenerationSummary } from '../src/features/f06/components/F06GenerationResult';
-import { StoreAnalysisContent } from '../src/features/f05/components/StoreAnalysisDetails';
+import { StoreAnalysisDetails } from '../src/features/f05/components/StoreAnalysisDetails';
 import type { RunView } from '../src/features/f05/f05.types';
 import type { RecListParams, RecPage, RecView } from '../src/features/f06/f06.types';
 import { generation, recommendation, policy } from './f06.fixtures';
@@ -79,7 +79,7 @@ test('switching run clears details, filters and pagination and rejects late sour
   const pending=deferred<RecPage>();f.list.mock.mockImplementation(()=>pending.promise);const oldList=f.browser.refresh();const listSignal=f.list.mock.calls.at(-1)!.arguments[1];
   f.list.mock.mockImplementation(async(params:RecListParams={})=>({items:[],page:0,pageSize:20,totalElements:0,ordering:'RANKED_WITHIN_SOURCE_RUN' as const}));
   await f.browser.selectSource(45);pending.resolve({items:[recommendation()],page:0,pageSize:20,totalElements:1,ordering:'RANKED_WITHIN_SOURCE_RUN' as const});await oldList;
-  assert.equal(listSignal?.aborted,true);assert.equal(f.browser.getSnapshot().miningRunId,45);assert.equal(f.browser.getSnapshot().list?.items.length,0);
+  assert.equal(listSignal?.aborted,true);assert.equal(f.browser.getSnapshot().miningRunId,45);assert.equal(f.browser.getSnapshot().runTotal,0);assert.equal(f.browser.getSnapshot().list,null);
 });
 test('Store/session change cancels source validation and requires a new selection',async t=>{
   const f=setup(t);f.browser.start(false);const pending=deferred<RunView>();f.run.mock.mockImplementation(()=>pending.promise);
@@ -98,7 +98,7 @@ test('source change cancels a pending review and ignores a late write response w
 test('mismatched recommendation source relations fail closed for list and Details',async t=>{
   const f=setup(t);f.browser.start(false);
   f.list.mock.mockImplementation(async()=>({items:[recommendation({snapshotId:9,sources:recommendation().sources.map(source=>({...source,snapshotId:9}))})],page:0,pageSize:20,totalElements:1,ordering:'RANKED_WITHIN_SOURCE_RUN' as const}));
-  await f.browser.selectSource(42);assert.equal(f.browser.getSnapshot().list,null);assert.match(f.browser.getSnapshot().error,/could not be verified/);
+  await f.browser.selectSource(42);assert.equal(f.browser.getSnapshot().list,null);assert.match(f.browser.getSnapshot().availabilityError,/could not be verified/);
   t.mock.method(f06Api,'get',async()=>recommendation({sources:recommendation().sources.map(source=>({...source,runId:43}))}));
   await f.browser.openDetail(62);assert.equal(f.browser.getSnapshot().detail,null);assert.match(f.browser.getSnapshot().detailError,/unavailable/);
 });
@@ -106,7 +106,7 @@ test('empty filtered results never claim the run has no saved recommendations',a
   const f=setup(t);f.browser.start(false);await f.browser.selectSource(42);
   f.list.mock.mockImplementation(async()=>({items:[],page:0,pageSize:20,totalElements:0,ordering:'RANKED_WITHIN_SOURCE_RUN' as const}));await f.browser.applyFilters({type:'BANNER'});
   const html=renderToStaticMarkup(createElement(F06DashboardContent,{state:f.browser.getSnapshot(),workflow:f.browser}));
-  assert.ok(html.includes('No banner recommendations were found for this analysis'));assert.equal(html.includes('No saved recommendations for this analysis'),false);assert.equal(f.generate.mock.callCount(),0);
+  assert.ok(html.includes('No banner recommendations found for this analysis'));assert.equal(html.includes('No Recommendations Yet'),false);assert.equal(f.generate.mock.callCount(),0);
 });
 test('selected-run generation defaults to four types, reuses validated source and does not load history or auto-submit',async t=>{
   const f=setup(t),flow=new RecommendationGeneration();t.after(flow.stop);
@@ -129,7 +129,7 @@ test('reused approved candidates retain their identity, decision, source relatio
 test('F05 completed displayed run exposes primary navigation only to its own Store roles',t=>{
   for(const role of ['Merchandiser','Store Admin','System Admin','End-Customer'] as const)for(const status of ['COMPLETED','RUNNING','FAILED','TIMED_OUT'] as const){
     setup(t,role);const run=runFixture(status),data={request:requestFixture('COMPLETED'),runs:[run],runDetail:run,progress:progressFixture('COMPLETED')};
-    const html=renderToStaticMarkup(createElement(StoreAnalysisContent,{data,selectedRunId:42,onRun:()=>{},onReadError:()=>{}}));
+    const html=renderToStaticMarkup(createElement(StoreAnalysisDetails,{data,loading:false,selectedRunId:42,onRun:()=>{},onRefresh:()=>{},onClose:()=>{},onReadError:()=>{}}));
     assert.equal(html.includes('>View Recommendations</button>'),status==='COMPLETED'&&(role==='Merchandiser'||role==='Store Admin'));
   }
 });

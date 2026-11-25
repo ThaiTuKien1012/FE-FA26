@@ -120,12 +120,13 @@ async function fixture({ requestId, request }) {
     for (const key of url.searchParams.keys()) assert.ok(['page', 'pageSize', 'miningRunId', 'snapshotId', 'type', 'reviewStatus'].includes(key));
     assert.equal(url.searchParams.get('miningRunId'),'42','Library must stay run-scoped');
     const pageIndex = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
-    const type=url.searchParams.get('type');assert.ok(types.includes(type),'Every list request must include the active type');assert.equal(url.searchParams.has('snapshotId'),false,'No manually entered snapshot filter');
+    const availability=!url.searchParams.has('type'),type=url.searchParams.get('type')||'BUNDLE';assert.ok(types.includes(type));assert.equal(url.searchParams.has('snapshotId'),false,'No manually entered snapshot filter');
+    if(availability){assert.equal(size,1);assert.equal(url.searchParams.has('reviewStatus'),false);}
     const offset=types.indexOf(type)*1000;
     let items=state.empty?[]:[item(offset+62+pageIndex*size,storeId),item(offset+63+pageIndex*size,storeId)].map((record,index)=>({...record,rank:pageIndex*size+index+1}));
     if(state.visual)items=visualItems(pageIndex,type);
     if(url.searchParams.has('reviewStatus'))items=items.filter(record=>record.reviewStatus===url.searchParams.get('reviewStatus'));
-    body={items,page:pageIndex,pageSize:size,totalElements:items.length?(state.visual?25:45):0,ordering:'RANKED_WITHIN_SOURCE_RUN'};
+    body=availability?{items:[item(62,storeId)],page:0,pageSize:1,totalElements:state.visual?100:45,ordering:'RANKED_WITHIN_SOURCE_RUN'}:{items,page:pageIndex,pageSize:size,totalElements:items.length?(state.visual?25:45):0,ordering:'RANKED_WITHIN_SOURCE_RUN'};
     while (state.holdList && !closing) await sleep(20);
     responseCode = state.listStatus;
     if (responseCode !== 200) body = { error: responseCode === 409 ? 'Rank scope exceeds 10000 candidates' : 'Controlled list failure' };
@@ -177,8 +178,8 @@ try {
   await click('Change Analysis');await until('!!document.querySelector("#f06-ranked-request")','analysis selection');await select('f06-ranked-request','17');await until('document.querySelector("#f06-ranked-run")?.options.length===3','historical run choices');
   assert.equal(await page.evaluate('document.querySelector("#f06-ranked-run").options[2].disabled'),true);await select('f06-ranked-run','42');await has('45 matching recommendations');
   assert.equal(await page.evaluate('document.querySelector("[data-rank]").dataset.rank'),'1');
-  state.listStatus=409;await click('Refresh');await has('Narrow the review status filter');const limitReads=calls.filter(c=>c.path==='/api/recommendations').length;await sleep(100);assert.equal(calls.filter(c=>c.path==='/api/recommendations').length,limitReads);
-  state.listStatus=200;await click('Refresh');await has('45 matching recommendations');
+  state.listStatus=409;await click('Refresh');await has('Choose another analysis');const limitReads=calls.filter(c=>c.path==='/api/recommendations').length;await sleep(100);assert.equal(calls.filter(c=>c.path==='/api/recommendations').length,limitReads);
+  state.listStatus=200;await click('Retry Recommendations');await has('45 matching recommendations');
   checks.push('run/type/review filters and page size use Backend params immediately; pagination/reset page, exact server order, historical completed source and ranked limit without retry');
 
   await openDetails(1062);await has('Fixture bread');
@@ -197,8 +198,8 @@ try {
   state.detailStatus=404;await click('Refresh details');await has('unavailable for your store');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Fixture milk")'),false);await closeDetails();state.detailStatus=200;
   checks.push('Details loads only selected candidate, exact decimals in optional evidence, missing evidence stays unavailable, distinct cross-sell targets, friendly errors and fresh readiness/names without technical diagnostics');
 
-  state.empty=true;await click('Refresh');await has('No bundle recommendations were found');state.network=true;await click('Refresh');await has('Check your connection');state.network=false;
-  state.empty=false;state.holdList=true;await click('Refresh');await has('Loading recommendations...');state.empty=true;await login('MERCHANDISER',2);state.holdList=false;await has('No bundle recommendations were found');assert.equal(await page.evaluate('!!document.querySelector("[data-recommendation-card]")'),false);
+  state.empty=true;await click('Refresh');await has('No bundle recommendations found');state.network=true;await click('Refresh');await has('Check your connection');state.network=false;
+  state.empty=false;state.holdList=true;await click('Retry Recommendations');await has('Checking saved recommendations...');state.empty=true;await login('MERCHANDISER',2);state.holdList=false;await has('No bundle recommendations found');assert.equal(await page.evaluate('!!document.querySelector("[data-recommendation-card]")'),false);
   state.empty=false;const beforeStore=calls.length;await login('STORE_ADMIN');await has('45 matching recommendations');
   assert.equal(await page.evaluate('[...document.querySelectorAll("button")].some(el=>el.textContent==="Generate Recommendations")'),false);
   assert.equal(calls.slice(beforeStore).some(call=>call.path.endsWith('/generate')),false);assert.ok(calls.slice(beforeStore).some(call=>call.path==='/api/mining/runs/42'));

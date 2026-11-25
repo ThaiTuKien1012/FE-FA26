@@ -52,7 +52,8 @@ test('store analysis hides technical inputs while retaining legacy algorithms, c
   const runs=[{...runFixture('COMPLETED'),algorithm:'EFIM' as const},{...runFixture('COMPLETED'),runId:43,algorithm:'HUI_MINER' as const,patternCount:0}];
   const data={request,runs,runDetail:null,progress:progress('COMPLETED',100)},before=JSON.stringify(data);
   const html=render(createElement(StoreAnalysisContent,{data,selectedRunId:null,onRun:()=>{},onReadError:()=>{}}));
-  for(const label of ['Analysis Results','EFIM','HUI-Miner','0 product combinations','View Results','rounded to whole đồng','saved snapshot is unchanged'])assert.ok(html.includes(label),label);
+  for(const label of ['Analysis result','EFIM','HUI-Miner','Run #43','rounded to whole đồng','saved snapshot is unchanged'])assert.ok(html.includes(label),label);
+  assert.doesNotMatch(html,/View Results|Hide Results|data-store-run-grid/);
   for(const hidden of ['Technical Details','Additional details','Request key','SPMF','WHOLE_UNIT_HALF_UP','LOSSLESS','Conversion version',request.inputHash,request.snapshotHash,request.requestKey])assert.equal(html.includes(hidden),false,hidden);
   assert.equal(JSON.stringify(data),before);
 });
@@ -67,6 +68,8 @@ test('failure and rounding explanations are readable without changing source met
 test('compact pagination is absent for zero/one page and preserves page callbacks for multiple pages', () => {
   for(const totalElements of [0,1,10])assert.equal(render(createElement(AnalysisPages,{page:{items:[],page:0,pageSize:10,totalElements},label:'Snapshot',onPage:()=>{}})),'');
   assert.ok(render(createElement(AnalysisPages,{page:{items:[],page:0,pageSize:10,totalElements:11},label:'Snapshot',onPage:()=>{}})).includes('Snapshot pages'));
+  const actualPage=render(createElement(AnalysisPages,{page:{items:Array(5).fill({}),page:1,pageSize:20,totalElements:25},label:'Product combination',onPage:()=>{}}));
+  assert.ok(actualPage.includes('Showing 21–25 of 25 product combinations'));
 });
 test('F03 snapshot presentation can hide technical dumps without changing saved matrix/configuration/warnings', () => {
   const value=matrix(),before=JSON.stringify(value);

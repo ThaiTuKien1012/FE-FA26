@@ -54,7 +54,7 @@ function RecommendationsWorkspace({ merchant, location }: { merchant:boolean;loc
   if(source?.run!==stableSource.current?.run||source?.request!==stableSource.current?.request)stableSource.current=source;
   const generated=(result:RecGenerationResult)=>{
     if(result.miningRunId!==state.sourceRun?.runId)return;
-    setNotice(result);setTab('library');setBusy(false);void workflow.applyFilters({pageSize:20});
+    setNotice(result);setTab('library');setBusy(false);void workflow.applyFilters({pageSize:20},true);
     requestAnimationFrame(()=>document.getElementById('f06-library-tab')?.focus());
   };
   const choose=(next:'library'|'generate')=>{if(!busy&&!state.reviewPending&&(next==='library'||source&&merchant))setTab(next);};
@@ -63,7 +63,7 @@ function RecommendationsWorkspace({ merchant, location }: { merchant:boolean;loc
     {tab==='generate'&&<button id="f06-generate-back" type="button" className={miningButton} disabled={busy} onClick={()=>choose('library')}>Back to Recommendations</button>}
     {location.error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{location.error}</p>}
     {location.runId!==null&&state.error&&!source&&!state.sourceLoading&&<button type="button" className={miningButton} onClick={()=>void workflow.selectSource(location.runId!)}>Retry Analysis</button>}
-    <div id="f06-browse-panel" hidden={tab!=='library'}>{notice&&notice.miningRunId===state.miningRunId&&<F06GenerationSummary result={notice}/>}<F06DashboardContent state={state} workflow={workflow} onSelectRun={openRunRecommendations} onChooseAnalysis={()=>openRunRecommendations(null)} onGenerate={()=>choose('generate')}/></div>
+    <div id="f06-browse-panel" hidden={tab!=='library'}>{notice&&notice.miningRunId===state.miningRunId&&<F06GenerationSummary result={notice}/>}<F06DashboardContent state={state} workflow={workflow} generationAttempted={notice?.miningRunId===state.miningRunId} onSelectRun={openRunRecommendations} onChooseAnalysis={()=>openRunRecommendations(null)} onGenerate={()=>choose('generate')}/></div>
     {merchant&&tab==='generate'&&stableSource.current&&<div id="f06-generate-panel"><F06GenerationPanel key={state.miningRunId} source={stableSource.current} onGenerated={generated} onPendingChange={setBusy} /></div>}
   </div>;
 }
