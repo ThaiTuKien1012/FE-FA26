@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatPriorityCoverage, simulationUnavailableReason } from '../src/features/f07f08/f08.simulation';
+import { comparisonLabel, formatPriorityCoverage, simulationUnavailableReason } from '../src/features/f07f08/f08.simulation';
 import type { CampaignStatus, LayoutStatus } from '../src/features/f07f08/f07f08.api';
 
 const state = {
@@ -40,9 +40,18 @@ test('unsaved changes, in-progress actions and unready or invalid layouts block 
   }
 });
 
-test('priorityCoverage null (not implemented on the Backend) renders as "chưa có", never 0', () => {
+test('unavailable priorityCoverage renders as "chưa có", never 0', () => {
   assert.equal(formatPriorityCoverage(null), 'chưa có');
   assert.equal(formatPriorityCoverage(undefined), 'chưa có');
   assert.equal(formatPriorityCoverage(0), '0%');
   assert.equal(formatPriorityCoverage(0.5), '50%');
+});
+
+test('offline V2–V4 reports use equal-size comparison and show actual counts when B is larger', () => {
+  for (const version of [2, 3, 4]) {
+    assert.match(comparisonLabel({ algorithmVersion: 'OFFLINE_REPLAY_V' + version, assumptions: {} }), /Equal-size/);
+  }
+  assert.match(comparisonLabel({ algorithmVersion: 'OFFLINE_REPLAY_V1', assumptions: {} }), /measured in full/);
+  assert.match(comparisonLabel({ algorithmVersion: 'OFFLINE_REPLAY_V4',
+    assumptions: { nExceedsBaseline: true, baselineProductsCompared: 3, comparedProductCountN: 5 } }), /A: 3 products, B: 5 products/);
 });

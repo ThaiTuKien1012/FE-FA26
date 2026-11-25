@@ -48,9 +48,18 @@ export interface LayoutSummary {
   updatedAt: string;
 }
 
+export interface PlacementRequest {
+  productId: number;
+  zone: RecommendationType;
+  blockNo: number;
+  position: number;
+  sourceRecommendationId: number | null;
+}
+
 export interface Placement {
   productId: number;
   recommendationId: number | null;
+  sourceRecommendationId: number | null;
   recommendationType: RecommendationType | null;
   sku: string;
   productName: string;
@@ -66,6 +75,8 @@ export interface LayoutView extends LayoutSummary {
   weightedUtilityScore: number | null;
   equalSizeBaselineScore: number | null;
   equalSizeProductCount: number | null;
+  priorityCoverage: number | null;
+  priorityCoverageDenominator: number;
   valid: boolean;
   validationErrors: string[];
   placements: Placement[];
@@ -89,10 +100,16 @@ export interface CampaignView {
   reportIds: number[];
 }
 
+export type CampaignSummary = Omit<CampaignView, 'reportIds' | 'layoutAId' | 'layoutBId'> & {
+  layoutAId: number | null;
+  layoutBId: number | null;
+};
+
 export interface CampaignReport {
   reportId: number;
   campaignId: number;
   snapshotId: number;
+  createdBy: number;
   rangeStart: string;
   rangeEnd: string;
   sourceNamespace: string;
@@ -105,9 +122,9 @@ export interface CampaignReport {
     layoutId: number;
     layoutVersion: number;
     role: LayoutRole;
-    hitRate?: Metric;
-    bundleConversion?: Metric;
-    capturedUtility?: Metric;
+    hitRate: Metric;
+    bundleConversion: Metric;
+    capturedUtility: Metric;
     priorityCoverage: number | null;
     priorityCoverageDenominator: number | null;
   }>;
@@ -122,7 +139,7 @@ export interface Metric {
 
 export interface ActiveLayout {
   defaultLayout: boolean;
-  campaign: CampaignView | null;
+  campaign: CampaignSummary | null;
   layout: LayoutView | null;
 }
 
@@ -156,7 +173,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export interface LayoutSnapshot { snapshotId: number; status: string; rangeStart: string; rangeEnd: string; asOfDate: string; }
-export interface LayoutProduct { id: number; name: string; sku: string; }
+export interface SnapshotProductOption {
+  productId: number;
+  sku: string;
+  productName: string;
+  productStatus: string;
+  deleted: boolean;
+  sellableQuantity: number;
+  snapshotWeightedUtility: number;
+  eligible: boolean;
+  validationErrors: string[];
+}
 
 // Every picker follows server pagination rather than silently truncating at 100.
 async function allPages<T>(path: string, signal?: AbortSignal): Promise<Page<T>> {
@@ -174,11 +201,19 @@ export const f07f08Api = {
   policy: (signal?: AbortSignal) => request<LayoutPolicy>('/api/layouts/policy', { signal }),
   recommendations: (snapshotId: number, signal?: AbortSignal) => allPages<RecommendationOption>(`/api/layouts/recommendations?snapshotId=${encodeURIComponent(snapshotId)}`, signal),
   snapshots: (signal?: AbortSignal) => allPages<LayoutSnapshot>('/api/mining/snapshots', signal),
-  product: (id: number, signal?: AbortSignal) => request<LayoutProduct>(`/api/products/${id}`, { signal }),
+  snapshotProducts: (snapshotId: number, q: string, page: number, pageSize: number, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ snapshotId: String(snapshotId), q, page: String(page), pageSize: String(pageSize) });
+    return request<Page<SnapshotProductOption>>(`/api/layouts/products?${query}`, { signal });
+  },
   layouts: (campaignId?: number) => request<Page<LayoutSummary>>(`/api/layouts?page=0&pageSize=100${campaignId ? `&campaignId=${campaignId}` : ''}`),
   layout: (id: number, signal?: AbortSignal) => request<LayoutView>(`/api/layouts/${id}`, { signal }),
   preview: (id: number, signal?: AbortSignal) => request<LayoutView>(`/api/layouts/${id}/preview`, { signal }),
-  savePlacements: (id: number, expectedVersion: number, recommendationIds: number[]) => request<LayoutView>(`/api/layouts/${id}/placements`, json('PUT', { expectedVersion, recommendationIds })),
+  savePlacements: (id: number, expectedVersion: number, placements: readonly PlacementRequest[]) =>
+    request<LayoutView>(`/api/layouts/${id}/placements`, json('PUT', {
+      expectedVersion,
+      placements: placements.map(({ productId, zone, blockNo, position, sourceRecommendationId }) =>
+        ({ productId, zone, blockNo, position, sourceRecommendationId })),
+    })),
   ready: (id: number, expectedVersion: number) => request<LayoutView>(`/api/layouts/${id}/ready`, json('POST', { expectedVersion })),
   campaigns: (signal?: AbortSignal) => allPages<CampaignView>('/api/campaigns', signal),
   campaign: (id: number, signal?: AbortSignal) => request<CampaignView>(`/api/campaigns/${id}`, { signal }),
