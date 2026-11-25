@@ -5,8 +5,15 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'forgot-password': '/forgot-password',
   'register': '/register',
   'activate': '/activate',
+  'admin-stores': '/admin/stores',
+  'my-store': '/store/profile',
   'profile': '/profile',
+  'f05-mining': '/mining',
+  'f06-recommendations': '/recommendations',
+  'f07-f08-workspace': '/layouts-campaigns',
   'customer-storefront': '/storefront',
+  'customer-home': '/customer-home',
+  'customer-product': '/product',
 
   // Merchandiser Screens
   'merchandiser-recommendations': '/merchandiser/recommendations',
@@ -21,8 +28,10 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'f03-utility': '/f03/utility',
   'f03-expiry-window': '/f03/expiry-window',
   'f03-configuration': '/f03/configuration',
+  'f03-seasons': '/f03/seasons',
   'f03-product-scores': '/f03/product-scores',
   'f03-preview': '/f03/preview',
+  'f03-snapshots': '/f03/snapshots',
   'f03-snapshot-detail': '/f03/snapshot/detail',
   'f03-snapshot-matrix': '/f03/snapshot/matrix',
 
@@ -31,9 +40,15 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'store-edit-product': '/store/edit-product',
   'store-categories': '/store/categories',
   'store-batches': '/store/batches',
+  'f04-import-transactions': '/store/transactions/import',
+  'f04-import-history': '/store/transactions/history',
+  'f04-transactions': '/store/transactions',
 
   // System Admin Screens
   'overview': '/admin/overview',
+  'admin-run-mining': '/admin/mining/run',
+  'admin-mining-history': '/admin/mining/history',
+  'lambda-policy': '/admin/lambda-policy',
   'setup': '/admin/setup',
   'results': '/admin/results',
   'failure': '/admin/failure',
@@ -55,6 +70,15 @@ const PATH_TO_SCREEN: Record<string, ActiveNavScreen> = Object.entries(SCREEN_TO
   {} as Record<string, ActiveNavScreen>
 );
 
+// Legacy F03 links remain valid; the singular action now opens the snapshot tab.
+// Existing bookmarks open the API-backed F07 workspace.
+for (const path of ['/store/layout', '/store/layout/', '/store-layout', '/store-layout/']) PATH_TO_SCREEN[path] = 'f07-f08-workspace';
+PATH_TO_SCREEN['/f03/snapshot'] = 'f03-snapshots';
+PATH_TO_SCREEN['/f03/snapshot/'] = 'f03-snapshots';
+PATH_TO_SCREEN['/f03-snapshot'] = 'f03-snapshots';
+// The retired expiry-window editor now opens the live Product Weights workspace.
+for (const path of ['/f03/expiry-window', '/f03/expiry-window/', '/f03-expiry-window', '/f03-expiry-window/']) PATH_TO_SCREEN[path] = 'f03-product-scores';
+
 /**
  * Returns the URL path for a given screen ID
  */
@@ -67,6 +91,7 @@ export function getPathForScreen(screen: ActiveNavScreen): string {
  */
 export function getScreenFromPathname(pathname: string): ActiveNavScreen | null {
   const normalized = pathname.trim().toLowerCase();
+  if (/^\/product\/[^/]+\/?$/.test(normalized)) return 'customer-product';
   if (normalized === '' || normalized === '/') {
     return null;
   }
@@ -78,6 +103,7 @@ export function getScreenFromPathname(pathname: string): ActiveNavScreen | null 
  */
 export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
   if (typeof window === 'undefined') return;
+  if (screen === 'customer-product' && getCustomerProductId(window.location.pathname)) return;
   const targetPath = getPathForScreen(screen);
   const currentPath = window.location.pathname;
 
@@ -88,4 +114,10 @@ export function syncBrowserUrl(screen: ActiveNavScreen, replace = false) {
       window.history.pushState({ screen }, '', targetPath);
     }
   }
+}
+
+export function getCustomerProductId(pathname: string): string | null {
+  const match = /^\/product\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return null;
+  try { return decodeURIComponent(match[1]); } catch { return null; }
 }

@@ -1,3 +1,4 @@
+import { AuthSession, SessionError } from './authSession';
 import { SystemRole } from '../types/users';
 import { ActiveNavScreen } from '../types/mining';
 
@@ -7,6 +8,7 @@ export interface AuthUser {
   email: string;
   role: SystemRole;
   avatarText: string;
+  storeId?: number | null;
   avatarUrl?: string | null;
   department: string;
   defaultScreen: ActiveNavScreen;
@@ -40,12 +42,19 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     department: 'Store Operations & Inventory',
     defaultScreen: 'store-inventory',
     allowedScreens: [
+      'my-store',
       'store-inventory',
       'store-edit-product',
       'store-categories',
       'store-batches',
+      'f04-import-transactions',
+      'f04-import-history',
+      'f04-transactions',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores',
+      'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-snapshots',
+      'f05-mining',
+      'f06-recommendations',
+      'f07-f08-workspace',
       'profile'
     ]
   },
@@ -58,9 +67,12 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'results',
       'failure',
       'benchmark',
+      'f05-mining',
       'users',
-      'api-connections',
-      'f03-configuration',
+      'admin-stores',
+      'admin-run-mining',
+      'admin-mining-history',
+      'lambda-policy',
       'profile'
     ]
   },
@@ -68,18 +80,26 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
     department: 'Retail Merchandising Planner',
     defaultScreen: 'merchandiser-recommendations',
     allowedScreens: [
+      'my-store',
+      'f04-import-history',
+      'f04-transactions',
       'f03-configuration',
       'f03-product-scores',
       'f03-preview',
       'f03-utility',
-      'f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-preview', 'f03-snapshots', 'f03-snapshot-detail', 'f03-snapshot-matrix',
+      'f05-mining',
+      'f06-recommendations',
+      'f07-f08-workspace',
       'profile'
     ]
   },
   'End-Customer': {
     department: 'Retail Loyalty Customer',
-    defaultScreen: 'customer-storefront',
+    defaultScreen: 'customer-home',
     allowedScreens: [
+      'customer-home',
+      'customer-product',
       'customer-storefront',
       'profile'
     ]
@@ -94,11 +114,22 @@ export interface ScreenOwnerInfo {
 }
 
 export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>> = {
+  'admin-stores': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Stores', allowedRoles: ['System Admin'] },
+  'my-store': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'My Store', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'customer-home': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Customer Home', allowedRoles: ['End-Customer'] },
+  'customer-product': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Product Details', allowedRoles: ['End-Customer'] },
+  'f06-recommendations': {
+    primaryRole: 'Merchandiser',
+    roleKey: 'merchandiser',
+    title: 'Recommendations',
+    allowedRoles: ['Merchandiser', 'Store Admin']
+  },
+  'f07-f08-workspace': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Layouts & Campaigns', allowedRoles: ['Merchandiser', 'Store Admin'] },
   // Store Admin Core Modules
   'store-inventory': {
     primaryRole: 'Store Admin',
     roleKey: 'store-admin',
-    title: 'Products & Inventory',
+    title: 'Product Management',
     allowedRoles: ['Store Admin']
   },
   'store-edit-product': {
@@ -118,6 +149,24 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
     roleKey: 'store-admin',
     title: 'Inventory Batches',
     allowedRoles: ['Store Admin']
+  },
+  'f04-import-transactions': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Import Transactions',
+    allowedRoles: ['Store Admin']
+  },
+  'f04-import-history': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Import History',
+    allowedRoles: ['Store Admin', 'Merchandiser']
+  },
+  'f04-transactions': {
+    primaryRole: 'Store Admin',
+    roleKey: 'store-admin',
+    title: 'Sales Transactions',
+    allowedRoles: ['Store Admin', 'Merchandiser']
   },
 
   // Merchandiser Modules (Recommendations & Approval Review)
@@ -180,22 +229,35 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   'f03-utility': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Planner', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-expiry-window': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'Expiry Window', allowedRoles: ['Store Admin'] },
   'f03-configuration': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Configuration', allowedRoles: ['Store Admin', 'Merchandiser'] },
-  'f03-product-scores': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Product Priority Scores', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'f03-product-scores': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Product Weight Details', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'f03-seasons': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Season Management', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-preview': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Preview', allowedRoles: ['Merchandiser'] },
+  'f03-snapshots': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Utility Snapshots', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'f03-snapshot-detail': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Detail', allowedRoles: ['Merchandiser'] },
   'f03-snapshot-matrix': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Snapshot Matrix', allowedRoles: ['Merchandiser'] },
 
+  // F05 uses administrative writes and Store-scoped read-only access.
+  'f05-mining': {
+    primaryRole: 'System Admin',
+    roleKey: 'system-admin',
+    title: 'High Utility Mining',
+    allowedRoles: ['System Admin', 'Merchandiser', 'Store Admin']
+  },
+
   // System Admin Core Modules
+  'admin-run-mining': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Run Mining', allowedRoles: ['System Admin'] },
+  'admin-mining-history': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Mining History', allowedRoles: ['System Admin'] },
+  'lambda-policy': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Lambda Policy', allowedRoles: ['System Admin'] },
   'overview': {
     primaryRole: 'System Admin',
     roleKey: 'system-admin',
-    title: 'Mining Service Overview',
+    title: 'Dashboard',
     allowedRoles: ['System Admin']
   },
   'setup': {
     primaryRole: 'System Admin',
     roleKey: 'system-admin',
-    title: 'Mining Algorithm Setup',
+    title: 'Algorithm Configuration',
     allowedRoles: ['System Admin']
   },
   'results': {
@@ -220,12 +282,6 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
     primaryRole: 'System Admin',
     roleKey: 'system-admin',
     title: 'Accounts & Roles (RBAC)',
-    allowedRoles: ['System Admin']
-  },
-  'api-connections': {
-    primaryRole: 'System Admin',
-    roleKey: 'system-admin',
-    title: 'External API Connections',
     allowedRoles: ['System Admin']
   },
 
@@ -270,151 +326,33 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   }
 };
 
-const STORAGE_KEY_USER = 'retailspace_auth_user';
-const STORAGE_KEY_TOKEN = 'retailspace_auth_token';
-
-class AuthService {
-  private currentUser: AuthUser | null = null;
-
-  constructor() {
-    this.restoreSession();
+export function mapAuthUser(me: any): AuthUser {
+  const roles: Record<string, SystemRole> = { SYSTEM_ADMIN: 'System Admin', STORE_ADMIN: 'Store Admin', MERCHANDISER: 'Merchandiser', END_CUSTOMER: 'End-Customer' };
+  const role = roles[me?.roleCode];
+  if (!role || me.status !== 'ACTIVE' || !me.emailVerified || !Number.isInteger(me.userId) || typeof me.email !== 'string') {
+    throw new SessionError(401, 'Your account is unavailable or its role is unsupported. Please sign in again.');
   }
+  const permissions = ROLE_PERMISSIONS[role];
+  return { id: `usr-${me.userId}`, name: me.name || me.email, email: me.email, role,
+    avatarText: (me.name || me.email).trim().split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2).toUpperCase(),
+    avatarUrl: me.avatarUrl, storeId: me.storeId, ...permissions,
+    defaultScreen: role === 'Merchandiser' ? 'f03-configuration' : permissions.defaultScreen };
+}
 
-  private restoreSession() {
-    try {
-      const savedUser = localStorage.getItem(STORAGE_KEY_USER);
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        const permissions = ROLE_PERMISSIONS[parsed.role as SystemRole];
-        if (permissions) {
-          parsed.allowedScreens = permissions.allowedScreens;
-          parsed.defaultScreen = permissions.defaultScreen;
-          parsed.department = parsed.department || permissions.department;
-        }
-        this.currentUser = parsed;
-      }
-    } catch {
-      this.currentUser = null;
-    }
-  }
-
-  public getCurrentUser(): AuthUser | null {
-    if (this.currentUser) {
-      const permissions = ROLE_PERMISSIONS[this.currentUser.role];
-      if (permissions) {
-        this.currentUser.allowedScreens = permissions.allowedScreens;
-      }
-    }
-    return this.currentUser;
-  }
-
-  public isAuthenticated(): boolean {
-    return this.currentUser !== null;
-  }
-
+class AuthService extends AuthSession<AuthUser> {
+  constructor() { super(mapAuthUser); }
+  public isAuthenticated(): boolean { return this.getSnapshot().status === 'authenticated' && this.getCurrentUser() !== null; }
   public isScreenAllowed(user: AuthUser | null, screen: ActiveNavScreen): boolean {
-    if (!user) return false;
-    const permissions = ROLE_PERMISSIONS[user.role];
-    const allowed = permissions ? permissions.allowedScreens : user.allowedScreens;
-    return allowed.includes(screen);
+    return !!user && !!ROLE_PERMISSIONS[user.role]?.allowedScreens.includes(screen);
   }
-
-  public getToken(): string | null {
-    try {
-      return localStorage.getItem(STORAGE_KEY_TOKEN);
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Real backend login: POST /api/auth/login -> GET /api/auth/me
-   */
   public async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const emailInput = credentials.email.trim();
-    const passwordInput = credentials.password || '';
-
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput, password: passwordInput })
-      });
-
-      if (res.ok) {
-        const tokenData = await res.json();
-        const token = tokenData.accessToken;
-
-        // Fetch /api/auth/me using the token
-        const meRes = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          const roleMapping: Record<string, { role: SystemRole; department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
-            'SYSTEM_ADMIN': {
-              role: 'System Admin',
-              department: 'Platform Administration & System Engineering',
-              defaultScreen: 'overview',
-              allowedScreens: ['overview', 'setup', 'results', 'failure', 'benchmark', 'users', 'api-connections', 'profile']
-            },
-            'STORE_ADMIN': {
-              role: 'Store Admin',
-              department: 'Store Operations & Inventory',
-              defaultScreen: 'store-inventory',
-              allowedScreens: ['store-inventory', 'store-edit-product', 'store-categories', 'store-batches', 'f03-configuration', 'f03-product-scores', 'profile']
-            },
-            'MERCHANDISER': {
-              role: 'Merchandiser',
-              department: 'Retail Merchandising Planner',
-              defaultScreen: 'f03-configuration',
-              allowedScreens: ['f03-configuration', 'f03-product-scores', 'f03-preview', 'f03-snapshot-detail', 'f03-snapshot-matrix', 'profile']
-            },
-            'END_CUSTOMER': {
-              role: 'End-Customer',
-              department: 'Retail Loyalty Customer',
-              defaultScreen: 'customer-storefront',
-              allowedScreens: ['customer-storefront', 'profile']
-            }
-          };
-
-          const matched = roleMapping[meData.roleCode] || roleMapping['SYSTEM_ADMIN'];
-          const initials = meData.name 
-            ? meData.name.trim().split(/\s+/).map((s: string) => s[0]).join('').slice(0, 2).toUpperCase() 
-            : 'AD';
-
-          const authUser: AuthUser = {
-            id: `usr-${meData.userId}`,
-            name: meData.name || meData.email,
-            email: meData.email,
-            role: matched.role,
-            avatarText: initials,
-            department: matched.department,
-            defaultScreen: matched.defaultScreen,
-            allowedScreens: matched.allowedScreens
-          };
-
-          this.currentUser = authUser;
-          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(authUser));
-          localStorage.setItem(STORAGE_KEY_TOKEN, token);
-
-          return {
-            success: true,
-            token,
-            user: authUser,
-            redirectScreen: authUser.defaultScreen
-          };
-        }
-      }
-    } catch {
-      // Backend unavailable or fetch failed
-    }
-
-    return {
-      success: false,
-      error: 'Unable to sign in. Please check your email, password, or server connection.'
-    };
+      const user = await this.authenticate('/api/auth/login', { email: credentials.email.trim(), password: credentials.password || '' });
+      return { success: true, user, redirectScreen: user.defaultScreen };
+    } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'Unable to sign in.' }; }
+  }
+  public async loginGoogle(idToken: string): Promise<AuthUser> {
+    return this.authenticate('/api/auth/google', { idToken });
   }
 
   /**
@@ -538,7 +476,7 @@ class AuthService {
     const token = this.getToken();
     if (!token) return null;
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await this.request('/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -551,7 +489,7 @@ class AuthService {
   }
 
   public async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/auth/password/change', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.getToken()}` }, body: JSON.stringify({ currentPassword, newPassword }) });
+    const res = await this.request('/api/auth/password/change', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.getToken()}` }, body: JSON.stringify({ currentPassword, newPassword }) });
     const data = await res.json().catch(() => ({}));
     return { success: res.ok, message: data.message || data.error || (res.ok ? 'Password changed.' : 'Unable to change password.') };
   }
@@ -570,31 +508,19 @@ class AuthService {
 
   public async uploadAvatar(file: File): Promise<any> {
     const form = new FormData(); form.append('file', file);
-    const res = await fetch('/api/users/me/avatar', { method: 'PUT', headers: { Authorization: `Bearer ${this.getToken()}` }, body: form });
+    const res = await this.request('/api/users/me/avatar', { method: 'PUT', headers: { Authorization: `Bearer ${this.getToken()}` }, body: form });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Unable to upload avatar.');
     return data;
   }
 
   public async deleteAvatar(): Promise<any> {
-    const res = await fetch('/api/users/me/avatar', { method: 'DELETE', headers: { Authorization: `Bearer ${this.getToken()}` } });
+    const res = await this.request('/api/users/me/avatar', { method: 'DELETE', headers: { Authorization: `Bearer ${this.getToken()}` } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Unable to remove avatar.');
     return data;
   }
 
-  /**
-   * Logout user and clear tokens
-   */
-  public logout(): void {
-    this.currentUser = null;
-    try {
-      localStorage.removeItem(STORAGE_KEY_USER);
-      localStorage.removeItem(STORAGE_KEY_TOKEN);
-    } catch {
-      // Ignore
-    }
-  }
 }
 
 export const authService = new AuthService();

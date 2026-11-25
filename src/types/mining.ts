@@ -52,10 +52,15 @@ export interface BenchmarkComparison {
 
 export type ActiveNavScreen = 
   | 'overview'        // S01: Overview
+  | 'admin-run-mining'
+  | 'admin-mining-history'
+  | 'lambda-policy'
   | 'setup'           // S02: Mining Setup
   | 'results'         // S05: Mining Run Results
   | 'failure'         // S07: Mining Failure & Retry
   | 'benchmark'       // S06: HUI-Miner vs EFIM Benchmark
+  | 'admin-stores'
+  | 'my-store'
   | 'users'           // Accounts & Roles (User Management & RBAC)
   | 'api-connections' // API Connections & Import Settings
   | 'merchandiser-recommendations' // Merchandiser: Recommendations Dashboard (From Screenshot 1)
@@ -70,15 +75,25 @@ export type ActiveNavScreen =
   | 'f03-utility'
   | 'f03-expiry-window'
   | 'f03-configuration'
+  | 'f03-seasons'
   | 'f03-product-scores'
   | 'f03-preview'
   | 'f03-snapshot'
+  | 'f03-snapshots'
   | 'f03-snapshot-detail'
   | 'f03-snapshot-matrix'
   | 'store-inventory' // F02 Store Admin: Product & Inventory
   | 'store-edit-product' // F02 Store Admin: Edit Product Page
   | 'store-categories' // F02 Store Admin: Category Management
   | 'store-batches' // F02 Store Admin: Inventory Batch Management
+  | 'f04-import-transactions' // F04 Store Admin: CSV Transaction Import
+  | 'f04-import-history' // F04 Store Admin / Merchandiser: Import History
+  | 'f04-transactions' // F04 Store Admin / Merchandiser: Sales Transactions
+  | 'f05-mining'       // F05 Merchandiser / Store Admin: High Utility Mining
+  | 'f06-recommendations' // F06 own-Store generation workspace
+  | 'f07-f08-workspace' // F07 layouts and F08 campaigns
+  | 'customer-home'
+  | 'customer-product'
   | 'login'           // Auth: Login Page
   | 'forgot-password' // Auth: Password reset
   | 'register'        // Auth: Registration Page

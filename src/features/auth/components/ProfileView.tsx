@@ -1,3 +1,4 @@
+import { storeAdminCopy as copy } from '../../../utils/storeAdminCopy';
 import React, { useEffect, useRef, useState } from "react";
 import {
   User,
@@ -16,6 +17,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { authService, AuthUser } from "../../../services/authService";
+import { SessionDialog, sessionPrimary, sessionSecondary } from '../../../components/common/SessionDialog';
 
 declare global {
   interface Window {
@@ -56,6 +58,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
+  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
+  const [signingOutAll, setSigningOutAll] = useState(false);
   const passwordRules = {
     length: newPassword.length >= 12,
     upper: /[A-Z]/.test(newPassword),
@@ -75,7 +79,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       if (data) {
         setMe(data);
         if (data.avatarUrl) {
-          const avatarResponse = await fetch(data.avatarUrl, {
+          const avatarResponse = await authService.request(data.avatarUrl, {
             headers: { Authorization: `Bearer ${authService.getToken()}` },
           });
           if (avatarResponse.ok) {
@@ -146,7 +150,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           return;
         }
         try {
-          const res = await fetch("/api/auth/google/link", {
+          const res = await authService.request("/api/auth/google/link", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -211,7 +215,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    onLogout();
+    authService.endLocal('Password changed. Please sign in again.');
   };
 
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,6 +233,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   return (
     <div className="w-full space-y-6 animate-in fade-in">
+      {confirmLogoutAll && <SessionDialog title="Sign out all devices?" onCancel={signingOutAll ? undefined : () => setConfirmLogoutAll(false)}>
+        <p>This will end your sessions on every device, including this one. Save any changes before continuing.</p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row-reverse">
+          <button disabled={signingOutAll} className={sessionPrimary} onClick={async () => {
+            if (signingOutAll) return;
+            setSigningOutAll(true);
+            await authService.logout(true);
+          }}>{signingOutAll ? 'Signing out…' : 'Sign out all devices'}</button>
+          <button autoFocus disabled={signingOutAll} className={sessionSecondary} onClick={() => setConfirmLogoutAll(false)}>Cancel</button>
+        </div>
+      </SessionDialog>}
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-[#E7E2D8]">
         <div>
@@ -237,10 +252,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             className="inline-flex items-center gap-2 text-xs font-semibold text-[#1E3A2F] hover:text-[#294D3F] mb-2 transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Dashboard</span>
+            <span>{copy('Back to Dashboard','Back to Products')}</span>
           </button>
           <h1 className="text-2xl sm:text-[28px] font-bold text-[#191C1B] tracking-tight flex items-center gap-2.5">
-            Account Profile & Security Settings
+            {copy('Account Profile & Security Settings','Profile & Security')}
           </h1>
           <p className="text-sm text-[#707973] mt-1">
             Manage identity information, system permissions, and SSO
@@ -502,6 +517,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   <CheckCircle2 className="h-4 w-4" /> Linked
                 </span>
               )}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E7E2D8] pt-4">
+              <p className="text-xs text-[#707973]">End your sessions on every device.</p>
+              <button type="button" className={sessionSecondary} onClick={() => setConfirmLogoutAll(true)}>Sign out all devices</button>
             </div>
           </div>
         </div>

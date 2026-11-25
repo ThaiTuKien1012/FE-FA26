@@ -3,8 +3,10 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ command, isPreview }) => {
   return {
+    // Independent of NODE_ENV/mode: build and preview must never enable fast sessions.
+    define: { 'import.meta.env.SESSION_DEV_SERVER': JSON.stringify(command === 'serve' && !isPreview) },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

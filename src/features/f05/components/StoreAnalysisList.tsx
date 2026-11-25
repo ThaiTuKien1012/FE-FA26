@@ -1,0 +1,11 @@
+import { formatDateRange } from '../../../utils/dateTime';
+import { miningButton, miningDate } from '../f05.display';
+import type { RequestView } from '../f05.types';
+import { MiningStatusBadge } from './MiningStatusBadge';
+
+export function StoreAnalysisList({ items, selectedId, onSelect }: { items: RequestView[]; selectedId: number | null; onSelect: (id: number) => void }) {
+  const action = (item: RequestView) => <button type="button" className={miningButton + ' f05-view-details'} aria-label={'View details for analysis #' + item.requestId} aria-pressed={selectedId === item.requestId} onClick={() => onSelect(item.requestId)}>View Details</button>;
+  const snapshot = (item: RequestView) => <><span className="font-medium">Snapshot #{item.snapshotId}</span><small className="mt-1 block text-xs text-[#6D7974]">{formatDateRange(item.snapshot.rangeStart, item.snapshot.rangeEnd)}</small></>;
+  return <><div className="hidden rounded-xl border border-[#E7E2D8] xl:block"><table className="f05-store-table" aria-label="Analysis History"><colgroup>{[18, 31, 14, 23, 14].map((width, i) => <col key={i} style={{width:width+'%'}} />)}</colgroup><thead><tr>{['Analysis', 'Snapshot / Sales Period', 'Status', 'Created At', 'Actions'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{items.map(item => <tr key={item.requestId} className={selectedId === item.requestId ? 'bg-[#F3F8F4]' : ''}><th scope="row">Analysis #{item.requestId}</th><td>{snapshot(item)}</td><td><MiningStatusBadge friendly kind="request" status={item.status} /></td><td>{miningDate(item.createdAt, false)}</td><td>{action(item)}</td></tr>)}</tbody></table></div>
+    <ul aria-label="Analysis cards" className="grid gap-2 xl:hidden">{items.map(item => <li key={item.requestId} className="rounded-xl border border-[#E7E2D8] p-4 text-sm"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Analysis #{item.requestId}</h3><MiningStatusBadge friendly kind="request" status={item.status} /></div><div className="mt-3">{snapshot(item)}</div><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><time dateTime={item.createdAt} className="text-xs text-[#6D7974]">Created {miningDate(item.createdAt, false)}</time>{action(item)}</div></li>)}</ul></>;
+}

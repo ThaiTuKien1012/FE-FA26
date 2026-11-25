@@ -1,0 +1,29 @@
+.app-date-field, .app-date-control { display: block; position: relative; min-width: 0; }
+.app-date-input { width: 100%; min-width: 0; padding-right: 2.75rem !important; font-variant-numeric: tabular-nums; }
+.app-date-trigger { position: absolute; right: .25rem; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0 !important; border: 0 !important; border-radius: .5rem; background: transparent; color: #6d7974; }
+.app-date-trigger:hover { background: #edf5f0; color: #315445; }
+.app-date-trigger:disabled { opacity: .4; cursor: not-allowed; }
+.app-date-error { display: block; margin-top: .35rem; color: #b42318; font-size: .75rem; font-weight: 400; line-height: 1.4; }
+.app-calendar { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(20rem, calc(100vw - 1rem)); max-height: calc(100dvh - 1rem); overflow: auto; padding: .75rem; border: 1px solid #dedfd8; border-radius: .875rem; background: #fffdfb; color: #191c1b; box-shadow: 0 8px 30px #1e3a2f24; z-index: 1000; font-family: inherit; font-size: .875rem; font-weight: 400; }
+.app-calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: .375rem; margin-bottom: .5rem; }
+.app-calendar button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.25rem; border: 0; border-radius: .5rem; background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.app-calendar-heading > button { width: 2rem; flex-shrink: 0; }
+.app-calendar button:hover { background: #edf5f0; }
+.app-calendar button:disabled { opacity: .3; cursor: not-allowed; }
+.app-calendar-month-year { display: flex; min-width: 0; gap: .375rem; }
+.app-calendar-month-year select, .app-calendar-month-year input, .app-calendar-time input { min-width: 0; margin: 0; padding: .4rem; border: 1px solid #e7e2d8; border-radius: .5rem; background: white; color: #191c1b; font: inherit; }
+.app-calendar-month-year select { width: 8rem; }
+.app-calendar-month-year input { width: 4rem; }
+.app-calendar table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: center; font-size: .8125rem; }
+.app-calendar th { padding: .35rem 0; color: #6d7974; font-weight: 500; }
+.app-calendar abbr { text-decoration: none; }
+.app-calendar td { padding: .1rem; }
+.app-calendar td button { width: 100%; aspect-ratio: 1; }
+.app-calendar .app-calendar-selected { background: #1e3a2f; color: white; font-weight: 600; }
+.app-calendar .app-calendar-selected:hover { background: #315445; }
+.app-calendar :focus-visible, .app-date-trigger:focus-visible { outline: 2px solid #356b54; outline-offset: 2px; }
+.app-calendar-time { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .5rem; }
+.app-calendar-time input { width: 5rem; }
+.app-calendar-help { margin-top: .5rem; color: #6d7974; font-size: .75rem; }
+.app-calendar-footer { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .5rem; border-top: 1px solid #e7e2d8; padding-top: .5rem; }
+.app-calendar-footer button { padding: .4rem .6rem; color: #315445; }

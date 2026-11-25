@@ -1,7 +1,4 @@
-const TOKEN_KEY = 'retailspace_auth_token';
+import { authService } from './authService';
 
-export const tokenStorage = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY)
-};
+// Compatibility facade: credentials are managed in memory by AuthSession.
+export const tokenStorage = { get: authService.getToken, clear: authService.endLocal };

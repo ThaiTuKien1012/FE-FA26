@@ -1,0 +1,156 @@
+import { useEffect, useRef, useState } from 'react';
+import { APP_BRAND } from '../../../app/branding';
+import { CUSTOMER_STORES, getCustomerStoreId, rememberCustomerStore } from '../data/customerStores';
+import { CUSTOMER_PRODUCTS, type CustomerProduct } from '../data/customerCatalog';
+import { categoryLabel, normalizeCustomerSearch } from '../data/customerLocale';
+import { useCustomerShopping } from './useCustomerShopping';
+
+export type DiscoveryFilter = 'all' | 'hot' | 'trending' | 'new';
+
+export function useCustomerHome(onExplore: () => void) {
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('All Products');
+  const [brand, setBrand] = useState('All Products');
+  const [discoveryFilter, setDiscoveryFilter] = useState<DiscoveryFilter>('all');
+  const { storeCarts, saved, changeQuantity, toggleSaved } = useCustomerShopping();
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState(getCustomerStoreId);
+  const [notice, setNotice] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<CustomerProduct | null>(null);
+  const [dialogMode, setDialogMode] = useState<'product' | 'cart'>('product');
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const brandRowRef = useRef<HTMLDivElement>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const selectedStore = CUSTOMER_STORES.find(store => store.id === selectedStoreId) || CUSTOMER_STORES[0];
+  // Home is a platform-level catalog. Store-specific pricing and stock are
+  // still applied when the customer enters a store or adds an item.
+  const storeProducts = CUSTOMER_PRODUCTS;
+  const categories = ['All Products', ...new Set(storeProducts.map(product => product.category))];
+  const brands = [...new Set(storeProducts.map(product => product.brand))].map((name, index) => ({
+    name,
+    image: storeProducts.find(product => product.brand === name)!.image,
+    description: 'Có trên Storefone',
+    color: ['#eef5e9', '#fff4e5', '#edf5fb', '#fff0f3', '#eaf5ef'][index % 5],
+  }));
+  const featuredProduct = storeProducts[0];
+  const secondaryProduct = storeProducts.find(product => product.category !== featuredProduct.category) || storeProducts[1];
+  const hotSaleProducts = storeProducts.filter(product => product.isHotSale);
+  const trendingProducts = storeProducts.filter(product => product.isTrending).sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
+  const newProducts = storeProducts.filter(product => product.isNew);
+  const cart = storeCarts[selectedStore.id] || {};
+  const cartProducts = storeProducts.filter(product => cart[product.id] > 0);
+  const cartCount = cartProducts.reduce((sum, product) => sum + cart[product.id], 0);
+  const cartTotal = cartProducts.reduce((sum, product) => sum + product.priceVnd * cart[product.id], 0);
+  const filteredProducts = storeProducts.filter(product =>
+    (category === 'All Products' || product.category === category) &&
+    (brand === 'All Products' || product.brand === brand) &&
+    (discoveryFilter === 'all' || (discoveryFilter === 'hot' && product.isHotSale) || (discoveryFilter === 'trending' && product.isTrending) || (discoveryFilter === 'new' && product.isNew)) &&
+    (!savedOnly || saved.includes(product.id)) &&
+    normalizeCustomerSearch(`${product.name} ${product.brand} ${product.category} ${categoryLabel(product.category)}`).includes(normalizeCustomerSearch(query.trim())),
+  );
+  const hasFilters = Boolean(query || brand !== 'All Products' || category !== 'All Products' || savedOnly || discoveryFilter !== 'all');
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = APP_BRAND.customerTitle;
+    return () => {
+      document.title = previousTitle;
+      clearTimeout(noticeTimer.current);
+    };
+  }, []);
+
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    block: 'start',
+  });
+  const resetFilters = () => {
+    setCategory('All Products');
+    setBrand('All Products');
+    setQuery('');
+    setSavedOnly(false);
+    setDiscoveryFilter('all');
+  };
+  const chooseStore = (storeId: string, scroll = true) => {
+    if (!CUSTOMER_STORES.some(store => store.id === storeId)) return;
+    setSelectedStoreId(storeId);
+    rememberCustomerStore(storeId);
+    resetFilters();
+    setNotice('');
+    if (scroll) scrollTo('fm-products');
+  };
+  const chooseBrand = (name: string) => {
+    resetFilters();
+    setBrand(name);
+    scrollTo('fm-products');
+  };
+  const chooseCategory = (name: string) => {
+    resetFilters();
+    setCategory(name);
+    setCategoryMenuOpen(false);
+    scrollTo('fm-products');
+  };
+  const showCollection = (filter: DiscoveryFilter) => {
+    resetFilters();
+    setDiscoveryFilter(filter);
+    scrollTo('fm-products');
+  };
+  const openStorefront = () => {
+    rememberCustomerStore(selectedStore.id);
+    onExplore();
+  };
+  const toggleSavedOnly = () => {
+    const next = !savedOnly;
+    resetFilters();
+    setSavedOnly(next);
+    scrollTo('fm-products');
+  };
+  const addToCart = (product: Pick<CustomerProduct, 'id' | 'name'>) => {
+    const catalogProduct = CUSTOMER_PRODUCTS.find(item => item.id === product.id);
+    if (!catalogProduct) return;
+    const productStore = CUSTOMER_STORES.find(store => store.id === catalogProduct.storeId);
+    if (!productStore) return;
+    setSelectedStoreId(productStore.id);
+    rememberCustomerStore(productStore.id);
+    changeQuantity(productStore.id, product.id, 1);
+    setNotice(`Đã thêm ${product.name} vào giỏ của ${productStore.name}`);
+    clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(''), 3000);
+  };
+  const updateQuantity = (id: string, difference: number) => {
+    if (selectedStore.productIds.includes(id)) changeQuantity(selectedStore.id, id, difference);
+  };
+  const openProduct = (product: CustomerProduct) => {
+    const productStore = CUSTOMER_STORES.find(store => store.id === product.storeId);
+    if (productStore) {
+      setSelectedStoreId(productStore.id);
+      rememberCustomerStore(productStore.id);
+    }
+    setSelectedProduct(product);
+    setDialogMode('product');
+    dialogRef.current?.showModal();
+  };
+  const openCart = () => {
+    setDialogMode('cart');
+    dialogRef.current?.showModal();
+  };
+  const closeDialog = () => dialogRef.current?.close();
+  const scrollBrands = (direction: number) => brandRowRef.current?.scrollBy({
+    left: direction * 250,
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+  });
+
+  return {
+    query, setQuery, category, setCategory, brand, setBrand, discoveryFilter, showCollection, saved, savedOnly,
+    selectedStore, storeProducts, categories, brands, featuredProduct, secondaryProduct,
+    hotSaleProducts, trendingProducts, newProducts,
+    cart, storeCarts, cartCount, cartProducts, cartTotal, filteredProducts, hasFilters,
+    notice, setNotice, menuOpen, setMenuOpen, categoryMenuOpen, setCategoryMenuOpen,
+    selectedProduct, dialogMode, dialogRef, brandRowRef,
+    scrollTo, resetFilters, chooseStore, chooseBrand, chooseCategory, openStorefront,
+    toggleSaved, toggleSavedOnly, addToCart, updateQuantity,
+    openProduct, openCart, closeDialog, scrollBrands,
+  };
+}

@@ -1,0 +1,173 @@
+import type { ExactRecommendationNumber } from './f06.numbers';
+/** Wire numbers remain JSON numbers. Decimal fields preserve their exact digits
+ * when number cannot round-trip them; IDs/counts still require safe integers.
+ * Dates are ISO dates; timestamps are ISO-8601 instants supplied by the server.
+ */
+export type Int32 = number;
+export type Int64 = number;
+export type Decimal = number | ExactRecommendationNumber;
+export type RecType = 'BUNDLE' | 'CROSS_SELL' | 'FBT' | 'BANNER';
+export type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+export type EligibilityStatus = 'ELIGIBLE' | 'NEEDS_RECHECK' | 'INELIGIBLE';
+
+export interface RecGenerateRequest { miningRunId: Int64; types: RecType[]; }
+export interface RecReviewRequest { expectedVersion: Int64; reason: string; }
+export interface RecPolicyRequest {
+  expectedVersion: Int64;
+  maxBundleSize: Int32;
+  minSupportCount: Int32;
+  minSupportRatio: Decimal;
+  minConfidence: Decimal;
+  minimumSellableQuantity: Int32;
+}
+export interface RecPolicy extends Omit<RecPolicyRequest, 'expectedVersion'> {
+  version: Int64;
+  ruleVersion: string;
+}
+export interface RecTransactionEvidence {
+  totalTransactions: Int32;
+  supportCount: Int32 | null;
+  supportRatio: Decimal | null;
+  anchorSupportCount: Int32 | null;
+  confidence: Decimal | null;
+  status: string;
+}
+export interface RecProductEligibility {
+  productId: Int32;
+  productStatus: string;
+  sellableQuantity: Int64;
+  status: EligibilityStatus;
+  expiryPriorityScore: Decimal | null;
+  expiryStatus: string;
+  expiryPushDays: Int32;
+  warnings: string[];
+}
+export interface RecEligibility {
+  /** Absent/null only for immutable, pre-W2 evidence. */
+  scoringVersion?: null;
+  status: EligibilityStatus;
+  products: RecProductEligibility[];
+  checkedAt: string;
+  asOfDate: string;
+  timeZone: string;
+  warnings: string[];
+  fingerprint: string;
+}
+export type ProductEligibilityV2 = Omit<RecProductEligibility, 'expiryPushDays'>;
+export interface EligibilityV2 extends Omit<RecEligibility, 'products' | 'scoringVersion'> {
+  scoringVersion: 'W2_EXPIRY_SEASON_V1';
+  products: ProductEligibilityV2[];
+}
+export type EligibilityEvidence = RecEligibility | EligibilityV2;
+export interface EndedSeason { seasonId: Int32; name: string; endDate: string; }
+export interface RecSource {
+  runId: Int64;
+  patternId: Int64;
+  requestId: Int64;
+  snapshotId: Int32;
+  algorithm: string;
+  libraryVersion: string;
+  conversionVersion: string;
+  inputHash: string;
+  sourceHash: string;
+  matrixHash: string;
+  minUtilMode: string;
+  minUtilValue: Decimal;
+  minUtilSpmf: Int32;
+  effectiveMinUtility: Decimal;
+  patternUtility: Decimal;
+  analysisDate: string;
+}
+export interface RecSkipped {
+  patternId: Int64;
+  type: RecType;
+  anchorProductId: Int32 | null;
+  reason: string;
+}
+export interface RecGenerationResult {
+  miningRunId: Int64;
+  snapshotId: Int32;
+  policyVersion: Int64;
+  ruleVersion: string;
+  createdCount: Int32;
+  reusedCount: Int32;
+  recommendationIds: Int64[];
+  skipped: RecSkipped[];
+}
+export interface RecReview {
+  oldStatus: ReviewStatus;
+  newStatus: ReviewStatus;
+  reviewedBy: Int32;
+  reviewedAt: string;
+  reason: string;
+  resultingVersion: Int64;
+  eligibilityCheck: EligibilityEvidence;
+}
+export interface RecView {
+  recommendationId: Int64;
+  storeId: Int32;
+  snapshotId: Int32;
+  type: RecType;
+  productIds: Int32[];
+  anchorProductId: Int32 | null;
+  utility: Decimal;
+  reviewStatus: ReviewStatus;
+  version: Int64;
+  ruleVersion: string;
+  policy: RecPolicy;
+  evidence: RecTransactionEvidence;
+  generationEligibility: EligibilityEvidence;
+  currentEligibility: EligibilityV2;
+  seasonEnded: boolean;
+  endedSeasons: EndedSeason[];
+  inventoryChanged: boolean;
+  readyForConsumption: boolean;
+  sources: RecSource[];
+  explanation: string[];
+  reviewHistory: RecReview[];
+  reviewedBy: Int32 | null;
+  reviewedAt: string | null;
+  reviewReason: string | null;
+  createdAt: string;
+  /** Server rank before pagination; null for history, detail and decisions. */
+  rank: Int32 | null;
+}
+export interface RecPage {
+  items: RecView[];
+  page: Int32;
+  pageSize: Int32;
+  totalElements: Int64;
+  ordering: 'CREATED_DESC' | 'RANKED_WITHIN_SOURCE_RUN';
+}
+export interface RecExpiryBatch {
+  productId: Int32;
+  batchId: Int32;
+  pushDay: string;
+  expiryDate: string | null;
+  daysToPush: Int64;
+  remainingQuantity: Int64;
+  pushRequired: boolean;
+  checkedAt: string;
+  warnings: string[];
+}
+export interface RecExpiryPage {
+  items: RecExpiryBatch[];
+  page: Int32;
+  pageSize: Int32;
+  totalElements: Int64;
+  asOfDate: string;
+  timeZone: string;
+  checkedAt: string;
+  warnings: string[];
+}
+export interface RecListParams {
+  miningRunId?: Int64;
+  snapshotId?: Int32;
+  type?: RecType;
+  reviewStatus?: ReviewStatus;
+  /** Zero-based, defaults to 0. */
+  page?: Int32;
+  /** 1..100, defaults to 20. */
+  pageSize?: Int32;
+}
+export interface RecExpiryParams { productId?: Int32; page?: Int32; pageSize?: Int32; }

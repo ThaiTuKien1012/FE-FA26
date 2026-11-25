@@ -1,0 +1,9 @@
+.f02-product-table > thead > tr > th[scope=col], .f03-catalog-table > thead > tr > th[scope=col] { color: #4b5563; font-size: 13px; font-weight: 600; text-transform: none; }
+.paspm-product-heading { display: flex; align-items: center; min-width: 0; height: 40px; }
+.paspm-product-sort { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; min-width: 0; height: 40px; padding: 1px 2px; border: 0; border-radius: 4px; background: transparent; color: #4b5563; font-size: 13px; font-weight: 600; line-height: 18px; text-transform: none; text-align: left; cursor: pointer; }
+.paspm-product-sort > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-width: 0; }
+.paspm-product-sort > svg { flex: 0 0 14px; width: 14px; height: 14px; stroke-width: 2; }
+.paspm-product-sort[data-active=true] { font-weight: 700; }
+.paspm-product-sort:hover:not(:disabled) { background: #f0f0ed; }
+.paspm-product-sort:focus-visible { outline: 2px solid #356b54; outline-offset: 1px; }
+.paspm-product-sort:disabled { cursor: default; }

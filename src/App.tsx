@@ -3,22 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
-import { ActiveNavScreen, MiningJob, MiningAlgorithm, ExecutionMode } from './types/mining';
-import { getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
+import { ActiveNavScreen } from './types/mining';
+import { getCustomerProductId, getPathForScreen, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
-import { MiningOverviewView } from './features/mining/components/overview/MiningOverviewView';
-import { MiningSetupView } from './features/mining/components/setup/MiningSetupView';
-import { MiningResultsView } from './features/mining/components/results/MiningResultsView';
-import { MiningFailureView } from './features/mining/components/failure/MiningFailureView';
-import { MiningBenchmarkView } from './features/mining/components/benchmark/MiningBenchmarkView';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
 import { ProductInventoryView } from './features/store/components/ProductInventoryView';
 import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
+import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
+import { CustomerProductDetailView } from './features/customer/components/CustomerProductDetailView';
 import { LoginView } from './features/auth/components/LoginView';
 import { ForgotPasswordView } from './features/auth/components/ForgotPasswordView';
 import { RegisterView } from './features/auth/components/RegisterView';
@@ -36,31 +33,54 @@ import { CompareABSimulationView } from './features/merchandiser/components/Comp
 import { KeepLayoutAReviewView } from './features/merchandiser/components/KeepLayoutAReviewView';
 import { AccessRestrictedView } from './features/auth/components/AccessRestrictedView';
 import { F03WorkspaceView } from './features/f03/components/F03WorkspaceView';
+import { ImportTransactionsView } from './features/f04/components/ImportTransactionsView';
+import { ImportHistoryView } from './features/f04/components/ImportHistoryView';
+import { SalesTransactionsView } from './features/f04/components/SalesTransactionsView';
+import { isSystemMiningScreen, resolveSystemScreen, systemMiningView, systemScreenUrl } from './features/f05/f05.navigation';
+import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
+import { F06WorkspaceView } from './features/f06/components/F06WorkspaceView';
+import { F07F08WorkspaceView } from './features/f07f08/components/F07F08WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
+
+const publicScreens: ActiveNavScreen[] = ['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront', 'customer-product'];
+
+const StoreManagementView = lazy(() => import('./features/storeManagement/StoreManagementView')
+  .then(module => ({ default: module.StoreManagementView })));
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
     const screenFromUrl = typeof window !== 'undefined' ? getScreenFromPathname(window.location.pathname) : null;
+    if (screenFromUrl === 'login' && authService.getCurrentUser()) return authService.getCurrentUser()!.defaultScreen;
     if (screenFromUrl) {
       return screenFromUrl;
     }
     const user = authService.getCurrentUser();
-    // Default to login page if unauthenticated
-    return user ? user.defaultScreen : 'login';
+    // Guests can browse the customer home before signing in.
+    return user ? user.defaultScreen : 'customer-home';
   });
 
-  const [activeRunId, setActiveRunId] = useState<string>('#0024');
-  const [jobs, setJobs] = useState<MiningJob[]>([]);
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
-  const [editingProductId, setEditingProductId] = useState<string>('prod-001');
+  const [customerProductId, setCustomerProductId] = useState<string | null>(() => getCustomerProductId(window.location.pathname));
+  const [editingProductId, setEditingProductId] = useState(() => new URLSearchParams(window.location.search).get('productId') ?? '');
+  const isMiningScreen = isSystemMiningScreen(currentScreen);
+  const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
   const scrollPositions = useRef<Partial<Record<ActiveNavScreen, number>>>({});
+  const previousScreen = useRef(currentScreen);
+
+  useEffect(() => {
+    // Let the logout redirect reach Login before displaying its confirmation.
+    if (previousScreen.current !== currentScreen && currentScreen !== 'login') authService.dismissSuccessNotice();
+    previousScreen.current = currentScreen;
+  }, [currentScreen]);
+
+  useEffect(() => authService.subscribe(() => setCurrentUser(authService.getCurrentUser())), []);
 
   useEffect(() => {
     const handleAvatarUpdated = (event: Event) => {
       const avatarUrl = (event as CustomEvent<string>).detail;
-      setCurrentUser(previous => previous ? { ...previous, avatarUrl } : previous);
+      authService.updateAvatar(avatarUrl);
     };
     window.addEventListener('paspm-avatar-updated', handleAvatarUpdated);
     return () => window.removeEventListener('paspm-avatar-updated', handleAvatarUpdated);
@@ -73,6 +93,8 @@ export default function App() {
     const handlePopState = () => {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
       if (screenFromUrl) {
+        setCustomerProductId(getCustomerProductId(window.location.pathname));
+        if (screenFromUrl === 'store-edit-product') setEditingProductId(new URLSearchParams(window.location.search).get('productId') ?? '');
         setCurrentScreen(screenFromUrl);
       }
     };
@@ -81,25 +103,62 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const selectedJob = jobs.find((j) => j.runId === activeRunId) || jobs[0];
 
-  const handleNavigate = (screen: ActiveNavScreen, runId?: string) => {
-    if (runId) {
-      setActiveRunId(runId);
+  // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
+  useEffect(() => {
+    if (!currentUser && !publicScreens.includes(currentScreen)) {
+      syncBrowserUrl('login', true);
+      setCurrentScreen('login');
     }
+  }, [currentScreen, currentUser, needsAdminSession]);
+
+  useEffect(() => {
+    if (currentUser?.role!=='System Admin') return;
+    const target=resolveSystemScreen(currentScreen,window.location.search);
+    const managed=isSystemMiningScreen(currentScreen)||['api-connections','f03-configuration','lambda-policy','users'].includes(currentScreen);
+    if (!managed) return;
+    const url=systemScreenUrl(target,window.location.search);
+    if (window.location.pathname+window.location.search!==url) {
+      window.history.replaceState({screen:target},'',url);
+      setCurrentScreen(target);
+      window.dispatchEvent(new Event('popstate'));
+    }
+  },[currentUser?.role,currentScreen]);
+
+  const handleNavigate = (screen: ActiveNavScreen) => {
     scrollPositions.current[currentScreen] = window.scrollY;
-    syncBrowserUrl(screen);
-    setCurrentScreen(screen);
+    if (screen === 'admin-stores') {
+      window.history.pushState({ screen }, '', getPathForScreen(screen));
+      setCurrentScreen(screen);
+      window.dispatchEvent(new Event('popstate'));
+    } else if (currentUser?.role==='System Admin') {
+      const target=resolveSystemScreen(screen);
+      const search = currentScreen === 'admin-stores' ? '' : window.location.search;
+      window.history.pushState({screen:target},'',systemScreenUrl(target,search));
+      setCurrentScreen(target);
+      window.dispatchEvent(new Event('popstate'));
+    } else {
+      syncBrowserUrl(screen);
+      setCurrentScreen(screen);
+    }
     requestAnimationFrame(() => {
       window.scrollTo({ top: scrollPositions.current[screen] ?? 0, behavior: 'auto' });
     });
   };
 
-  const handleEditProduct = (prod: ProductItem) => {
-    setEditingProductId(prod.id);
-    syncBrowserUrl('store-edit-product');
+  const handleEditProduct = (id: number) => {
+    setEditingProductId(String(id));
+    const params = new URLSearchParams({ productId: String(id) });
+    window.history.pushState({ screen: 'store-edit-product' }, '', getPathForScreen('store-edit-product') + '?' + params);
     setCurrentScreen('store-edit-product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCustomerProduct = (id: string) => {
+    window.history.pushState({ screen: 'customer-product' }, '', `/product/${encodeURIComponent(id)}`);
+    setCustomerProductId(id);
+    setCurrentScreen('customer-product');
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const handleLoginSuccess = (user: AuthUser, destinationScreen: ActiveNavScreen) => {
@@ -110,7 +169,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    authService.logout();
+    void authService.logout();
     setCurrentUser(null);
     syncBrowserUrl('login');
     setCurrentScreen('login');
@@ -122,7 +181,7 @@ export default function App() {
       'store-admin': 'store-inventory',
       'system-admin': 'overview',
       'merchandiser': 'merchandiser-recommendations',
-      'customer': 'customer-storefront'
+      'customer': 'customer-home'
     };
     const dest = roleScreens[roleKey] || 'overview';
     syncBrowserUrl(dest);
@@ -130,129 +189,8 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRunMining = (config: {
-    algorithm: MiningAlgorithm;
-    dataset: string;
-    minUtil: number;
-    mode: ExecutionMode;
-  }) => {
-    const nextRunNum = jobs.length + 22;
-    const newRunId = `#00${nextRunNum}`;
-    const newJob: MiningJob = {
-      id: `run-${nextRunNum}`,
-      runId: newRunId,
-      algorithm: config.algorithm,
-      dataset: config.dataset,
-      utilityMatrixVersion: 'v1',
-      minUtil: config.minUtil,
-      executionMode: config.mode,
-      startedAt: 'Just now',
-      duration: '7.9s',
-      peakMemoryMB: config.algorithm === 'EFIM' ? 124 : 260,
-      itemsetCount: config.algorithm === 'EFIM' ? 142 : 128,
-      status: 'Completed'
-    };
-
-    setJobs([newJob, ...jobs]);
-    setActiveRunId(newRunId);
-    syncBrowserUrl('results');
-    setCurrentScreen('results');
-  };
-
-  const handleRetryFailedJob = () => {
-    const nextRunNum = jobs.length + 22;
-    const newRunId = `#00${nextRunNum}`;
-    const retriedJob: MiningJob = {
-      id: `run-${nextRunNum}`,
-      runId: newRunId,
-      algorithm: 'EFIM',
-      dataset: 'retail_transactions_2024.parquet',
-      utilityMatrixVersion: 'v1.4',
-      minUtil: 0.05,
-      executionMode: 'manual',
-      startedAt: 'Just now',
-      duration: '4.2s',
-      peakMemoryMB: 182,
-      itemsetCount: 112,
-      status: 'Completed'
-    };
-
-    setJobs([retriedJob, ...jobs]);
-    setActiveRunId(newRunId);
-    syncBrowserUrl('results');
-    setCurrentScreen('results');
-  };
-
-  // Determine breadcrumbs according to current screen & active user role
-  const getBreadcrumbs = () => {
-    switch (currentScreen) {
-      case 'login':
-        return ['Authentication', 'Sign In'];
-      case 'customer-storefront':
-        return ['Storefront Kiosk', 'Catalog & Basket'];
-
-      // Merchandiser screen (Recommendations Dashboard - Single Page)
-      case 'merchandiser-recommendations':
-        return ['Merchandiser', 'Operations'];
-      case 'merchandiser-approve':
-        return ['Merchandiser', 'Operations', 'Product Group Review'];
-      case 'merchandiser-campaign-draft':
-        return ['Merchandiser', 'Operations', 'Campaign Draft & Publish'];
-      case 'merchandiser-campaign-status':
-        return ['Merchandiser', 'Operations', 'Published / Waiting Campaign Status'];
-      case 'merchandiser-utility-profile':
-        return ['Merchandiser', 'Operations', 'Utility Profile & Priority Weights'];
-      case 'merchandiser-refine-criteria':
-        return ['Merchandiser', 'Operations', 'Rework / Refine Criteria'];
-      case 'merchandiser-ab-simulation':
-        return ['Merchandiser', 'Campaign Draft', 'A/B Simulation'];
-      case 'merchandiser-compare-simulation':
-        return ['Merchandiser', 'Campaign Draft', 'Compare A/B Simulation'];
-      case 'merchandiser-keep-layout-a':
-        return ['Merchandiser', 'Campaign Draft', 'Keep Layout A – Review'];
-      case 'f03-utility':
-        return ['F03', 'Utility & Retail Planner'];
-      case 'f03-expiry-window': return ['F03', 'Expiry Window'];
-      case 'f03-configuration': return ['F03', 'Utility Configuration'];
-      case 'f03-product-scores': return ['F03', 'Product Priority Scores'];
-      case 'f03-preview': return ['F03', 'Utility Preview'];
-      case 'f03-snapshot-detail': return ['F03', 'Snapshot Detail'];
-      case 'f03-snapshot-matrix': return ['F03', 'Snapshot Matrix'];
-
-      // Store Operations views (Store Admin)
-      case 'store-inventory':
-        return [];
-      case 'store-edit-product':
-        return ['Products & Inventory', 'Edit Product'];
-      case 'store-categories':
-        return ['Store Admin', 'Category Management'];
-      case 'store-batches':
-        return ['Store Admin', 'Inventory Batches'];
-
-      // F01 System Admin screens
-      case 'overview':
-        return ['System Administration', 'Mining Service Overview'];
-      case 'setup':
-        return ['System Administration', 'Mining Setup', 'Algorithm Configuration'];
-      case 'results':
-        return ['System Administration', 'Mining Setup', 'Run Results'];
-      case 'failure':
-        return ['System Administration', 'Mining Service Overview', 'Run Failure Diagnostic'];
-      case 'benchmark':
-        return ['System Administration', 'Benchmark', 'HUI-Miner vs EFIM'];
-      case 'users':
-        return ['System Administration', 'Accounts & Roles (RBAC)'];
-      case 'api-connections':
-        return ['System Administration', 'External Integrations & API Connections'];
-      case 'profile':
-        return ['Tài khoản', 'Hồ sơ & Cài đặt bảo mật'];
-      default:
-        return ['Platform', 'Workspace'];
-    }
-  };
-
   // 1. If currently on Login screen, render LoginView standalone full-screen
-  if (currentScreen === 'login') {
+  if (currentScreen === 'login' || (!currentUser && !publicScreens.includes(currentScreen))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -298,12 +236,21 @@ export default function App() {
     );
   }
 
-  // 2. If Customer role on customer-storefront, render full-screen Kiosk
-  if (currentScreen === 'customer-storefront') {
+  if (currentScreen === 'customer-home' && (!currentUser || currentUser.role === 'End-Customer')) {
+    return <CustomerHomeView user={currentUser} onLogin={() => handleNavigate('login')} onRegister={() => handleNavigate('register')} onExplore={() => handleNavigate('customer-storefront')} onProduct={handleCustomerProduct} onProfile={() => handleNavigate('profile')} onLogout={handleLogout} />;
+  }
+
+  if (currentScreen === 'customer-product' && (!currentUser || currentUser.role === 'End-Customer')) {
+    return <CustomerProductDetailView productId={customerProductId} user={currentUser} onBack={() => handleNavigate('customer-storefront')} onHome={() => handleNavigate('customer-home')} onStore={() => handleNavigate('customer-storefront')} onProduct={handleCustomerProduct} onLogin={() => handleNavigate('login')} onProfile={() => handleNavigate('profile')} onLogout={handleLogout} />;
+  }
+
+  if (currentScreen === 'customer-storefront' && (!currentUser || currentUser.role === 'End-Customer')) {
     return (
       <CustomerStorefrontView
-        products={storeProducts}
         user={currentUser}
+        onHome={() => handleNavigate('customer-home')}
+        onLogin={() => handleNavigate('login')}
+        onProduct={handleCustomerProduct}
         onLogout={handleLogout}
         onProfile={() => handleNavigate('profile')}
       />
@@ -315,8 +262,6 @@ export default function App() {
     <AppLayout
       currentScreen={currentScreen}
       onNavigate={handleNavigate}
-      breadcrumbs={getBreadcrumbs()}
-      activeRunId={activeRunId}
       currentUser={currentUser}
       onLogout={handleLogout}
       onSwitchRole={handleSwitchRole}
@@ -381,11 +326,14 @@ export default function App() {
 
           {currentScreen.startsWith('f03-') && <F03WorkspaceView currentUser={currentUser} section={currentScreen} />}
 
+          {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
+          {currentScreen === 'f06-recommendations' && <F06WorkspaceView />}
+          {currentScreen === 'f07-f08-workspace' && <F07F08WorkspaceView key={`${currentUser?.id}:${currentUser?.storeId}`} />}
+          {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <F03WorkspaceView currentUser={currentUser} section="f03-configuration" />}
+
           {/* F02: Store Admin - Product & Inventory */}
           {currentScreen === 'store-inventory' && (
-            <ProductInventoryView
-              onNavigate={handleNavigate}
-            />
+            <ProductInventoryView onOpenProduct={handleEditProduct} />
           )}
 
           {/* F02: Store Admin - Edit Product Page */}
@@ -409,47 +357,23 @@ export default function App() {
           {/* F02: Store Admin - Inventory Batches */}
           {currentScreen === 'store-batches' && <StoreBatchesView onNavigate={handleNavigate} />}
 
-          {/* F01: Mining Overview */}
-          {currentScreen === 'overview' && (
-            <MiningOverviewView
-              jobs={jobs}
-              onNavigate={handleNavigate}
-              onQuickRun={() => handleNavigate('setup')}
-            />
+          {currentScreen === 'f04-import-transactions' && currentUser?.role === 'Store Admin' && (
+            <ImportTransactionsView />
+          )}
+          {currentScreen === 'f04-import-history' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
+            <ImportHistoryView />
+          )}
+          {currentScreen === 'f04-transactions' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
+            <SalesTransactionsView />
           )}
 
-          {/* F01: Mining Setup */}
-          {currentScreen === 'setup' && (
-            <MiningSetupView
-              onNavigate={handleNavigate}
-              onRunMining={handleRunMining}
-            />
+          {currentScreen === 'admin-stores' && currentUser?.role === 'System Admin' && (
+            <Suspense fallback={<p role="status">Loading Stores…</p>}><StoreManagementView mode="system" /></Suspense>
           )}
-
-          {/* F01: Mining Results */}
-          {currentScreen === 'results' && (
-            <MiningResultsView
-              job={selectedJob.status === 'Completed' ? selectedJob : (jobs.find(j => j.status === 'Completed') || jobs[1])}
-              onNavigate={handleNavigate}
-              onRerun={(j) => {
-                setActiveRunId(j.runId);
-                handleNavigate('setup');
-              }}
-            />
-          )}
-
-          {/* F01: Mining Failure */}
-          {currentScreen === 'failure' && (
-            <MiningFailureView
-              job={selectedJob.status === 'Failed' ? selectedJob : (jobs.find(j => j.status === 'Failed') || jobs[0])}
-              onNavigate={handleNavigate}
-              onRetry={handleRetryFailedJob}
-            />
-          )}
-
-          {/* F01: Benchmark */}
-          {currentScreen === 'benchmark' && (
-            <MiningBenchmarkView onNavigate={handleNavigate} />
+          {currentScreen === 'my-store' && (currentUser?.role === 'Store Admin' || currentUser?.role === 'Merchandiser') && (
+            <Suspense fallback={<p role="status">Loading My Store…</p>}>
+              <StoreManagementView key={currentUser.id} mode={currentUser.role === 'Store Admin' ? 'manage' : 'read'} />
+            </Suspense>
           )}
 
           {/* System Admin: Users & Roles */}
@@ -458,7 +382,7 @@ export default function App() {
           )}
 
           {/* System Admin: API Connections */}
-          {currentScreen === 'api-connections' && (
+          {currentScreen === 'api-connections' && currentUser?.role!=='System Admin' && (
             <ApiConnectionsView />
           )}
 

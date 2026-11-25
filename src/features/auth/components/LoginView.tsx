@@ -79,27 +79,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       const callback = async (response: { credential?: string }) => {
           if (!response.credential) { setIsLoading(false); setErrorMessage('Google did not return an ID token.'); return; }
           try {
-            const tokenResponse = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: response.credential }) });
-            const tokenData = await tokenResponse.json().catch(() => ({}));
-            if (!tokenResponse.ok) {
-              if (tokenResponse.status === 401 && String(tokenData.error || '').toLowerCase().includes('not linked')) {
-                throw new Error('This Gmail already has a PASPM account but is not linked to Google. Sign in with your password first, then link Google from Profile.');
-              }
-              throw new Error(tokenData.error || 'Google sign-in failed.');
-            }
-            localStorage.setItem('retailspace_auth_token', tokenData.accessToken);
-            const meResponse = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${tokenData.accessToken}` } });
-            const me = await meResponse.json();
-            if (!meResponse.ok) throw new Error(me.error || 'Could not load your account.');
-            const roleMap: Record<string, { role: any; department: string; defaultScreen: ActiveNavScreen; allowedScreens: ActiveNavScreen[] }> = {
-              SYSTEM_ADMIN: { role: 'System Admin', department: 'Platform Administration & System Engineering', defaultScreen: 'overview', allowedScreens: ['overview','setup','results','failure','benchmark','users','api-connections','profile'] },
-              STORE_ADMIN: { role: 'Store Admin', department: 'Store Operations & Inventory', defaultScreen: 'store-inventory', allowedScreens: ['store-inventory','store-edit-product','store-categories','store-batches','profile'] },
-              MERCHANDISER: { role: 'Merchandiser', department: 'Retail Merchandising Planner', defaultScreen: 'f03-utility', allowedScreens: ['f03-utility','f03-configuration','f03-product-scores','f03-preview','profile'] },
-              END_CUSTOMER: { role: 'End-Customer', department: 'Retail Loyalty Customer', defaultScreen: 'customer-storefront', allowedScreens: ['customer-storefront','profile'] }
-            };
-            const mapped = roleMap[me.roleCode] || roleMap.END_CUSTOMER;
-            const user: AuthUser = { id: `usr-${me.userId}`, name: me.name || me.email, email: me.email, avatarText: (me.name || me.email).slice(0, 2).toUpperCase(), ...mapped };
-            localStorage.setItem('retailspace_auth_user', JSON.stringify(user));
+            const user = await authService.loginGoogle(response.credential);
             setSuccessNotice('Signed in with Google successfully.');
             onLoginSuccess(user, user.defaultScreen);
           } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.'); } finally { setIsLoading(false); }
@@ -125,11 +105,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
       const verify = await fetch('/api/auth/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: googlePending.email, otp: googleOtp }) });
       const verifyData = await verify.json().catch(() => ({}));
       if (!verify.ok) throw new Error(verifyData.error || 'The verification code is invalid or expired.');
-      const login = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: googlePending.token }) });
-      const loginData = await login.json().catch(() => ({}));
-      if (!login.ok) throw new Error(loginData.error || 'Google sign-in failed.');
-      localStorage.setItem('retailspace_auth_token', loginData.accessToken);
-      window.location.reload();
+      const user = await authService.loginGoogle(googlePending.token);
+      onLoginSuccess(user, user.defaultScreen);
     } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Google registration failed.'); } finally { setIsLoading(false); }
   };
 
