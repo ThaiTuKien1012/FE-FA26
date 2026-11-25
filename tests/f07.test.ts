@@ -13,7 +13,7 @@ test('F07 validates whole-block capacities and overlapping products before savin
   const blocks = designerBlocks(recommendations, empty);
   assert.deepEqual(draftErrors([1, 2], blocks, policy), []);
   assert.match(draftErrors([1, 3], blocks, policy).join(' '), /Product #1 appears/);
-  assert.match(draftErrors([1, 2, 4], blocks, policy).join(' '), /maximum 2 blocks/);
+  assert.match(draftErrors([1, 2, 4], blocks, policy).join(' '), /maximum 2 groups/);
   assert.match(draftErrors([1, 2, 4], blocks, policy).join(' '), /maximum 4 products/);
   assert.match(draftErrors([1, 1], blocks, policy).join(' '), /only once/);
   assert.match(draftErrors([999], blocks, policy).join(' '), /no longer available/);
@@ -22,7 +22,7 @@ test('F07 validates whole-block capacities and overlapping products before savin
 test('F07 treats absent capacity as unbounded and rejects unknown zones', () => {
   const blocks = designerBlocks([option(1, Array.from({ length: 40 }, (_, i) => i + 1), 'BANNER')], empty);
   assert.deepEqual(draftErrors([1], blocks, policy), []);
-  assert.match(draftErrors([1], blocks, { ...policy, zones: [] }).join(' '), /No zone/);
+  assert.match(draftErrors([1], blocks, { ...policy, zones: [] }).join(' '), /No section/);
 });
 
 test('saved ineligible recommendations remain visible with all product evidence and cannot be resaved', () => {

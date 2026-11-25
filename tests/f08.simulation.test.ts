@@ -18,7 +18,7 @@ for (const status of ['PUBLISHED', 'ACTIVE', 'ENDED'] as const) {
   test(status + ' campaigns cannot be simulated even when both layouts are READY and valid', () => {
     const reason = simulationUnavailableReason({ ...state, campaign: { status } });
     assert.ok(reason);
-    assert.match(reason, status === 'PUBLISHED' ? /Withdraw it to draft/ : /new draft campaign/);
+    assert.match(reason, status === 'PUBLISHED' ? /Return it to draft/ : /new draft campaign/);
   });
 }
 
@@ -28,14 +28,14 @@ test('withdrawal to DRAFT enables simulation again without changing the saved la
 });
 
 test('Store Admin read access does not authorize simulation', () => {
-  assert.match(simulationUnavailableReason({ ...state, merchant: false })!, /Only a Merchandiser/);
+  assert.match(simulationUnavailableReason({ ...state, merchant: false })!, /Only a member of the merchandising team/);
 });
 
 test('unsaved changes, in-progress actions and unready or invalid layouts block simulation', () => {
   assert.match(simulationUnavailableReason({ ...state, dirty: true })!, /Save or discard/);
   assert.match(simulationUnavailableReason({ ...state, busy: true })!, /current action/);
   for (const role of ['a', 'b'] as const) {
-    assert.match(simulationUnavailableReason({ ...state, [role]: { ...state[role], status: 'DRAFT' } })!, /READY/);
-    assert.match(simulationUnavailableReason({ ...state, [role]: { ...state[role], valid: false } })!, /validation/);
+    assert.match(simulationUnavailableReason({ ...state, [role]: { ...state[role], status: 'DRAFT' } })!, /Finish both layouts/);
+    assert.match(simulationUnavailableReason({ ...state, [role]: { ...state[role], valid: false } })!, /product checks/);
   }
 });
