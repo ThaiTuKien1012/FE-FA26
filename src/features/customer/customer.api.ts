@@ -85,6 +85,8 @@ const storePath = (slug: string) => `${root}/${encodeURIComponent(slug)}`;
 
 type PublicStore = Omit<StoreSummary, 'iconUrl' | 'bannerUrl'> & Partial<Pick<StoreSummary, 'iconUrl' | 'bannerUrl'>>;
 
+type CartResponse = Omit<CartView, 'store'> & { store: PublicStore };
+
 // Relative media paths use the same origin and /api proxy as the storefront requests.
 function storeImageUrl(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -96,6 +98,10 @@ function normalizeStore(store: PublicStore): StoreSummary {
   return { ...store, iconUrl: storeImageUrl(store.iconUrl), bannerUrl: storeImageUrl(store.bannerUrl) };
 }
 
+function normalizeCart(cart: CartResponse): CartView {
+  return { ...cart, store: normalizeStore(cart.store) };
+}
+
 export function createCustomerApi(publicRequest: Transport, cartRequest: Transport) {
   function write<T>(slug: string, suffix: string, method: 'POST' | 'PATCH' | 'DELETE', version: string,
       body: object | undefined, signal?: AbortSignal) {
@@ -103,6 +109,10 @@ export function createCustomerApi(publicRequest: Transport, cartRequest: Transpo
     if (body) headers['Content-Type'] = 'application/json';
     return read<T>(cartRequest, `${storePath(slug)}/cart${suffix}`,
       { method, headers, body: body ? JSON.stringify(body) : undefined, signal }, true);
+  }
+  async function writeCart(slug: string, suffix: string, method: 'POST' | 'PATCH' | 'DELETE',
+      version: string, body: object | undefined, signal?: AbortSignal) {
+    return normalizeCart(await write<CartResponse>(slug, suffix, method, version, body, signal));
   }
   return {
     async stores(signal?: AbortSignal) {
@@ -122,18 +132,19 @@ export function createCustomerApi(publicRequest: Transport, cartRequest: Transpo
     },
     product: (slug: string, id: number, signal?: AbortSignal) =>
       read<StoreProduct>(publicRequest, `${storePath(slug)}/products/${id}`, { signal }),
-    getCart: (slug: string, signal?: AbortSignal) =>
-      read<CartView>(cartRequest, `${storePath(slug)}/cart`, { signal }, true),
+    async getCart(slug: string, signal?: AbortSignal) {
+      return normalizeCart(await read<CartResponse>(cartRequest, `${storePath(slug)}/cart`, { signal }, true));
+    },
     addItem: (slug: string, version: string, productId: number, quantity: number, signal?: AbortSignal) =>
-      write<CartView>(slug, '/items', 'POST', version, { productId, quantity }, signal),
+      writeCart(slug, '/items', 'POST', version, { productId, quantity }, signal),
     changeQuantity: (slug: string, version: string, itemId: string, quantity: number, signal?: AbortSignal) =>
-      write<CartView>(slug, `/items/${encodeURIComponent(itemId)}`, 'PATCH', version, { quantity }, signal),
+      writeCart(slug, `/items/${encodeURIComponent(itemId)}`, 'PATCH', version, { quantity }, signal),
     removeItem: (slug: string, version: string, itemId: string, signal?: AbortSignal) =>
-      write<CartView>(slug, `/items/${encodeURIComponent(itemId)}`, 'DELETE', version, undefined, signal),
-    async addBundle(slug: string, version: string, bundleKey: string, signal?: AbortSignal) {
-      const result = await write<BundleAddResult>(slug, '/bundles', 'POST', version, { bundleKey }, signal);
+      writeCart(slug, `/items/${encodeURIComponent(itemId)}`, 'DELETE', version, undefined, signal),
+    async addBundle(slug: string, version: string, bundleKey: string, signal?: AbortSignal): Promise<BundleAddResult> {
+      const result = await write<Omit<BundleAddResult, 'cart'> & { cart: CartResponse }>(slug, '/bundles', 'POST', version, { bundleKey }, signal);
       if (!componentsOf(result?.components)) throw new CustomerApiError(502);
-      return result;
+      return { ...result, cart: normalizeCart(result.cart) };
     },
   };
 }

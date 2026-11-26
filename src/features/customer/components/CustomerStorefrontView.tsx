@@ -45,12 +45,16 @@ export function CustomerStorefrontView(props: Props) {
         {stores.data?.length === 0 && <p role="status">Chưa có cửa hàng đang hoạt động.</p>}
         <div className="storefront-store-grid grid grid-cols-4 gap-3 max-[800px]:grid-cols-2 max-[580px]:gap-2">
           {stores.data?.map(store => <button key={store.storeSlug} onClick={() => props.onStore(store.storeSlug)}
-            className="storefront-store-card flex min-w-0 items-center gap-3 rounded-xl border border-[#e8edeb] bg-white p-3 text-left hover:border-[#b5d7c7] hover:bg-[#f7fbf8]">
-            <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#edf7f1] text-[#088178]">
-              <StoreImage key={store.iconUrl} src={store.iconUrl} alt={`Biểu tượng ${store.name}`}
-                className="size-full object-cover" fallback={<Store size={21} aria-hidden="true" />} />
+            className="storefront-store-card flex min-w-0 flex-col gap-3 rounded-xl border border-[#e8edeb] bg-white p-3 text-left hover:border-[#b5d7c7] hover:bg-[#f7fbf8]">
+            <span className="flex w-full items-center gap-3">
+              <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#edf7f1] text-[#088178]">
+                <StoreImage key={store.iconUrl} src={store.iconUrl} alt={`Biểu tượng ${store.name}`}
+                  className="size-full object-cover" fallback={<Store size={21} aria-hidden="true" />} />
+              </span>
+              <span className="min-w-0 break-words font-semibold">{store.name}</span><ChevronRight className="ml-auto shrink-0 text-[#088178]" size={16} />
             </span>
-            <span className="min-w-0 break-words font-semibold">{store.name}</span><ChevronRight className="ml-auto shrink-0 text-[#088178]" size={16} />
+            <StoreImage key={store.bannerUrl} src={store.bannerUrl} alt={`Ảnh bìa ${store.name}`}
+              className="h-16 w-full rounded-lg object-cover" />
           </button>)}
         </div>
       </main>

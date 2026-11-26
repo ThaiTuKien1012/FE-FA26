@@ -7,7 +7,7 @@ import { STOREFRONT_STORE, STOREFRONT_WITH_BROKEN_IMAGES, STOREFRONT_WITH_IMAGES
 import type { CartView } from '../../src/features/customer/customer.types';
 
 const empty: CartView = {
-  cartId: null, store: { storeSlug: 'qa-store-b', name: 'Store B' }, version: '0',
+  cartId: null, store: { ...STOREFRONT_STORE, storeSlug: 'qa-store-b', name: 'Store B' }, version: '0',
   currency: 'VND', updatedAt: null, items: [], subtotal: 0,
 };
 const line = {
@@ -44,11 +44,18 @@ describe('F09/F10 API adapter', () => {
     ['none', STOREFRONT_STORE],
     ['broken on fetch', STOREFRONT_WITH_BROKEN_IMAGES],
     ['relative', { ...STOREFRONT_WITH_IMAGES, iconUrl: STOREFRONT_WITH_IMAGES.iconUrl.slice(1) }],
-  ] as const)('adapts %s Store images on list and home', async (_, store) => {
-    const api = createCustomerApi(async path => ok(storefrontFixture(path, 'GET', store)?.body), vi.fn());
+  ] as const)('adapts %s Store images on list, home and cart', async (_, store) => {
+    const request = async (path: string) => ok(storefrontFixture(path, 'GET', store)?.body);
+    const api = createCustomerApi(request, request);
     const expected = { ...store, iconUrl: store.iconUrl && `/${store.iconUrl.replace(/^\//, '')}` };
     await expect(api.stores()).resolves.toEqual([expected]);
     await expect(api.home(store.storeSlug)).resolves.toMatchObject({ store: expected });
+    await expect(api.getCart(store.storeSlug)).resolves.toMatchObject({ store: expected, version: '0' });
+    const cartWithStore = { ...cart, store };
+    const cartApi = createCustomerApi(request, async (_path, init) =>
+      ok(init?.body === '{"bundleKey":"key"}' ? { cart: cartWithStore, components } : cartWithStore));
+    await expect(cartApi.addItem(store.storeSlug, '0', 4, 1)).resolves.toMatchObject({ store: expected });
+    await expect(cartApi.addBundle(store.storeSlug, '0', 'key')).resolves.toMatchObject({ cart: { store: expected } });
   });
 
   it('normalizes omitted branding from an older backend', async () => {

@@ -1,6 +1,5 @@
 export type Availability = 'AVAILABLE' | 'OUT_OF_STOCK';
-type StoreIdentity = { storeSlug: string; name: string };
-export type StoreSummary = StoreIdentity & { iconUrl: string | null; bannerUrl: string | null };
+export type StoreSummary = { storeSlug: string; name: string; iconUrl: string | null; bannerUrl: string | null };
 export type StoreProduct = {
   productId: number;
   name: string;
@@ -50,7 +49,7 @@ export type CartLine = {
 };
 export type CartView = {
   cartId: string | null;
-  store: StoreIdentity;
+  store: StoreSummary;
   version: string;
   currency: 'VND';
   updatedAt: string | null;

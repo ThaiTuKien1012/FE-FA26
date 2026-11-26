@@ -141,7 +141,10 @@ try {
     state.storefront = store;
     const firstCall = calls.length;
     await openAsGuest('/storefront');
-    await until(mode === 'available' ? loaded('.storefront-store-card img') : '!!document.querySelector(".storefront-store-card svg.lucide-store")', 'Store picker icon: ' + mode);
+    await until(mode === 'available' ? `${loaded('.storefront-store-card ' + iconSelector)} && ${loaded('.storefront-store-card ' + bannerSelector)}` : '!!document.querySelector(".storefront-store-card svg.lucide-store")', 'Store picker icon: ' + mode);
+    if (mode !== 'available') {
+      await until(`!document.querySelector(${JSON.stringify('.storefront-store-card ' + bannerSelector)})`, 'Default picker banner: ' + mode);
+    }
     await openAsGuest(brandingHome);
     await until('document.querySelector("#shop-main h1")?.textContent === "Fixture Store"', 'Store heading: ' + mode);
     if (mode === 'available') {

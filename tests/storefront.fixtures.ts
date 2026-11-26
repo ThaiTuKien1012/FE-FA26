@@ -53,7 +53,7 @@ export function storefrontFixture(pathname: string, method = 'GET', store: typeo
   // The cart exists only for a signed-in End-Customer: a never-created cart is virtual (F10).
   if (pathname === `${prefix}/cart`) {
     return { status: 200, body: {
-      cartId: null, store: STOREFRONT_STORE, version: 0, currency: 'VND', updatedAt: null, items: [], subtotal: 0,
+      cartId: null, store, version: 0, currency: 'VND', updatedAt: null, items: [], subtotal: 0,
     } };
   }
   return undefined;
