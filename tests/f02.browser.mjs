@@ -3,6 +3,7 @@
 // All /api requests are intercepted before navigation. No real backend writes.
 import assert from 'node:assert/strict';
 import { batchView } from './f02.batch-fixtures.mjs';
+import { storefrontFixture } from './storefront.fixtures.ts';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -127,7 +128,7 @@ async function fixture({ requestId, request }) {
   if (!path.startsWith('/api/')) return page.call(url.origin === origin && !path.startsWith('/videos/') ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId, ...(url.origin === origin && !path.startsWith('/videos/') ? {} : { errorReason: 'BlockedByClient' }) });
   const payload = request.postData ? JSON.parse(request.postData) : undefined;
   calls.push({ path, query: url.search, method, body: payload });
-  let body, responseCode = 200;
+  let body, responseCode = 200, front;
   if (path === '/api/auth/login' || path === '/api/auth/refresh') body = { accessToken: 'fixture-only-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-only-csrf' };
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F02 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: 1, status: 'ACTIVE', emailVerified: true };
   else if (method !== 'GET') {
@@ -142,7 +143,9 @@ async function fixture({ requestId, request }) {
       }
     }
     else if (path === '/api/products' || /^\/api\/products\/\d+$/.test(path)) {
-      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status'].sort());
+      // F02 contract: the form always sends imageUrl and description (PUT replaces the whole product; null clears).
+      assert.deepEqual(Object.keys(payload).filter(k=>k!=='confirmSimilarName').sort(), ['name', 'categoryId', 'unit', 'requiresExpiry', 'sellingPrice', 'costPrice', 'status', 'imageUrl', 'description'].sort());
+      assert.equal(payload.imageUrl, null); assert.equal(payload.description, null);
       if (state.productConflict === 'sku' || state.productConflict === 'other' || (state.productConflict === 'name' && !payload.confirmSimilarName)) {
         responseCode = 409;
         body = state.productConflict === 'name' ? { error: 'A similar product name exists', code: 'PRODUCT_NAME_CONFIRMATION_REQUIRED', confirmWith: 'confirmSimilarName=true' } : { error: state.productConflict === 'sku' ? 'SKU already exists in this Store' : 'Controlled unrelated conflict' };
@@ -183,6 +186,7 @@ async function fixture({ requestId, request }) {
   else if (path === '/api/system/mining/config') body = { version: 0, algorithm: null, minUtilMode: null, minUtilValue: null, changedBy: null, changedAt: null };
   else if (path === '/api/utility/config') body = { config: { version: 1 }, lambdaPolicy: { version: 1 }, lambdaValid: true };
   else if (path === '/api/transactions/imports' || path === '/api/transactions') body = { content: [], page: 0, pageSize: 20, totalElements: 0 };
+  else if (front = storefrontFixture(path, method)) { responseCode = front.status; body = front.body; }
   else { unexpected.push(method + ' ' + path); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
   const responseHeaders = [{ name: 'Content-Type', value: 'application/json' }];
   if (path === '/api/auth/login' || path === '/api/auth/refresh') responseHeaders.push({ name: 'Set-Cookie', value: 'PASPM-CSRF=fixture-only-csrf; Path=/; SameSite=Lax' });

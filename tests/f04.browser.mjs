@@ -6,6 +6,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { progress, summary } from './f04.fixtures.ts';
+import { storefrontFixture } from './storefront.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir()), profile = mkdtempSync(join(base, 'paspm-f04-browser-'));
@@ -89,7 +90,7 @@ async function fixture({ requestId, request }) {
   if (path.startsWith('/videos/')) return page.call('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
   if (!path.startsWith('/api/')) return page.call(url.origin === origin ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' }) });
   calls.push({ path, query: url.search, method: request.method, headers: request.headers, body: request.postData });
-  let body, responseCode = 200;
+  let body, responseCode = 200, front;
   if (path === '/api/auth/login' || path === '/api/auth/refresh') body = { accessToken: 'fixture-only-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-only-csrf' };
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F04 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: state.storeId, status: 'ACTIVE', emailVerified: true };
   else if (path === '/api/transactions/imports/csv/async') {
@@ -125,7 +126,7 @@ async function fixture({ requestId, request }) {
   } else if (path === '/api/products') body = { content: [], page: 0, pageSize: 20, totalElements: 0, totalPages: 0 };
   else if (path === '/api/categories' || path === '/api/system/stores') body = [];
   else if (path === '/api/utility/config') body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 1, beta: 1, gamma: 1, lambda: .1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: .5, version: 1 }, lambdaValid: true };
-  else { unexpected.push(path); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
+  else if (front = storefrontFixture(path, request.method)) { responseCode = front.status; body = front.body; } else { unexpected.push(path); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
   const responseHeaders = [{ name: 'Content-Type', value: 'application/json' }];
   if (path === '/api/auth/login' || path === '/api/auth/refresh') responseHeaders.push({ name: 'Set-Cookie', value: 'PASPM-CSRF=fixture-only-csrf; Path=/; SameSite=Lax' });
   await page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders, body: Buffer.from(JSON.stringify(body)).toString('base64') });

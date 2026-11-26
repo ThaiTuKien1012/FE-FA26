@@ -39,6 +39,7 @@ Read the relevant API contract and handoff before changing an integration. Never
 - Preserve the difference between missing and zero. For example, [f08.simulation.ts](src/features/f07f08/f08.simulation.ts) shows `chưa có` for a null or unavailable priority coverage and formats numeric zero as a percentage. Keep a zero price as `0 ₫`.
 - Use Node 22 and `npm ci`, matching [frontend CI](.github/workflows/frontend-checks.yml). For code changes run `npm run lint` (the `tsc --noEmit` check, also available through `npm exec -- tsc --noEmit`), `npm test` for `tests/*.test.ts`, and `npm run build`.
 - For affected UI flows, start Vite with `npm run dev`. Run the relevant [browser test](tests) with Node and Chrome. [package.json](package.json) exposes `npm run test:session:browser` and `npm run test:f07:browser`. See [auth-session.browser.mjs](tests/auth-session.browser.mjs) for `PASPM_TEST_ORIGIN` and `SESSION_TEST_CHROME` and [f07.browser.mjs](tests/f07.browser.mjs) for `F07_TEST_ORIGIN` and `F07_TEST_CHROME`. Other scripts can be run with `node tests/<feature>.browser.mjs` after checking their setup comments. Report fixture-based browser results separately from live Backend checks.
+- To run **every** browser test (one by one, including on macOS: Chrome path variables, port 3000, no `timeout` command) and for the known issues, see [docs/BROWSER_TESTS.md](docs/BROWSER_TESTS.md).
 
 ## Git and delivery
 

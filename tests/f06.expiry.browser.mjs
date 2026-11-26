@@ -7,7 +7,7 @@ import {join,resolve,dirname,basename} from 'node:path';
 import {requestFixture,runFixture} from './f05.fixtures.ts';
 import {policy,recommendation,eligibility} from './f06.fixtures.ts';
 const origin=process.env.PASPM_TEST_ORIGIN||'http://127.0.0.1:3102',base=resolve(tmpdir()),profile=mkdtempSync(join(base,'paspm-f06-expiry-browser-'));
-const chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-sync','--disable-extensions','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{windowsHide:true,stdio:'ignore'});
+const chrome=spawn(process.env.F06_TEST_CHROME||'C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-sync','--disable-extensions','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{windowsHide:true,stdio:'ignore'});
 const sleep=ms=>new Promise(done=>setTimeout(done,ms));
 class CDP{
   id=0;pending=new Map();listeners=new Map();
