@@ -55,6 +55,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f05-mining',
       'f06-recommendations',
       'f07-f08-workspace',
+      'f11-dashboard',
       'profile'
     ]
   },
@@ -91,6 +92,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f05-mining',
       'f06-recommendations',
       'f07-f08-workspace',
+      'f11-dashboard',
       'profile'
     ]
   },
@@ -124,6 +126,7 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
     title: 'Recommendations',
     allowedRoles: ['Merchandiser', 'Store Admin']
   },
+  'f11-dashboard': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Store Dashboard', allowedRoles: ['Merchandiser', 'Store Admin'] },
   'f07-f08-workspace': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Layouts & Campaigns', allowedRoles: ['Merchandiser', 'Store Admin'] },
   // Store Admin Core Modules
   'store-inventory': {

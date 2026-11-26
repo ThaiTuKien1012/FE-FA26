@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { ArrowUpRight, FlaskConical, Play, RotateCcw, Send } from 'lucide-react';
-import type { ActiveLayout, CampaignReport, CampaignView, LayoutSnapshot, LayoutView, Metric } from '../f07f08.api';
+import type { ActiveLayout, CampaignReport, CampaignView, LayoutSnapshot, LayoutView } from '../f07f08.api';
 import { matchingReport } from '../f07.designer';
-import { comparisonLabel, formatPriorityCoverage, simulationUnavailableReason } from '../f08.simulation';
+import { simulationUnavailableReason } from '../f08.simulation';
+import { F08ReportDetails } from './F08ReportDetails';
 import { LayoutStatus } from './F07LayoutDesigner';
 
 const nextDay = (date: string) => { const day = new Date(date + 'T00:00:00Z'); day.setUTCDate(day.getUTCDate() + 1); return day.toISOString().slice(0, 10); };
-const rate = (metric?: Metric) => metric?.rate == null ? 'N/A' : new Intl.NumberFormat('en-GB', { style: 'percent', maximumFractionDigits: 2 }).format(metric.rate);
 interface Props {
   campaign: CampaignView; a: LayoutView; b: LayoutView; reports: CampaignReport[]; snapshot?: LayoutSnapshot;
   merchant: boolean; busy: boolean; dirty: boolean; active: ActiveLayout | null;
@@ -57,8 +57,7 @@ export function F08CampaignPanel({ campaign, a, b, reports, snapshot, merchant, 
       {report ? <>
         <div className="f07-actions"><span className="f07-status">{report.simulated ? 'SIMULATED' : 'REPORT'}</span><small className="f07-muted">{report.evaluationCount} evaluation transactions</small></div>
         {!currentReport && <p className="f07-warning">Historical report: A/B versions differ from the current layouts.</p>}
-        <div className="f07-metric-grid">{report.layouts.map(row => <div key={row.layoutId} className="f07-report-layout"><h3>Layout {row.role} <small>v{row.layoutVersion}</small></h3><dl><dt>Hit rate</dt><dd>{rate(row.hitRate)}</dd><dt>Bundle conversion</dt><dd>{rate(row.bundleConversion)}</dd><dt>Captured utility</dt><dd>{rate(row.capturedUtility)}</dd><dt>Priority coverage</dt><dd>{formatPriorityCoverage(row.priorityCoverage)}{row.priorityCoverageDenominator != null && ` · ${row.priorityCoverageDenominator} products`}</dd></dl></div>)}</div>
-        <details className="f07-report-details"><summary>Dataset & comparison details</summary><p>{comparisonLabel(report)}</p><p>Report #{report.reportId} · {report.rangeStart} – {report.rangeEnd}</p><p>Dataset hash: {report.datasetHash}</p><pre>{JSON.stringify(report.assumptions, null, 2)}</pre><p>N/A means the metric is unavailable or has a zero denominator. Priority coverage shows “chưa có” for historical reports or unavailable frozen weights.</p></details>
+        <F08ReportDetails report={report} />
       </> : <div className="f07-empty"><FlaskConical size={28} /><strong>No simulation reports yet</strong><p>{merchant ? 'Choose an evaluation period after training to compare the two ready layouts.' : 'Saved simulation reports from your Merchandiser will appear here.'}</p></div>}
     </div>
   </section>;
