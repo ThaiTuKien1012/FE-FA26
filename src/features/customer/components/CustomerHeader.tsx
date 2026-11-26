@@ -7,13 +7,13 @@ import { containerClass } from './CustomerCommerce';
 
 interface CustomerHeaderProps {
   query: string;
-  setQuery: (value: string) => void;
-  onSearch: () => void;
+  setQuery?: (value: string) => void;
+  onSearch?: () => void;
   savedCount: number;
   savedOnly: boolean;
-  toggleSavedOnly: () => void;
+  toggleSavedOnly?: () => void;
   cartCount: number;
-  openCart: () => void;
+  openCart?: () => void;
   onLogin: () => void;
   onHome?: () => void;
   user?: AuthUser | null;
@@ -30,7 +30,7 @@ export function CustomerHeader({ query, setQuery, onSearch, savedCount, savedOnl
       <div className="fm-topbar bg-[#088178] text-[10px] text-[#def3ed] max-[580px]:text-[8px]">
         <div className={`${containerClass} flex min-h-8 items-center justify-between gap-5 max-[580px]:min-h-[30px] max-[580px]:gap-2`}>
           <span>Nhiều cửa hàng. <strong className="font-medium text-[#e4f0a2]">Mua sắm trong cùng một nơi.</strong></span>
-          <span className="flex items-center gap-[13px] max-[580px]:text-[0px]">Khám phá sản phẩm <span className="rounded-full border border-white/30 px-[9px] py-px text-[8px] max-[580px]:text-[7px]">Bản xem thử</span></span>
+          <span className="flex items-center gap-[13px] max-[580px]:text-[0px]">Khám phá sản phẩm <span className="rounded-full border border-white/30 px-[9px] py-px text-[8px] max-[580px]:text-[7px]">Cửa hàng</span></span>
         </div>
       </div>
 
@@ -38,18 +38,18 @@ export function CustomerHeader({ query, setQuery, onSearch, savedCount, savedOnl
         <a href="/customer-home" onClick={event => { if (onHome) { event.preventDefault(); onHome(); } }} className="fm-logo inline-flex items-center gap-[9px] whitespace-nowrap text-[25px] tracking-[-1.2px] text-[#088178] max-[1100px]:gap-[7px] max-[1100px]:text-[23px] max-[800px]:text-[21px] max-[580px]:text-2xl max-[360px]:text-[21px]" aria-label={`${APP_BRAND.name} — Trang chủ`}>
           <AppLogo className="fm-brand-symbol size-8 shrink-0 max-[800px]:size-7 max-[580px]:size-[29px]" /><strong className="font-[750]">{APP_BRAND.name}</strong>
         </a>
-        <form className="fm-search flex h-11 min-w-0 flex-1 items-center gap-[11px] rounded-full border border-[#eceeee] bg-[#fafafa] p-[5px] pl-[18px] max-[800px]:gap-[7px] max-[800px]:pl-3 max-[580px]:order-3 max-[580px]:mt-[14px] max-[580px]:h-[38px] max-[580px]:basis-full" role="search" onSubmit={event => { event.preventDefault(); onSearch(); }}>
+        {setQuery && <form className="fm-search flex h-11 min-w-0 flex-1 items-center gap-[11px] rounded-full border border-[#eceeee] bg-[#fafafa] p-[5px] pl-[18px] max-[800px]:gap-[7px] max-[800px]:pl-3 max-[580px]:order-3 max-[580px]:mt-[14px] max-[580px]:h-[38px] max-[580px]:basis-full" role="search" onSubmit={event => { event.preventDefault(); onSearch?.(); }}>
           <Search size={18} className="shrink-0 text-[#929a9a] max-[580px]:size-[15px]" />
-          <input className="w-full min-w-0 border-0 bg-transparent text-[11px] outline-none placeholder:text-[#9ba3a3] max-[800px]:text-[10px]" type="search" aria-label="Tìm sản phẩm hoặc thương hiệu" placeholder="Tìm sản phẩm hoặc thương hiệu..." value={query} onChange={event => setQuery(event.target.value)} />
+          <input className="w-full min-w-0 border-0 bg-transparent text-[11px] outline-none placeholder:text-[#9ba3a3] max-[800px]:text-[10px]" type="search" aria-label="Tìm sản phẩm" placeholder="Tìm sản phẩm..." value={query} onChange={event => setQuery(event.target.value)} />
           <button className="flex items-center gap-3 rounded-full border-0 bg-[#088178] px-4 py-2 text-[10px] whitespace-nowrap text-white hover:bg-[#06685f] max-[800px]:gap-0 max-[800px]:p-2 max-[800px]:text-[0px] max-[580px]:gap-2 max-[580px]:px-[11px] max-[580px]:py-[6px] max-[580px]:text-[9px]" type="submit">Tìm kiếm <ArrowRight size={15} /></button>
-        </form>
-        <div className="fm-header-actions flex items-center gap-4 max-[1100px]:gap-3 max-[800px]:gap-2">
-          <button className={`${iconButtonClass} ${savedOnly ? 'text-[#d25b53]' : ''}`} aria-label={`Sản phẩm đã lưu (${savedCount})`} aria-pressed={savedOnly} onClick={toggleSavedOnly}>
+        </form>}
+        <div className={`fm-header-actions flex items-center gap-4 max-[1100px]:gap-3 max-[800px]:gap-2 ${setQuery ? "" : "ml-auto"}`}>
+          {toggleSavedOnly && <button className={`${iconButtonClass} ${savedOnly ? 'text-[#d25b53]' : ''}`} aria-label={`Sản phẩm đã lưu (${savedCount})`} aria-pressed={savedOnly} onClick={toggleSavedOnly}>
             <Heart size={21} />{savedCount > 0 && <span className="absolute top-0 -right-px grid size-[15px] place-items-center rounded-full bg-[#e76b58] text-[8px] text-white">{savedCount}</span>}
-          </button>
-          <button className={`${iconButtonClass} fm-cart-trigger`} aria-label={`Mở giỏ hàng (${cartCount})`} onClick={openCart}>
+          </button>}
+          {openCart && <button className={`${iconButtonClass} fm-cart-trigger`} aria-label={`Mở giỏ hàng (${cartCount})`} onClick={openCart}>
             <ShoppingCart size={22} />{cartCount > 0 && <span className="absolute top-0 -right-px grid size-[15px] place-items-center rounded-full bg-[#e76b58] text-[8px] text-white">{cartCount}</span>}
-          </button>
+          </button>}
           {user ? <AvatarDropdown user={user} onProfile={onProfile || onLogin} onLogout={onLogout} /> : <button className="grid size-8 place-items-center rounded-full border border-[#d3e9df] bg-[#e3f0e6] text-[#088178] max-[580px]:size-7" onClick={onLogin} aria-label="Đăng nhập"><UserRound size={18} /></button>}
           {onToggleMenu && <button className="hidden items-center justify-center border-0 bg-transparent p-[5px] max-[580px]:flex" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} onClick={() => onToggleMenu?.()}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>}
         </div>

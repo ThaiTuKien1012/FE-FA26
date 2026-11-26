@@ -14,7 +14,6 @@ import { ProductInventoryView } from './features/store/components/ProductInvento
 import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
-import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
 import { CustomerProductDetailView } from './features/customer/components/CustomerProductDetailView';
 import { LoginView } from './features/auth/components/LoginView';
 import { ForgotPasswordView } from './features/auth/components/ForgotPasswordView';
@@ -22,6 +21,7 @@ import { RegisterView } from './features/auth/components/RegisterView';
 import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
+import { customerLoginPath, customerLoginTarget, customerPath } from './features/customer/customerRoutes';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
 import { PublishedCampaignStatusView } from './features/merchandiser/components/PublishedCampaignStatusView';
@@ -51,7 +51,10 @@ const StoreManagementView = lazy(() => import('./features/storeManagement/StoreM
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
+  const [customerResume] = useState(() => currentUser?.role === 'End-Customer'
+    ? customerLoginTarget(window.location.pathname, window.location.search) : null);
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
+    if (customerResume) return customerResume.productId ? 'customer-product' : 'customer-storefront';
     const screenFromUrl = typeof window !== 'undefined' ? getScreenFromPathname(window.location.pathname) : null;
     if (screenFromUrl === 'login' && authService.getCurrentUser()) return authService.getCurrentUser()!.defaultScreen;
     if (screenFromUrl) {
@@ -63,7 +66,8 @@ export default function App() {
   });
 
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
-  const [customerProductId, setCustomerProductId] = useState<string | null>(() => getCustomerProductId(window.location.pathname));
+  const [customerStoreSlug, setCustomerStoreSlug] = useState(() => customerResume?.slug ?? new URLSearchParams(window.location.search).get('store'));
+  const [customerProductId, setCustomerProductId] = useState<string | null>(() => customerResume?.productId ?? getCustomerProductId(window.location.pathname));
   const [editingProductId, setEditingProductId] = useState(() => new URLSearchParams(window.location.search).get('productId') ?? '');
   const isMiningScreen = isSystemMiningScreen(currentScreen);
   const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
@@ -89,12 +93,14 @@ export default function App() {
 
   // Synchronize browser URL bar on load and handle back/forward browser buttons
   useEffect(() => {
-    syncBrowserUrl(currentScreen, true);
+    if (customerResume) window.history.replaceState({ screen: currentScreen }, '', customerPath(customerResume.slug, customerResume.productId));
+    else syncBrowserUrl(currentScreen, true);
 
     const handlePopState = () => {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
       if (screenFromUrl) {
         setCustomerProductId(getCustomerProductId(window.location.pathname));
+        setCustomerStoreSlug(new URLSearchParams(window.location.search).get('store'));
         if (screenFromUrl === 'store-edit-product') setEditingProductId(new URLSearchParams(window.location.search).get('productId') ?? '');
         setCurrentScreen(screenFromUrl);
       }
@@ -155,15 +161,34 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCustomerProduct = (id: string) => {
-    window.history.pushState({ screen: 'customer-product' }, '', `/product/${encodeURIComponent(id)}`);
+  const openCustomerStore = (slug: string | null, id: string | null = null) => {
+    const screen = id ? 'customer-product' : 'customer-storefront';
+    const url = customerPath(slug, id);
+    if (window.location.pathname + window.location.search !== url) window.history.pushState({ screen }, '', url);
+    setCustomerStoreSlug(slug);
     setCustomerProductId(id);
-    setCurrentScreen('customer-product');
+    setCurrentScreen(screen);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const handleCustomerLogin = () => {
+    const slug = currentScreen === 'customer-home' ? null : customerStoreSlug;
+    const id = currentScreen === 'customer-product' ? customerProductId : null;
+    window.history.pushState({ screen: 'login' }, '', customerLoginPath(slug, id));
+    setCurrentScreen('login');
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const handleLoginSuccess = (user: AuthUser, destinationScreen: ActiveNavScreen) => {
+    // The session boundary remounts App when login changes the session. Its new
+    // instance consumes the URL destination before an old login callback fires.
+    if (currentScreen === 'login' && window.location.pathname !== '/login') return;
     setCurrentUser(user);
+    const destination = customerLoginTarget(window.location.pathname, window.location.search);
+    if (destination && user.role === 'End-Customer') {
+      openCustomerStore(destination.slug, destination.productId);
+      return;
+    }
     syncBrowserUrl(destinationScreen);
     setCurrentScreen(destinationScreen);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -237,25 +262,22 @@ export default function App() {
     );
   }
 
-  if (currentScreen === 'customer-home' && (!currentUser || currentUser.role === 'End-Customer')) {
-    return <CustomerHomeView user={currentUser} onLogin={() => handleNavigate('login')} onRegister={() => handleNavigate('register')} onExplore={() => handleNavigate('customer-storefront')} onProduct={handleCustomerProduct} onProfile={() => handleNavigate('profile')} onLogout={handleLogout} />;
-  }
-
-  if (currentScreen === 'customer-product' && (!currentUser || currentUser.role === 'End-Customer')) {
-    return <CustomerProductDetailView productId={customerProductId} user={currentUser} onBack={() => handleNavigate('customer-storefront')} onHome={() => handleNavigate('customer-home')} onStore={() => handleNavigate('customer-storefront')} onProduct={handleCustomerProduct} onLogin={() => handleNavigate('login')} onProfile={() => handleNavigate('profile')} onLogout={handleLogout} />;
-  }
-
-  if (currentScreen === 'customer-storefront' && (!currentUser || currentUser.role === 'End-Customer')) {
-    return (
-      <CustomerStorefrontView
-        user={currentUser}
-        onHome={() => handleNavigate('customer-home')}
-        onLogin={() => handleNavigate('login')}
-        onProduct={handleCustomerProduct}
-        onLogout={handleLogout}
-        onProfile={() => handleNavigate('profile')}
-      />
-    );
+  if (publicScreens.includes(currentScreen) && (!currentUser || currentUser.role === 'End-Customer')) {
+    const customerNavigation = {
+      user: currentUser, onHome: () => handleNavigate('customer-home'), onLogin: handleCustomerLogin,
+      onStore: (slug: string | null) => openCustomerStore(slug),
+      onProfile: () => handleNavigate('profile'), onLogout: handleLogout,
+    };
+    if (currentScreen === 'customer-product') {
+      return <CustomerProductDetailView key={`${customerStoreSlug}/${customerProductId}`}
+        {...customerNavigation} storeSlug={customerStoreSlug} productId={customerProductId}
+        onBack={() => openCustomerStore(customerStoreSlug)} />;
+    }
+    if (currentScreen === 'customer-home' || currentScreen === 'customer-storefront') {
+      const slug = currentScreen === 'customer-home' ? null : customerStoreSlug;
+      return <CustomerStorefrontView {...customerNavigation} storeSlug={slug}
+        onProduct={id => openCustomerStore(slug, String(id))} />;
+    }
   }
 
   // 3. For administrative roles (Store Admin, System Admin, Merchandiser), render within AppLayout
