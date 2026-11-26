@@ -2,9 +2,11 @@ import { authService, type AuthUser } from '../../services/authService';
 import { f05Api, F05ApiError } from '../f05/f05.api';
 import { recommendationProductImage } from './f06.products';
 import { sameMiningInput } from '../f05/f05.conversion';
+import { readRecommendationSource } from './f06.source';
+import { recommendationError } from './f06.errors';
 import type { Page, RequestView, RunView } from '../f05/f05.types';
 import { f06Api, F06ApiError } from './f06.api';
-import type { RecListParams, RecPage, RecView } from './f06.types';
+import type { RecListParams, RecPage, RecView, RecType } from './f06.types';
 import { INT32_MAX, REC_TYPES, REVIEW_STATUSES, recommendationInteger, validateReview } from './f06.validation';
 
 export interface ReviewConfirmation { id: number; expectedVersion: number; reason: string; action: 'approve' | 'reject'; }
@@ -16,6 +18,13 @@ export interface RecommendationBrowseState {
   filters: BrowseFilters;
   page: number;
   miningRunId: number | null;
+  sourceRun: RunView | null;
+  sourceLoading: boolean;
+  runTotal: number | null;
+  availabilityLoading: boolean;
+  availabilityError: string;
+  typeCounts: Partial<Record<RecType,number>>;
+  countsLoading: boolean;
   list: RecPage | null;
   loading: boolean;
   error: string;
@@ -41,31 +50,29 @@ export interface RecommendationBrowseState {
   reviewNeedsRefresh: boolean;
   reviewError: string;
   reviewNotice: string;
+  reviewedId: number | null;
+  nextLoading: boolean;
+  nextError: string;
+  nextMessage: string;
 }
 const scopeKey = () => {
   const user = authService.getCurrentUser();
   return JSON.stringify([authService.getSessionId() || authService.getToken(), user?.id, user?.storeId, user?.role]);
 };
 const initial = (): RecommendationBrowseState => ({
-  role: authService.getCurrentUser()?.role ?? null, mode: 'history', filters: { pageSize: 20 }, page: 0,
+  role: authService.getCurrentUser()?.role ?? null, mode: 'ranked', filters: { pageSize: 20,type:'BUNDLE' }, page: 0,
+  sourceRun: null, sourceLoading: false,runTotal:null,availabilityLoading:false,availabilityError:'',typeCounts:{},countsLoading:false,
   miningRunId: null, list: null, loading: false, error: '', detailId: null, detail: null, detailLoading: false, detailError: '',
   names: {}, listNames: {}, images: {}, namesLoading: false, namesUnavailable: false, requests: null, requestPage: 0, requestsLoading: false,
   requestsError: '', request: null, runs: [], runsLoading: false, runsError: '',
-  reviewConfirmation: null, reviewPending: false, reviewNeedsRefresh: false, reviewError: '', reviewNotice: ''
+  reviewConfirmation: null, reviewPending: false, reviewNeedsRefresh: false, reviewError: '', reviewNotice: '',
+  reviewedId:null,nextLoading:false,nextError:'',nextMessage:''
 });
-export function recommendationReadError(error: unknown, ranked = false): string {
-  if (!(error instanceof F06ApiError) && !(error instanceof F05ApiError)) return error instanceof Error ? error.message : 'Unable to load data. Refresh to try again manually.';
-  const advice: Record<number, string> = {
-    400: 'Check the filters and IDs.', 401: 'Sign in again or complete session recovery.',
-    403: 'Access is denied for this role or Store.', 404: 'This record is unavailable for your Store.',
-    409: ranked ? 'Narrow the type or review status filters; ranked views have a 10,000-candidate limit.' : 'Refresh and check the current source state.'
-  };
-  return `${error.message} ${error.status === null ? 'Check your connection and refresh manually.' : `(HTTP ${error.status}) ${advice[error.status] || ''}`}`.trim();
-}
+export function recommendationReadError(error:unknown,_ranked=false):string { return recommendationError(error); }
 
 /** Existing own-Store F02 GET, used for optional names in details and the Store Admin list. Its current
  * storeApi wrapper has no AbortSignal, so use the same authenticated transport
- * with cancellation here. IDs remain visible when names cannot be resolved.
+ * with cancellation here. Unresolved names have an honest presentation fallback.
  */
 export async function readRecommendationProductNames(ids: number[], signal: AbortSignal, cache?: Map<number, string | null>, images?: Map<number,string>): Promise<Record<number, string>> {
   const names: Record<number, string> = {};
@@ -95,7 +102,7 @@ export async function readRecommendationProductNames(ids: number[], signal: Abor
   return names;
 }
 
-type ReadKind = 'list' | 'detail' | 'names' | 'listNames' | 'requests' | 'runs' | 'review';
+type ReadKind = 'counts' | 'availability' | 'next' | 'source' | 'list' | 'detail' | 'names' | 'listNames' | 'requests' | 'runs' | 'review';
 /** State for one mounted dashboard. Reviews require an explicit confirmation.
  * No polling or client ranking. Every late result is context-fenced.
  */
@@ -130,35 +137,49 @@ export class RecommendationBrowser {
     const ownStore = authService.getCurrentUser()?.storeId;
     if (ownStore != null && storeId !== ownStore) throw new F06ApiError(200, 'Mismatched Store data was rejected.');
   }
+  private checkDetail(detail:RecView,type=this.state.filters.type) {
+    this.checkStore(detail.storeId);
+    const run=this.state.sourceRun;
+    if(run&&(detail.type!==type||detail.snapshotId!==run.snapshotId||!detail.sources.some(source=>source.runId===run.runId&&source.snapshotId===run.snapshotId)))throw new F06ApiError(404,'Recommendation unavailable for the selected analysis.');
+  }
+  private decisionMessage(detail:RecView) {
+    return detail.reviewStatus==='APPROVED'
+      ? detail.readyForConsumption?'Approved and ready for layout.':'Recommendation approved. It is not currently ready for Layout. Check the latest product availability.'
+      : 'Recommendation rejected. Your decision has been saved.';
+  }
+  private async loadDetailNames(detail:RecView) {
+    const job=this.begin('names');this.update({namesLoading:true});
+    try {
+      const names=await readRecommendationProductNames(detail.productIds,job.signal,this.productNames,this.productImages);
+      if(job.current()&&this.state.detailId===detail.recommendationId)this.update({names,listNames:{...this.state.listNames,...names},images:Object.fromEntries(this.productImages),namesLoading:false,namesUnavailable:detail.productIds.some(id=>!names[id])});
+    } catch { if(job.current())this.update({namesLoading:false,namesUnavailable:true}); }
+  }
   private syncContext = () => {
     if (scopeKey() === this.scope) return;
-    this.abort('list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
+    this.abort('counts','availability','next','source', 'list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
     this.productNames.clear(); this.productImages.clear();
     this.scope = scopeKey();
     this.state = initial(); this.update({});
-    if (this.allowed()) void this.refresh();
+    if (this.allowed()) void this.loadRequests(0);
   };
-  start = () => {
+  start = (loadChoices = true) => {
     if (this.active) return;
     this.active = true; this.scope = scopeKey();
     this.productNames.clear(); this.productImages.clear();
     this.state = initial(); this.update({});
     this.unsubscribeAuth = authService.subscribe(this.syncContext);
-    if (this.allowed()) void this.refresh();
+    if (loadChoices && this.allowed()) void this.loadRequests(0);
   };
   stop = () => {
-    this.active = false; this.abort('list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
+    this.active = false; this.abort('counts','availability','next','source', 'list', 'detail', 'names', 'listNames', 'requests', 'runs', 'review');
     this.productNames.clear(); this.productImages.clear();
     this.unsubscribeAuth?.(); this.unsubscribeAuth = null;
   };
   setMode = (mode: RecommendationBrowseState['mode']) => {
-    if (!this.allowed() || this.state.reviewPending || mode === this.state.mode) return;
-    this.closeDetail(); this.abort('list', 'requests', 'runs');
-    this.update({ mode, miningRunId: null, page: 0, list: null, error: '', loading: false,
-      requests: null, requestPage: 0, requestsLoading: false, requestsError: '', request: null, runs: [], runsLoading: false, runsError: '' });
-    if (mode === 'ranked') void this.loadRequests(0); else void this.refresh();
+    // Legacy callers can choose an analysis, but cannot restore an unscoped Library.
+    if (mode !== 'ranked' || !this.state.requests) void this.loadRequests(0);
   };
-  applyFilters = async (filters: BrowseFilters) => {
+  applyFilters = async (filters: BrowseFilters, checkAvailability = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
     try {
       if (filters.snapshotId !== undefined) recommendationInteger(filters.snapshotId, 'snapshotId', 1, INT32_MAX);
@@ -167,14 +188,51 @@ export class RecommendationBrowser {
           filters.reviewStatus !== undefined && !REVIEW_STATUSES.includes(filters.reviewStatus)) throw new F06ApiError(400, 'Unsupported recommendation filter.');
     } catch (error) { this.update({ error: recommendationReadError(error) }); return; }
     this.closeDetail();
-    this.update({ filters: { ...filters, pageSize: filters.pageSize ?? 20 }, page: 0 });
-    await this.refresh();
+    this.update({ filters: { ...filters,type:filters.type??this.state.filters.type??'BUNDLE',pageSize:filters.pageSize??20 }, page: 0 });
+    await this.refresh(false,false,checkAvailability);
   };
   setPage = async (page: number) => {
     if (!this.allowed() || this.state.reviewPending || !Number.isInteger(page) || page < 0 || page > INT32_MAX) return;
     this.closeDetail(); this.update({ page }); await this.refresh();
   };
-  refresh = async (refreshNames = false, preserveDetail = false) => {
+  private readRunAvailability = async () => {
+    const run=this.state.sourceRun;if(!run)return false;
+    const job=this.begin('availability');
+    this.update({runTotal:null,availabilityLoading:true,availabilityError:''});
+    try {
+      // One row proves run-wide availability. Never apply type/status filters here.
+      const page=await f06Api.list({miningRunId:run.runId,page:0,pageSize:1},job.signal);
+      if(!job.current())return false;
+      if(page.ordering!=='RANKED_WITHIN_SOURCE_RUN')throw new F06ApiError(200,'Recommendation availability could not be verified.');
+      page.items.forEach(item=>{this.checkStore(item.storeId);if(item.snapshotId!==run.snapshotId||!item.sources.some(source=>source.runId===run.runId&&source.snapshotId===run.snapshotId))throw new F06ApiError(200,'Recommendation availability does not match the selected analysis.');});
+      this.update({runTotal:page.totalElements,availabilityLoading:false});return true;
+    } catch(error) {
+      const message=recommendationReadError(error);
+      if(job.current())this.update({runTotal:null,availabilityLoading:false,availabilityError:/too many suggestions to load at once/i.test(message)?'This analysis exceeds the recommendation loading limit. Choose another analysis or contact your administrator.':message});
+      return false;
+    }
+  };
+  private readTypeCounts = async () => {
+    const run=this.state.sourceRun;if(!run||!this.allowed())return;
+    const job=this.begin('counts');
+    this.update({typeCounts:{},countsLoading:true});
+    // Four bounded metadata reads, two at a time. No review filter: totals include
+    // approved/rejected/pending records. Optional failures remain unknown.
+    let next=0;
+    await Promise.all(Array.from({length:2},async()=>{
+      while(next<REC_TYPES.length&&job.current()){
+        const type=REC_TYPES[next++];
+        try{
+          const page=await f06Api.list({miningRunId:run.runId,type,page:0,pageSize:1},job.signal);
+          if(!job.current()||this.state.sourceRun?.runId!==run.runId)return;
+          if(!Number.isSafeInteger(page.totalElements)||page.totalElements<0||page.ordering!=='RANKED_WITHIN_SOURCE_RUN'||page.items.some(item=>item.type!==type||item.storeId!==run.storeId||item.snapshotId!==run.snapshotId||!item.sources.some(source=>source.runId===run.runId&&source.snapshotId===run.snapshotId)))continue;
+          this.update({typeCounts:{...this.state.typeCounts,[type]:page.totalElements}});
+        }catch{ /* A ranking limit, network error or rejected response is not zero. */ }
+      }
+    }));
+    if(job.current())this.update({countsLoading:false});
+  };
+  refresh = async (refreshNames = false, preserveDetail = false, checkAvailability = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
     // Explicit refresh can pick up catalog renames; paging/filtering
     // reuses labels and does not repeat one F02 request for each row.
@@ -184,14 +242,22 @@ export class RecommendationBrowser {
     this.abort('listNames');
     if (!preserveDetail) this.closeDetail();
     const job = this.begin('list');
-    if (this.state.mode === 'ranked' && this.state.miningRunId === null) { this.update({ list: null, loading: false, error: '' }); return; }
-    const params: RecListParams = { ...this.state.filters, page: this.state.page,
-      ...(this.state.mode === 'ranked' ? { miningRunId: this.state.miningRunId! } : {}) };
+    if (!this.state.sourceRun || this.state.sourceRun.runId !== this.state.miningRunId) { this.update({ list: null, loading: false }); return; }
+    if(checkAvailability||refreshNames||this.state.runTotal===null){
+      this.abort('counts');this.update({typeCounts:{},countsLoading:false});
+      this.update({list:null,loading:false});
+      if(!await this.readRunAvailability()||!job.current())return;
+      if((this.state.runTotal??0)>0&&this.state.role==='Merchandiser')void this.readTypeCounts();
+    }
+    if(this.state.runTotal===0){this.update({list:null,loading:false,error:''});return;}
+    const params: RecListParams = { ...this.state.filters,type:this.state.filters.type??'BUNDLE', page: this.state.page,
+      miningRunId: this.state.sourceRun.runId };
     this.update({ list: null, loading: true, error: '' });
     try {
       const list = await f06Api.list(params, job.signal);
       if (!job.current()) return;
       list.items.forEach(item => this.checkStore(item.storeId));
+      if (list.ordering !== 'RANKED_WITHIN_SOURCE_RUN' || list.items.some(item => item.type!==params.type||!item.sources.some(source => source.runId === params.miningRunId && source.snapshotId === this.state.sourceRun!.snapshotId))) throw new F06ApiError(200, 'Recommendations do not match the selected analysis.');
       const lastPage = Math.max(0, Math.ceil(list.totalElements / list.pageSize) - 1);
       if (list.page > lastPage) { this.update({ page: lastPage }); await this.refresh(false, preserveDetail); return; }
       this.update({ list, loading: false });
@@ -206,18 +272,28 @@ export class RecommendationBrowser {
     } catch { /* Optional labels never block results or replace IDs with invented names. */ }
   };
   showGeneratedResults = async (runId:number) => {
-    if(!this.allowed()||this.state.reviewPending)return;
-    recommendationInteger(runId,'miningRunId');
-    this.closeDetail();this.abort('requests','runs');
-    this.update({mode:'ranked',miningRunId:runId,page:0,filters:{pageSize:20},request:null,runs:[],list:null,error:''});
-    await this.refresh();
+    await this.selectSource(runId);
+  };
+  selectSource = async (runId:number) => {
+    if(!this.allowed())return;
+    this.abort('review');this.update({reviewPending:false});
+    this.closeDetail();this.abort('counts','availability','next','list','listNames','requests','runs','names');
+    const job=this.begin('source');
+    this.update({mode:'ranked',miningRunId:null,sourceRun:null,sourceLoading:true,runTotal:null,availabilityLoading:false,availabilityError:'',typeCounts:{},countsLoading:false,page:0,filters:{pageSize:20,type:'BUNDLE'},request:null,runs:[],list:null,error:'',loading:false,requestsLoading:false,runsLoading:false,listNames:{},images:{}});
+    try {
+      const {request,run}=await readRecommendationSource(runId,job.signal);
+      if(!job.current())return;
+      this.update({request,runs:[run],sourceRun:run,miningRunId:run.runId,sourceLoading:false});
+      await this.refresh(false,false,true);
+    } catch(error) { if(job.current())this.update({sourceLoading:false,error:recommendationReadError(error)}); }
   };
   loadRequests = async (page = this.state.requestPage) => {
-    if (!this.allowed() || this.state.reviewPending || this.state.mode !== 'ranked') return;
-    this.closeDetail(); this.abort('list', 'runs');
+    if (!this.allowed() || this.state.mode !== 'ranked') return;
+    this.abort('review');this.update({reviewPending:false});
+    this.closeDetail(); this.abort('counts','availability','next','source', 'list', 'listNames', 'names', 'runs');
     const job = this.begin('requests');
     this.update({ requestPage: page, requests: null, requestsLoading: true, requestsError: '',
-      request: null, runs: [], runsLoading: false, runsError: '', miningRunId: null, page: 0, list: null, loading: false, error: '' });
+      request: null, runs: [], runsLoading: false, runsError: '', miningRunId: null, sourceRun:null,sourceLoading:false,runTotal:null,availabilityLoading:false,availabilityError:'',typeCounts:{},countsLoading:false,page: 0, list: null, loading: false, error: '',listNames:{},images:{} });
     try {
       const requests = await f05Api.listRequests(page, 20, job.signal);
       if (!job.current()) return;
@@ -231,9 +307,9 @@ export class RecommendationBrowser {
     if (!this.allowed() || this.state.reviewPending || this.state.mode !== 'ranked') return;
     const request = this.state.requests?.items.find(item => item.requestId === id);
     if (!request) return;
-    this.closeDetail(); this.abort('list');
+    this.closeDetail(); this.abort('counts','availability','next','source','list','listNames','names');
     const job = this.begin('runs');
-    this.update({ request, runs: [], runsLoading: true, runsError: '', miningRunId: null, page: 0, list: null, loading: false, error: '' });
+    this.update({ request, runs: [], runsLoading: true, runsError: '', miningRunId: null, sourceRun:null,sourceLoading:false,runTotal:null,availabilityLoading:false,availabilityError:'',typeCounts:{},countsLoading:false,page: 0, list: null, loading: false, error: '' });
     try {
       const runs = await f05Api.listRuns(id, job.signal);
       if (!job.current()) return;
@@ -243,31 +319,29 @@ export class RecommendationBrowser {
   };
   selectRun = async (id: number) => {
     if (!this.allowed() || this.state.reviewPending || !this.state.runs.some(run => run.runId === id && run.status === 'COMPLETED')) return;
-    this.update({ miningRunId: id, page: 0 }); await this.refresh();
+    await this.selectSource(id);
   };
   openDetail = async (id: number, retainReviewMessage = false, refreshNames = false) => {
     if (!this.allowed() || this.state.reviewPending) return;
-    this.abort('listNames');
+    this.abort('next','listNames');
     if (refreshNames) { this.productNames.clear(); this.productImages.clear(); }
     this.abort('names'); const job = this.begin('detail');
     this.update({ detailId: id, detail: null, detailLoading: true, detailError: '', names: {}, namesLoading: false, namesUnavailable: false,
-      reviewConfirmation: null, ...(retainReviewMessage ? {} : { reviewError: '', reviewNotice: '' }) });
+      reviewConfirmation: null,nextLoading:false,nextError:'',nextMessage:'',reviewedId:this.state.reviewedId===id?id:null, ...(retainReviewMessage ? {} : { reviewError: '', reviewNotice: '' }) });
     try {
       const detail = await f06Api.get(id, job.signal);
       if (!job.current()) return;
-      this.checkStore(detail.storeId);
+      this.checkDetail(detail);
       this.update({ detail, detailLoading: false, reviewNeedsRefresh: false });
-      const namesJob = this.begin('names');
-      this.update({ namesLoading: true });
-      const names = await readRecommendationProductNames(detail.productIds, namesJob.signal, this.productNames, this.productImages);
-      if (namesJob.current()) this.update({ names, listNames: { ...this.state.listNames, ...names }, images:Object.fromEntries(this.productImages), namesLoading: false, namesUnavailable: detail.productIds.some(productId => !names[productId]) });
+      if(retainReviewMessage&&detail.reviewStatus!=='PENDING_REVIEW')this.update({reviewedId:id,reviewError:'',reviewNotice:this.decisionMessage(detail)});
+      await this.loadDetailNames(detail);
     } catch (error) { if (job.current()) this.update({ detailLoading: false, detailError: recommendationReadError(error) }); }
   };
   closeDetail = () => {
     if (this.state.reviewPending) return;
-    this.abort('detail', 'names', 'review');
+    this.abort('next','detail', 'names', 'review');
     this.update({ detailId: null, detail: null, detailLoading: false, detailError: '', names: {}, namesLoading: false, namesUnavailable: false,
-      reviewConfirmation: null, reviewNeedsRefresh: false, reviewError: '', reviewNotice: '' });
+      reviewConfirmation: null, reviewNeedsRefresh: false, reviewError: '', reviewNotice: '',reviewedId:null,nextLoading:false,nextError:'',nextMessage:'' });
   };
   prepareReview = (action: ReviewConfirmation['action'], reason: string) => {
     if (!this.allowed() || this.state.role !== 'Merchandiser' || this.state.reviewPending || this.state.detailLoading || this.state.reviewNeedsRefresh) return;
@@ -290,16 +364,49 @@ export class RecommendationBrowser {
     try {
       const result = await f06Api[confirmation.action](confirmation.id, { expectedVersion: confirmation.expectedVersion, reason: confirmation.reason }, job.signal);
       if (!job.current()) return;
-      this.checkStore(result.storeId);
+      try { this.checkDetail(result); }
+      catch { throw new F06ApiError(200, 'The returned decision could not be verified.'); }
+      if(result.reviewStatus==='PENDING_REVIEW')throw new F06ApiError(200,'The decision could not be confirmed.');
       this.update({ detail: result, reviewPending: false, reviewConfirmation: null,
-        reviewNotice: `Recommendation ${result.reviewStatus === 'APPROVED' ? 'approved' : result.reviewStatus === 'REJECTED' ? 'rejected' : 'updated'}. The saved decision and review history are shown below. Approval does not publish or reserve inventory.` });
+        reviewedId:result.recommendationId,reviewNotice:this.decisionMessage(result) });
       await this.refresh(false, true);
     } catch (error) {
       if (!job.current()) return;
       const reconcile = !(error instanceof F06ApiError) || error.status === null || error.status === 409 || error.status === 200 || error.status >= 500;
       this.update({ reviewPending: false, reviewConfirmation: null, reviewNeedsRefresh: reconcile,
-        reviewError: `${recommendationReadError(error)}${reconcile ? ' The submission was not confirmed. Reloading the saved state; check the latest details and history before making a new decision. No automatic retry was made.' : ''}` });
+        reviewError: `${recommendationError(error,'review')}${reconcile ? ' The submission was not confirmed. Checking the saved decision; no automatic retry was made.' : ''}` });
       if (reconcile) await this.openDetail(confirmation.id, true);
     }
+  };
+  reviewNext = async () => {
+    const run=this.state.sourceRun,current=this.state.detail,type=this.state.filters.type;
+    if(!this.allowed()||this.state.role!=='Merchandiser'||!run||!type||!current||current.reviewStatus==='PENDING_REVIEW'||this.state.reviewedId!==current.recommendationId||this.state.reviewPending||this.state.nextLoading)return;
+    const job=this.begin('next'),seen=new Set<number>([current.recommendationId]);let checked=0;
+    this.update({nextLoading:true,nextError:'',nextMessage:''});
+    try {
+      for(let page=0;page<2;page++) {
+        const list=await f06Api.list({miningRunId:run.runId,type,reviewStatus:'PENDING_REVIEW',page,pageSize:20},job.signal);
+        if(!job.current())return;
+        if(list.ordering!=='RANKED_WITHIN_SOURCE_RUN')throw new F06ApiError(200,'Pending recommendation ordering could not be verified.');
+        for(const item of list.items){this.checkDetail(item,type);if(item.reviewStatus!=='PENDING_REVIEW')throw new F06ApiError(200,'Pending list could not be verified.');}
+        for(const item of list.items) {
+          if(seen.has(item.recommendationId))continue;seen.add(item.recommendationId);
+          if(checked++>=3)break;
+          let candidate:RecView;
+          try{candidate=await f06Api.get(item.recommendationId,job.signal);}
+          catch(error){if(!job.current())return;if(error instanceof F06ApiError&&error.status===404)continue;throw error;}
+          if(!job.current())return;this.checkDetail(candidate,type);
+          if(candidate.reviewStatus!=='PENDING_REVIEW')continue;
+          this.abort('detail','names');
+          this.update({detailId:candidate.recommendationId,detail:candidate,detailLoading:false,detailError:'',names:{},namesUnavailable:false,reviewConfirmation:null,reviewNeedsRefresh:false,reviewError:'',reviewNotice:'',reviewedId:null,nextLoading:false,nextError:'',nextMessage:''});
+          await this.loadDetailNames(candidate);return;
+        }
+        if((page+1)*list.pageSize>=list.totalElements) {
+          this.update({nextLoading:false,nextMessage:list.totalElements===0?'No pending recommendations remain for this analysis and type.':'The pending suggestions changed while checking. Refresh Needs review and try again.'});return;
+        }
+        if(checked>=3)break;
+      }
+      this.update({nextLoading:false,nextMessage:'The pending suggestions changed while checking. Refresh Needs review and try again.'});
+    } catch(error) { if(job.current())this.update({nextLoading:false,nextError:recommendationError(error)}); }
   };
 }

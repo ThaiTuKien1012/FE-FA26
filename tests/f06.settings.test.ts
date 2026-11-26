@@ -95,7 +95,7 @@ test('empty expiry results preserve page warnings and backend timezone without i
   // consumes the returned empty page; these backend rules are not reimplemented.
 });
 test('expiry errors clear stale batches, manual refresh recovers, and last-page clamping refetches', async t => {
-  const f = setup(t), flow = await alerts(t); f.expiry.mock.mockImplementation(async () => { throw new F06ApiError(403, 'Forbidden'); }); await flow.refresh(); assert.equal(flow.getSnapshot().data, null); assert.match(flow.getSnapshot().error, /403/);
+  const f = setup(t), flow = await alerts(t); f.expiry.mock.mockImplementation(async () => { throw new F06ApiError(403, 'Forbidden'); }); await flow.refresh(); assert.equal(flow.getSnapshot().data, null); assert.match(flow.getSnapshot().error, /permission/);
   f.expiry.mock.mockImplementation(async (params?: RecExpiryParams) => ({ ...expiryPage(), page: params?.page ?? 0 })); await flow.setPage(8); assert.equal(flow.getSnapshot().page, 0); assert.equal(flow.getSnapshot().data!.page, 0);
 });
 test('expiry clears all old Store data and ignores late results on scope change', async t => {

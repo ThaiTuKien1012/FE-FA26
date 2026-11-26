@@ -53,6 +53,8 @@ async function until(expression, label) {
 }
 const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)}) || [...document.querySelectorAll(".f02-page-position")].some(e=>e.textContent===${JSON.stringify(text)})`, text);
 async function click(label) {
+  if(label==='Refresh details'){const selector='button[aria-label="Refresh details"]';await until('!!document.querySelector('+JSON.stringify(selector+':not(:disabled)')+')','Refresh ready');await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');return;}
+
   assert.equal(await page.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}&&!b.closest('[hidden]'));if(!b||b.disabled)return false;b.click();return true;})()`), true, 'Clickable: ' + label);
 }
 async function select(id, value) {
@@ -60,7 +62,7 @@ async function select(id, value) {
 }
 async function login(role = 'MERCHANDISER', storeId = 1) {
   state.role = role; state.storeId = storeId;
-  await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});history.pushState({},'','/recommendations');dispatchEvent(new PopStateEvent('popstate'));})()`);
+  await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();await auth.authenticate('/api/auth/login',{email:'fixture@example.invalid',password:'fixture-only'});history.pushState({},'','/recommendations?miningRunId=42');dispatchEvent(new PopStateEvent('popstate'));})()`);
   if (role === 'MERCHANDISER') {
     await until("!!document.querySelector('#f06-dashboard-title')", 'workspace mounted');
 
@@ -71,34 +73,39 @@ async function dashboard() {
 
   await until("!!document.querySelector('#f06-dashboard-title')", 'dashboard mounted');
 }
-async function openGroup(index=0) {
-  const selector='button[data-group-open="'+index+'"]';
-  await until('Boolean(document.querySelector('+JSON.stringify(selector)+'))','Group card ready');
-  await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');
-  await until('Boolean(document.querySelector("dialog[data-recommendation-group-dialog][open]"))','Group details open');
+const types=['BUNDLE','CROSS_SELL','FBT','BANNER'];
+async function chooseType(type) {
+  await page.evaluate('document.querySelector('+JSON.stringify('#f06-type-'+type)+').click()');
+  await until('document.querySelector('+JSON.stringify('#f06-type-'+type)+')?.getAttribute("aria-selected")==="true"&&document.querySelector("#f06-type-panel")?.getAttribute("aria-busy")==="false"','type '+type+' loaded');
 }
 async function openDetails(id) {
-  const selector='button[data-candidate-id="'+id+'"]';
-  if(!await page.evaluate('Boolean(document.querySelector('+JSON.stringify(selector)+'))'))await openGroup();
+  const type=types[Math.floor(id/1000)]??'BUNDLE';
+  if(await page.evaluate('document.querySelector('+JSON.stringify('#f06-type-'+type)+')?.getAttribute("aria-selected")!=="true"'))await chooseType(type);
+  const selector='button[data-candidate-id="'+id+'"]';await until('Boolean(document.querySelector('+JSON.stringify(selector)+'))','candidate ready');
   await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');
-  await until('Boolean(document.querySelector("#f06-detail-title"))&&!document.querySelector("[data-recommendation-group-dialog]")','Single recommendation dialog replaces group dialog');
-  await until("!![...document.querySelectorAll('dialog summary')].find(e=>e.textContent==='Source Details')",'Details response rendered');
+  await until('document.querySelector("dialog")?.dataset.recommendationDetail==='+JSON.stringify(String(id))+'&&!!document.querySelector("dialog [aria-label=\\"Historical purchase evidence\\"]")','Exact Details response');
+}
+async function closeDetails() {
+  await page.evaluate('document.querySelector("[aria-label=\\"Close recommendation details\\"]").click()');await until('!document.querySelector("dialog")','Details closed');
 }
 async function capture(name) { if (!artifacts) return;
   const result = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
   writeFileSync(join(artifacts, name + '.png'), Buffer.from(result.data, 'base64'));
 }
-function item(id, storeId) {
-  const pending = state.reviewStatus === 'PENDING_REVIEW';
-  const common = { recommendationId: id, storeId, reviewedBy: pending ? null : 7, reviewedAt: pending ? null : '2026-11-07T00:00:00Z', reviewReason: pending ? null : 'Reviewed frozen evidence', reviewStatus: state.reviewStatus, version: pending ? 1 : 2,
-    readyForConsumption: state.ready, inventoryChanged: true, currentEligibility: eligibility(state.availability ?? (state.ready ? 'ELIGIBLE' : 'INELIGIBLE')) };
-  return recommendation(id % 2 ? { ...common, type: 'CROSS_SELL', anchorProductId: 31 } : { ...common,
-    evidence: { totalTransactions: 0, supportCount: null, supportRatio: null, anchorSupportCount: null, confidence: null, status: 'EVIDENCE_UNAVAILABLE' },
-    reviewHistory: pending ? [] : [{ oldStatus: 'PENDING_REVIEW', newStatus: state.reviewStatus, reviewedBy: 7, reviewedAt: '2026-11-07T00:00:00Z', reason: 'Reviewed frozen evidence', resultingVersion: 2, eligibilityCheck: eligibility() }] });
+function item(id,storeId) {
+ const local=id%1000,type=types[Math.floor(id/1000)]??'BUNDLE',pending=state.reviewStatus==='PENDING_REVIEW';
+ return recommendation({recommendationId:id,storeId,type,anchorProductId:type==='CROSS_SELL'?(local%2?32:31):null,productIds:type==='BANNER'&&local%2===0?[31]:[31,32],reviewStatus:state.reviewStatus,version:pending?1:2,
+  reviewedBy:pending?null:7,reviewedAt:pending?null:'2026-11-07T00:00:00Z',reviewReason:pending?null:'Reviewed frozen evidence',readyForConsumption:state.ready,inventoryChanged:true,currentEligibility:eligibility(state.availability??(state.ready?'ELIGIBLE':'INELIGIBLE')),
+  ...(local%2?{}:{evidence:{totalTransactions:0,supportCount:null,supportRatio:null,anchorSupportCount:null,confidence:null,status:'EVIDENCE_UNAVAILABLE'}}),
+  reviewHistory:pending?[]:[{oldStatus:'PENDING_REVIEW',newStatus:state.reviewStatus,reviewedBy:7,reviewedAt:'2026-11-07T00:00:00Z',reason:'Reviewed frozen evidence',resultingVersion:2,eligibilityCheck:eligibility()}]
+ });
 }
-function visualItems(pageIndex=0){
- const first=recommendation({recommendationId:62+pageIndex*20,storeId:state.storeId});
- return [first,{...first,recommendationId:63+pageIndex*20,type:'CROSS_SELL',anchorProductId:31,evidence:{...first.evidence,anchorSupportCount:4,confidence:0.5}},{...first,recommendationId:64+pageIndex*20,type:'CROSS_SELL',anchorProductId:32,evidence:{...first.evidence,anchorSupportCount:3,confidence:0.666667}},{...first,recommendationId:65+pageIndex*20,type:'BANNER'},{...first,recommendationId:66+pageIndex*20,type:'FBT'},{...first,recommendationId:67+pageIndex*20,snapshotId:3,sources:first.sources.map(source=>({...source,snapshotId:3}))}];
+function visualItems(pageIndex=0,type='BUNDLE') {
+ const first=recommendation({storeId:state.storeId}),offset=pageIndex*20;
+ const records=type==='BUNDLE'?[{...first,recommendationId:62+offset},{...first,recommendationId:67+offset,policy:{...first.policy,version:2}}]
+ :type==='CROSS_SELL'?[{...first,recommendationId:1063+offset,type,anchorProductId:31,evidence:{...first.evidence,anchorSupportCount:4,confidence:0.5}},{...first,recommendationId:1064+offset,type,anchorProductId:32,evidence:{...first.evidence,anchorSupportCount:3,confidence:0.666667}}]
+ :type==='FBT'?[{...first,recommendationId:2066+offset,type}]:[{...first,recommendationId:3065+offset,type,productIds:[31]}];
+ return records.map((record,index)=>({...record,rank:pageIndex*20+index+1}));
 }
 async function fixture({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname;
@@ -110,19 +117,24 @@ async function fixture({ requestId, request }) {
   const storeId = state.storeId;
   if (path === '/api/auth/login') body = { accessToken: 'fixture-only-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-only-csrf' };
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F06 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId, status: 'ACTIVE', emailVerified: true };
+  else if (path === '/api/recommendations/expiry-push') body={items:[],page:Number(url.searchParams.get('page')||0),pageSize:Number(url.searchParams.get('pageSize')||20),totalElements:0,asOfDate:'2026-11-26',timeZone:'Asia/Ho_Chi_Minh',checkedAt:'2026-11-25T17:00:00Z',warnings:[]};
   else if (path === '/api/recommendations') {
     if (state.network) return page.call('Fetch.failRequest', { requestId, errorReason: 'InternetDisconnected' });
     for (const key of url.searchParams.keys()) assert.ok(['page', 'pageSize', 'miningRunId', 'snapshotId', 'type', 'reviewStatus'].includes(key));
+    assert.equal(url.searchParams.get('miningRunId'),'42','Library must stay run-scoped');
     const pageIndex = Number(url.searchParams.get('page') || 0), size = Number(url.searchParams.get('pageSize') || 20);
-    const ranked = url.searchParams.has('miningRunId');
-    body = { items: state.empty ? [] : [item(62 + pageIndex * size, storeId), item(63 + pageIndex * size, storeId)].map((row, index) => ({ ...row, rank: ranked ? pageIndex * size + index + 1 : null })),
-      page: pageIndex, pageSize: size, totalElements: state.empty ? 0 : 45, ordering: ranked ? 'RANKED_WITHIN_SOURCE_RUN' : 'CREATED_DESC' };
-    if(state.visual){body.items=visualItems(pageIndex);body.totalElements=25;}
+    const availability=!url.searchParams.has('type'),type=url.searchParams.get('type')||'BUNDLE';assert.ok(types.includes(type));assert.equal(url.searchParams.has('snapshotId'),false,'No manually entered snapshot filter');
+    if(availability){assert.equal(size,1);assert.equal(url.searchParams.has('reviewStatus'),false);}
+    const offset=types.indexOf(type)*1000;
+    let items=state.empty?[]:[item(offset+62+pageIndex*size,storeId),item(offset+63+pageIndex*size,storeId)].map((record,index)=>({...record,rank:pageIndex*size+index+1}));
+    if(state.visual)items=visualItems(pageIndex,type);
+    if(url.searchParams.has('reviewStatus'))items=items.filter(record=>record.reviewStatus===url.searchParams.get('reviewStatus'));
+    body=availability?{items:[item(62,storeId)],page:0,pageSize:1,totalElements:state.visual?100:45,ordering:'RANKED_WITHIN_SOURCE_RUN'}:{items,page:pageIndex,pageSize:size,totalElements:items.length?(state.visual?25:45):0,ordering:'RANKED_WITHIN_SOURCE_RUN'};
     while (state.holdList && !closing) await sleep(20);
     responseCode = state.listStatus;
     if (responseCode !== 200) body = { error: responseCode === 409 ? 'Rank scope exceeds 10000 candidates' : 'Controlled list failure' };
   } else if (/^\/api\/recommendations\/\d+$/.test(path)) {
-    responseCode = state.detailStatus; body = responseCode === 200 ? (state.visual?visualItems().find(row=>row.recommendationId===Number(path.split('/').at(-1))):item(Number(path.split('/').at(-1)), storeId)) : { error: 'Recommendation not found' };
+    responseCode = state.detailStatus; body = responseCode === 200 ? (state.visual?[0,1].flatMap(page=>types.flatMap(type=>visualItems(page,type))).find(row=>row.recommendationId===Number(path.split('/').at(-1))):item(Number(path.split('/').at(-1)), storeId)) : { error: 'Recommendation not found' };
   } else if (state.visual&&/^\/api\/products\/\d+\/image$/.test(path)){
     const ok=path.includes('/31/');return page.call('Fetch.fulfillRequest',{requestId,responseCode:ok?200:404,responseHeaders:[{name:'Content-Type',value:ok?'image/png':'application/json'}],body:ok?'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=':Buffer.from('{}').toString('base64')});
   } else if (/^\/api\/products\/\d+$/.test(path)) {
@@ -130,6 +142,8 @@ async function fixture({ requestId, request }) {
     body = state.namesUnavailable ? { error: 'Product not found' } : { id: Number(path.split('/').at(-1)), name: (path.endsWith('/31') ? 'Fixture milk' : 'Fixture bread')+(state.longNames?' extra long product description '+('ExtraLongWordWithoutSpaces'.repeat(8)):''),...(state.visual&&!state.noImages?{imageUrl:'/api/products/'+path.split('/').at(-1)+'/image'}:{}) };
   }
   else if (path === '/api/recommendations/config') body = policy;
+  else if (path === '/api/mining/runs/42') body=runFixture('COMPLETED',storeId);
+  else if (path === '/api/mining/requests/17') body=requestFixture('FAILED',storeId);
   else if (path === '/api/mining/requests') body = { items: [{ ...requestFixture('FAILED', storeId), comparisonStatus: 'FAILED' }], page: 0, pageSize: 20, totalElements: 1 };
   else if (path === '/api/mining/requests/17/runs') body = [runFixture('COMPLETED', storeId), { ...runFixture('FAILED', storeId), runId: 43 }];
   else if (path === '/api/products') body = { content: [], page: 0, pageSize: 20, totalElements: 0, totalPages: 0 };
@@ -157,239 +171,87 @@ try {
   await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false });
   await page.call('Page.navigate', { url: origin + '/login' });
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')", 'session module');
-  await login(); await dashboard(); await has('45 matching recommendations');await has('1,234,567,890,123.123456');
-  assert.equal(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel thead th')].some(t=>t.textContent==='Rank')"), false);
-  assert.deepEqual(await page.evaluate("[...document.querySelectorAll('#f06-browse-panel [data-candidate-id]')].map(b=>b.dataset.candidateId)"), ['62','63']);
-  await click('Next recommendations'); await has('Page 2 of 3');
-  await select('f06-filter-snapshot', '2'); await select('f06-filter-type', 'BUNDLE'); await select('f06-filter-review', 'APPROVED'); await select('f06-filter-size', '10');
-  await click('Apply Filters'); await has('Page 1 of 5');
-  const query = new URLSearchParams(calls.filter(call => call.path === '/api/recommendations').at(-1).query);
-  assert.deepEqual(Object.fromEntries(query), { page: '0', pageSize: '10', snapshotId: '2', type: 'BUNDLE', reviewStatus: 'APPROVED' });
-  await click('Reset Filters'); await has('Page 1 of 3');
-  checks.push('history order, nullable fields, totalElements pagination and all filters reset page');
+  await login();await has('45 matching recommendations');
+  assert.deepEqual(await page.evaluate('[...document.querySelectorAll("[data-candidate-id]")].map(el=>el.dataset.candidateId)'),['62','63']);
+  assert.equal(await page.evaluate('document.querySelectorAll("[role=tab]").length'),4);
+  assert.equal(await page.evaluate('/Snapshot #|Rule set|Historical utility|Suggestion #/.test([...document.querySelectorAll("[data-recommendation-card]")].map(el=>el.innerText).join(" "))'),false);
+  await click('Next recommendations');await has('Page 2 of 3');await select('f06-filter-review','APPROVED');await select('f06-filter-size','10');await has('Page 1 of 5');
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(calls.filter(c=>c.path==='/api/recommendations').at(-1).query)),{page:'0',pageSize:'10',type:'BUNDLE',reviewStatus:'APPROVED',miningRunId:'42'});
+  await select('f06-filter-review','');await select('f06-filter-size','20');await has('Page 1 of 3');
+  await click('Change Analysis');await until('!!document.querySelector("[data-select-analysis]")','Analysis rows');await page.evaluate('document.querySelector("[data-select-analysis]").click()');await has('45 matching recommendations');assert.equal(await page.evaluate('document.querySelector("[data-selected-run]").dataset.selectedRun'),'42','One completed result under a failed request is selected directly');
+  assert.equal(await page.evaluate('document.querySelector("[data-rank]").dataset.rank'),'1');
+  state.listStatus=409;await click('Refresh');await has('Choose another analysis');const limitReads=calls.filter(c=>c.path==='/api/recommendations').length;await sleep(100);assert.equal(calls.filter(c=>c.path==='/api/recommendations').length,limitReads);
+  state.listStatus=200;await click('Retry Recommendations');await has('45 matching recommendations');
+  checks.push('run/type/review filters and page size use Backend params immediately; pagination/reset page, exact server order, historical completed source and ranked limit without retry');
 
-  await select('f06-analysis-scope','ranked'); await until("!!document.querySelector('#f06-ranked-request')", 'ranked requests');
-  await select('f06-ranked-request', '17'); await until("document.querySelector('#f06-ranked-run')?.options.length===3", 'ranked runs');
-  assert.equal(await page.evaluate("document.querySelector('#f06-ranked-run option[value=\"43\"]').disabled"), true);
-  await select('f06-ranked-run', '42'); await has('Selected run · System ranking');
-  assert.equal(await page.evaluate("document.querySelector('#f06-browse-panel [data-rank]').getAttribute('data-rank')"), '1');
-  assert.ok(calls.filter(call => call.path === '/api/recommendations').at(-1).query.includes('miningRunId=42'));
-  state.listStatus = 409; await click('Refresh'); await has('Narrow the type or review status filters');
-  const reads = calls.filter(call => call.path === '/api/recommendations').length;
-  await sleep(200); assert.equal(calls.filter(call => call.path === '/api/recommendations').length, reads);
-  state.listStatus = 200; await click('Refresh'); await has('45 matching recommendations'); await capture('ranked-dashboard');
-  checks.push('ranked source under failed comparison, no client ranking, 409 narrower-filter guidance');
+  await openDetails(1062);await has('Fixture bread');
+  assert.equal(await page.evaluate('document.querySelector("dialog [aria-label=\\"Suggested cross-sell targets\\"]").textContent.includes("Fixture milk")'),false);
+  assert.equal(await page.evaluate('document.activeElement.getAttribute("aria-label")'),'Close recommendation details');
+  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until('!document.querySelector("dialog")','Escape closes Details');
+  await openDetails(62);await has('Historical purchase data is unavailable.');
+  assert.equal(await page.evaluate('[...document.querySelectorAll("dialog summary")].find(el=>el.textContent==="More Details").parentElement.open'),false);
+  await page.evaluate('[...document.querySelectorAll("dialog summary")].find(el=>el.textContent==="More Details").click()');await has('1,234,567,890,123.123456');
+  for(const field of ['Purchase frequency','Total analyzed transactions','Bought together'])assert.equal(await page.evaluate('(()=>{const dt=[...document.querySelectorAll("dialog dt")].find(el=>el.textContent==='+JSON.stringify(field)+');return dt.nextElementSibling.textContent})()'),'Unavailable');
+  assert.equal(await page.evaluate('document.querySelector("dialog [data-readiness]").dataset.readiness'),'not-ready');
+  assert.equal(await page.evaluate('/SPMF|Input hash|Matrix hash|Fingerprint|expectedVersion/.test(document.querySelector("dialog").textContent)'),false);
+  state.reviewStatus='PENDING_REVIEW';state.availability='ELIGIBLE';await click('Refresh details');await until('document.querySelector("dialog header [data-status]")?.dataset.status==="PENDING_REVIEW"&&!!document.querySelector("dialog [data-status=ELIGIBLE]")','Review and current availability without redundant readiness');
+  state.reviewStatus='APPROVED';state.ready=true;state.availability='ELIGIBLE';await click('Refresh details');await has('Approved and ready for layout.');
+  state.namesUnavailable=true;await click('Refresh details');await has('Some product names are unavailable.');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Product name unavailable")'),true);assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Fixture milk")'),false);state.namesUnavailable=false;
+  state.detailStatus=404;await click('Refresh details');await has('unavailable for your store');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Fixture milk")'),false);await closeDetails();state.detailStatus=200;
+  checks.push('Details loads only selected candidate, exact decimals in optional evidence, missing evidence stays unavailable, distinct cross-sell targets, friendly errors and fresh readiness/names without technical diagnostics');
 
-  await select('f06-analysis-scope','history'); await has('All recommendations · Newest first');
-  await openDetails(63);
-  await has('Fixture bread');
-  assert.equal(await page.evaluate("document.querySelector('dialog [aria-label=\"Suggested cross-sell targets\"]').textContent.includes('Fixture milk')"), false);
-  assert.equal(await page.evaluate("document.querySelector('dialog [aria-label=\"Suggested cross-sell targets\"]').textContent.includes('Fixture bread')"), true);
-  assert.equal(await page.evaluate("document.activeElement.getAttribute('aria-label')"), 'Close recommendation details');
-  await page.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await page.call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await until("!document.querySelector('dialog')", 'Escape closes drawer');
-  await openDetails(62);
-  await has('Shopping evidence unavailable');await page.evaluate("[...document.querySelectorAll('dialog summary')].find(e=>e.textContent==='Source Details').click()");await has('Availability when created');
-  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').getAttribute('data-readiness')"), 'not-ready');
-  assert.equal(await page.evaluate("(()=>{const dt=[...document.querySelectorAll('dialog dt')].find(e=>e.textContent==='Frequency');return dt.nextElementSibling.textContent;})()"), 'N/A');
-  assert.equal(await page.evaluate("[...document.querySelectorAll('dialog dt')].some(e=>e.textContent==='Confidence')"), false, 'Bundle has no confidence field');
-  await has('Approved; current selling conditions are not met.');
-  await capture('read-only-details');
-  state.reviewStatus = 'PENDING_REVIEW'; state.availability = 'ELIGIBLE';
-  await click('Refresh details'); await has('Awaiting approval. Products are currently available.');
-  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').getAttribute('data-readiness')"), 'not-ready');
-  await has('No review decision has been recorded yet.');
-  state.reviewStatus = 'APPROVED'; state.availability = null;
-  state.ready = true; await click('Refresh details'); await has('Fixture bread');
-  assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').getAttribute('data-readiness')"), 'ready');
-  state.namesUnavailable = true; await click('Refresh details'); await has('Some product names are unavailable.');
-  assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('Product #31')"), true);
-  assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('Fixture milk')"), false);
-  state.namesUnavailable = false;
-  state.detailStatus = 404; await click('Refresh details'); await has('unavailable for your Store');
-  assert.equal(await page.evaluate("document.querySelector('dialog').textContent.includes('Fixture milk')"), false);
-  await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').click()");
-  checks.push('drawer, focus/Escape, names, anchor exclusion, null evidence, approved-unready, live refresh and cross-Store 404');
-
-  state.empty = true; await click('Refresh'); await has('No recommendations match these filters');
-  state.network = true; await click('Refresh'); await has('Check your connection and refresh manually'); state.network = false;
-  state.empty = false; state.holdList = true; await click('Refresh'); await has('Loading recommendations...');
-  state.empty = true; await login('MERCHANDISER', 2); state.holdList = false; await dashboard(); await has('No recommendations match these filters');
-  assert.equal(await page.evaluate("!!document.querySelector('#f06-browse-panel [data-product-group]')"), false);
-  checks.push('empty, network, loading, session/Store change discards stale list');
-
-  state.empty = false; state.detailStatus = 200;
-  const beforeStore = calls.length;
-  await login('STORE_ADMIN'); await dashboard(); await has('45 matching recommendations');
-  assert.equal(await page.evaluate("!!document.querySelector('#f06-generate-tab')"),false);
-  assert.equal(calls.slice(beforeStore).some(c => c.path.startsWith('/api/mining/') || c.path === '/api/recommendations/config'), false);
-  await has('Fixture milk'); await has('Fixture bread');
-  const nameReads = calls.filter(c=>/^\/api\/products\/\d+$/.test(c.path)).length;
-  await click('Next recommendations');await has('Page 2 of 3');await has('Fixture milk');
-  assert.equal(calls.filter(c=>/^\/api\/products\/\d+$/.test(c.path)).length,nameReads,'Names are reused across rows and pages');
-  await click('Previous recommendations');await has('Page 1 of 3');
-  assert.equal(await page.evaluate("[...document.querySelectorAll('strong')].some(e=>e.textContent==='Ready to use means approved and currently eligible.')"),false,'No definition banner');
+  state.empty=true;await click('Refresh');await has('No bundle recommendations found');state.network=true;await click('Refresh');await has('Check your connection');state.network=false;
+  state.empty=false;state.holdList=true;await click('Retry Recommendations');await has('Checking saved recommendations...');state.empty=true;await login('MERCHANDISER',2);state.holdList=false;await has('No bundle recommendations found');assert.equal(await page.evaluate('!!document.querySelector("[data-recommendation-card]")'),false);
+  state.empty=false;const beforeStore=calls.length;await login('STORE_ADMIN');await has('45 matching recommendations');
+  assert.equal(await page.evaluate('[...document.querySelectorAll("button")].some(el=>el.textContent==="Generate Recommendations")'),false);
+  assert.equal(calls.slice(beforeStore).some(call=>call.path.endsWith('/generate')),false);assert.ok(calls.slice(beforeStore).some(call=>call.path==='/api/mining/runs/42'));
+  await has('Fixture milk');const nameReads=calls.filter(call=>/^\/api\/products\/\d+$/.test(call.path)).length;await click('Next recommendations');await has('Page 2 of 3');await has('Fixture milk');assert.equal(calls.filter(call=>/^\/api\/products\/\d+$/.test(call.path)).length,nameReads);await click('Previous recommendations');await has('Page 1 of 3');
   for(const [review,availability,ready] of [['PENDING_REVIEW','INELIGIBLE',false],['APPROVED','ELIGIBLE',true],['REJECTED','NEEDS_RECHECK',false]]){
     state.reviewStatus=review;state.availability=availability;state.ready=ready;await click('Refresh');await has('45 matching recommendations');
-    assert.equal(await page.evaluate("!!document.querySelector('[data-product-group] [data-status]')"),false,'Summary omits per-suggestion status');
-    await openDetails(62);
-    assert.equal(await page.evaluate('!!document.querySelector('+JSON.stringify('[data-status="'+review+'"]')+')'),true);
-    assert.equal(await page.evaluate('!!document.querySelector('+JSON.stringify('[data-status="'+availability+'"]')+')'),true);
-    await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
+    assert.equal(await page.evaluate('Boolean(document.querySelector('+JSON.stringify('[data-recommendation-card] [data-status="'+review+'"]')+'))'),true);
+    await openDetails(62);assert.equal(await page.evaluate('Boolean(document.querySelector('+JSON.stringify('dialog [data-status="'+availability+'"]')+'))'),true);assert.equal(await page.evaluate('!!document.querySelector("#f06-review-reason")'),false);await closeDetails();
   }
-  state.reviewStatus='APPROVED';state.availability='ELIGIBLE';state.ready=true;
-  await click('Refresh');await has('45 matching recommendations');
-  for(const width of [1440,768,390]){
-    await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
-    assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
-    await openDetails(62);
-    assert.equal(await page.evaluate("[...document.querySelectorAll('[data-status]')].filter(e=>e.getClientRects().length).every(e=>getComputedStyle(e).whiteSpace==='nowrap')"),true,'Store status labels never wrap');
-    await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
-    await capture('store-admin-list-'+width);
-  }
-  await capture('store-admin-desktop');
-  await page.call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true);
-  await capture('store-admin-mobile');
-  await openDetails(62); await has('Fixture bread');
-  assert.equal(await page.evaluate("[...document.querySelectorAll('dialog summary')].find(e=>e.textContent==='Source Details').parentElement.open"), false);
-  assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].some(b=>/^(approve|reject)/i.test(b.textContent.trim()))"), false);
-  assert.equal(await page.evaluate('document.querySelector("dialog").scrollWidth <= innerWidth + 1'), true);
-  await capture('store-admin-detail-mobile');
-  await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false });
-  await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').click()");
-  assert.equal(await page.evaluate("!!document.querySelector('form[aria-label=\"Generate recommendations\"]')"), false);
-  await capture('store-admin-dashboard');
-  state.empty = true; await click('Refresh'); await has('No recommendations match these filters.');
-  state.empty = false; state.network = true; await click('Refresh'); await has('Check your connection');
-  state.network = false; state.holdList = true; await click('Refresh'); await has('Loading recommendations...');
-  state.empty = true; await login('STORE_ADMIN', 2); state.holdList = false; await has('No recommendations match these filters.');
-  assert.equal(await page.evaluate("!!document.querySelector('[aria-label=\"Product recommendation cards\"]')"), false, 'Old Store recommendations are discarded');
-  state.empty = false; await login('STORE_ADMIN'); await has('45 matching recommendations');
-  await select('f06-filter-type', 'BUNDLE'); await select('f06-filter-review', 'APPROVED'); await click('Apply Filters');
-  await has('45 matching recommendations');
-  assert.ok(calls.filter(c=>c.path==='/api/recommendations').at(-1).query.includes('reviewStatus=APPROVED'));
-  assert.equal(await page.evaluate("!!document.querySelector('#f06-ranked-request')"), false);
-  state.namesUnavailable = true; await login('STORE_ADMIN'); await has('45 matching recommendations');
-  await openDetails(62); await has('Some product names are unavailable.'); await has('Product #31');
-  await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').click()");
-  state.namesUnavailable = false;
+  state.reviewStatus='APPROVED';state.availability='ELIGIBLE';state.ready=true;await click('Refresh');await has('45 matching recommendations');
+  for(const width of [390,768,1440]){await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);await openDetails(62);assert.equal(await page.evaluate('document.querySelector("dialog").scrollWidth<=innerWidth+1'),true);assert.equal(await page.evaluate('[...document.querySelectorAll("[data-status]")].filter(el=>el.getClientRects().length).every(el=>getComputedStyle(el).whiteSpace==="nowrap")'),true);await closeDetails();}
+  state.namesUnavailable=true;await login('STORE_ADMIN');await has('45 matching recommendations');await openDetails(62);await has('Some product names are unavailable.');await closeDetails();state.namesUnavailable=false;
+  for(const role of ['SYSTEM_ADMIN','END_CUSTOMER']){await login(role);await until('!document.querySelector("#f06-dashboard-title")','denied actor');}
+  checks.push('loading/network/empty states, session and Store changes discard stale reads; Store Admin cards/Details read-only, cached names, approved/unavailable/recheck statuses, responsive labels and denied actors');
 
-  for (const role of ['SYSTEM_ADMIN', 'END_CUSTOMER']) {
-    await login(role); await until("!document.querySelector('#f06-dashboard-title')", role + ' denied');
+  state.visual=true;state.reviewStatus='PENDING_REVIEW';state.availability='ELIGIBLE';state.empty=false;state.ready=false;await login();await has('25 matching recommendations');
+  const expected={BUNDLE:['62','67'],CROSS_SELL:['1063','1064'],FBT:['2066'],BANNER:['3065']};
+  for(const type of types){await chooseType(type);assert.deepEqual(await page.evaluate('[...document.querySelectorAll("[data-candidate-id]")].map(el=>el.dataset.candidateId)'),expected[type]);assert.equal(await page.evaluate('[...document.querySelectorAll("[data-recommendation-card]")].every(el=>el.querySelectorAll("button").length===1)'),true);assert.equal(new URLSearchParams(calls.filter(call=>call.path==='/api/recommendations').at(-1).query).get('type'),type);}
+  assert.equal(await page.evaluate('document.querySelector("[data-recommendation-card]").textContent.includes("Present in 2 of 6 analyzed transactions")'),true,'Single-product Banner describes historical presence');
+  assert.equal(await page.evaluate('document.querySelector("[data-recommendation-card]").textContent.includes("Bought together")'),false);
+  await openDetails(3065);await until('document.querySelector("dialog").innerText.includes("Purchased in 2 of 6 analyzed transactions.")','Single Banner purchase wording');assert.equal(await page.evaluate('document.querySelector("dialog").innerText.includes("Bought together")'),false);assert.equal(await page.evaluate('document.querySelector("dialog [aria-label^=Products]").classList.contains("sm:grid-cols-2")'),false,'One product uses the available row');await closeDetails();
+  await chooseType('CROSS_SELL');await has('50%');await has('66.6667%');assert.equal(await page.evaluate('[...document.querySelectorAll("[data-retail-proposal]")].some(el=>el.textContent.includes("Suggest Fixture milk when customers select Fixture bread"))'),true);
+  await openDetails(1064);
+  await until('document.querySelector("dialog [data-evidence-status]")?.innerText.includes("66.67%")','Details rounds only the display percentage');
+  assert.equal(await page.evaluate('document.querySelector("dialog").innerText.includes("3 analyzed transactions contained Fixture bread")'),true,'Directional denominator stays the saved anchor count');
+  assert.equal(await page.evaluate('document.querySelectorAll("dialog details").length===2&&[...document.querySelectorAll("dialog details")].every(el=>!el.open)'),true,'Only More Details and Review History, collapsed');
+  assert.equal(await page.evaluate('document.querySelectorAll("dialog header [data-status=PENDING_REVIEW]").length'),1);
+  for(const width of [320,390,820,1440]){
+    await page.call('Emulation.setDeviceMetricsOverride',{width,height:850,deviceScaleFactor:1,mobile:width<768});
+    assert.equal(await page.evaluate('(()=>{const dialog=document.querySelector("dialog"),body=dialog.querySelector("[data-detail-body]"),header=dialog.querySelector("header"),footer=dialog.querySelector("footer");body.scrollTop=body.scrollHeight;return dialog.scrollWidth<=dialog.clientWidth+1&&header.getBoundingClientRect().top>=0&&footer.getBoundingClientRect().bottom<=innerHeight&&footer.getBoundingClientRect().top>=body.getBoundingClientRect().top;})()'),true,'Scrollable body and accessible fixed decision actions '+width);
   }
-  checks.push('Store Admin list/detail read-only; System Admin and End-Customer denied');
-
-  await login(); await dashboard(); await has('45 matching recommendations');
-  for(const width of [1280,1366,1440,1920]){
-    await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
-    assert.equal(await page.evaluate("(()=>{const t=document.querySelector('[aria-label=\"Product recommendation cards\"]'),r=t.getBoundingClientRect();return t.getClientRects().length>0&&t.scrollWidth<=r.width+1&&[...t.querySelectorAll('[data-candidate-id]')].every(b=>b.getBoundingClientRect().right<=r.right+1)})()"),true,'Desktop actions fit at '+width);
-  }
-  for (const width of [1024, 820]) {
-    await page.call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
-    assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true, 'No tablet overflow');
-    assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Product recommendation cards\"]').getClientRects().length>0"), true);
-  }
-  await page.call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true);
-  assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Product recommendation cards\"]').getClientRects().length>0"), true, 'Mobile cards are visible');
-  assert.equal(await page.evaluate("!!document.querySelector('#f06-browse-panel table')"),false,'Visual cards replace the table on every screen size');
-  await capture('mobile-dashboard');
-  await openDetails(62); await has('Fixture bread');
-  assert.equal(await page.evaluate("document.querySelector('dialog').scrollWidth <= innerWidth + 1"), true);
-  await capture('mobile-details'); checks.push('390px dashboard and drawer without horizontal page overflow');
-
-  await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
-  state.visual=true;state.reviewStatus='PENDING_REVIEW';state.availability='ELIGIBLE';state.empty=false;state.namesUnavailable=false;
-  await login();await has('25 matching recommendations');
-  await until("document.querySelectorAll('[data-product-group]').length===2&&document.querySelectorAll('[data-product-group] button').length===2",'Two compact page-local groups with one action each');
-  assert.equal(await page.evaluate("[...document.querySelectorAll('[data-product-group]')].every(e=>!e.querySelector('[data-status]')&&!/Each type is a separate|Suggestion #|View Details/.test(e.innerText)&&e.querySelectorAll('button').length===1)"),true,'Summary-only cards have no nested suggestion list or status');
-  const groupReads=calls.filter(c=>/^\/api\/recommendations\/\d+$/.test(c.path)).length;
-  await openGroup();assert.deepEqual(await page.evaluate("[...document.querySelectorAll('dialog [data-candidate-id]')].map(e=>e.dataset.candidateId)"),['62','63','64','65','66']);
-  assert.equal(calls.filter(c=>/^\/api\/recommendations\/\d+$/.test(c.path)).length,groupReads,'Group selection does not preload suggestion details');
-  assert.equal(await page.evaluate("document.querySelectorAll('dialog[open]').length"),1);
-  assert.equal(await page.evaluate("document.activeElement.getAttribute('aria-label')"),'Close product group details');
-  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8});
-  await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8});
-  await until("document.activeElement?.dataset.candidateId==='66'",'Group native focus trap wraps to last type');
-  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
-  await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
-  await until("!document.querySelector('dialog')&&document.activeElement?.dataset.groupOpen==='0'",'Group Escape restores card focus');
-  for(const key of ['Enter',' ']){
-    await page.evaluate("document.querySelector('[data-group-open=\"0\"]').focus()");
-    await page.call('Input.dispatchKeyEvent',{type:'keyDown',key,text:key==='Enter'?'\r':' ',code:key==='Enter'?'Enter':'Space',windowsVirtualKeyCode:key==='Enter'?13:32});
-    await page.call('Input.dispatchKeyEvent',{type:'keyUp',key,code:key==='Enter'?'Enter':'Space',windowsVirtualKeyCode:key==='Enter'?13:32});
-    await until("!!document.querySelector('[data-recommendation-group-dialog]')",'Native card keyboard '+key);
-    await page.evaluate("document.querySelector('[aria-label=\"Close product group details\"]').click()");
-  }
-  for(const id of [62,63,64,65,66]){
-    const readStart=calls.length;await openDetails(id);
-    assert.ok(calls.slice(readStart).some(c=>c.path==='/api/recommendations/'+id),'Exact type ID '+id);
-    assert.equal(await page.evaluate("document.querySelectorAll('dialog[open]').length===1&&!document.querySelector('[data-recommendation-group-dialog]')"),true);
-    await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
-    await until("document.activeElement?.dataset.groupOpen==='0'",'Type Details returns focus to group');
-  }
-  await page.evaluate("document.querySelector('[data-product-group]').scrollIntoView({block:'start'})");
-  await until("[...document.querySelectorAll('[aria-label=\"Product recommendation cards\"] img')].some(e=>e.complete&&e.naturalWidth>0)",'Advertised authorized product image loads');
-  assert.equal(await page.evaluate("!!document.querySelector('[aria-label=\"Image unavailable for Fixture bread\"]')"),true,'Broken product image gets a placeholder');
-  await click('All suggestions');assert.equal(await page.evaluate("document.querySelectorAll('[data-product-group]').length"),6);
-  await click('Product groups');assert.equal(await page.evaluate("document.querySelectorAll('[data-product-group]').length"),2);
-  await click('Next recommendations');await has('Page 2 of 2');
-  await openGroup();assert.deepEqual(await page.evaluate("[...document.querySelectorAll('dialog [data-candidate-id]')].map(e=>e.dataset.candidateId)"),['82','83','84','85','86']);await page.evaluate("document.querySelector('[aria-label=\"Close product group details\"]').click()");
-  await click('Previous recommendations');await has('Page 1 of 2');
-  const detailStart=calls.length;await openDetails(64);
-  assert.ok(calls.slice(detailStart).some(c=>c.path==='/api/recommendations/64'));
-  assert.equal(await page.evaluate("document.querySelector('dialog [aria-label=\"Suggested cross-sell targets\"]').textContent.includes('Fixture milk')"),true);
-  assert.equal(await page.evaluate("document.querySelector('dialog [aria-label=\"Suggested cross-sell targets\"]').textContent.includes('Fixture bread')"),false);
-  await has('When customers buy');await has('Suggest adding');
-  await until("document.querySelector('[data-recommendation-rationale]')?.textContent.includes('When customers buy Fixture bread, Fixture milk may be suggested')",'Directional explanation uses this candidate and full product names');
   await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
-  assert.equal(await page.evaluate("(()=>{const r=document.querySelector('dialog').getBoundingClientRect();return r.width>=900&&r.width<=1050&&Math.abs((r.left+r.right)/2-innerWidth/2)<2&&r.height<=innerHeight-20})()"),true,'Centered desktop modal');
-  await select('f06-review-reason','Unfinished directional review');
-  await click('Refresh details');await until("document.querySelector('#f06-review-reason')?.value==='Unfinished directional review'",'Refresh retains reason');
-  await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
-  await has('Keep your unfinished review?');await click('Keep Editing');
-  assert.equal(await page.evaluate("document.querySelector('#f06-review-reason').value"),'Unfinished directional review');
-  await until("document.activeElement?.id==='f06-review-reason'",'Keep Editing restores keyboard focus to the reason');
-  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
-  await has('Keep your unfinished review?');
-  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
-  await until("!document.querySelector('[aria-label=\"Unsaved review\"]')&&document.activeElement?.id==='f06-review-reason'",'Escape dismisses warning and preserves draft/focus');
-  await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
-  await has('Keep your unfinished review?');await click('Discard & Close');await until("!document.querySelector('dialog')",'Explicit discard closes modal');
-  await until("document.activeElement?.dataset.groupOpen==='0'",'Focus returns to the originating product group');
-  for(const width of [320,390,820,1280,1920]){
-    await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});
-    assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Grouped library fits '+width);
-    await openDetails(62);assert.equal(await page.evaluate("document.querySelector('dialog').scrollWidth<=innerWidth+1"),true,'Modal fits '+width);
-    await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
-  }
-  checks.push('A+B visual Library: page-local groups, 5 independent candidates including reverse anchors and different snapshot, All suggestions, exact server totals/pages/order, authenticated real-image fixture and broken-image fallback; centered modal 320–1920, draft refresh/Keep/Discard/Escape/focus restoration; no feature writes');
 
-  // Missing images/names and unusually long names must fit both summary and selector.
+  await select('f06-review-reason','Unfinished directional review');await click('Refresh details');await until('document.querySelector("#f06-review-reason")?.value==="Unfinished directional review"','Refresh retains reason');await page.evaluate('document.querySelector("[aria-label=\\"Close recommendation details\\"]").click()');await has('Keep your unfinished review?');await click('Keep Editing');await until('document.activeElement?.id==="f06-review-reason"','Keep Editing restores reason focus');
+  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await has('Keep your unfinished review?');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until('!document.querySelector("[aria-label=\\"Unsaved review\\"]")','Escape preserves unfinished draft');await page.evaluate('document.querySelector("[aria-label=\\"Close recommendation details\\"]").click()');await has('Keep your unfinished review?');await click('Discard & Close');await until('!document.querySelector("dialog")&&document.activeElement?.dataset.candidateId==="1064"','Explicit discard returns focus to exact candidate');
+  await chooseType('BUNDLE');await page.evaluate('document.querySelector("[data-candidate-id]").scrollIntoView({block:"center"})');await until('[...document.querySelectorAll("[data-recommendation-card] img")].some(el=>el.complete&&el.naturalWidth>0)','Authorized image loads');assert.equal(await page.evaluate('!!document.querySelector("[aria-label=\\"Image unavailable for Fixture bread\\"]")'),true,'Broken image fallback');
+  await click('Next recommendations');await has('Page 2 of 2');assert.deepEqual(await page.evaluate('[...document.querySelectorAll("[data-candidate-id]")].map(el=>el.dataset.candidateId)'),['82','87']);await click('Previous recommendations');await has('Page 1 of 2');
+  await page.evaluate('document.querySelector("#f06-type-BUNDLE").focus()');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await until('document.querySelector("#f06-type-CROSS_SELL").getAttribute("aria-selected")==="true"','Arrow key selects next type');await chooseType('BUNDLE');
+  for(const key of ['Enter',' ']){await page.evaluate('document.querySelector("button[data-candidate-id=\\"62\\"]").focus()');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key,text:key==='Enter'?'\r':' ',code:key==='Enter'?'Enter':'Space',windowsVirtualKeyCode:key==='Enter'?13:32});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key,code:key==='Enter'?'Enter':'Space',windowsVirtualKeyCode:key==='Enter'?13:32});await until('document.querySelector("dialog")?.dataset.recommendationDetail==="62"','Native card keyboard');await until('!!document.querySelector("#f06-review-reason")','Details review ready');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,modifiers:8});assert.equal(await page.evaluate('!!document.activeElement.closest("dialog")'),true,'Focus trapped inside Details');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until('!document.querySelector("dialog")&&document.activeElement?.dataset.candidateId==="62"','Escape restores native card focus');}
+  checks.push('all four server-filtered tabs retain separate same-product candidates and reverse anchors; exact group/directional evidence, single Banner, image fallback, pages/ranks, native card keyboard, focus/Escape and unfinished-review protections');
+
   state.noImages=true;
-  for(const missingNames of [false,true]) {
-    state.longNames=!missingNames;state.namesUnavailable=missingNames;
-    await login();await has('25 matching recommendations');
-    if(!missingNames)await has('extra long product description');
-    else await until("document.querySelector('[data-product-group] h3')?.textContent.includes('Product #31')",'Product ID fallback');
-    await until("document.querySelectorAll('[data-product-group] [aria-label^=\"Image unavailable\"]').length>=2",'No-image placeholders');
-    for(const width of [320,390,820,1366]) {
-      await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});
-      assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Long/fallback summary fits '+width);
-      await openGroup();
-      assert.equal(await page.evaluate("(()=>{const d=document.querySelector('dialog');const r=d.getBoundingClientRect();return d.scrollWidth<=d.clientWidth+1&&r.height<=innerHeight&&r.width<=innerWidth})()"),true,'Long/fallback group dialog fits '+width);
-      await page.evaluate("document.querySelector('[aria-label=\"Close product group details\"]').click()");
-    }
+  for(const missingNames of [false,true]){state.longNames=!missingNames;state.namesUnavailable=missingNames;await login();await has('25 matching recommendations');if(!missingNames)await has('extra long product description');else await until('document.querySelector("[data-recommendation-card]").textContent.includes("Product name unavailable")','Missing name state');
+    for(const width of [320,390,820,1280,1920]){await page.call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);await openDetails(62);assert.equal(await page.evaluate('document.querySelector("dialog").scrollWidth<=document.querySelector("dialog").clientWidth+1'),true,'Long/fallback Details fits '+width);await closeDetails();}
   }
-  await openGroup();await page.evaluate(`(async()=>{const auth=${session};auth.endLocal();})()`);
-  await until("!document.querySelector('dialog')&&!document.querySelector('[data-product-group]')",'Logout removes open group and old Store data');
-  await login();await has('25 matching recommendations');await openGroup();await login('STORE_ADMIN',2);await has('25 matching recommendations');
-  assert.equal(await page.evaluate("!!document.querySelector('dialog')"),false,'Session/Store change closes old selector');
-  await openDetails(63);assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false,'Store Admin group remains read-only');
-  await page.evaluate("document.querySelector('[aria-label=\"Close recommendation details\"]').click()");
-  checks.push('long/unbroken names, absent images and unavailable product names at 320/390/820/1366; logout and Store/session change clear open group; Store Admin grouped Details read-only');
+  await openDetails(62);await page.evaluate('(async()=>{const auth='+session+';auth.endLocal();})()');await until('!document.querySelector("dialog")&&!document.querySelector("[data-recommendation-card]")','Logout removes old data');
+  await login();await has('25 matching recommendations');await openDetails(62);await login('STORE_ADMIN',2);await has('25 matching recommendations');assert.equal(await page.evaluate('!!document.querySelector("dialog")'),false);await openDetails(1063);assert.equal(await page.evaluate('!!document.querySelector("#f06-review-reason")'),false);await closeDetails();
+  assert.equal(calls.some(call=>call.method!=='GET'&&call.path!=='/api/auth/login'),false,'No feature writes in browse suite');
+  checks.push('long names, missing names/images, 320-1920px layouts, logout and Store/session change clear modal and cards, Store Admin read-only across tabs');
+
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);
   console.log(JSON.stringify({ result: 'PASS (controlled browser fixtures)', checks, interceptedApiCalls: calls.length, realBackendWrites: 0, artifacts }, null, 2));
 } catch (error) {

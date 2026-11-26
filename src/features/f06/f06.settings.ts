@@ -3,6 +3,7 @@ import { f06Api, F06ApiError } from './f06.api';
 import { readRecommendationProductNames, recommendationReadError } from './f06.browse';
 import type { Decimal, RecExpiryPage, RecPolicy, RecPolicyRequest } from './f06.types';
 import { INT32_MAX, recommendationInteger, validatePolicy } from './f06.validation';
+import { missingPushDayWarning } from './f06.expiry.presentation';
 
 type Role = AuthUser['role'] | null;
 const role = (): Role => authService.getCurrentUser()?.role ?? null;
@@ -11,7 +12,7 @@ const scope = () => { const user = authService.getCurrentUser(); return JSON.str
 /** Local state only; every request and optional label is scoped to this mount,
  * user, Store and session. Never persists credentials or replays writes.
  */
-abstract class ScopedF06<S extends { role: Role }> {
+export abstract class ScopedF06<S extends { role: Role }> {
   protected state: S;
   private key = scope();
   private active = false;
@@ -24,6 +25,7 @@ abstract class ScopedF06<S extends { role: Role }> {
   protected update(patch: Partial<S>) { this.state = { ...this.state, ...patch }; [...this.listeners].forEach(listener => listener()); }
   protected allowed() { return this.active && this.key === scope() && !!authService.getToken() && (this.state.role === 'Merchandiser' || this.state.role === 'Store Admin'); }
   protected abort(...keys: string[]) { keys.forEach(key => this.jobs.get(key)?.abort()); }
+  protected finishJob(name:string,signal:AbortSignal){if(this.jobs.get(name)?.signal===signal)this.jobs.delete(name);}
   protected job(name: string) {
     this.abort(name); const controller = new AbortController(), key = this.key; this.jobs.set(name, controller);
     return { signal: controller.signal, current: () => this.allowed() && key === this.key && !controller.signal.aborted };
@@ -118,12 +120,13 @@ export class RecommendationRules extends ScopedF06<RulesState> {
   };
 }
 
-export interface ExpiryState { role: Role; productId?: number; page: number; pageSize: number; data: RecExpiryPage | null; loading: boolean; error: string; names: Record<number, string>; }
-const initialExpiry = (): ExpiryState => ({ role: role(), page: 0, pageSize: 20, data: null, loading: false, error: '', names: {} });
+export interface ExpiryState { role: Role; productId?: number; page: number; pageSize: number; data: RecExpiryPage | null; loading: boolean; error: string; names: Record<number, string>; images:Record<number,string>; }
+const initialExpiry = (): ExpiryState => ({ role: role(), page: 0, pageSize: 20, data: null, loading: false, error: '', names: {},images:{} });
 export class RecommendationExpiry extends ScopedF06<ExpiryState> {
   private nameCache = new Map<number, string | null>();
+  private imageCache = new Map<number,string>();
   constructor() { super(initialExpiry); }
-  protected resetExtra() { this.nameCache?.clear(); }
+  protected resetExtra() { this.nameCache?.clear();this.imageCache?.clear(); }
   protected load = () => this.refresh();
   applyFilter = async (productId?: number, pageSize = 20) => {
     if (!this.allowed()) return;
@@ -136,20 +139,23 @@ export class RecommendationExpiry extends ScopedF06<ExpiryState> {
     try { recommendationInteger(page, 'page', 0, INT32_MAX); } catch { return; }
     this.update({ page }); await this.refresh();
   };
-  refresh = async () => {
+  refresh = async (clearNames=false) => {
     if (!this.allowed()) return;
+    if(clearNames){this.nameCache.clear();this.imageCache.clear();}
     this.abort('names'); const job = this.job('expiry');
     const { productId, page, pageSize } = this.state;
-    this.update({ loading: true, data: null, names: {}, error: '' });
+    this.update({ loading: true, data: null, names: {},images:{}, error: '' });
     try {
       const data = await f06Api.listExpiryPush({ ...(productId === undefined ? {} : { productId }), page, pageSize }, job.signal);
       if (!job.current()) return;
+      if(productId!==undefined&&data.items.some(batch=>batch.productId!==productId))throw new F06ApiError(200,'Mismatched expiry product was rejected.');
       const last = Math.max(0, Math.ceil(data.totalElements / data.pageSize) - 1);
       if (data.page > last) { this.update({ page: last }); await this.refresh(); return; }
       this.update({ data, loading: false });
       const namesJob = this.job('names');
-      const names = await readRecommendationProductNames(data.items.map(item => item.productId), namesJob.signal, this.nameCache);
-      if (namesJob.current()) this.update({ names });
+      const ids=[...new Set([...data.items.map(item=>item.productId),...data.warnings.map(message=>missingPushDayWarning(message)?.productId).filter((id):id is number=>id!==undefined)])].slice(0,100);
+      const names = await readRecommendationProductNames(ids, namesJob.signal, this.nameCache,this.imageCache);
+      if (namesJob.current()) this.update({ names,images:Object.fromEntries(this.imageCache) });
     } catch (error) { if (job.current()) this.update({ loading: false, error: recommendationReadError(error) }); }
   };
 }

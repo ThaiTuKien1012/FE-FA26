@@ -1,4 +1,6 @@
-import assert from 'node:assert/strict';
+import { f05Api } from '../src/features/f05/f05.api';
+import { requestFixture,runFixture } from './f05.fixtures';
+import assert from './f06.assert';
 import { test } from 'node:test';
 import { setImmediate as flush } from 'node:timers/promises';
 import { createElement } from 'react';
@@ -30,10 +32,10 @@ test('adjacent types/directions are visual options, with every candidate and anc
   const groups=groupRecommendationPage(items);assert.equal(groups.length,1);assert.deepEqual(groups[0].items.map(x=>x.recommendationId),[62,63,64,65,66]);
   assert.equal(groupRecommendationPage(items,false).length,5);
   const html=renderToStaticMarkup(createElement(F06RecommendationCards,{data:{items,page:0,pageSize:20,totalElements:85,ordering:'CREATED_DESC'},names:{31:'Milk',32:'Bread'},onOpen:()=>{}}));
-  assert.equal((html.match(/data-product-group="true"/g)??[]).length,1);
-  assert.equal((html.match(/data-group-open=/g)??[]).length,1);
-  assert.equal(/data-candidate-id|Each type is a separate|Suggestion #|View Details|data-status=/.test(html),false);
-  for(const label of ['Milk','Bread','5','Historical utility','Bought together','Snapshot #2','Rule set 1'])assert.ok(html.includes(label),label);
+  assert.equal((html.match(/data-product-group="true"/g)??[]).length,5);
+  assert.equal((html.match(/data-group-open=/g)??[]).length,5);
+  assert.equal(/Each type is a separate|Suggestion #|Snapshot #|Rule set/.test(html),false);assert.equal((html.match(/data-candidate-id=/g)??[]).length,5);assert.ok(html.includes('data-status='));
+  for(const label of ['Milk','Bread','Purchase frequency','Bought together','View Details'])assert.ok(html.includes(label),label);
   const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items,names:{31:'Milk',32:'Bread'},onSelect:()=>{}}));
   for(const id of [62,63,64,65,66])assert.ok(options.includes('data-candidate-id="'+id+'"'));
   assert.ok(options.includes('From Milk → Bread'));assert.ok(options.includes('From Bread → Milk'));
@@ -56,8 +58,8 @@ test('All suggestions has one native full-card action per record and no per-sugg
   assert.equal((html.match(/data-product-group="true"/g)??[]).length,5);
   assert.equal((html.match(/<button/g)??[]).length,5);
   for(const item of items)assert.ok(html.includes(`data-candidate-id="${item.recommendationId}"`));
-  for(const label of ['Bundle','Cross-sell','Banner','Frequently bought together'])assert.ok(html.includes(label));
-  assert.equal(/Each type is a separate|Suggestion #|>View Details|data-status=/.test(html),false);
+  for(const label of ['Bundle','Cross-sell','Banner','Frequently Bought Together'])assert.ok(html.includes(label));
+  assert.equal(/Each type is a separate|Suggestion #|Snapshot #/.test(html),false);assert.ok(html.includes('View Details'));assert.ok(html.includes('data-status='));
   assert.equal(JSON.stringify(items),before);
 });
 
@@ -78,7 +80,7 @@ test('nonadjacent groups and page boundaries retain server order, ranks and coun
   const page={items:first.map((x,i)=>({...x,rank:21+i})),page:1,pageSize:20,totalElements:85,ordering:'RANKED_WITHIN_SOURCE_RUN' as const};
   const html=renderToStaticMarkup(createElement(F06RecommendationCards,{data:page,onOpen:()=>{}}));
   const options=renderToStaticMarkup(createElement(F06RecommendationOptions,{items:page.items,onSelect:()=>{}}));
-  assert.equal(html.includes('data-rank='),false);assert.ok(options.includes('data-rank="21"'));assert.ok(options.includes('data-rank="22"'));assert.equal(page.totalElements,85);
+  assert.equal(html.includes('data-rank='),true);assert.ok(options.includes('data-rank="21"'));assert.ok(options.includes('data-rank="22"'));assert.equal(page.totalElements,85);
   const repeats=[first[0],first[0]];assert.deepEqual(repeatedRecommendationIds(repeats),[62]);assert.equal(groupRecommendationPage(repeats)[0].items.length,2);
 });
 
@@ -87,12 +89,12 @@ test('equivalent source algorithms retain provenance and exact BigDecimal values
   const equivalent={...original,recommendationId:63,type:'BANNER' as const,sources:[...original.sources,{...original.sources[0],runId:43,algorithm:'EFIM'}]};
   assert.equal(groupRecommendationPage([original,equivalent]).length,1);assert.equal(equivalent.sources.length,2);
   const details=renderToStaticMarkup(createElement(F06RecommendationDetailContent,{item:equivalent,technical:false}));
-  assert.ok(details.includes('Mining run #43'));assert.ok(details.includes('Technical source references'));
-  assert.ok(details.includes(equivalent.sources[0].inputHash));
+  assert.equal(details.includes('Mining run #43'),false);assert.equal(details.includes('Technical source references'),false);assert.equal(equivalent.sources[1].runId,43);
+  assert.equal(equivalent.sources[0].inputHash,original.sources[0].inputHash);
   const exact=parseRecommendationJson(JSON.stringify(original).replaceAll('40.123456','1234567890123.123456')) as RecView;
   assert.doesNotThrow(()=>groupRecommendationPage([exact,{...exact,recommendationId:63}]));
   const html=renderToStaticMarkup(createElement(F06RecommendationCards,{data:{items:[exact],page:0,pageSize:20,totalElements:1,ordering:'CREATED_DESC'},onOpen:()=>{}}));
-  assert.ok(html.includes('1,234,567,890,123.123456'));assert.equal(String(exact.utility),'1234567890123.123456');
+  assert.equal(html.includes('1,234,567,890,123.123456'),false);assert.ok(renderToStaticMarkup(createElement(F06RecommendationDetailContent,{item:exact})).includes('1,234,567,890,123.123456'));assert.equal(String(exact.utility),'1234567890123.123456');
 });
 
 test('optional advertised product media uses authorized product reads, caching and safe placeholders',async t=>{
@@ -106,9 +108,10 @@ test('optional advertised product media uses authorized product reads, caching a
 
 test('view generated results is a scoped ranked GET without generation, mining or review replay',async t=>{
   t.mock.method(authService,'getCurrentUser',()=>({...user,role:'Merchandiser',storeId:1}));t.mock.method(authService,'getToken',()=> 'fixture');t.mock.method(authService,'getSessionId',()=> 'visual-session');
+  t.mock.method(f05Api,'getRun',async()=>runFixture('COMPLETED'));t.mock.method(f05Api,'getRequest',async()=>requestFixture());t.mock.method(f05Api,'listRequests',async()=>({items:[],page:0,pageSize:20,totalElements:0}));
   const calls:unknown[]=[];t.mock.method(f06Api,'list',async (params:RecListParams={})=>{calls.push(params);return{items:[recommendation()],page:params.page??0,pageSize:params.pageSize??20,totalElements:1,ordering:params.miningRunId?'RANKED_WITHIN_SOURCE_RUN':'CREATED_DESC'};});
   t.mock.method(authService,'request',async()=>Response.json({id:31,name:'Milk'}));
   t.mock.method(f06Api,'generate',async()=>{throw Error('Generation must not run');});
   const workflow=new RecommendationBrowser();t.after(workflow.stop);workflow.start();await flush();await workflow.showGeneratedResults(42);
-  assert.deepEqual(calls.at(-1),{page:0,pageSize:20,miningRunId:42});assert.equal(workflow.getSnapshot().mode,'ranked');assert.equal(workflow.getSnapshot().miningRunId,42);
+  assert.deepEqual(calls.filter(params=>(params as RecListParams).pageSize===20).at(-1),{page:0,pageSize:20,miningRunId:42,type:'BUNDLE'});assert.equal(calls.length,6);assert.equal(workflow.getSnapshot().mode,'ranked');assert.equal(workflow.getSnapshot().miningRunId,42);
 });

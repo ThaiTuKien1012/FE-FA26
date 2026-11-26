@@ -1,23 +1,40 @@
-import { storeAdminCopy as copy, storeAdminMessage } from '../../../utils/storeAdminCopy';
-import { algorithmName, miningButton, miningInput } from '../../f05/f05.display';
-import type { RecommendationBrowseState, RecommendationBrowser } from '../f06.browse';
-import { formatDate, formatDateRange } from '../../../utils/dateTime';
-import { F06Pages } from './F06Pages';
-import { recommendationLabel } from './F06ReadShared';
+import {useRef,useEffect,useState} from 'react';
+import {miningPrimaryButton,miningButton,formatMiningNumber} from '../../f05/f05.display';
+import type {RecommendationBrowseState,RecommendationBrowser} from '../f06.browse';
+import {formatDateRange} from '../../../utils/dateTime';
+import {F06Pages} from './F06Pages';
+import {recommendationLabel} from './F06ReadShared';
+import {analysisTimestamp,AnalysisTime,F06AnalysisSummary} from './F06AnalysisSummary';
 
-export function F06RankedSource({ state, workflow }: { state: RecommendationBrowseState; workflow: RecommendationBrowser }) {
-  const requests = state.requests;
-  return <section aria-labelledby="f06-ranked-source-title" className="mt-5 rounded-xl border border-[#E7E2D8] bg-[#FAF8F5] p-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h3 id="f06-ranked-source-title" className="font-semibold">Choose the analysis to explore</h3><button type="button" className={miningButton} disabled={state.requestsLoading} onClick={() => void workflow.loadRequests()}>{copy('Refresh source requests','Refresh Analyses')}</button></div>
-    <p className="mt-2 text-xs leading-5 text-[#6D7974]">{copy('Choose completed results from an analysis to explore its saved suggestions. Older analyses remain available. Selecting results does not run mining or generate suggestions.','Choose completed analysis results to view saved suggestions; this does not start a new analysis.')}</p>
-    {state.requestsLoading ? <p role="status" className="mt-4 text-sm text-[#6D7974]">{copy('Loading source requests...','Loading analyses...')}</p> : state.requestsError ? <p role="alert" className="mt-4 text-sm text-red-800">{storeAdminMessage(state.requestsError)}</p> : requests && <>
-      {!requests.items.length ? <p className="mt-4 text-sm text-[#6D7974]">No source requests are available for your Store.</p> : <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div><label htmlFor="f06-ranked-request" className="text-xs font-semibold">Analysis</label><select id="f06-ranked-request" className={miningInput} value={state.request?.requestId ?? ''} onChange={event => void workflow.selectRequest(Number(event.target.value))}><option value="" disabled>Select an analysis</option>{requests.items.map(request => <option key={request.requestId} value={request.requestId}>{formatDate(request.snapshot.asOfDate)} · {formatDateRange(request.snapshot.rangeStart,request.snapshot.rangeEnd)} · Snapshot #{request.snapshotId} / Analysis #{request.requestId}</option>)}</select></div>
-        <div><label htmlFor="f06-ranked-run" className="text-xs font-semibold">{copy('Completed mining run','Completed analysis results')}</label><select id="f06-ranked-run" className={miningInput} disabled={state.runsLoading || !state.runs.some(run => run.status === 'COMPLETED')} value={state.miningRunId ?? ''} onChange={event => void workflow.selectRun(Number(event.target.value))}><option value="" disabled>Select a completed run</option>{state.runs.map(run => <option key={run.runId} value={run.runId} disabled={run.status !== 'COMPLETED'}>Run #{run.runId} · {algorithmName(run.algorithm)} · Snapshot #{run.snapshotId} · {recommendationLabel(run.status)}</option>)}</select></div>
-      </div>}
-      <F06Pages data={requests} label="sources" busy={state.requestsLoading} onPage={page=>void workflow.loadRequests(page)} />    </>}
-    {state.runsLoading && <p role="status" className="mt-3 text-sm text-[#6D7974]">{copy('Loading source runs...','Loading analysis results...')}</p>}
-    {state.runsError && <div role="alert" className="mt-3 text-sm text-red-800"><p>{storeAdminMessage(state.runsError)}</p><button type="button" className={`${miningButton} mt-2`} onClick={() => void workflow.selectRequest(state.request!.requestId)}>Retry source runs</button></div>}
-    {state.request && !state.runsLoading && !state.runsError && !state.runs.some(run => run.status === 'COMPLETED') && <p className="mt-3 text-sm text-amber-900">No completed runs are available for this request.</p>}
-  </section>;
+export function F06RankedSource({state,workflow,onSelectRun,onChooseAnalysis}:{state:RecommendationBrowseState;workflow:RecommendationBrowser;onSelectRun?:(id:number)=>void;onChooseAnalysis?:()=>void}){
+ const sequence=useRef(0),[selecting,setSelecting]=useState(false);
+ useEffect(()=>()=>{sequence.current++;},[]);
+ if(state.sourceLoading)return null;
+ if(state.sourceRun&&state.request)return <F06AnalysisSummary request={state.request} run={state.sourceRun} disabled={state.reviewPending} onChange={()=>onChooseAnalysis?onChooseAnalysis():void workflow.loadRequests(0)}/>;
+ const chooseRun=(id:number)=>onSelectRun?onSelectRun(id):void workflow.selectRun(id);
+ const chooseRequest=async(id:number)=>{
+  if(selecting||state.runsLoading)return;
+  const version=++sequence.current;setSelecting(true);
+  try{await workflow.selectRequest(id);const current=workflow.getSnapshot();if(version!==sequence.current||current.request?.requestId!==id||current.runsError)return;const completed=current.runs.filter(run=>run.status==='COMPLETED');if(completed.length===1)chooseRun(completed[0].runId);}
+  finally{if(version===sequence.current)setSelecting(false);}
+ };
+ return <section aria-labelledby="f06-ranked-source-title" className="space-y-4">
+  <header className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="f06-ranked-source-title" className="text-xl font-semibold">Choose an Analysis</h2><p className="mt-1 text-sm text-[#6D7974]">Select a completed sales analysis to view its recommendations.</p></div><button type="button" className={miningButton} disabled={state.requestsLoading||selecting} onClick={()=>void workflow.loadRequests()}>Refresh Analyses</button></header>
+  {state.requestsLoading?<p role="status" className="text-sm text-[#6D7974]">Loading analyses...</p>:state.requestsError?<p role="alert" className="text-sm text-red-800">{state.requestsError}</p>:state.requests&&<>
+   {!state.requests.items.length?<p className="rounded-xl bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">No saved analyses are available for your Store.</p>:<>
+    <div data-analysis-columns aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-4 rounded-lg bg-[#F5F5F1] px-4 py-2 text-xs font-semibold text-[#53665B] md:grid"><span>Analysis</span><span>Sales period</span><span>Created on</span><span className="w-[146px] text-right">Action</span></div>
+    <ul aria-label="Saved analyses" className="space-y-2">{state.requests.items.map(request=><li key={request.requestId} data-analysis-id={request.requestId} className="grid min-w-0 grid-cols-1 items-center gap-3 rounded-xl border border-[#E7E2D8] bg-white px-4 py-3 transition-colors hover:border-[#B8CDBE] sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto] md:gap-4">
+     <div className="min-w-0"><h3 className="text-sm font-semibold text-[#243B30]">Analysis #{request.requestId}</h3><p className="mt-1 text-xs text-[#6D7974]">{recommendationLabel(request.status)}</p></div>
+     <div data-analysis-period className="min-w-0 text-sm text-[#53665B]"><span className="mb-1 block text-xs text-[#6D7974] md:hidden">Sales period</span>{formatDateRange(request.snapshot.rangeStart,request.snapshot.rangeEnd)}</div>
+     <div data-analysis-created className="min-w-0 text-sm font-medium"><span className="mb-1 block text-xs font-normal text-[#6D7974] md:hidden">Created on</span><AnalysisTime value={request.createdAt}/></div>
+     <button type="button" data-select-analysis={request.requestId} aria-label={'Select Analysis #'+request.requestId} disabled={selecting||state.runsLoading} className={miningPrimaryButton+' justify-self-start whitespace-nowrap sm:justify-self-end md:w-[146px]'} onClick={()=>void chooseRequest(request.requestId)}>Select Analysis</button>
+    </li>)}</ul></>}
+
+   <F06Pages data={state.requests} label="sources" busy={state.requestsLoading||selecting} onPage={page=>void workflow.loadRequests(page)}/>
+  </>}
+  {state.runsLoading&&<p role="status" className="text-sm text-[#6D7974]">Loading completed results...</p>}
+  {state.runsError&&<div role="alert" className="space-y-2 text-sm text-red-800"><p>{state.runsError}</p>{state.request&&<button type="button" className={miningButton} onClick={()=>void chooseRequest(state.request!.requestId)}>Retry Results</button>}</div>}
+  {state.request&&!state.runsLoading&&!state.runsError&&<section aria-label="Completed results" className="space-y-3 rounded-xl bg-[#FAF8F5] p-4"><h3 className="text-sm font-semibold">Analysis #{state.request.requestId} results</h3>{!state.runs.some(run=>run.status==='COMPLETED')?<p className="text-sm text-[#6D7974]">No completed results are available for this analysis.</p>:<><p className="text-xs text-[#6D7974]">Choose the completed result you want to use.</p><ul className="grid gap-2 sm:grid-cols-2">{state.runs.filter(run=>run.status==='COMPLETED').map(run=><li key={run.runId}><button type="button" data-select-run={run.runId} className="w-full rounded-lg border border-[#DDE5DF] bg-white p-3 text-left hover:border-[#356B54] focus-visible:outline-2 focus-visible:outline-[#356B54]" onClick={()=>chooseRun(run.runId)}><strong className="block text-sm">{analysisTimestamp(run.completedAt)!=='Not recorded'?'Completed '+analysisTimestamp(run.completedAt):'Completion time not recorded'}</strong><span className="mt-1 block text-sm text-[#53665B]">{run.patternCount===null?'Product combinations not recorded':formatMiningNumber(run.patternCount)+' product combinations'}</span><small className="mt-1 block text-[#6D7974]">Result #{run.runId}</small></button></li>)}</ul></>}
+  </section>}
+ </section>;
 }
