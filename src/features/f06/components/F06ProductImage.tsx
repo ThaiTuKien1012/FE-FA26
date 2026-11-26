@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Package } from 'lucide-react';
+import { AlertTriangle, Package } from 'lucide-react';
 import { authService } from '../../../services/authService';
 import { recommendationProductImage } from '../f06.products';
 
@@ -33,7 +33,7 @@ export function F06ProductImage({ id, name, imageUrl }: { id:number;name:string;
   </div>;
 }
 
-export function F06ProductTiles({ ids, names={}, images={}, limit=4,retail=false }: { ids:number[];names?:Record<number,string>;images?:Record<number,string>;limit?:number;retail?:boolean }) {
+export function F06ProductTiles({ ids, names={}, images={}, limit=4,retail=false,expiryPriority }: { ids:number[];names?:Record<number,string>;images?:Record<number,string>;limit?:number;retail?:boolean;expiryPriority?:ReadonlySet<number> }) {
   const name=(id:number)=>names[id]??(retail?'Product name unavailable':'Product #'+id);
-  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{ids.slice(0,limit).map(id=><figure key={id} className="min-w-0"><F06ProductImage id={id} name={name(id)} imageUrl={images[id]} /><figcaption className="mt-2 line-clamp-2 break-words text-xs font-medium leading-5 text-[#243B30]" title={name(id)}>{name(id)}</figcaption></figure>)}{ids.length>limit&&<p className="col-span-full text-xs text-[#6D7974]">+{ids.length-limit} products in Details</p>}</div>;
+  return <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{ids.slice(0,limit).map(id=><figure key={id} className="min-w-0"><F06ProductImage id={id} name={name(id)} imageUrl={images[id]} /><figcaption className="mt-2 line-clamp-2 break-words text-xs font-medium leading-5 text-[#243B30]" title={name(id)}>{name(id)}</figcaption>{expiryPriority?.has(id)&&<span data-expiry-product={id} title={name(id)+' has a confirmed batch that needs selling priority.'} className="mt-1 inline-flex max-w-full items-center gap-1 rounded bg-amber-50 px-1.5 py-1 text-[10px] font-semibold text-amber-900"><AlertTriangle aria-hidden="true" className="h-3 w-3 shrink-0"/>Expiry priority</span>}</figure>)}{ids.length>limit&&<p className="col-span-full text-xs text-[#6D7974]">+{ids.length-limit} products in Details{ids.slice(limit).some(id=>expiryPriority?.has(id))?' · Includes products with expiry priority.':''}</p>}</div>;
 }

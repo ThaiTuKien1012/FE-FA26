@@ -55,8 +55,8 @@ export function RecommendationRuleSummary({ policy }: { policy: RecPolicy }) {
   return <RecommendationFields fields={[
     ['Bundle size', `Up to ${policy.maxBundleSize} products per bundle.`],
     ['Frequently bought together', `At least ${policy.minSupportCount} transactions and ${recommendationPercent(policy.minSupportRatio)} of past transactions.`],
-    ['Cross-sell confidence', `At least ${recommendationPercent(policy.minConfidence)} in past shopping data.`],
-    ['Stock per product', `At least ${policy.minimumSellableQuantity} sellable unit(s) per product.`]
+    ['Minimum add-on purchase rate', `At least ${recommendationPercent(policy.minConfidence)} of transactions containing the main product also include all suggested products.`],
+    ['Minimum available stock', `At least ${policy.minimumSellableQuantity} sellable ${policy.minimumSellableQuantity===1?'unit':'units'} per product.`]
   ]} />;
 }
 

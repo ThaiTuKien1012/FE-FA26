@@ -7,6 +7,7 @@ import type { RecommendationBrowseState, RecommendationBrowser } from '../f06.br
 import { crossSellDirection, productNames, recommendationRationale, recommendationPurchaseEvidence, recommendationWarning, recommendationTypeCopy } from '../f06.presentation';
 import { F06ProductImage } from './F06ProductImage';
 import { F06ReviewForm } from './F06ReviewForm';
+import { F06SellingPriority } from './F06ExpiryPriority';
 import { RecommendationBadge, RecommendationFields, recommendationLabel as label, recommendationNumber, recommendationPercent, recommendationReadiness } from './F06ReadShared';
 
 export function F06EligibilityCheck({title,check,names={}}:{title:string;check:EligibilityEvidence;names?:Record<number,string>;technical?:boolean}) {
@@ -30,6 +31,7 @@ export function F06RecommendationDetailContent({item,names={},images={},reviewCo
     </section>
     <section aria-label="Historical purchase evidence" data-evidence-status={item.evidence.status}><h3 className="text-lg font-semibold">Why this recommendation?</h3><p className="mt-3 text-sm leading-6">{evidence.groupSentence}</p><div className="mt-3 rounded-xl border border-[#E7E2D8] p-4"><RecommendationFields fields={fields}/></div>{direction&&<p className="mt-3 text-sm leading-6">{evidence.directionalSentence}</p>}<p className="mt-2 text-xs leading-5 text-[#6D7974]">These figures describe the saved analysis dataset, not all current sales. Past purchases do not guarantee future sales.</p></section>
     <section><h3 className="mb-3 text-lg font-semibold">Product Availability</h3><F06EligibilityCheck title="Current availability" check={item.currentEligibility} names={names}/>{item.inventoryChanged&&<p className="mt-2 text-xs text-amber-900">Availability has changed since this suggestion was created. Use the latest check above.</p>}</section>
+    <F06SellingPriority ids={item.productIds} names={names}/>
     {item.seasonEnded&&<section aria-label="Ended season warning" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><h3 className="font-semibold">Historical season has ended</h3><ul className="mt-2 space-y-1">{item.endedSeasons.map(season=><li key={season.seasonId}>{season.name}: ended {formatDate(season.endDate)}</li>)}</ul><p className="mt-2">The saved suggestion is retained. Check its current availability before use.</p></section>}
     {reviewContent}
     {item.reviewStatus!=='PENDING_REVIEW'&&<section aria-label="Saved decision" className="rounded-xl border border-[#CADACF] bg-[#EDF5F0] p-4"><h3 className="font-semibold">Saved decision</h3><p className="mt-2 text-sm">{label(item.reviewStatus)}{item.reviewedAt&&<> on {miningDate(item.reviewedAt)}</>}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{item.reviewReason||'No reason was recorded.'}</p></section>}

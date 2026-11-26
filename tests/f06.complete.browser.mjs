@@ -53,7 +53,6 @@ async function until(expression, label) {
 }
 const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)}) || [...document.querySelectorAll(".f02-page-position")].some(e=>e.textContent===${JSON.stringify(text)})`, text);
 async function click(label) {
-  if(label==='Store Rules'||label==='Expiry Alerts')await page.evaluate('[...document.querySelectorAll("summary")].find(el=>el.textContent==="Store tools")?.click()');
   assert.equal(await page.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}&&!b.closest('[hidden]'));if(!b||b.disabled)return false;b.click();return true;})()`), true, 'Clickable: ' + label);
 }
 async function select(id, value) {
@@ -133,15 +132,16 @@ async function fixture({ requestId, request }) {
     } else body = state.config;
   } else if (path === '/api/recommendations/expiry-push') {
     assert.equal(request.method, 'GET'); for (const key of url.searchParams.keys()) assert.ok(['productId','page','pageSize'].includes(key));
-    body = { ...expiryPage(), page: Number(url.searchParams.get('page') || 0), pageSize: Number(url.searchParams.get('pageSize') || 20), totalElements: state.expiryEmpty ? 0 : 45,
-      items: state.expiryEmpty ? [] : [...expiryPage().items, {...expiryPage().items[0],batchId:32,expiryDate:null,daysToPush:0}], warnings: ['Fixture metadata warning even on empty pages'] };
+    const size=Number(url.searchParams.get('pageSize')||20),empty=state.expiryEmpty||url.searchParams.has('productId')&&url.searchParams.get('productId')!=='31';
+    body = { ...expiryPage(), page: Number(url.searchParams.get('page') || 0), pageSize:size, totalElements:empty?0:45,
+      items:empty?[]:[...expiryPage().items,{...expiryPage().items[0],batchId:32,expiryDate:null,daysToPush:0}].slice(0,size),warnings:['Fixture metadata warning even on empty pages'] };
   } else if (path === '/api/recommendations/generate') { assert.equal(request.method, 'POST'); assert.equal(JSON.parse(request.postData).miningRunId, 42); body = generation; }
   else if (/^\/api\/products\/\d+$/.test(path)) body = { id: Number(path.split('/').at(-1)), name: path.endsWith('/31') ? 'Fixture milk' : 'Fixture bread' };
   else if (path === '/api/mining/requests') body = { items: [requestFixture('COMPLETED', state.storeId)], page: 0, pageSize: 20, totalElements: 1 };
   else if (path === '/api/mining/requests/17/runs') body = [runFixture('COMPLETED', state.storeId)];
   else if (path === '/api/mining/runs/42') body = runFixture('COMPLETED', state.storeId);
   else if (path === '/api/mining/requests/17') body = requestFixture('COMPLETED', state.storeId);
-  else if (path === '/api/products') body = { content: [], page: 0, pageSize: 20, totalElements: 0, totalPages: 0 };
+  else if (path === '/api/products') body = { content: [{id:31,name:'Fixture milk',sku:'SKU-31'}], page: Number(url.searchParams.get('page')||0), pageSize: 20, totalElements: 1, totalPages: 1 };
   else if (path === '/api/transactions' || path === '/api/transactions/imports') { assert.equal(request.method,'GET'); body = { content: [], page: 0, pageSize: 20, totalElements: 0 }; }
   else if (['/api/categories','/api/system/stores'].includes(path)) body = [];
   else if (path === '/api/system/mining/config') body = { version: 0, algorithm: null, minUtilMode: null, minUtilValue: null, changedBy: null, changedAt: null };
@@ -192,29 +192,29 @@ try {
   state.eligibility='INELIGIBLE';await click('Refresh details');await until("document.querySelector('dialog [data-readiness]')?.getAttribute('data-readiness')==='not-ready'",'approved but unready');await close('recommendation details');
   checks.push('ineligible rejection, needs-recheck guard, 409 inventory reconciliation, lost-response GET, approved becoming not ready');
 
-  await click('Store Rules');await has('Read-only access. Store Admin manages these rules.');
+  await click('Store Rules');await has('Managed by Store Admin');
   assert.equal(await page.evaluate("!!document.querySelector('dialog form')"),false);await close('Store Rules');
   await login('STORE_ADMIN');await has('45 matching recommendations');await click('Store Rules');await until("!!document.querySelector('#f06-rule-supportPercent')",'rule values');
   await select('f06-rule-supportPercent','12.34567');await click('Save Changes');await has('No rounding was applied');assert.equal(calls.filter(c=>c.method==='PUT').length,0);
-  await select('f06-rule-supportPercent','12.3456');await select('f06-rule-confidencePercent','98.7654');await click('Save Changes');await has('Store rules saved successfully.');await has('Rules version 2');
+  await select('f06-rule-supportPercent','12.3456');await select('f06-rule-confidencePercent','98.7654');await click('Save Changes');await has('Store rules saved successfully.');assert.equal(state.config.version,2);assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Rules version")'),false);
   assert.equal(calls.filter(c=>c.method==='PUT').at(-1).payload.minSupportRatio,0.123456);
-  await select('f06-rule-maxBundleSize','9');state.configMode='conflict';await click('Save Changes');await has('Current rules · Version 3');
+  await select('f06-rule-maxBundleSize','9');state.configMode='conflict';await click('Save Changes');await has('Current saved rules');assert.equal(state.config.version,3);
   assert.equal(await page.evaluate("document.querySelector('#f06-rule-maxBundleSize').value"),'9');const puts=calls.filter(c=>c.method==='PUT').length;
-  await click('Keep My Edits');assert.equal(calls.filter(c=>c.method==='PUT').length,puts);state.configMode='normal';await click('Save Changes');await has('Rules version 4');
+  await click('Keep My Edits');assert.equal(calls.filter(c=>c.method==='PUT').length,puts);state.configMode='normal';await click('Save Changes');await has('Store rules saved successfully.');assert.equal(state.config.version,4);
   await capture('store-rules');await close('Store Rules');await openDetails(62);await has('Why this recommendation?');
   assert.equal(item(62).policy.maxBundleSize,4,'Previously captured policy remains 4 after current rules change to 9');
   assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Rules version")'),false,'Retail Details does not expose technical rule metadata');
   assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false);await close('recommendation details');
   checks.push('Store Admin full numeric config PUT, exact percentages, validation, explicit 409 comparison; Merchant read-only; captured rules unchanged');
 
-  const beforeExpiry=calls.length;await click('Expiry Alerts');await has('Days to Push');await has('N/A');await has('05/11/2026');assert.equal(await page.evaluate("document.querySelector('[aria-label=\"Expiry alert batches\"]')?.innerText.includes('-2')"),true);await has('Fixture milk');await has('Asia/Ho_Chi_Minh');
-  await select('f06-expiry-product','31');await select('f06-expiry-size','10');await click('Apply Expiry Filters');await has('Page 1 of 5');await click('Next alerts');await has('Page 2 of 5');
+  const beforeExpiry=calls.length;await click('View Expiry Alerts');await has('Push Day overdue by 2 days');await has('Expiry date not recorded');await has('05/11/2026');await has('Fixture milk');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Asia/Ho_Chi_Minh")'),false);
+  await page.evaluate('document.querySelector("dialog input[role=combobox]").click()');await until('!!document.querySelector("dialog [role=option]")','Product search loaded');await page.evaluate('document.querySelector("dialog [role=option]").click()');await select('f06-expiry-size','10');await has('Page 1 of 5');await click('Next alerts');await has('Page 2 of 5');
   assert.deepEqual(Object.fromEntries(new URLSearchParams(calls.filter(c=>c.path.endsWith('/expiry-push')).at(-1).query)),{page:'1',pageSize:'10',productId:'31'});
   assert.equal(calls.slice(beforeExpiry).some(c=>c.path.startsWith('/api/mining/')),false);
-  state.expiryEmpty=true;await click('Refresh Alerts');await has('No expiry alerts match these filters');await has('Fixture metadata warning even on empty pages');
+  state.expiryEmpty=true;await click('Refresh Alerts');await has('No due batches match this selection');await has('Inventory notes');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Fixture metadata warning even on empty pages")'),true);
   for(const width of [390,820,1440]){await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);}
   await capture('expiry-empty-warnings');await close('Expiry Alerts');
-  await login();await dashboard();await click('Expiry Alerts');await has('No expiry alerts match these filters');await close('Expiry Alerts');
+  await login();await dashboard();await click('Expiry Alerts');await has('No due batches match this selection');await close('Expiry Alerts');
   for(const role of ['SYSTEM_ADMIN','END_CUSTOMER']){await login(role);await until("!document.querySelector('#f06-dashboard-title')",role+' denied');assert.equal(await page.evaluate("!!document.querySelector('dialog')"),false);}
   checks.push('expiry independent GET, supported filters/pages, names, backend timezone, empty warnings, both Store roles and denied actors');
   const beforeF04 = calls.length;

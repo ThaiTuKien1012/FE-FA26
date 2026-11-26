@@ -117,6 +117,7 @@ async function fixture({ requestId, request }) {
   }
   else if (/^\/api\/products\/\d+$/.test(url.pathname)) body = { id: Number(url.pathname.split('/').at(-1)), name: url.pathname.endsWith('/31') ? 'Fixture milk' : 'Fixture bread' };
   else if (url.pathname === '/api/recommendations/config') body = policy;
+  else if (url.pathname === '/api/recommendations/expiry-push') body={items:[],page:Number(url.searchParams.get('page')||0),pageSize:Number(url.searchParams.get('pageSize')||20),totalElements:0,asOfDate:'2026-11-26',timeZone:'Asia/Ho_Chi_Minh',checkedAt:'2026-11-25T17:00:00Z',warnings:[]};
   else if (url.pathname === '/api/recommendations') {
     const runId=Number(url.searchParams.get('miningRunId'));assert.ok(Number.isSafeInteger(runId)&&runId>0,'No unscoped Library request');
     const requestedType=url.searchParams.get('type')||'BUNDLE';assert.ok(['BUNDLE','CROSS_SELL','FBT','BANNER'].includes(requestedType));

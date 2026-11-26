@@ -37,7 +37,8 @@ function setup(t:TestContext,role:AuthUser['role']='Merchandiser'){
 test('run-wide zero alone displays the prominent empty panel and a single Generate action',async t=>{
   const f=setup(t);f.totals.set(42,0);await f.browser.selectSource(42);
   assert.equal(f.browser.getSnapshot().runTotal,0);assert.equal(f.list.mock.callCount(),1);
-  const html=f.html();for(const text of ['No Recommendations Yet','Recommendation Library','Selected analysis','Change Analysis','Store tools'])assert.ok(html.includes(text),text);
+  const html=f.html();for(const text of ['No Recommendations Yet','Recommendation Library','Selected analysis','Change Analysis'])assert.ok(html.includes(text),text);
+  assert.equal(html.includes('Store tools'),false,'Store utilities live outside the run-dependent library');
   assert.equal((html.match(/>Generate Recommendations<\/button>/g)??[]).length,1);
   assert.doesNotMatch(html,/role="tab"|f06-filter-review|f06-filter-size|matching recommendations|Review one suggestion|recommendations pages/);
   const attempted=f.html(true);assert.ok(attempted.includes('No Recommendations Found'));assert.ok(attempted.includes('No recommendations met your store'));assert.equal(attempted.includes('no recommendations have been generated yet'),false);

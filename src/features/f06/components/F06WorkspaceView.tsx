@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Settings2 } from 'lucide-react';
 import { authService } from '../../../services/authService';
 import { miningButton, miningPrimaryButton } from '../../f05/f05.display';
 import { RecommendationGeneration } from '../f06.generate';
@@ -12,6 +12,9 @@ import type { RecommendationSource } from '../f06.source';
 import type { RecGenerationResult } from '../f06.types';
 import { openRunRecommendations, useRecommendationLocation } from '../f06.navigation';
 import { RecommendationRuleSummary } from './F06ReadShared';
+import { F06ExpiryProvider, useF06Expiry } from './F06ExpiryContext';
+import { F06ExpiryNotice } from './F06ExpiryPriority';
+import { F06ExpiryPanel, F06RulesPanel } from './F06Utilities';
 
 export function F06GenerationPanel({ source, onGenerated, onPendingChange }: { source:RecommendationSource;onGenerated:(result:RecGenerationResult)=>void;onPendingChange:(pending:boolean)=>void }) {
   const [workflow]=useState(()=>new RecommendationGeneration());
@@ -40,6 +43,7 @@ export function F06GenerationPanel({ source, onGenerated, onPendingChange }: { s
 
 function RecommendationsWorkspace({ merchant, location }: { merchant:boolean;location:ReturnType<typeof useRecommendationLocation> }) {
   const [tab,setTab]=useState<'library'|'generate'>('library'),[busy,setBusy]=useState(false);
+  const [rulesOpen,setRulesOpen]=useState(false),expiry=useF06Expiry();
   const [workflow]=useState(()=>new RecommendationBrowser());
   const state=useSyncExternalStore(workflow.subscribe,workflow.getSnapshot,workflow.getSnapshot);
   const [notice,setNotice]=useState<RecGenerationResult|null>(null);
@@ -59,12 +63,15 @@ function RecommendationsWorkspace({ merchant, location }: { merchant:boolean;loc
   };
   const choose=(next:'library'|'generate')=>{if(!busy&&!state.reviewPending&&(next==='library'||source&&merchant))setTab(next);};
   return <div className="mx-auto max-w-6xl space-y-5 text-[#191C1B]">
-    <header><h1 id="f06-library-tab" tabIndex={-1} className="text-2xl font-semibold sm:text-3xl">Recommendations</h1><p className="mt-2 text-sm text-[#6D7974]">{merchant ? 'Explore product suggestions and manage review decisions.' : 'View product suggestions, review decisions and current availability.'}</p></header>
+    <header className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h1 id="f06-library-tab" tabIndex={-1} className="text-2xl font-semibold sm:text-3xl">Recommendations</h1><p className="mt-2 text-sm text-[#6D7974]">{merchant ? 'Explore product suggestions and manage review decisions.' : 'View product suggestions, review decisions and current availability.'}</p></div><button type="button" className={miningButton+' shrink-0'} onClick={()=>setRulesOpen(true)}><Settings2 aria-hidden="true" className="mr-1.5 h-4 w-4"/>Store Rules</button></header>
+    <F06ExpiryNotice/>
     {tab==='generate'&&<button id="f06-generate-back" type="button" className={miningButton} disabled={busy} onClick={()=>choose('library')}>Back to Recommendations</button>}
     {location.error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{location.error}</p>}
     {location.runId!==null&&state.error&&!source&&!state.sourceLoading&&<button type="button" className={miningButton} onClick={()=>void workflow.selectSource(location.runId!)}>Retry Analysis</button>}
     <div id="f06-browse-panel" hidden={tab!=='library'}>{notice&&notice.miningRunId===state.miningRunId&&<F06GenerationSummary result={notice}/>}<F06DashboardContent state={state} workflow={workflow} generationAttempted={notice?.miningRunId===state.miningRunId} onSelectRun={openRunRecommendations} onChooseAnalysis={()=>openRunRecommendations(null)} onGenerate={()=>choose('generate')}/></div>
     {merchant&&tab==='generate'&&stableSource.current&&<div id="f06-generate-panel"><F06GenerationPanel key={state.miningRunId} source={stableSource.current} onGenerated={generated} onPendingChange={setBusy} /></div>}
+    {rulesOpen&&<F06RulesPanel onClose={()=>setRulesOpen(false)}/>}
+    {expiry?.alertsOpen&&<F06ExpiryPanel onClose={expiry.closeAlerts} analysisSelected={!!source}/>}
   </div>;
 }
 
@@ -72,5 +79,6 @@ export function F06WorkspaceView() {
   const user = useSyncExternalStore(authService.subscribe, authService.getCurrentUser, authService.getCurrentUser);
   const location=useRecommendationLocation();
   if (user?.role !== 'Merchandiser' && user?.role !== 'Store Admin') return null;
-  return <RecommendationsWorkspace key={JSON.stringify([user.id,user.role,user.storeId,authService.getSessionId(),location.runId,location.error])} location={location} merchant={user.role==='Merchandiser'} />;
+  const scope=JSON.stringify([user.id,user.role,user.storeId,authService.getSessionId()]);
+  return <F06ExpiryProvider key={scope}><RecommendationsWorkspace key={JSON.stringify([scope,location.runId,location.error])} location={location} merchant={user.role==='Merchandiser'} /></F06ExpiryProvider>;
 }

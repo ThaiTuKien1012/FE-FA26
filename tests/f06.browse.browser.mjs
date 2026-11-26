@@ -115,6 +115,7 @@ async function fixture({ requestId, request }) {
   const storeId = state.storeId;
   if (path === '/api/auth/login') body = { accessToken: 'fixture-only-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-only-csrf' };
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F06 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId, status: 'ACTIVE', emailVerified: true };
+  else if (path === '/api/recommendations/expiry-push') body={items:[],page:Number(url.searchParams.get('page')||0),pageSize:Number(url.searchParams.get('pageSize')||20),totalElements:0,asOfDate:'2026-11-26',timeZone:'Asia/Ho_Chi_Minh',checkedAt:'2026-11-25T17:00:00Z',warnings:[]};
   else if (path === '/api/recommendations') {
     if (state.network) return page.call('Fetch.failRequest', { requestId, errorReason: 'InternetDisconnected' });
     for (const key of url.searchParams.keys()) assert.ok(['page', 'pageSize', 'miningRunId', 'snapshotId', 'type', 'reviewStatus'].includes(key));

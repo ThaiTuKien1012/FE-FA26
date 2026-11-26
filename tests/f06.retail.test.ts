@@ -107,7 +107,7 @@ test('four server-filtered tabs keep run/review status and reset pages without m
   const html=render(createElement(F06DashboardContent,{state:f.browser.getSnapshot(),workflow:f.browser}));
   assert.equal((html.match(/role="tab"/g)??[]).length,4);assert.ok(html.includes('id="f06-type-BUNDLE"'));
   assert.doesNotMatch(html,/f06-filter-snapshot|f06-filter-type|All saved suggestions|Analysis scope|Apply Filters|Reset Filters|Product groups/);
-  assert.ok(html.includes('Store tools'));assert.ok(html.includes('Store Rules'));assert.ok(html.includes('Expiry Alerts'));
+  assert.doesNotMatch(html,/Store tools|>Store Rules<|>Expiry Alerts</,'Store utilities are outside the library');
 });
 test('changing type aborts old list/details and cannot display another type after a late response',async t=>{
   const f=setup(t);await f.browser.selectSource(42);await f.browser.openDetail(62);

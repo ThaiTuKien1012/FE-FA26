@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Loader2, PackageSearch, RefreshCw } from 'lucide-react';
 import { miningButton, miningInput, miningPrimaryButton } from '../../f05/f05.display';
 import type { RecommendationBrowser, RecommendationBrowseState } from '../f06.browse';
@@ -10,14 +9,12 @@ import { F06RecommendationTable } from './F06RecommendationTable';
 import { F06RecommendationDetails } from './F06RecommendationDetails';
 import { F06TypeTabs } from './F06TypeTabs';
 import { recommendationLabel } from './F06ReadShared';
-import { F06ExpiryPanel, F06RulesPanel } from './F06Utilities';
 
 export function F06DashboardContent({state,workflow,onSelectRun,onChooseAnalysis,onGenerate,generationAttempted=false}:{state:RecommendationBrowseState;workflow:RecommendationBrowser;onSelectRun?:(id:number)=>void;onChooseAnalysis?:()=>void;onGenerate?:()=>void;generationAttempted?:boolean}) {
-  const [utilityPanel,setUtilityPanel]=useState<'rules'|'expiry'|null>(null);
   const data=state.list,type=state.filters.type??'BUNDLE',copy=recommendationTypeCopy[type];
   if(state.role!=='Merchandiser'&&state.role!=='Store Admin')return <p role="alert">Recommendations are unavailable for this role.</p>;
   return <section aria-labelledby="f06-dashboard-title" className="min-w-0 space-y-5 rounded-2xl border border-[#E7E2D8] bg-white p-4 shadow-sm sm:p-6">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="f06-dashboard-title" className="text-xl font-semibold">Recommendation Library</h2><details className="relative text-sm"><summary className="cursor-pointer rounded-lg border border-[#E7E2D8] px-3 py-2 text-xs font-semibold text-[#57534E]">Store tools</summary><div className="absolute right-0 z-20 mt-2 flex w-44 flex-col gap-1 rounded-xl border border-[#E7E2D8] bg-white p-2 shadow-lg"><button type="button" className={miningButton} onClick={()=>setUtilityPanel('rules')}>Store Rules</button><button type="button" className={miningButton} onClick={()=>setUtilityPanel('expiry')}>Expiry Alerts</button></div></details></div>
+    <h2 id="f06-dashboard-title" className="text-xl font-semibold">Recommendation Library</h2>
     <F06RankedSource state={state} workflow={workflow} onSelectRun={onSelectRun} onChooseAnalysis={onChooseAnalysis}/>
     {state.sourceLoading?<p role="status" className="text-sm text-[#6D7974]">Checking selected analysis...</p>:!state.sourceRun?<>{state.error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{state.error}</p>}<p className="text-sm text-[#6D7974]">Choose a completed analysis to view its recommendations.</p></>:state.availabilityLoading?<p role="status" className="py-6 text-sm text-[#6D7974]">Checking saved recommendations...</p>:state.runTotal===null?<div className="space-y-3 rounded-xl border border-[#E7E2D8] p-4"><p role="alert" className="text-sm text-red-800">{state.availabilityError||'Saved recommendations have not been checked yet.'}</p><button type="button" className={miningButton} onClick={()=>void workflow.refresh(true)}>Retry Recommendations</button></div>:state.runTotal===0?<section data-run-empty aria-labelledby="f06-empty-title" className="rounded-2xl border border-[#DDE8DF] bg-[#F4F8F5] px-5 py-8 text-center sm:px-10"><PackageSearch aria-hidden="true" className="mx-auto h-10 w-10 text-[#356B54]"/><h3 id="f06-empty-title" className="mt-4 text-xl font-semibold text-[#1E3A2F]">{generationAttempted?'No Recommendations Found':'No Recommendations Yet'}</h3><p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#47564D]">{generationAttempted?"No recommendations met your store's rules. Review the generation feedback or choose other recommendation types before trying again.":state.role==='Merchandiser'?'Your analysis is complete, but no recommendations have been generated yet. Generate recommendations to discover product combinations and promotional opportunities for your store.':'Your analysis is complete, but no recommendations have been generated for it yet. A Merchandiser can generate recommendations for this analysis.'}</p><div className="mt-5 flex flex-wrap justify-center gap-2">{state.role==='Merchandiser'&&onGenerate&&<button type="button" className={miningPrimaryButton} onClick={onGenerate}>Generate Recommendations</button>}<button type="button" className={miningButton} onClick={()=>void workflow.refresh(true)}><RefreshCw aria-hidden="true" className="mr-1.5 inline h-4 w-4"/>Refresh</button></div></section>:<>
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-[#6D7974]">Review one suggestion at a time. Approval does not publish a campaign or reserve stock.</p><div className="flex flex-wrap gap-2"><button type="button" className={miningButton} disabled={state.loading||state.reviewPending} onClick={()=>void workflow.refresh(true)}><RefreshCw aria-hidden="true" className="mr-1.5 inline h-4 w-4"/>Refresh</button>{state.role==='Merchandiser'&&onGenerate&&<button type="button" disabled={state.reviewPending} className={miningPrimaryButton} onClick={onGenerate}>Generate Recommendations</button>}</div></div>
@@ -32,7 +29,5 @@ export function F06DashboardContent({state,workflow,onSelectRun,onChooseAnalysis
       </div>
     </>}
     {state.detailId!==null&&<F06RecommendationDetails key={state.detailId} state={state} workflow={workflow}/>}
-    {utilityPanel==='rules'&&<F06RulesPanel onClose={()=>setUtilityPanel(null)}/>}
-    {utilityPanel==='expiry'&&<F06ExpiryPanel onClose={()=>setUtilityPanel(null)}/>}
   </section>;
 }
