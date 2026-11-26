@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { conversionRequestFixture, conversionRunFixture, progressFixture } from './f05.fixtures.ts';
 import { generation, policy, recommendation } from './f06.fixtures.ts';
+import { storefrontFixture } from './storefront.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
@@ -100,7 +101,7 @@ async function fixture({ requestId, request }) {
     requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' })
   });
   calls.push({ path: url.pathname, query:url.search,method: request.method, body: request.postData });
-  let responseCode = 200, body;
+  let responseCode = 200, body, front;
   const source = { ...conversionRequestFixture('WHOLE_UNIT_HALF_UP', 'FAILED', state.storeId), comparisonStatus: 'FAILED' };
   const run = { ...conversionRunFixture('WHOLE_UNIT_HALF_UP', state.runStatus, state.storeId), patternCount: 8 };
   if (['/api/auth/login','/api/auth/refresh'].includes(url.pathname)) body = { accessToken: 'fixture-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-csrf' };
@@ -145,7 +146,7 @@ async function fixture({ requestId, request }) {
   else if (url.pathname === '/api/categories' || url.pathname === '/api/system/stores') body = [];
   else if (url.pathname === '/api/system/mining/config') body = { version: 0, algorithm: null, minUtilMode: null, minUtilValue: null, changedBy: null, changedAt: null };
   else if (url.pathname === '/api/utility/config') body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 1, beta: 1, gamma: 1, lambda: 0.1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: 0.5, version: 1 }, lambdaValid: true };
-  else { unexpected.push(url.pathname); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
+  else if (front = storefrontFixture(url.pathname, request.method)) { responseCode = front.status; body = front.body; } else { unexpected.push(url.pathname); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
   return page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(body)).toString('base64') });
 }
 try {

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { recommendation, eligibility, policy } from './f06.fixtures.ts';
 import { requestFixture, runFixture } from './f05.fixtures.ts';
+import { storefrontFixture } from './storefront.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir()), profile = mkdtempSync(join(base, 'paspm-f06-browse-browser-'));
@@ -113,7 +114,7 @@ async function fixture({ requestId, request }) {
   if (path.startsWith('/videos/')) return page.call('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
   if (!path.startsWith('/api/')) return page.call(url.origin === origin ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' }) });
   calls.push({ path, query: url.search, method: request.method });
-  let body, responseCode = 200;
+  let body, responseCode = 200, front;
   const storeId = state.storeId;
   if (path === '/api/auth/login') body = { accessToken: 'fixture-only-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-only-csrf' };
   else if (path === '/api/auth/me') body = { userId: 12, name: 'F06 Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId, status: 'ACTIVE', emailVerified: true };
@@ -150,7 +151,7 @@ async function fixture({ requestId, request }) {
   else if (['/api/categories', '/api/system/stores'].includes(path)) body = [];
   else if (path === '/api/system/mining/config') body = { version: 0, algorithm: null, minUtilMode: null, minUtilValue: null, changedBy: null, changedAt: null };
   else if (path === '/api/utility/config') body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 1, beta: 1, gamma: 1, lambda: 0.1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: 0.5, version: 1 }, lambdaValid: true };
-  else { unexpected.push(path); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
+  else if (front = storefrontFixture(path, request.method)) { responseCode = front.status; body = front.body; } else { unexpected.push(path); responseCode = 500; body = { error: 'Unexpected fixture endpoint' }; }
   if (path !== '/api/auth/login') assert.equal(request.method, 'GET', 'Phase 2B must not write');
   // Source-derived BigDecimal regression, injected as raw JSON tokens before parsing.
   const wire=JSON.stringify(body).replaceAll('"expiryPriorityScore":null','"expiryPriorityScore":0.692307692307692308').replaceAll('40.123456','1234567890123.123456');
