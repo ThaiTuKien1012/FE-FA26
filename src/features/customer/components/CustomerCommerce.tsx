@@ -1,10 +1,9 @@
 import React from 'react';
 import { ArrowUpRight, Heart, Package, ShoppingCart } from 'lucide-react';
-import type { CustomerDisplayProduct } from '../customer.types';
-import { formatCustomerPrice as money } from '../data/customerCatalog';
+import type { StoreProduct } from '../customer.types';
+import { formatCustomerMoney as money } from '../customerMoney';
 import { unitLabel } from '../data/customerLocale';
 
-export type { CustomerDisplayProduct } from '../customer.types';
 export const containerClass = 'mx-auto w-[calc(100%_-_80px)] max-w-[1280px] max-[1100px]:w-[calc(100%_-_56px)] max-[800px]:w-[calc(100%_-_40px)] max-[580px]:w-[calc(100%_-_32px)]';
 
 type PillButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { compact?: boolean; fullWidth?: boolean };
@@ -26,46 +25,37 @@ export function SectionHeading({ id, title, children }: { id?: string; title: st
   );
 }
 
-export function AddToCartButton({ onClick, quantity = 0 }: { onClick: () => void; quantity?: number }) {
-  return (
-    <button className="fm-add-cart flex min-h-8 w-full items-center justify-center gap-[7px] rounded-full border-0 bg-[#088178] px-[10px] py-2 text-[10px] text-white hover:bg-[#06685f] max-[800px]:gap-[5px] max-[800px]:p-[7px] max-[800px]:text-[9px] max-[580px]:min-h-[29px] max-[580px]:p-[6px]" onClick={onClick}>
-      <ShoppingCart size={14} />Thêm vào giỏ
-      {quantity > 0 && <span className="fm-in-cart grid size-4 min-w-4 place-items-center rounded-full bg-white/20 text-[8px]">{quantity}</span>}
-    </button>
-  );
-}
-
-export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, storeLabel }: {
-  product: CustomerDisplayProduct; saved: boolean; quantity: number;
-  onSave: () => void; onOpen: () => void; onAdd: () => void; storeLabel?: string;
+export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, blocked }: {
+  product: StoreProduct; saved: boolean; quantity: number;
+  onSave: () => void; onOpen: () => void; onAdd: () => void; blocked: boolean;
 }) {
+  const unavailable = product.availability !== 'AVAILABLE';
   return (
-    <article className="fm-product min-w-0 cursor-pointer rounded-[15px] border border-white bg-white p-1 text-[#212529] max-[580px]:rounded-xl max-[580px]:p-[3px]" onClick={event => {
-      if (!(event.target instanceof Element) || !event.target.closest('button')) onOpen();
-    }}>
-      <div className="fm-product-picture relative h-[220px] overflow-hidden rounded-xl bg-[#f5f5f5] max-[1100px]:h-[195px] max-[800px]:h-40 max-[580px]:h-[170px] max-[580px]:rounded-[9px] max-[360px]:h-[150px]">
-        {product.discountPercent && product.discountPercent > 0 && <span className="absolute top-2 left-2 z-1 rounded-full bg-[#e85d4a] px-2 py-1 text-[8px] font-bold text-white max-[580px]:top-[6px] max-[580px]:left-[6px] max-[580px]:px-1.5 max-[580px]:py-0.5 max-[580px]:text-[7px]">-{product.discountPercent}%</span>}
-        <button className={`fm-favorite absolute top-2 right-2 z-1 grid size-7 place-items-center rounded-full border border-[#dfe4e1] hover:bg-[#fff2ef] hover:text-[#c6564b] max-[580px]:top-[6px] max-[580px]:right-[6px] max-[580px]:size-[25px] ${saved ? 'bg-[#fff2ef] text-[#c6564b]' : 'bg-[#f9faf8] text-[#78837d]'}`} aria-label={`${saved ? 'Bỏ lưu' : 'Lưu'} ${product.name}`} aria-pressed={saved} onClick={onSave}>
+    <article className="fm-product min-w-0 rounded-[15px] border border-white bg-white p-1 text-[#212529] max-[580px]:rounded-xl max-[580px]:p-[3px]">
+      <div className="fm-product-picture relative h-[220px] overflow-hidden rounded-xl bg-[#f5f5f5] max-[1100px]:h-[195px] max-[800px]:h-40 max-[580px]:h-[170px] max-[360px]:h-[150px]">
+        <button className={`fm-favorite absolute top-2 right-2 z-1 grid size-7 place-items-center rounded-full border border-[#dfe4e1] hover:bg-[#fff2ef] ${saved ? 'bg-[#fff2ef] text-[#c6564b]' : 'bg-[#f9faf8] text-[#78837d]'}`}
+          aria-label={`${saved ? 'Bỏ lưu' : 'Lưu'} ${product.name}`} aria-pressed={saved} onClick={onSave}>
           <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
         </button>
-        <button className="fm-picture-button group flex size-full items-center justify-center border-0 bg-transparent p-[23px] max-[1100px]:p-[18px] max-[800px]:px-[10px] max-[580px]:px-3 max-[580px]:pt-[22px] max-[580px]:pb-3" onClick={onOpen} aria-label={`Xem ${product.name}`}>
-          {product.image ? <img className="size-full object-contain drop-shadow-[0_5px_3px_#152c1c0c] transition-transform duration-250 group-hover:scale-[1.06]" src={product.image} alt={product.name} loading="lazy" /> : <Package className="size-16 text-[#9daea5]" aria-label="Product image unavailable" />}
+        <button className="fm-picture-button group flex size-full items-center justify-center border-0 bg-transparent p-[23px] max-[1100px]:p-[18px] max-[580px]:px-3" onClick={onOpen} aria-label={`Xem ${product.name}`}>
+          {product.imageUrl ? <img className="size-full object-contain transition-transform duration-250 group-hover:scale-[1.06]" src={product.imageUrl} alt={product.name} loading="lazy" />
+            : <Package className="size-16 text-[#9daea5]" aria-label="Chưa có ảnh sản phẩm" />}
         </button>
       </div>
-      <div className="fm-product-copy px-2 pt-[11px] pb-[6px] max-[800px]:px-[5px] max-[800px]:pt-[10px] max-[800px]:pb-[5px] max-[580px]:pt-[9px]">
-        <div className="fm-product-brand flex items-center justify-between gap-[7px] text-[9px] text-[#088178] max-[800px]:text-[8px]">
-          {product.brand || product.category}<span className="text-[8px] text-[#a0a7a4] max-[580px]:text-[6px]">{unitLabel(product.unit || 'item')}</span>
-        </div>
-        {storeLabel && <div className="mt-1 truncate text-[8px] text-[#7b8f84] max-[580px]:text-[7px]">Bán tại {storeLabel}</div>}
-        <h3 className="mt-[7px] mb-2 text-xs leading-normal font-semibold max-[1100px]:min-h-[33px] max-[1100px]:text-[11px] max-[800px]:min-h-[30px] max-[800px]:text-[10px] max-[580px]:min-h-[33px] max-[580px]:text-[11px]">
-          <button className="border-0 bg-transparent p-0 text-left hover:text-[#088178]" onClick={onOpen}>{product.name}</button>
+      <div className="fm-product-copy px-2 pt-[11px] pb-[6px]">
+        <div className="fm-product-brand text-[9px] text-[#088178]">{product.category?.name}</div>
+        <h3 className="mt-[7px] mb-2 text-xs font-semibold">
+          <button className="text-left hover:text-[#088178]" onClick={onOpen}>{product.name}</button>
         </h3>
-        <div className="fm-product-price mb-[11px] flex flex-wrap items-baseline gap-x-1 gap-y-0.5 max-[580px]:mb-[9px]">
-          <strong className="text-[15px] font-bold max-[1100px]:text-sm max-[800px]:text-xs max-[580px]:text-[13px]">{money(product.priceVnd)}</strong>
-          {product.originalPriceVnd && product.originalPriceVnd > product.priceVnd && <del className="text-[9px] text-[#a0a7a4] max-[800px]:text-[8px]">{money(product.originalPriceVnd)}</del>}
-          <span className="text-[9px] text-[#8e9692] max-[800px]:text-[8px]">/ {unitLabel(product.unit || 'item')}</span>
+        {product.description && <p className="mb-2 line-clamp-2 text-xs text-[#65796d]">{product.description}</p>}
+        <div className="fm-product-price mb-[11px] flex flex-wrap items-baseline gap-1">
+          <strong className="text-[15px] font-bold max-[580px]:text-[13px]">{money(product.sellingPrice)}</strong>
+          <span className="text-[9px] text-[#65796d]">/ {unitLabel(product.unit)}</span>
         </div>
-        <AddToCartButton onClick={onAdd} quantity={quantity} />
+        <button className="fm-add-cart flex min-h-8 w-full items-center justify-center gap-[7px] rounded-full bg-[#088178] px-2 py-2 text-[10px] text-white hover:bg-[#06685f] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={blocked || unavailable} onClick={onAdd}><ShoppingCart size={14} />{unavailable ? 'Hết hàng' : 'Thêm vào giỏ'}
+          {quantity > 0 && <span className="fm-in-cart grid size-4 place-items-center rounded-full bg-white/20 text-[8px]">{quantity}</span>}
+        </button>
       </div>
     </article>
   );

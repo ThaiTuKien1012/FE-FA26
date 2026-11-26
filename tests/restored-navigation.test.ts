@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { getCustomerProductId, getPathForScreen, getScreenFromPathname } from '../src/utils/navigationRouter';
 import { ROLE_PERMISSIONS } from '../src/services/authService';
-import { CUSTOMER_PRODUCTS } from '../src/features/customer/data/customerCatalog';
-import { CUSTOMER_STORES } from '../src/features/customer/data/customerStores';
 
 test('restored routes coexist with live F03–F08 routes and decode product deep links', () => {
   for (const screen of ['customer-home', 'customer-storefront', 'customer-product', 'f03-seasons', 'f04-import-transactions', 'f05-mining', 'f06-recommendations', 'f07-f08-workspace'] as const) {
@@ -23,17 +19,4 @@ test('old Store Layout links open F07 and campaigns retain both staff roles', ()
   }
   assert.equal(ROLE_PERMISSIONS['End-Customer'].defaultScreen, 'customer-home');
   for (const screen of ['customer-home', 'customer-product', 'customer-storefront'] as const) assert.ok(ROLE_PERMISSIONS['End-Customer'].allowedScreens.includes(screen));
-});
-
-test('customer demo catalog references existing stores and committed local images', () => {
-  const ids = new Set<string>();
-  for (const product of CUSTOMER_PRODUCTS) {
-    assert.ok(!ids.has(product.id));
-    ids.add(product.id);
-    assert.ok(CUSTOMER_STORES.some(store => store.id === product.storeId));
-    for (const value of Object.values(product)) {
-      if (typeof value === 'string' && /^\/(images|products)\//.test(value)) assert.ok(existsSync(join(process.cwd(), 'public', value)), value);
-    }
-  }
-  for (const store of CUSTOMER_STORES) assert.ok(existsSync(join(process.cwd(), 'public', store.logo)), store.logo);
 });
