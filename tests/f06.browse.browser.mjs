@@ -53,6 +53,8 @@ async function until(expression, label) {
 }
 const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)}) || [...document.querySelectorAll(".f02-page-position")].some(e=>e.textContent===${JSON.stringify(text)})`, text);
 async function click(label) {
+  if(label==='Refresh details'){const selector='button[aria-label="Refresh details"]';await until('!!document.querySelector('+JSON.stringify(selector+':not(:disabled)')+')','Refresh ready');await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');return;}
+
   assert.equal(await page.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}&&!b.closest('[hidden]'));if(!b||b.disabled)return false;b.click();return true;})()`), true, 'Clickable: ' + label);
 }
 async function select(id, value) {
@@ -188,13 +190,13 @@ try {
   assert.equal(await page.evaluate('document.activeElement.getAttribute("aria-label")'),'Close recommendation details');
   await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until('!document.querySelector("dialog")','Escape closes Details');
   await openDetails(62);await has('Historical purchase data is unavailable.');
-  assert.equal(await page.evaluate('[...document.querySelectorAll("dialog summary")].find(el=>el.textContent==="Additional analysis evidence").parentElement.open'),false);
-  await page.evaluate('[...document.querySelectorAll("dialog summary")].find(el=>el.textContent==="Additional analysis evidence").click()');await has('1,234,567,890,123.123456');
-  for(const field of ['Purchase frequency','Total analyzed transactions','Transactions containing all products'])assert.equal(await page.evaluate('(()=>{const dt=[...document.querySelectorAll("dialog dt")].find(el=>el.textContent==='+JSON.stringify(field)+');return dt.nextElementSibling.textContent})()'),'Unavailable');
+  assert.equal(await page.evaluate('[...document.querySelectorAll("dialog summary")].find(el=>el.textContent==="More Details").parentElement.open'),false);
+  await page.evaluate('[...document.querySelectorAll("dialog summary")].find(el=>el.textContent==="More Details").click()');await has('1,234,567,890,123.123456');
+  for(const field of ['Purchase frequency','Total analyzed transactions','Bought together'])assert.equal(await page.evaluate('(()=>{const dt=[...document.querySelectorAll("dialog dt")].find(el=>el.textContent==='+JSON.stringify(field)+');return dt.nextElementSibling.textContent})()'),'Unavailable');
   assert.equal(await page.evaluate('document.querySelector("dialog [data-readiness]").dataset.readiness'),'not-ready');
   assert.equal(await page.evaluate('/SPMF|Input hash|Matrix hash|Fingerprint|expectedVersion/.test(document.querySelector("dialog").textContent)'),false);
-  state.reviewStatus='PENDING_REVIEW';state.availability='ELIGIBLE';await click('Refresh details');await has('Needs review. Products are currently available.');
-  state.reviewStatus='APPROVED';state.ready=true;state.availability='ELIGIBLE';await click('Refresh details');await has('Ready for Layout.');
+  state.reviewStatus='PENDING_REVIEW';state.availability='ELIGIBLE';await click('Refresh details');await until('document.querySelector("dialog header [data-status]")?.dataset.status==="PENDING_REVIEW"&&!!document.querySelector("dialog [data-status=ELIGIBLE]")','Review and current availability without redundant readiness');
+  state.reviewStatus='APPROVED';state.ready=true;state.availability='ELIGIBLE';await click('Refresh details');await has('Approved and ready for layout.');
   state.namesUnavailable=true;await click('Refresh details');await has('Some product names are unavailable.');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Product name unavailable")'),true);assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Fixture milk")'),false);state.namesUnavailable=false;
   state.detailStatus=404;await click('Refresh details');await has('unavailable for your store');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Fixture milk")'),false);await closeDetails();state.detailStatus=200;
   checks.push('Details loads only selected candidate, exact decimals in optional evidence, missing evidence stays unavailable, distinct cross-sell targets, friendly errors and fresh readiness/names without technical diagnostics');
@@ -221,8 +223,19 @@ try {
   for(const type of types){await chooseType(type);assert.deepEqual(await page.evaluate('[...document.querySelectorAll("[data-candidate-id]")].map(el=>el.dataset.candidateId)'),expected[type]);assert.equal(await page.evaluate('[...document.querySelectorAll("[data-recommendation-card]")].every(el=>el.querySelectorAll("button").length===1)'),true);assert.equal(new URLSearchParams(calls.filter(call=>call.path==='/api/recommendations').at(-1).query).get('type'),type);}
   assert.equal(await page.evaluate('document.querySelector("[data-recommendation-card]").textContent.includes("Present in 2 of 6 analyzed transactions")'),true,'Single-product Banner describes historical presence');
   assert.equal(await page.evaluate('document.querySelector("[data-recommendation-card]").textContent.includes("Bought together")'),false);
+  await openDetails(3065);await until('document.querySelector("dialog").innerText.includes("Purchased in 2 of 6 analyzed transactions.")','Single Banner purchase wording');assert.equal(await page.evaluate('document.querySelector("dialog").innerText.includes("Bought together")'),false);assert.equal(await page.evaluate('document.querySelector("dialog [aria-label^=Products]").classList.contains("sm:grid-cols-2")'),false,'One product uses the available row');await closeDetails();
   await chooseType('CROSS_SELL');await has('50%');await has('66.6667%');assert.equal(await page.evaluate('[...document.querySelectorAll("[data-retail-proposal]")].some(el=>el.textContent.includes("Suggest Fixture milk when customers select Fixture bread"))'),true);
-  await openDetails(1064);await has('2 of 3 transactions containing Fixture bread also included Fixture milk (66.6667%).');
+  await openDetails(1064);
+  await until('document.querySelector("dialog [data-evidence-status]")?.innerText.includes("66.67%")','Details rounds only the display percentage');
+  assert.equal(await page.evaluate('document.querySelector("dialog").innerText.includes("3 analyzed transactions contained Fixture bread")'),true,'Directional denominator stays the saved anchor count');
+  assert.equal(await page.evaluate('document.querySelectorAll("dialog details").length===2&&[...document.querySelectorAll("dialog details")].every(el=>!el.open)'),true,'Only More Details and Review History, collapsed');
+  assert.equal(await page.evaluate('document.querySelectorAll("dialog header [data-status=PENDING_REVIEW]").length'),1);
+  for(const width of [320,390,820,1440]){
+    await page.call('Emulation.setDeviceMetricsOverride',{width,height:850,deviceScaleFactor:1,mobile:width<768});
+    assert.equal(await page.evaluate('(()=>{const dialog=document.querySelector("dialog"),body=dialog.querySelector("[data-detail-body]"),header=dialog.querySelector("header"),footer=dialog.querySelector("footer");body.scrollTop=body.scrollHeight;return dialog.scrollWidth<=dialog.clientWidth+1&&header.getBoundingClientRect().top>=0&&footer.getBoundingClientRect().bottom<=innerHeight&&footer.getBoundingClientRect().top>=body.getBoundingClientRect().top;})()'),true,'Scrollable body and accessible fixed decision actions '+width);
+  }
+  await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+
   await select('f06-review-reason','Unfinished directional review');await click('Refresh details');await until('document.querySelector("#f06-review-reason")?.value==="Unfinished directional review"','Refresh retains reason');await page.evaluate('document.querySelector("[aria-label=\\"Close recommendation details\\"]").click()');await has('Keep your unfinished review?');await click('Keep Editing');await until('document.activeElement?.id==="f06-review-reason"','Keep Editing restores reason focus');
   await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await has('Keep your unfinished review?');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until('!document.querySelector("[aria-label=\\"Unsaved review\\"]")','Escape preserves unfinished draft');await page.evaluate('document.querySelector("[aria-label=\\"Close recommendation details\\"]").click()');await has('Keep your unfinished review?');await click('Discard & Close');await until('!document.querySelector("dialog")&&document.activeElement?.dataset.candidateId==="1064"','Explicit discard returns focus to exact candidate');
   await chooseType('BUNDLE');await page.evaluate('document.querySelector("[data-candidate-id]").scrollIntoView({block:"center"})');await until('[...document.querySelectorAll("[data-recommendation-card] img")].some(el=>el.complete&&el.naturalWidth>0)','Authorized image loads');assert.equal(await page.evaluate('!!document.querySelector("[aria-label=\\"Image unavailable for Fixture bread\\"]")'),true,'Broken image fallback');

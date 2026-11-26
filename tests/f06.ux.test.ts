@@ -30,12 +30,12 @@ test('F06 pager hides a single page and shows exact server page size with compac
   assert.ok(html.includes('Showing 21–40 of 45 recommendations'));assert.ok(html.includes('Page 2 of 3'));
   assert.ok(html.includes('aria-current="page">2'));
 });
-test('F06 details put review history before collapsed sources and retain references without raw dumps',()=>{
+test('F06 details keep supplementary history collapsed and retain references without raw dumps',()=>{
   const item=recommendation(),before=JSON.stringify(item);
   const html=renderToStaticMarkup(createElement(F06RecommendationDetailContent,{item,technical:false,names:{31:'Milk',32:'Bread'}}));
-  for(const label of ['Products in this suggestion','Why this recommendation?','Current availability','Review history','Additional analysis evidence','Milk','Bread'])assert.ok(html.includes(label),label);
+  for(const label of ['Products in this suggestion','Why this recommendation?','Current Availability','Review History','More Details','Milk','Bread'])assert.ok(html.includes(label),label);
   assert.equal(/<pre|Technical stock reference/.test(html),false);
-  assert.match(html,/<details[^>]*><summary[^>]*>Additional analysis evidence/);
+  assert.match(html,/<details[^>]*><summary[^>]*>More Details/);
   assert.equal(/Input hash|SPMF threshold|Fingerprint|Rule version|Product #31/.test(html),false);
   assert.equal(JSON.stringify(item),before);
 });

@@ -3,7 +3,7 @@ import { AlertTriangle, Package } from 'lucide-react';
 import { authService } from '../../../services/authService';
 import { recommendationProductImage } from '../f06.products';
 
-export function F06ProductImage({ id, name, imageUrl }: { id:number;name:string;imageUrl?:string }) {
+export function F06ProductImage({ id, name, imageUrl, compactFallback=false }: { id:number;name:string;imageUrl?:string;compactFallback?:boolean }) {
   const user=useSyncExternalStore(authService.subscribe,authService.getCurrentUser,authService.getCurrentUser);
   const scope=JSON.stringify([authService.getSessionId(),user?.id,user?.storeId,user?.role]);
   const source=recommendationProductImage(imageUrl),key=JSON.stringify([scope,id,source]);
@@ -29,7 +29,7 @@ export function F06ProductImage({ id, name, imageUrl }: { id:number;name:string;
   },[source,key,id]);
   const image=loaded.key===key&&!loaded.failed?loaded.url:undefined;
   return <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-[#E7E2D8] bg-[#F3F5F2]">
-    {image?<img src={image} alt={name} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" onError={()=>setLoaded({key,failed:true})} />:<span aria-label={'Image unavailable for '+name} className="flex flex-col items-center gap-1 p-2 text-[#809087]"><Package aria-hidden="true" className="h-7 w-7" /><span className="text-[10px]">No image</span></span>}
+    {image?<img src={image} alt={name} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" onError={()=>setLoaded({key,failed:true})} />:<span role={compactFallback?'img':undefined} aria-label={'Image unavailable for '+name} className="flex flex-col items-center gap-1 p-2 text-[#809087]"><Package aria-hidden="true" className="h-7 w-7" />{!compactFallback&&<span className="text-[10px]">No image</span>}</span>}
   </div>;
 }
 

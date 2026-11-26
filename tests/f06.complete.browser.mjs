@@ -53,6 +53,8 @@ async function until(expression, label) {
 }
 const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)}) || [...document.querySelectorAll(".f02-page-position")].some(e=>e.textContent===${JSON.stringify(text)})`, text);
 async function click(label) {
+  if(label==='Refresh details'){const selector='button[aria-label="Refresh details"]';await until('!!document.querySelector('+JSON.stringify(selector+':not(:disabled)')+')','Refresh ready');await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');return;}
+
   assert.equal(await page.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}&&!b.closest('[hidden]'));if(!b||b.disabled)return false;b.click();return true;})()`), true, 'Clickable: ' + label);
 }
 async function select(id, value) {
@@ -169,11 +171,12 @@ try {
   await page.call('Page.navigate',{url:origin+'/login'});
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')",'session module');
   await login();await has('45 matching recommendations');await click('Generate Recommendations');await until("!!document.querySelector('#f06-generate-form')",'selected-run generation');await click('Generate recommendations');await has('1 new suggestion');
-  await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Your decision');await until("document.querySelector('dialog')?.textContent.includes('0.692307692307692308')",'Exact expiry score retained in collapsed details');await page.evaluate("[...document.querySelectorAll('dialog summary')].find(el=>el.textContent==='Additional analysis evidence').click()");await has('1,234,567,890,123.123456');await has('Autumn fixture season');await has('31/10/2026');
+  await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Your Decision');await until("document.querySelector('dialog')?.textContent.includes('0.692307692307692308')",'Exact expiry score retained in collapsed details');await page.evaluate("[...document.querySelectorAll('dialog summary')].find(el=>el.textContent==='More Details').click()");await has('1,234,567,890,123.123456');await has('Autumn fixture season');await has('31/10/2026');
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].find(b=>b.textContent==='Approve').disabled"),true);
   await prepare('Approve'); assert.equal(writes().length,0);
   state.hold=true; await click('Confirm Approval'); await has('Saving decision...');
   assert.equal(await page.evaluate("document.querySelector('button[aria-label=\"Close recommendation details\"]').disabled"),true);
+  await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});assert.equal(await page.evaluate('!!document.querySelector("dialog[open]")'),true,'Pending review blocks Escape');assert.equal(writes().length,1,'Only one explicit review write');
   state.hold=false; await has('Approved and ready for layout.'); await has('Fixture review decision');
   assert.equal(writes().length,1); assert.deepEqual(writes()[0].payload,{expectedVersion:1,reason:'Fixture review decision'});
   assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false);
@@ -183,10 +186,10 @@ try {
 
   state.review='PENDING_REVIEW';state.version=3;state.eligibility='INELIGIBLE';await openDetails(62);await has('Approval is unavailable');await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');await close('recommendation details');
   state.review='PENDING_REVIEW';state.version=5;state.eligibility='NEEDS_RECHECK';await openDetails(62);await has('Approval is unavailable');await close('recommendation details');
-  state.eligibility='ELIGIBLE';state.mode='conflict';await openDetails(62);await has('Your decision');await prepare('Approve');await click('Confirm Approval');await has('This recommendation has changed');await has('Approval is unavailable');
+  state.eligibility='ELIGIBLE';state.mode='conflict';await openDetails(62);await has('Your Decision');await prepare('Approve');await click('Confirm Approval');await has('This recommendation has changed');await has('Approval is unavailable');
   const afterConflict=writes().length;await sleep(200);assert.equal(writes().length,afterConflict);assert.equal(await page.evaluate("!!document.querySelector('[aria-label=\"Confirm recommendation review\"]')"),false);
   state.mode='normal';await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');assert.equal(writes().at(-1).payload.expectedVersion,6);await close('recommendation details');
-  state.review='PENDING_REVIEW';state.version=9;state.eligibility='ELIGIBLE';state.mode='lost';await openDetails(62);await has('Your decision');await prepare('Approve');await click('Confirm Approval');await has('Approved and ready for layout.');
+  state.review='PENDING_REVIEW';state.version=9;state.eligibility='ELIGIBLE';state.mode='lost';await openDetails(62);await has('Your Decision');await prepare('Approve');await click('Confirm Approval');await has('Approved and ready for layout.');
   await until("!document.querySelector('#f06-review-reason')",'reconciled final approval');assert.equal(await page.evaluate("document.querySelector('dialog [data-readiness]').getAttribute('data-readiness')"),'ready');
   const afterLost=writes().length;await sleep(200);assert.equal(writes().length,afterLost);
   state.eligibility='INELIGIBLE';await click('Refresh details');await until("document.querySelector('dialog [data-readiness]')?.getAttribute('data-readiness')==='not-ready'",'approved but unready');await close('recommendation details');
@@ -251,7 +254,7 @@ try {
   await login();await has('1 matching recommendations');
   await until("document.querySelectorAll('[data-recommendation-card]').length===1",'only the Bundle candidate appears in the selected tab');
   const beforeGroupReview=writes().length;
-  await openDetails(64);await has('Your decision');
+  await openDetails(64);await has('Your Decision');
   assert.equal(await page.evaluate("document.querySelectorAll('dialog[open]').length===1&&!document.querySelector('[data-recommendation-group-dialog]')"),true);
   await prepare('Approve');await click('Confirm Approval');await has('Approved and ready for layout.');await close('recommendation details');
   assert.equal(writes().length,beforeGroupReview+1);assert.equal(writes().at(-1).path,'/api/recommendations/64/approve');
@@ -259,7 +262,7 @@ try {
   assert.deepEqual([...state.groupRecords.values()].map(record=>[record.reviewStatus,record.version]),[['PENDING_REVIEW',2],['PENDING_REVIEW',7],['APPROVED',12],['PENDING_REVIEW',13]]);
   assert.equal(await page.evaluate('document.querySelector("[data-recommendation-card]").textContent.includes("Approved")'),true,'Banner tab shows its fresh saved decision');
   assert.equal(await page.evaluate('!!document.querySelector("[data-recommendation-group-dialog]")'),false,'No nested group dialog');
-  await openDetails(62);await has('Your decision');await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');await close('recommendation details');
+  await openDetails(62);await has('Your Decision');await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');await close('recommendation details');
   assert.equal(writes().at(-1).path,'/api/recommendations/62/reject');assert.equal(writes().at(-1).payload.expectedVersion,2);
   assert.deepEqual([...state.groupRecords.values()].map(record=>[record.reviewStatus,record.version]),[['REJECTED',3],['PENDING_REVIEW',7],['APPROVED',12],['PENDING_REVIEW',13]]);
   assert.equal(JSON.stringify([...state.groupRecords.keys()].map(id=>{const record=item(id);return {id,type:record.type,utility:record.utility,evidence:record.evidence,sources:record.sources};})),frozen);
@@ -269,12 +272,12 @@ try {
   checks.push('multi-type group reviews stay independent: Banner approve v11, Bundle reject v2, Cross-sell/FBT untouched, exact IDs/versions, fresh statuses, frozen evidence unchanged, Store Admin read-only');
   state.groupRecords=new Map([[62,{type:'BUNDLE',reviewStatus:'PENDING_REVIEW',version:21}],[67,{type:'BUNDLE',reviewStatus:'PENDING_REVIEW',version:25}],[63,{type:'CROSS_SELL',reviewStatus:'PENDING_REVIEW',version:7}]]);
   state.eligibility='ELIGIBLE';await login();await has('2 matching recommendations');await select('f06-filter-review','PENDING_REVIEW');await has('2 matching recommendations');
-  await openDetails(62);await has('Your decision');
+  await openDetails(62);await has('Your Decision');
   assert.equal(await page.evaluate('document.querySelector("#f06-review-reason").maxLength===1000&&document.querySelector("#f06-review-reason").required'),true);
   await select('f06-review-reason','x'.repeat(1001));assert.equal(await page.evaluate('[...document.querySelectorAll("dialog button")].find(el=>el.textContent==="Approve").disabled'),true);
   await prepare('Approve');await click('Confirm Approval');await has('Approved and ready for layout.');
   assert.equal(await page.evaluate('[...document.querySelectorAll("dialog button,dialog a")].some(el=>el.textContent.includes("Continue to Layout"))'),false,'F06 has no Layout handoff action');
-  await click('Review Next');await until('document.querySelector("dialog")?.dataset.recommendationDetail==="67"','Fresh pending next candidate in same run/type');await has('Your decision');
+  await click('Review Next');await until('document.querySelector("dialog")?.dataset.recommendationDetail==="67"','Fresh pending next candidate in same run/type');await has('Your Decision');
   await prepare('Reject');await click('Confirm Rejection');await has('Recommendation rejected');await click('Review Next');await has('No pending recommendations remain for this analysis and type.');
   assert.equal(state.groupRecords.get(63).reviewStatus,'PENDING_REVIEW','Review Next never crosses to Cross-sell');
   assert.equal(calls.some(call=>/^\/api\/(layouts|campaigns)/.test(call.path)),false,'No fake Layout/Campaign creation or handoff');

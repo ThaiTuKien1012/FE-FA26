@@ -137,13 +137,13 @@ test('detail success loads optional product names using GET only; source evidenc
   assert.deepEqual(f.products.mock.calls.map(call => String(call.arguments[0])), ['/api/products/31', '/api/products/32']);
   assert.equal(f.workflow.getSnapshot().detailLoading, false);
   const html = content(f.workflow.getSnapshot().detail!);
-  for (const label of ['Additional analysis evidence','Review history','Saved availability','Current availability']) assert.ok(html.includes(label));
+  for (const label of ['More Details','Review History','Availability when created','Current Availability']) assert.ok(html.includes(label));
 });
 test('missing evidence is unavailable, null expiry risk is N/A and real utility zero remains zero', t => {
   setup(t); const item = recommendation({ utility: 0, type: 'CROSS_SELL', anchorProductId: 31, evidence: { totalTransactions: 0, supportCount: null, supportRatio: null, anchorSupportCount: null, confidence: null, status: 'EVIDENCE_UNAVAILABLE' } });
   const html = content(item);
-  assert.match(html, /Add-on purchase rate<\/dt><dd[^>]*>Unavailable<\/dd>/); assert.match(html, /Transactions containing all products<\/dt><dd[^>]*>Unavailable<\/dd>/);
-  assert.ok(html.includes('Expiry risk: N/A'));
+  assert.match(html, /Add-on purchase rate<\/dt><dd[^>]*>Unavailable<\/dd>/); assert.match(html, /Bought together<\/dt><dd[^>]*>Unavailable<\/dd>/);
+  assert.equal(html.includes('Expiry risk:'),false); assert.equal(item.currentEligibility.products[0].expiryPriorityScore,null);
   assert.match(html, /Historical utility<\/dt><dd[^>]*>0<\/dd>/); assert.ok(html.includes('Historical purchase data is unavailable'));
 });
 test('CROSS_SELL targets exclude anchor; API product names are rendered as escaped text', t => {
@@ -159,9 +159,9 @@ test('approved can be unready with changed eligibility; refresh uses the new det
     reviewHistory: [{ oldStatus: 'PENDING_REVIEW', newStatus: 'APPROVED', reviewedBy: 7, reviewedAt: '2026-11-07T00:00:00Z', reason: 'Historical decision', resultingVersion: 2, eligibilityCheck: eligibility() }] });
   f.detail.mock.mockImplementation(async () => item); await f.workflow.openDetail(62);
   assert.deepEqual(f.workflow.getSnapshot().detail, item); const html = content(item);
-  assert.ok(html.includes('APPROVED')); assert.ok(html.includes('INELIGIBLE'));
-  assert.ok(html.includes('data-readiness="not-ready"')); assert.ok(html.includes('Availability has changed'));
-  assert.ok(html.includes('Historical decision')); assert.ok(html.includes('Saved review availability'));
+  assert.ok(html.includes('Approved')); assert.ok(html.includes('INELIGIBLE'));
+  assert.ok(html.includes('data-readiness="not-ready"')); assert.ok(html.includes('Availability checked against current inventory.'));
+  assert.ok(html.includes('Historical decision')); assert.ok(html.includes('Availability at review'));
   assert.equal(html.includes('<button'), false);
 });
 test('cross-Store 404 clears prior detail and names without revealing another Store', async t => {
@@ -240,7 +240,7 @@ test('status wording distinguishes review, current usability and readiness witho
   const before = JSON.stringify(item); const html = content(item);
   assert.ok(html.includes('Approved')); assert.ok(html.includes('Currently unavailable'));
   assert.ok(html.includes('data-readiness="not-ready"'));
-  assert.ok(html.includes('Ready for Layout')||html.includes('Currently unavailable for Layout'));
+  assert.ok(html.includes('not currently ready for Layout'));
   assert.equal(JSON.stringify(item), before, 'presentation never changes API evidence or eligibility');
 });
 test('available product names precede IDs and unknown products retain a clear reference', () => {
@@ -249,12 +249,12 @@ test('available product names precede IDs and unknown products retain a clear re
   assert.ok(renderToStaticMarkup(createElement(RecommendationProduct, { id: 31 })).includes('Product #31'));
   assert.equal(renderToStaticMarkup(createElement(RecommendationProduct, { id: null })), 'N/A');
 });
-test('friendly filter options keep exact backend enum values and the drawer keeps six clear sections', t => {
+test('friendly filter options keep exact backend enum values and the drawer keeps primary and collapsed historical sections', t => {
   const f=setup(t);const state={...f.workflow.getSnapshot(),sourceRun:runFixture('COMPLETED'),miningRunId:42,request:requestFixture(),runTotal:1};const html=renderToStaticMarkup(createElement(F06DashboardContent,{state,workflow:f.workflow}));
   assert.ok(html.includes('value="APPROVED">Approved</option>')); assert.ok(html.includes('id="f06-type-CROSS_SELL"'));
   assert.ok(html.includes('Items per page')); assert.equal(html.includes('f06-analysis-scope'),false); assert.ok(html.includes('Selected analysis'));
   const detail = content(recommendation());
-  for (const title of ['Products in this suggestion','Why this recommendation?','Current availability','Additional analysis evidence','Review history']) assert.ok(detail.includes(title));
+  for (const title of ['Products in this suggestion','Why this recommendation?','Current Availability','More Details','Review History']) assert.ok(detail.includes(title));
 });
 
 test('not-ready wording follows review and availability without replacing the server readiness flag', () => {
@@ -297,8 +297,8 @@ test('Store Admin list stays focused on business status and preserves backend ev
 test('Store Admin drawer retains provenance inside closed Source Details and visible review history', () => {
   const item = recommendation();
   const html = renderToStaticMarkup(createElement(F06RecommendationDetailContent, { item, compact: true }));
-  assert.match(html, /<details[^>]*><summary[^>]*>Additional analysis evidence<\/summary>/);
-  assert.ok(html.includes('Historical utility')); assert.ok(html.includes('Review history'));
+  assert.match(html, /<details[^>]*><summary[^>]*>More Details<\/summary>/);
+  assert.ok(html.includes('Historical utility')); assert.ok(html.includes('Review History'));
   assert.ok(html.includes('Availability when created'));for(const label of ['Input hash','Matrix hash','Rule version','Fingerprint'])assert.equal(html.includes(label),false);assert.equal(item.sources[0].inputHash,'input');
 });
 

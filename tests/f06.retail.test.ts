@@ -77,7 +77,7 @@ test('single-product Banner describes presence, missing evidence is unavailable 
   assert.equal(recommendationPurchaseEvidence(missing).groupSentence,'Historical purchase data is unavailable.');assert.equal(recommendationPurchaseEvidence(missing).groupPercent,null);
   const missingDetails=render(createElement(F06RecommendationDetailContent,{item:missing,names}));
   assert.ok(missingDetails.includes('Historical purchase data is unavailable.'));
-  assert.match(missingDetails,/Total analyzed transactions<\/dt><dd[^>]*>Unavailable<\/dd>/);
+  assert.match(missingDetails,/Bought together<\/dt><dd[^>]*>Unavailable<\/dd>/);
   const zero={...missing,evidence:{...missing.evidence,totalTransactions:100,supportCount:0,supportRatio:0,status:'AVAILABLE'}};
   assert.equal(recommendationPurchaseEvidence(zero).groupPercent,'0%');assert.match(recommendationPurchaseEvidence(zero).groupSentence,/0 of 100/);
   assert.equal(recommendationPurchaseEvidence({...zero,type:'CROSS_SELL',anchorProductId:31,evidence:{...zero.evidence,anchorSupportCount:0,confidence:null}}).directionalAvailable,false);

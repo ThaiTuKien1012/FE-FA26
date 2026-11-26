@@ -68,7 +68,7 @@ test('historical V1 creation and review evidence stays readable beside W2 curren
   const item = recommendation({ generationEligibility: legacyEligibility(), reviewHistory: [{ oldStatus: 'PENDING_REVIEW', newStatus: 'APPROVED', reviewedBy: 3, reviewedAt: '2026-11-07T01:00:00Z', reason: 'Original decision', resultingVersion: 2, eligibilityCheck: legacyEligibility() }] });
   assert.equal(isRecView(item), true);
   const before = JSON.stringify(item), html = render(createElement(F06RecommendationDetailContent, { item, technical: false }));
-  for(const text of ['Saved reminder period: 7','Original decision','Historical utility','Review history'])assert.ok(html.includes(text),text);
+  for(const text of ['Saved reminder period: 7','Original decision','Historical utility','Review History'])assert.ok(html.includes(text),text);
   for(const text of ['HUI-Miner','Technical source references','Fingerprint'])assert.equal(html.includes(text),false);
   assert.equal(item.sources[0].algorithm,'HUI_MINER');
   assert.equal(JSON.stringify(item), before);
