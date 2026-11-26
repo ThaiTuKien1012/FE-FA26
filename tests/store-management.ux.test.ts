@@ -7,6 +7,8 @@ import {storesApi,StoreRequestError,StoreConflict,uncertainStoreWrite,validateSt
 import {StoreManagementForm} from '../src/features/storeManagement/StoreManagementForm';
 import {StoreBrandImage,StoreImagePreview,type SavedStoreImage} from '../src/features/storeManagement/StoreBranding';
 import {StoreManagementView} from '../src/features/storeManagement/StoreManagementView';
+import {StoreOverview,StoreDirectoryContact} from '../src/features/storeManagement/StoreDirectoryPresentation';
+import {UsersRolesView} from '../src/features/users/components/UsersRolesView';
 import {authService} from '../src/services/authService';
 import {user} from './f05.fixtures';
 const record:StoreView={storeId:1,name:'Fresh Market',slug:'fresh-market',address:null,phone:null,status:'ACTIVE',version:7,iconUrl:null,bannerUrl:null,createdAt:null,updatedAt:null,deactivatedAt:null};
@@ -55,4 +57,29 @@ test('image validation preserves PNG/JPEG signature, decode, limits and max dime
  const jpeg=new File([Uint8Array.of(255,216,255,0,0,0,0,0)],'banner.jpg',{type:'image/jpeg'});await validateStoreImage(jpeg,'banner',async()=>({width:4000,height:4000}));
  await assert.rejects(validateStoreImage(jpeg,'banner',async()=>{throw Error('corrupt');}),/decoded/);await assert.rejects(validateStoreImage(new File([new Uint8Array(5*1048576+1)],'banner.jpg'),'banner'),/5 MiB/);
  assert.equal(storeRoleLabel('STORE_ADMIN'),'Store Admin');assert.equal(storeRoleLabel('MERCHANDISER'),'Merchandiser');assert.equal(storeAccountStatus('PENDING_VERIFICATION'),'Pending verification');
+});
+
+test('Store overview preserves authoritative counts, zero and unavailable values with clickable status context',()=>{
+ const html=render(h(StoreOverview,{counts:{ALL:1234,ACTIVE:0},loading:false,status:'INACTIVE',onStatus:()=>{}}));
+ const text=html.replace(/<[^>]*>/g,'');
+ for(const label of ['Total Stores','All registered stores','Active Stores','Stores currently operating','Inactive Stores','Stores currently disabled','1,234','Unavailable'])assert.ok(text.includes(label),label);
+ assert.equal((html.match(/aria-pressed="true"/g)||[]).length,1);assert.match(html,/data-store-metric="INACTIVE" aria-pressed="true"/);
+ assert.match(html,/data-store-value[^>]*>0<\/span>/);
+ const loading=render(h(StoreOverview,{counts:{ALL:45},loading:true,status:'ACTIVE',onStatus:()=>{}}));assert.ok(loading.includes('45'));assert.equal(loading.includes('Unavailable'),false);
+});
+
+test('directory contact text labels missing and saved values explicitly and escapes Backend strings',()=>{
+ assert.equal(render(h(StoreDirectoryContact,{store:{address:null,phone:null}})).replace(/<[^>]*>/g,''),'Address: Not setPhone: Not set');
+ const saved=render(h(StoreDirectoryContact,{store:{address:'<script>bad</script>',phone:'+84 123'}}));assert.ok(saved.includes('Address: '));assert.ok(saved.includes('Phone: '));assert.ok(saved.includes('+84 123'));assert.equal(saved.includes('<script>'),false);
+});
+
+test('Store Management, both My Store roles and Accounts & Roles share responsive page heading hierarchy',t=>{
+ t.mock.method(authService,'getSessionId',()=> 'visual-fixture');t.mock.method(authService,'subscribe',()=>()=>{});
+ const title='text-2xl sm:text-3xl font-semibold tracking-tight text-[#191C1B]';
+ for(const [role,mode] of [['System Admin','system'],['Store Admin','manage'],['Merchandiser','read']] as const){
+  t.mock.method(authService,'getCurrentUser',()=>({...user,role}));
+  const html=render(h(StoreManagementView,{mode}));assert.ok(html.includes('<h1 class="'+title+'">'));assert.ok(html.includes('mt-1 text-sm sm:text-base leading-6 text-[#6D7974]'));
+  if(mode==='system'){assert.ok(html.includes('role="search" aria-label="Store filters"'));assert.equal(html.includes('>Search</button>'),false);}
+ }
+ const accounts=render(h(UsersRolesView));assert.ok(accounts.includes('<h1 class="'+title+'">'));assert.equal(accounts.includes('sm:text-[28px]'),false);
 });

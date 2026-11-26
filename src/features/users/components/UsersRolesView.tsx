@@ -207,12 +207,12 @@ export const UsersRolesView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <section className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-2" data-purpose="page-title-banner">
+      <section className="flex flex-wrap items-start justify-between gap-3" data-purpose="page-title-banner">
         <div>
-          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-[#191c1b]">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#191C1B]">
             Accounts &amp; Roles
           </h1>
-          <p className="mt-1 text-sm text-[#6d7974]">
+          <p className="mt-1 text-sm sm:text-base leading-6 text-[#6D7974]">
             Manage accounts, store assignments and access roles.
           </p>
           {apiError && !modalMode && (
