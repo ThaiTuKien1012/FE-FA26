@@ -1,6 +1,5 @@
-const wholeDong = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
+import { formatWholeVnd } from '../../utils/money';
 
-/** VND prices are nonnegative. Intl rounds half up at zero fraction digits. */
 export function formatCustomerMoney(value: number | null | undefined): string {
-  return value == null ? 'Chưa có giá' : `${wholeDong.format(value)} ₫`;
+  return value == null ? 'Chưa có giá' : `${formatWholeVnd(value, 'vi-VN')} ₫`;
 }

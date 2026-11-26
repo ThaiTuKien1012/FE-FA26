@@ -1,3 +1,4 @@
+import { formatWholeVnd } from '../../../utils/money';
 import { isStoreAdmin, storeAdminCopy as copy, storeAdminMessage } from '../../../utils/storeAdminCopy';
 import { AppDatePicker } from '../../../components/common/AppDatePicker';
 import { formatDate as formatCalendarDate, formatDateTime } from '../../../utils/dateTime';
@@ -10,7 +11,6 @@ import './SalesTransactionsView.css';
 
 const PAGE_SIZE = 20;
 const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const moneyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 2 });
 const statusStyles = {
   COMPLETED: { label: 'Completed', tone: 'success' },
   CANCELLED: { label: 'Cancelled', tone: 'neutral' },
@@ -58,7 +58,7 @@ function toApiFilters(selection: FilterSelection): TransactionFilters {
   return filters;
 }
 
-function formatMoney(value: number) { return moneyFormatter.format(value); }
+function formatMoney(value: number) { return formatWholeVnd(value, 'vi-VN', 'currency'); }
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : formatDateTime(value, TIME_ZONE);

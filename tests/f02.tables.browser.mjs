@@ -322,7 +322,7 @@ async function tableChecks() {
   await page.call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   const fullPageHeight=(await metrics()).height;
   await input('Search name or SKU',products.find(product=>product.id===3).sku); await settled('Product');
-  assert.equal(await page.evaluate("(()=>{const r=document.querySelector('[aria-label=\"Product table\"]'),cells=r.querySelector('tbody tr').cells;return r.scrollWidth<=r.clientWidth+1&&cells[3].querySelector('[title]').title==='987,654,321.25 ₫'&&cells[4].querySelector('[title]').title==='1,234,567,890.75 ₫'&&cells[8].querySelector('button').getBoundingClientRect().right<=innerWidth})()"),true,'Large distinct prices retain full tooltips and visible Edit');
+  assert.equal(await page.evaluate("(()=>{const r=document.querySelector('[aria-label=\"Product table\"]'),cells=r.querySelector('tbody tr').cells;return r.scrollWidth<=r.clientWidth+1&&cells[3].querySelector('[title]').title==='987,654,321 ₫'&&cells[4].querySelector('[title]').title==='1,234,567,891 ₫'&&cells[8].querySelector('button').getBoundingClientRect().right<=innerWidth})()"),true,'Large distinct prices retain full tooltips and visible Edit');
   assert.equal(await page.evaluate("[...document.querySelectorAll('.f02-product-table .f02-cell-amount')].every(e=>e.scrollWidth<=e.clientWidth+1)"),true,'Large amounts remain fully readable without clipping');
   assert.ok((await metrics()).height < fullPageHeight / 2, 'One-row page shrinks to its content'); await capture('products-large-prices-1280');
   await click('Clear filters'); await settled('Product'); await page.call('Emulation.setDeviceMetricsOverride',{width:1366,height:900,deviceScaleFactor:1,mobile:false});
