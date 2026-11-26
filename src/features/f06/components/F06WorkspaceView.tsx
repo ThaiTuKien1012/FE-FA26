@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Loader2, Settings2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { authService } from '../../../services/authService';
 import { miningButton, miningPrimaryButton } from '../../f05/f05.display';
 import { RecommendationGeneration } from '../f06.generate';
@@ -14,7 +14,7 @@ import { openRunRecommendations, useRecommendationLocation } from '../f06.naviga
 import { RecommendationRuleSummary } from './F06ReadShared';
 import { F06ExpiryProvider, useF06Expiry } from './F06ExpiryContext';
 import { F06ExpiryNotice } from './F06ExpiryPriority';
-import { F06ExpiryPanel, F06RulesPanel } from './F06Utilities';
+import { F06ExpiryPanel, F06RulesPanel, F06StoreRulesButton } from './F06Utilities';
 
 export function F06GenerationPanel({ source, onGenerated, onPendingChange }: { source:RecommendationSource;onGenerated:(result:RecGenerationResult)=>void;onPendingChange:(pending:boolean)=>void }) {
   const [workflow]=useState(()=>new RecommendationGeneration());
@@ -63,7 +63,7 @@ function RecommendationsWorkspace({ merchant, location }: { merchant:boolean;loc
   };
   const choose=(next:'library'|'generate')=>{if(!busy&&!state.reviewPending&&(next==='library'||source&&merchant))setTab(next);};
   return <div className="mx-auto max-w-6xl space-y-5 text-[#191C1B]">
-    <header className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h1 id="f06-library-tab" tabIndex={-1} className="text-2xl font-semibold sm:text-3xl">Recommendations</h1><p className="mt-2 text-sm text-[#6D7974]">{merchant ? 'Explore product suggestions and manage review decisions.' : 'View product suggestions, review decisions and current availability.'}</p></div><button type="button" className={miningButton+' shrink-0'} onClick={()=>setRulesOpen(true)}><Settings2 aria-hidden="true" className="mr-1.5 h-4 w-4"/>Store Rules</button></header>
+    <header className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h1 id="f06-library-tab" tabIndex={-1} className="text-2xl font-semibold sm:text-3xl">Recommendations</h1><p className="mt-2 text-sm text-[#6D7974]">{merchant ? 'Explore product suggestions and manage review decisions.' : 'View product suggestions, review decisions and current availability.'}</p></div><div data-f06-tools className="flex min-w-0 flex-wrap items-center gap-2"><F06StoreRulesButton merchant={merchant} onClick={()=>setRulesOpen(true)}/></div></header>
     <F06ExpiryNotice/>
     {tab==='generate'&&<button id="f06-generate-back" type="button" className={miningButton} disabled={busy} onClick={()=>choose('library')}>Back to Recommendations</button>}
     {location.error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{location.error}</p>}

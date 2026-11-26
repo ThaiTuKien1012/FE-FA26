@@ -52,6 +52,7 @@ async function until(expression, label) {
   throw new Error('UI timeout: ' + label);
 }
 const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)}) || [...document.querySelectorAll(".f02-page-position")].some(e=>e.textContent===${JSON.stringify(text)})`, text);
+async function openExpiryAlerts(){await until('!!document.querySelector("[data-expiry-notice]")','Permanent expiry notification');await page.evaluate('(()=>{const panel=document.querySelector("[data-expiry-notice]");panel.focus();panel.click();})()');}
 async function click(label) {
   if(label==='Refresh details'){const selector='button[aria-label="Refresh details"]';await until('!!document.querySelector('+JSON.stringify(selector+':not(:disabled)')+')','Refresh ready');await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');return;}
 
@@ -170,7 +171,7 @@ try {
   await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1080,deviceScaleFactor:1,mobile:false});
   await page.call('Page.navigate',{url:origin+'/login'});
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')",'session module');
-  await login();await has('45 matching recommendations');await click('Generate Recommendations');await until("!!document.querySelector('#f06-generate-form')",'selected-run generation');await click('Generate recommendations');await has('1 new suggestion');
+  await login();await has('45 matching recommendations');await click('Generate Recommendations');await until("!!document.querySelector('#f06-generate-form')",'selected-run generation');await openExpiryAlerts();await has('Expiry Alerts');await close('Expiry Alerts');await click('Generate recommendations');await has('1 new suggestion');
   await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Your Decision');await until("document.querySelector('dialog')?.textContent.includes('0.692307692307692308')",'Exact expiry score retained in collapsed details');await page.evaluate("[...document.querySelectorAll('dialog summary')].find(el=>el.textContent==='More Details').click()");await has('1,234,567,890,123.123456');await has('Autumn fixture season');await has('31/10/2026');
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].find(b=>b.textContent==='Approve').disabled"),true);
   await prepare('Approve'); assert.equal(writes().length,0);
@@ -210,14 +211,14 @@ try {
   assert.equal(await page.evaluate("!!document.querySelector('#f06-review-reason')"),false);await close('recommendation details');
   checks.push('Store Admin full numeric config PUT, exact percentages, validation, explicit 409 comparison; Merchant read-only; captured rules unchanged');
 
-  const beforeExpiry=calls.length;await click('View Expiry Alerts');await has('Push Day overdue by 2 days');await has('Expiry date not recorded');await has('05/11/2026');await has('Fixture milk');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Asia/Ho_Chi_Minh")'),false);
+  const beforeExpiry=calls.length;await openExpiryAlerts();await has('Selling priority overdue by 2 days');await has('Expiry date not recorded');await has('05/11/2026');await has('Fixture milk');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Asia/Ho_Chi_Minh")'),false);
   await page.evaluate('document.querySelector("dialog input[role=combobox]").click()');await until('!!document.querySelector("dialog [role=option]")','Product search loaded');await page.evaluate('document.querySelector("dialog [role=option]").click()');await select('f06-expiry-size','10');await has('Page 1 of 5');await click('Next alerts');await has('Page 2 of 5');
   assert.deepEqual(Object.fromEntries(new URLSearchParams(calls.filter(c=>c.path.endsWith('/expiry-push')).at(-1).query)),{page:'1',pageSize:'10',productId:'31'});
   assert.equal(calls.slice(beforeExpiry).some(c=>c.path.startsWith('/api/mining/')),false);
   state.expiryEmpty=true;await click('Refresh Alerts');await has('No due batches match this selection');await has('Inventory notes');assert.equal(await page.evaluate('document.querySelector("dialog").textContent.includes("Fixture metadata warning even on empty pages")'),true);
   for(const width of [390,820,1440]){await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);}
   await capture('expiry-empty-warnings');await close('Expiry Alerts');
-  await login();await dashboard();await click('Expiry Alerts');await has('No due batches match this selection');await close('Expiry Alerts');
+  await login();await dashboard();await openExpiryAlerts();await has('No due batches match this selection');await close('Expiry Alerts');
   for(const role of ['SYSTEM_ADMIN','END_CUSTOMER']){await login(role);await until("!document.querySelector('#f06-dashboard-title')",role+' denied');assert.equal(await page.evaluate("!!document.querySelector('dialog')"),false);}
   checks.push('expiry independent GET, supported filters/pages, names, backend timezone, empty warnings, both Store roles and denied actors');
   const beforeF04 = calls.length;

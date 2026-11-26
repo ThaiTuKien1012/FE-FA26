@@ -218,6 +218,7 @@ try {
   state.savedEmpty=false;await click('Refresh');await has('1 matching recommendations');
   checks.push('F05 native modal auto-loads paged results, exact multi-run selector, focus/Escape restore, desktop note, fixed footer and mobile; F06 distinguishes whole-run/type/status empties with bounded cached availability, loading and recoverable errors');
   assert.equal(new URLSearchParams(calls.filter(c=>c.path==='/api/recommendations').at(-1).query).get('miningRunId'),'902');
+  assert.equal(await page.evaluate('!!document.querySelector("[data-expiry-notice]")'),true,'Expiry notification survives actual page refresh and login recovery');
   checks.push('Refresh/login return path, historical run outside first page, Back/Forward and filter reset preserve exact selected run; filtered empty is not run-empty');
 
   state.holdRun=42;await navigate('/recommendations?miningRunId=42');await has('Checking selected analysis');

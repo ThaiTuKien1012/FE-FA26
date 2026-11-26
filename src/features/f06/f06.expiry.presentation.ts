@@ -23,6 +23,16 @@ export function expiryLabel(expiryDate:string|null,asOfDate:string):string {
   const days=daysUntilExpiry(expiryDate,asOfDate);
   return days===null?'Expiry date unavailable':days===0?'Expires today':days<0?`Expiry date passed ${quantityLabel(-days,'day')} ago`:`${quantityLabel(days,'day')} left`;
 }
+/** Modal copy only: the same authoritative due-day value and Store calendar dates.
+ * These labels do not infer when staff actually started selling or change eligibility. */
+export function sellingPriorityLabel(days:number):string {
+  if(!Number.isSafeInteger(days))return 'Selling-priority date unavailable';
+  return days===0?'Selling priority starts today':days<0?`Selling priority overdue by ${quantityLabel(-days,'day')}`:`Selling priority starts in ${quantityLabel(days,'day')} - check this alert`;
+}
+export function batchExpiryLabel(expiryDate:string|null,asOfDate:string):string {
+  const days=daysUntilExpiry(expiryDate,asOfDate);
+  return days!==null&&days>0?`Expires in ${quantityLabel(days,'day')}`:expiryLabel(expiryDate,asOfDate);
+}
 /** Positive evidence only. Unknown, future or inconsistent rows never imply current priority. */
 export function confirmedDueBatch(batch:RecExpiryBatch,asOfDate:string):boolean {
   const today=calendarDay(asOfDate),push=calendarDay(batch.pushDay),expiry=batch.expiryDate===null?null:calendarDay(batch.expiryDate);

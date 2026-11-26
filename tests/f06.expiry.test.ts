@@ -8,9 +8,9 @@ import {f06Api,F06ApiError} from '../src/features/f06/f06.api';
 import {f05Api} from '../src/features/f05/f05.api';
 import {RecommendationBrowser} from '../src/features/f06/f06.browse';
 import {LiveRecommendationExpiry,confirmedProductBatches,type LiveExpiryState,type ProductExpiry,EXPIRY_CACHE_MS} from '../src/features/f06/f06.expiry';
-import {calendarDay,confirmedDueBatch,daysUntilExpiry,expiryLabel,missingPushDayWarning,pushDayLabel,quantityLabel} from '../src/features/f06/f06.expiry.presentation';
+import {batchExpiryLabel,calendarDay,confirmedDueBatch,daysUntilExpiry,expiryLabel,missingPushDayWarning,pushDayLabel,quantityLabel,sellingPriorityLabel} from '../src/features/f06/f06.expiry.presentation';
 import {F06ExpiryNoticeContent,F06ExpiryBatchCard,F06SellingPriorityContent,MissingPushDayWarnings} from '../src/features/f06/components/F06ExpiryPriority';
-import {F06RuleGroups} from '../src/features/f06/components/F06Utilities';
+import {F06RuleGroups,F06StoreRulesButton} from '../src/features/f06/components/F06Utilities';
 import {F06ProductTiles} from '../src/features/f06/components/F06ProductImage';
 import {readExpiryProducts} from '../src/features/f06/components/F06ExpiryProductPicker';
 import {ruleInputs,parseRuleInputs} from '../src/features/f06/f06.settings';
@@ -42,6 +42,14 @@ test('expiry and Push Day copy handles singular, plural, zero, unknown and unexp
   assert.equal(expiryLabel(null,'2026-11-26'),'Expiry date not recorded');assert.equal(expiryLabel('bad','2026-11-26'),'Expiry date unavailable');assert.equal(expiryLabel('2026-11-25','2026-11-26'),'Expiry date passed 1 day ago');
   assert.equal(quantityLabel(1,'unit'),'1 unit');assert.equal(quantityLabel(24,'unit'),'24 units');
 });
+test('expiry modal copy tells the batch selling-priority story without changing facts or hiding missing dates',()=>{
+  assert.equal(sellingPriorityLabel(-9),'Selling priority overdue by 9 days');assert.equal(sellingPriorityLabel(-1),'Selling priority overdue by 1 day');assert.equal(sellingPriorityLabel(0),'Selling priority starts today');assert.equal(sellingPriorityLabel(Number.NaN),'Selling-priority date unavailable');assert.equal(sellingPriorityLabel(2).includes('overdue'),false);
+  for(const [date,expected] of [['2026-11-29','Expires in 3 days'],['2026-11-27','Expires in 1 day'],['2026-11-26','Expires today'],['2026-11-25','Expiry date passed 1 day ago'],[null,'Expiry date not recorded'],['bad','Expiry date unavailable']] as const)assert.equal(batchExpiryLabel(date,'2026-11-26'),expected);
+  assert.equal(batchExpiryLabel('2026-11-29','bad'),'Expiry date unavailable');
+  const value={...batch(),remainingQuantity:169},before=JSON.stringify(value),html=render(createElement(F06ExpiryBatchCard,{batch:value,data:page(),name:'Fresh milk'}));
+  for(const text of ['Selling priority overdue by 9 days','Expires in 3 days','169 units remaining in this batch'])assert.ok(html.includes(text),text);assert.equal(JSON.stringify(value),before);assert.equal(html.includes('Push Day overdue by'),false);
+});
+
 test('only confirmed current batch data establishes priority, never an expiry risk score or missing metadata',()=>{
   assert.equal(confirmedDueBatch(batch(),'2026-11-26'),true);assert.equal(confirmedDueBatch({...batch(),expiryDate:null},'2026-11-26'),true);
   for(const bad of [{...batch(),pushRequired:false},{...batch(),daysToPush:1},{...batch(),pushDay:'2026-11-27'},{...batch(),expiryDate:'2026-11-25'},{...batch(),remainingQuantity:0},{...batch(),expiryDate:'bad'},{...batch(),pushDay:'bad'}])assert.equal(confirmedDueBatch(bad,'2026-11-26'),false);
@@ -51,22 +59,52 @@ test('missing Push Day retains exact product/batch references and never fabricat
   const original='Product 2225: batches [239, 240, 239] have no push day';assert.deepEqual(missingPushDayWarning(original),{productId:2225,batchIds:[239,240],original});
   for(const text of ['Product 999999999999999999: batches [239] have no push day','Product 31: batches [-1] have no push day','Product 31: batches [] have no push day'])assert.equal(missingPushDayWarning(text),null);
   const html=render(createElement(MissingPushDayWarnings,{warnings:[original,original],names:{2225:'Fresh milk'}}));assert.ok(html.includes('Missing Push Day (1 notice)'));assert.ok(html.includes('Fresh milk'));assert.ok(html.includes('Batch #239, Batch #240'));assert.equal(html.includes(original),false);
+  assert.ok(html.includes('Store Admin needs to set a Push Day for these batches before selling-priority alerts can be calculated.'));
+  assert.ok(html.indexOf('</details>')<html.indexOf('Store Admin needs to set a Push Day'),'Configuration guidance stays outside the collapsed batch list');
   assert.ok(render(createElement(MissingPushDayWarnings,{warnings:[original]})).includes('Product #2225'));
 });
-test('banner uses authoritative complete total; zero, missing-configuration and unknown remain distinct',()=>{
+test('clickable expiry notification remains visible for due, zero, missing, loading and error states',()=>{
   const state:LiveExpiryState={role:'Merchandiser',summary:page({},[batch()],250),loading:false,error:'',products:{},scopeRevision:1};
-  const html=(next:LiveExpiryState)=>render(createElement(F06ExpiryNoticeContent,{state:next,openAlerts:()=>{},refresh:()=>{}}));
-  assert.ok(html(state).includes('250 batches have reached their Push Day'));assert.ok(html({...state,summary:page({},[batch()],1)}).includes('1 batch has reached its Push Day'));
-  assert.ok(html({...state,summary:page({},[],0)}).includes('Expiry Alerts (0)'));
-  const missing=html({...state,summary:{...page({},[],0),warnings:['Product 31: batches [239] have no push day']}});assert.ok(missing.includes('Some batches need a Push Day'));assert.equal(missing.includes('Expiry Alerts (0)'),false);
-  for(const next of [{...state,loading:true,summary:null},{...state,summary:null,error:'Offline'}]){assert.equal(html(next).includes('(0)'),false);assert.equal(html(next).includes('Products Needing Attention'),false);}
+  const html=(next:LiveExpiryState)=>render(createElement(F06ExpiryNoticeContent,{state:next,onOpen:()=>{}}));
+  for(const next of [state,{...state,summary:page({},[],0)},{...state,summary:null,loading:true},{...state,summary:null,error:'Offline'}]){const value=html(next);assert.ok(value.startsWith('<button type="button"'));assert.ok(value.includes('aria-haspopup="dialog"'));assert.ok(value.includes('data-expiry-notice'));assert.ok(value.includes('Expiry Alerts'));assert.equal((value.match(/<button/g)||[]).length,1);}
+  assert.ok(html(state).includes('250 batches need attention'));assert.ok(html({...state,summary:page({},[batch()],1)}).includes('1 batch needs attention'));
+  const zero=html({...state,summary:page({},[],0)});assert.ok(zero.includes('No batches currently require selling priority.'));assert.ok(zero.includes('data-expiry-state="empty"'));assert.equal(zero.includes('bg-amber-50'),false);
+  const missing=html({...state,summary:{...page({},[],0),warnings:['Product 31: batches [239] have no push day']}});assert.ok(missing.includes('Some batches need a Push Day.'));assert.ok(missing.includes('data-expiry-state="missing"'));assert.equal(missing.includes('0 batches need attention'),false);
+  for(const next of [{...state,loading:true},{...state,error:'Offline'}]){const value=html(next);assert.equal(value.includes('250 batches'),false);assert.equal(value.includes('data-due-count='),false);}
 });
+
 test('batch cards keep batch quantity distinct from stock, show dates honestly and hide technical fields',()=>{
   const html=render(createElement(F06ExpiryBatchCard,{batch:batch(),data:page(),name:'Fresh milk'}));
-  for(const text of ['Fresh milk','Batch #239','Push Day overdue by 9 days','3 days left','24 units remaining','17/11/2026','29/11/2026'])assert.ok(html.includes(text),text);
+  for(const text of ['Fresh milk','Batch #239','Selling priority overdue by 9 days','Expires in 3 days','24 units remaining in this batch','17/11/2026','29/11/2026'])assert.ok(html.includes(text),text);
   assert.doesNotMatch(html,/>-9<|Push required|Asia\/Ho_Chi_Minh|expiryPriorityScore/);
+  assert.ok(html.includes('role="img" aria-label="Image unavailable for Fresh milk"'));assert.equal(html.includes('No image'),false,'Compact placeholder keeps accessible information without a tiny caption');
   const expired=render(createElement(F06ExpiryBatchCard,{batch:{...batch(),expiryDate:'2026-11-25'},data:page(),name:'Milk'}));assert.ok(expired.includes('Check current inventory availability'));
 });
+
+test('Store Rules has one consistent native action with a role-specific tooltip',()=>{
+  for(const [merchant,text] of [[true,'View Store Rules'],[false,'Manage Store Rules']] as const){
+    const html=render(createElement(F06StoreRulesButton,{merchant,onClick:()=>{}}));
+    assert.ok(html.startsWith('<button type="button"'));assert.ok(html.includes('>Store Rules</button>'));assert.ok(html.includes('title="'+text+'"'));assert.ok(html.includes('aria-hidden="true"'));assert.doesNotMatch(html,/aria-hidden="true"[^>]*>View|disabled|role="menuitem"/);
+  }
+});
+test('notification keeps authoritative totals separate from unknown and generic inventory warnings',()=>{
+ const state:LiveExpiryState={role:'Store Admin',summary:page({},[],65),loading:false,error:'',products:{},scopeRevision:1};
+ const renderNotice=(next:LiveExpiryState)=>render(createElement(F06ExpiryNoticeContent,{state:next,onOpen:()=>{}}));
+ assert.ok(renderNotice(state).includes('data-due-count="65"'));assert.ok(renderNotice({...state,summary:page({},[],0)}).includes('data-due-count="0"'));
+ const warning=renderNotice({...state,summary:{...page({},[],0),warnings:['Check inventory information']}});assert.ok(warning.includes('data-expiry-state="warning"'));assert.ok(warning.includes('Some inventory information needs checking.'));assert.equal(warning.includes('batches need attention'),false);
+ assert.ok(renderNotice({...state,error:'Offline'}).includes('Expiry alerts are temporarily unavailable.'));
+});
+
+test('rule explanations keep actual values, two FBT conditions, exact percent precision and immutable drafts',()=>{
+  const value={...policy,maxBundleSize:7,minSupportCount:3,minSupportRatio:0.123456,minConfidence:0.987654,minimumSellableQuantity:2},before=JSON.stringify(value);
+  const html=render(createElement(F06RuleGroups,{policy:value}));
+  for(const text of ['Each bundle can contain up to 7 products.','At least 98.7654% of transactions','at least 3 transactions and 12.3456%','at least 2 sellable units'])assert.ok(html.includes(text),text);
+  assert.deepEqual([...html.matchAll(/data-rule-card[^>]*>/g)].length,4);
+  const labels=[...html.matchAll(/<h3[^>]*>.*?<\/h3>/g)].map(match=>match[0].replace(/<[^>]*>/g,''));assert.deepEqual(labels,['Bundle','Cross-sell','Frequently Bought Together','Product Availability']);
+  const draft={...ruleInputs(value),maxBundleSize:'9'},draftBefore=JSON.stringify(draft),edit=render(createElement(F06RuleGroups,{policy:value,draft,onEdit:()=>{}}));
+  assert.ok(edit.includes('Each bundle can contain up to 9 products.'));assert.equal(JSON.stringify(draft),draftBefore);assert.equal(JSON.stringify(value),before);const singular=render(createElement(F06RuleGroups,{policy:{...value,minSupportCount:1,minimumSellableQuantity:1}}));assert.ok(singular.includes('at least 1 transaction and'));assert.ok(singular.includes('at least 1 sellable unit to be eligible.'));
+});
+
 test('Selling Priority shows exact relevant batches, complete product total and retains the original recommendation evidence',()=>{
   const item=recommendation(),before=JSON.stringify(item),products={31:ready(page({productId:31},[batch(),{...batch(31,240),remainingQuantity:1,expiryDate:'2026-11-27'}],8)),32:ready(page({productId:32},[],0))};
   const html=render(createElement(F06SellingPriorityContent,{ids:item.productIds,names:{31:'Milk',32:'Cookies'},products,refresh:()=>{}}));
@@ -132,4 +170,22 @@ test('optional expiry failure cannot block review or alter historical evidence, 
   const approve=t.mock.method(f06Api,'approve',async()=>({...item,reviewStatus:'APPROVED' as const,version:2,readyForConsumption:false}));
   const browser=new RecommendationBrowser();browser.start(false);t.after(browser.stop);await browser.selectSource(42);await browser.openDetail(62);browser.prepareReview('approve','Current availability checked.');await browser.confirmReview();
   assert.equal(approve.mock.callCount(),1);assert.equal(browser.getSnapshot().detail!.reviewStatus,'APPROVED');assert.equal(browser.getSnapshot().detail!.readyForConsumption,false);assert.equal(JSON.stringify(item),before);
+});
+
+// Exercise the real FE HTTP parser and expiry response validator with HTTP 200 fixtures.
+test('HTTP 200 summary is validated, isolated from product pages, deduplicated and never replaced by a false zero',async t=>{
+ const f=setup(t);f.list.mock.restore();let mode:'ten'|'zero'|'invalid'='ten';
+ const requests:URL[]=[];t.mock.method(authService,'request',async(input:RequestInfo|URL)=>{
+  const url=new URL(String(input),'http://fixture');requests.push(url);assert.equal(url.pathname,'/api/recommendations/expiry-push');
+  const productId=url.searchParams.has('productId')?Number(url.searchParams.get('productId')):undefined;
+  const params={productId,page:Number(url.searchParams.get('page')),pageSize:Number(url.searchParams.get('pageSize'))};
+  const data=productId===undefined?page(params,mode==='zero'?[]:[batch()],mode==='zero'?0:10):page(params,[batch(productId)],1);
+  return Response.json(productId===undefined&&mode==='invalid'?{...data,totalElements:'10'}:data);
+ });
+ f.model.start();await flush();assert.equal(f.model.getSnapshot().summary?.totalElements,10);
+ const stop=f.model.watchProducts([31,31,32]);await flush();assert.equal(f.model.getSnapshot().summary?.totalElements,10);
+ assert.equal(requests.filter(url=>!url.searchParams.has('productId')).length,1);assert.equal(requests.filter(url=>url.searchParams.get('productId')==='31').length,1);
+ mode='zero';await f.model.refresh();await flush();assert.equal(f.model.getSnapshot().summary?.totalElements,0);assert.ok(confirmedProductBatches(f.model.getSnapshot().products[31]).length>0);
+ mode='invalid';await f.model.refresh();await flush();assert.equal(f.model.getSnapshot().summary,null);assert.ok(f.model.getSnapshot().error);
+ const html=render(createElement(F06ExpiryNoticeContent,{state:f.model.getSnapshot(),onOpen:()=>{}}));assert.ok(html.includes('data-expiry-state="error"'));assert.equal(html.includes('data-due-count='),false);stop();
 });
