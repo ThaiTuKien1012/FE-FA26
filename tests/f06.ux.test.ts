@@ -16,7 +16,7 @@ test('F06 landing prioritizes saved suggestions and limits Generate to Merchandi
   for(const role of ['Merchandiser','Store Admin'] as const){
     t.mock.method(authService,'getCurrentUser',()=>({...user,role,storeId:1}));
     const html=renderToStaticMarkup(createElement(F06WorkspaceView));
-    assert.ok(html.includes('Choose Analysis'));assert.ok(html.includes('f06-dashboard-title'));
+    assert.ok(html.includes('Choose an Analysis'));assert.ok(html.includes('f06-ranked-source-title'));
     assert.equal(html.includes('f06-generate-tab'),false);
     assert.equal(/f06-source-title|f06-generate-form/.test(html),false);assert.equal(html.includes('role="tablist"'),false,'Choose an analysis before browsing types');
   }

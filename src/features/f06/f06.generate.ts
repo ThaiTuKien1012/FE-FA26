@@ -27,6 +27,7 @@ export interface GenerationState {
   result: RecGenerationResult | null;
   resultTypes: RecType[];
   generationError: string;
+  needsRecheck: boolean;
 }
 const context = () => {
   const user = authService.getCurrentUser();
@@ -36,7 +37,7 @@ const readable = (role: GenerationState['role']) => role === 'Merchandiser' || r
 const initial = (): GenerationState => ({
   role: authService.getCurrentUser()?.role ?? null, page: 0, history: null, historyLoading: false, historyError: '',
   request: null, runs: [], runsLoading: false, runsError: '', selectedRunId: null, types: [...REC_TYPES],
-  policy: null, policyLoading: false, policyError: '', pending: false, result: null, resultTypes: [], generationError: ''
+  policy: null, policyLoading: false, policyError: '', pending: false, result: null, resultTypes: [], generationError: '',needsRecheck:false
 });
 
 export function generationErrorMessage(error:unknown):string { return recommendationError(error,'generate'); }
@@ -151,12 +152,12 @@ export class RecommendationGeneration {
     this.update({ selectedRunId: runId, result: null, resultTypes: [], generationError: '' });
   };
   toggleType = (type: RecType) => {
-    if (this.state.pending || this.state.role !== 'Merchandiser' || !REC_TYPES.includes(type)) return;
+    if (this.state.pending || this.state.needsRecheck || this.state.role !== 'Merchandiser' || !REC_TYPES.includes(type)) return;
     this.update({ types: this.state.types.includes(type) ? this.state.types.filter(value => value !== type) : [...this.state.types, type],
       result: null, resultTypes: [], generationError: '' });
   };
   generate = async () => {
-    if (!this.started || this.state.pending || context() !== this.scope) return;
+    if (!this.started || this.state.pending || this.state.needsRecheck || context() !== this.scope) return;
     if (this.state.role !== 'Merchandiser') return;
     const run = this.state.runs.find(item => item.runId === this.state.selectedRunId);
     if (!run || run.status !== 'COMPLETED') { this.update({ generationError: 'Choose a completed mining run.' }); return; }
@@ -169,7 +170,7 @@ export class RecommendationGeneration {
       const result = await f06Api.generate({ miningRunId: run.runId, types }, controller.signal);
       if (this.current(controller, scope)) this.update({ pending: false, result });
     } catch (error) {
-      if (this.current(controller, scope)) this.update({ pending: false, generationError: generationErrorMessage(error) });
+      if (this.current(controller, scope)) this.update({ pending: false, generationError: generationErrorMessage(error),needsRecheck:!(error instanceof F06ApiError)||error.status===null||error.status===200||error.status>=500 });
     }
   };
 }

@@ -178,8 +178,7 @@ try {
   await click('Next recommendations');await has('Page 2 of 3');await select('f06-filter-review','APPROVED');await select('f06-filter-size','10');await has('Page 1 of 5');
   assert.deepEqual(Object.fromEntries(new URLSearchParams(calls.filter(c=>c.path==='/api/recommendations').at(-1).query)),{page:'0',pageSize:'10',type:'BUNDLE',reviewStatus:'APPROVED',miningRunId:'42'});
   await select('f06-filter-review','');await select('f06-filter-size','20');await has('Page 1 of 3');
-  await click('Change Analysis');await until('!!document.querySelector("#f06-ranked-request")','analysis selection');await select('f06-ranked-request','17');await until('document.querySelector("#f06-ranked-run")?.options.length===3','historical run choices');
-  assert.equal(await page.evaluate('document.querySelector("#f06-ranked-run").options[2].disabled'),true);await select('f06-ranked-run','42');await has('45 matching recommendations');
+  await click('Change Analysis');await until('!!document.querySelector("[data-select-analysis]")','Analysis rows');await page.evaluate('document.querySelector("[data-select-analysis]").click()');await has('45 matching recommendations');assert.equal(await page.evaluate('document.querySelector("[data-selected-run]").dataset.selectedRun'),'42','One completed result under a failed request is selected directly');
   assert.equal(await page.evaluate('document.querySelector("[data-rank]").dataset.rank'),'1');
   state.listStatus=409;await click('Refresh');await has('Choose another analysis');const limitReads=calls.filter(c=>c.path==='/api/recommendations').length;await sleep(100);assert.equal(calls.filter(c=>c.path==='/api/recommendations').length,limitReads);
   state.listStatus=200;await click('Retry Recommendations');await has('45 matching recommendations');

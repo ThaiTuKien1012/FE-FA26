@@ -54,6 +54,8 @@ async function until(expression, label) {
 const has = text => until(`document.body.innerText.includes(${JSON.stringify(text)}) || [...document.querySelectorAll(".f02-page-position")].some(e=>e.textContent===${JSON.stringify(text)})`, text);
 async function openExpiryAlerts(){await until('!!document.querySelector("[data-expiry-notice]")','Permanent expiry notification');await page.evaluate('(()=>{const panel=document.querySelector("[data-expiry-notice]");panel.focus();panel.click();})()');}
 async function click(label) {
+ if(label==='Generate Recommendations'&&await page.evaluate('!!document.querySelector("dialog #f06-generate-form")')){await page.evaluate('[...document.querySelectorAll("dialog footer button")].find(button=>button.textContent.trim()==="Generate Recommendations")?.click()');return;}
+
   if(label==='Refresh details'){const selector='button[aria-label="Refresh details"]';await until('!!document.querySelector('+JSON.stringify(selector+':not(:disabled)')+')','Refresh ready');await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');return;}
 
   assert.equal(await page.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}&&!b.closest('[hidden]'));if(!b||b.disabled)return false;b.click();return true;})()`), true, 'Clickable: ' + label);
@@ -171,7 +173,7 @@ try {
   await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1080,deviceScaleFactor:1,mobile:false});
   await page.call('Page.navigate',{url:origin+'/login'});
   await until("performance.getEntriesByType('resource').some(e=>new URL(e.name).pathname==='/src/services/authService.ts')",'session module');
-  await login();await has('45 matching recommendations');await click('Generate Recommendations');await until("!!document.querySelector('#f06-generate-form')",'selected-run generation');await openExpiryAlerts();await has('Expiry Alerts');await close('Expiry Alerts');await click('Generate recommendations');await has('1 new suggestion');
+  await login();await has('45 matching recommendations');await click('Generate Recommendations');await until("!!document.querySelector('#f06-generate-form')",'selected-run generation');await page.evaluate('document.querySelector("dialog header button").click()');await openExpiryAlerts();await has('Expiry Alerts');await close('Expiry Alerts');await click('Generate Recommendations');await until('!!document.querySelector("#f06-generate-form")','Generation dialog reopened');await click('Generate Recommendations');await has('1 new suggestion');
   await has('45 matching recommendations'); await click('Next recommendations'); await has('Page 2 of 3'); await openDetails(62); await has('Your Decision');await until("document.querySelector('dialog')?.textContent.includes('0.692307692307692308')",'Exact expiry score retained in collapsed details');await page.evaluate("[...document.querySelectorAll('dialog summary')].find(el=>el.textContent==='More Details').click()");await has('1,234,567,890,123.123456');await has('Autumn fixture season');await has('31/10/2026');
   assert.equal(await page.evaluate("[...document.querySelectorAll('dialog button')].find(b=>b.textContent==='Approve').disabled"),true);
   await prepare('Approve'); assert.equal(writes().length,0);

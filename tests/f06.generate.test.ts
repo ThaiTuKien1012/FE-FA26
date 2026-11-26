@@ -81,9 +81,9 @@ test('Store Admin retains source/policy access but opens the recommendation list
   assert.equal(f.workflow.getSnapshot().selectedRunId, null); assert.equal(f.submit.mock.callCount(), 0);
   const html = renderToStaticMarkup(createElement(F06WorkspaceView));
   assert.ok(html.includes('View product suggestions, review decisions and current availability.'));
-  assert.ok(html.includes('f06-dashboard-title')); assert.equal(html.includes('f06-generate-tab'), false);
+  assert.ok(html.includes('f06-ranked-source-title')); assert.equal(html.includes('f06-generate-tab'), false);
   assert.equal(html.includes('Store Rules'), true); assert.equal(html.includes('f06-filter-snapshot'),false);
-  assert.ok(html.includes('Choose Analysis')); assert.equal(html.includes('Generate recommendations'), false);
+  assert.ok(html.includes('Choose an Analysis')); assert.equal(html.includes('Generate recommendations'), false);
 });
 test('empty request history and no completed runs get explicit empty states', async t => {
   const f = setup(t); f.requests.mock.mockImplementation(async () => page([]));

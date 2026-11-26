@@ -37,7 +37,7 @@ function setup(t:TestContext,role:AuthUser['role']='Merchandiser'){
 test('run-wide zero alone displays the prominent empty panel and a single Generate action',async t=>{
   const f=setup(t);f.totals.set(42,0);await f.browser.selectSource(42);
   assert.equal(f.browser.getSnapshot().runTotal,0);assert.equal(f.list.mock.callCount(),1);
-  const html=f.html();for(const text of ['No Recommendations Yet','Recommendation Library','Selected analysis','Change Analysis'])assert.ok(html.includes(text),text);
+  const html=f.html();for(const text of ['Ready to Generate Recommendations','Recommendation Library','Selected analysis','Change Analysis'])assert.ok(html.includes(text),text);
   assert.equal(html.includes('Store tools'),false,'Store utilities live outside the run-dependent library');
   assert.equal((html.match(/>Generate Recommendations<\/button>/g)??[]).length,1);
   assert.doesNotMatch(html,/role="tab"|f06-filter-review|f06-filter-size|matching recommendations|Review one suggestion|recommendations pages/);
@@ -46,13 +46,13 @@ test('run-wide zero alone displays the prominent empty panel and a single Genera
 
 test('Store Admin run-wide zero is read-only without a Generate action',async t=>{
   const f=setup(t,'Store Admin');f.totals.set(42,0);await f.browser.selectSource(42);
-  const html=f.html();assert.ok(html.includes('No Recommendations Yet'));assert.ok(html.includes('A Merchandiser can generate'));assert.doesNotMatch(html,/>Generate Recommendations<\/button>|role="tab"/);
+  const html=f.html();assert.ok(html.includes('Awaiting Recommendations'));assert.ok(html.includes('awaiting recommendations from your Merchandiser'));assert.doesNotMatch(html,/>Generate Recommendations<\/button>|role="tab"/);
 });
 
 test('empty type and empty review filter retain normal controls and cannot become run-wide empty',async t=>{
   const f=setup(t);await f.browser.selectSource(42);
   assert.equal(f.browser.getSnapshot().runTotal,1);assert.ok(f.html().includes('No bundle recommendations found for this analysis.'));
-  assert.equal((f.html().match(/role="tab"/g)??[]).length,4);assert.equal(f.html().includes('No Recommendations Yet'),false);
+  assert.equal((f.html().match(/role="tab"/g)??[]).length,4);assert.equal(f.html().includes('Ready to Generate Recommendations'),false);
   await f.browser.applyFilters({type:'BANNER'});assert.equal(f.browser.getSnapshot().list!.items.length,1);
   await f.browser.applyFilters({type:'BANNER',reviewStatus:'APPROVED'});assert.ok(f.html().includes('No recommendations match the selected review status.'));assert.ok(f.html().includes('Clear Review Filter'));
   await f.browser.applyFilters({...f.browser.getSnapshot().filters,reviewStatus:undefined});assert.equal(f.browser.getSnapshot().list!.items.length,1);
@@ -60,21 +60,21 @@ test('empty type and empty review filter retain normal controls and cannot becom
 });
 
 test('manual refresh and successful generation recheck availability, paging/filtering do not',async t=>{
-  const f=setup(t);f.totals.set(42,0);await f.browser.selectSource(42);assert.ok(f.html().includes('No Recommendations Yet'));
+  const f=setup(t);f.totals.set(42,0);await f.browser.selectSource(42);assert.ok(f.html().includes('Ready to Generate Recommendations'));
   f.totals.set(42,1);await f.browser.applyFilters({type:'BANNER'},true);assert.equal(f.browser.getSnapshot().runTotal,1);assert.ok(f.html().includes('data-recommendation-card'));
   await f.browser.applyFilters({type:'BANNER',pageSize:10});await f.browser.setPage(0);
   assert.equal(f.list.mock.calls.filter(call=>!call.arguments[0]?.type).length,2);
-  f.totals.set(42,0);await f.browser.refresh(true);assert.equal(f.browser.getSnapshot().runTotal,0);assert.ok(f.html().includes('No Recommendations Yet'));
+  f.totals.set(42,0);await f.browser.refresh(true);assert.equal(f.browser.getSnapshot().runTotal,0);assert.ok(f.html().includes('Ready to Generate Recommendations'));
   assert.equal(f.list.mock.calls.filter(call=>!call.arguments[0]?.type).length,3);
 });
 
 test('availability loading, failure and ranked limit remain unknown, never fabricated zero',async t=>{
   const f=setup(t),pending=deferred<RecPage>();f.list.mock.mockImplementation(()=>pending.promise);
   const selection=f.browser.selectSource(42);await new Promise(done=>setImmediate(done));
-  assert.equal(f.browser.getSnapshot().availabilityLoading,true);assert.ok(f.html().includes('Checking saved recommendations'));assert.equal(f.html().includes('No Recommendations Yet'),false);
+  assert.equal(f.browser.getSnapshot().availabilityLoading,true);assert.ok(f.html().includes('Checking saved recommendations'));assert.equal(f.html().includes('Ready to Generate Recommendations'),false);
   pending.resolve({items:[],page:0,pageSize:1,totalElements:0,ordering:'RANKED_WITHIN_SOURCE_RUN'});await selection;
   f.list.mock.mockImplementation(async()=>{throw new F06ApiError(409,'Rank scope exceeds 10000 candidates');});await f.browser.refresh(true);
-  assert.equal(f.browser.getSnapshot().runTotal,null);assert.ok(f.html().includes('Choose another analysis'));assert.ok(f.html().includes('Retry Recommendations'));assert.equal(f.html().includes('No Recommendations Yet'),false);
+  assert.equal(f.browser.getSnapshot().runTotal,null);assert.ok(f.html().includes('Choose another analysis'));assert.ok(f.html().includes('Retry Recommendations'));assert.equal(f.html().includes('Ready to Generate Recommendations'),false);
   const calls=f.list.mock.callCount();await new Promise(done=>setImmediate(done));assert.equal(f.list.mock.callCount(),calls,'No automatic retry');
   f.list.mock.mockImplementation(f.read);await f.browser.refresh(true);assert.equal(f.browser.getSnapshot().runTotal,1);
 });
@@ -83,7 +83,7 @@ test('late availability zero cannot replace another analysis and logout clears i
   const f=setup(t),pending=deferred<RecPage>();f.list.mock.mockImplementation((params:RecListParams={})=>params.miningRunId===42&&!params.type?pending.promise:f.read(params));
   const first=f.browser.selectSource(42);await new Promise(done=>setImmediate(done));const signal=f.list.mock.calls[0].arguments[1];
   await f.browser.selectSource(43);pending.resolve({items:[],page:0,pageSize:1,totalElements:0,ordering:'RANKED_WITHIN_SOURCE_RUN'});await first;
-  assert.equal(signal?.aborted,true);assert.equal(f.browser.getSnapshot().miningRunId,43);assert.equal(f.browser.getSnapshot().runTotal,1);assert.equal(f.html().includes('No Recommendations Yet'),false);
+  assert.equal(signal?.aborted,true);assert.equal(f.browser.getSnapshot().miningRunId,43);assert.equal(f.browser.getSnapshot().runTotal,1);assert.equal(f.html().includes('Ready to Generate Recommendations'),false);
   const afterLogout=deferred<RecPage>();f.list.mock.mockImplementation(()=>afterLogout.promise);
   const refreshing=f.browser.refresh(true),logoutSignal=f.list.mock.calls.at(-1)!.arguments[1];f.change(null);
   afterLogout.resolve({items:[],page:0,pageSize:1,totalElements:0,ordering:'RANKED_WITHIN_SOURCE_RUN'});await refreshing;
@@ -94,7 +94,7 @@ test('availability rejects another Store/snapshot/source even when totalElements
   const f=setup(t);
   for(const item of [recommendation({storeId:2}),recommendation({snapshotId:9}),recommendation({sources:[{...recommendation().sources[0],runId:99}]})]){
     f.list.mock.mockImplementation(async():Promise<RecPage>=>({items:[item],page:0,pageSize:1,totalElements:1,ordering:'RANKED_WITHIN_SOURCE_RUN'}));await f.browser.selectSource(42);
-    assert.equal(f.browser.getSnapshot().runTotal,null);assert.ok(f.browser.getSnapshot().availabilityError);assert.equal(f.html().includes('No Recommendations Yet'),false);
+    assert.equal(f.browser.getSnapshot().runTotal,null);assert.ok(f.browser.getSnapshot().availabilityError);assert.equal(f.html().includes('Ready to Generate Recommendations'),false);
   }
 });
 

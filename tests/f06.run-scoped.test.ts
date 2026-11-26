@@ -106,7 +106,7 @@ test('empty filtered results never claim the run has no saved recommendations',a
   const f=setup(t);f.browser.start(false);await f.browser.selectSource(42);
   f.list.mock.mockImplementation(async()=>({items:[],page:0,pageSize:20,totalElements:0,ordering:'RANKED_WITHIN_SOURCE_RUN' as const}));await f.browser.applyFilters({type:'BANNER'});
   const html=renderToStaticMarkup(createElement(F06DashboardContent,{state:f.browser.getSnapshot(),workflow:f.browser}));
-  assert.ok(html.includes('No banner recommendations found for this analysis'));assert.equal(html.includes('No Recommendations Yet'),false);assert.equal(f.generate.mock.callCount(),0);
+  assert.ok(html.includes('No banner recommendations found for this analysis'));assert.equal(html.includes('Ready to Generate Recommendations'),false);assert.equal(f.generate.mock.callCount(),0);
 });
 test('selected-run generation defaults to four types, reuses validated source and does not load history or auto-submit',async t=>{
   const f=setup(t),flow=new RecommendationGeneration();t.after(flow.stop);
