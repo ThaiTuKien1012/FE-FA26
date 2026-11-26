@@ -25,19 +25,27 @@ export interface StorePage { items: StoreView[]; page: number; pageSize: number;
 type Contact = { address: string | null; phone: string | null };
 export type StoreInput = { name: string; slug: string } & Partial<Contact>;
 
-export class StoreConflict extends Error {}
+export class StoreRequestError extends Error {
+  constructor(public status:number|null,message:string){super(message);}
+}
+export class StoreConflict extends StoreRequestError {
+  constructor(message:string){super(409,message);}
+}
+export const uncertainStoreWrite=(error:unknown)=>!(error instanceof StoreRequestError)||error.status===null||error.status===200||error.status>=500;
 
 async function response(path: string, init?: RequestInit) {
-  const res = await authService.request(path, init);
+  let res:Response;
+  try{res=await authService.request(path, init);}catch(error){throw new StoreRequestError(null,error instanceof Error?error.message:'Could not connect to the store service.');}
   if (res.ok) return res;
   const payload = await res.json().catch(() => null);
   const message = typeof payload?.error === 'string' ? payload.error : 'Store request failed (' + res.status + ').';
   if (res.status === 409 && message === 'Store version conflict') throw new StoreConflict(message);
-  throw new Error(message);
+  throw new StoreRequestError(res.status,message);
 }
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  return (await response(path, init)).json();
+  const res=await response(path, init);
+  try{return await res.json();}catch{throw new StoreRequestError(res.status,'The store response could not be read.');}
 }
 
 function write(method: string, data: object): RequestInit {
@@ -51,8 +59,8 @@ const imagePath = (id: number, kind: ImageKind) => '/api/stores/' + id + '/image
 export const getStoreDetail = (id: number, signal?: AbortSignal) => json<StoreDetail>(systemStores + '/' + id, { signal });
 
 export const storesApi = {
-  list(page: number, q: string, status: StoreStatus | 'ALL', signal?: AbortSignal) {
-    const params = new URLSearchParams({ page: String(page), pageSize: '20', q, status });
+  list(page: number, q: string, status: StoreStatus | 'ALL', signal?: AbortSignal, pageSize=20) {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), q, status });
     return json<StorePage>(systemStores + '?' + params, { signal });
   },
   create: (data: StoreInput) => json<StoreDetail>(systemStores, write('POST', data)),

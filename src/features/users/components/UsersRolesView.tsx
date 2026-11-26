@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, ChevronDown, ChevronLeft, ChevronRight, Shield, ShieldCheck, Store, BriefcaseBusiness, UserRound, UsersRound, UserCheck, UserMinus, RefreshCw } from 'lucide-react';
+import { Search, ChevronDown, ChevronLeft, ChevronRight, Store, UsersRound, UserCheck, UserMinus, RefreshCw } from 'lucide-react';
 import { UserAccount, SystemRole } from '../../../types/users';
 
 import { authService } from '../../../services/authService';
@@ -8,23 +8,10 @@ import type { AccountDraft } from '../account-management';
 import { AccountFormModal } from './AccountFormModal';
 import type { AccountRoleOption } from './AccountFormModal';
 import { AccountStatusBadge } from './AccountStatusBadge';
+import { AccountRoleBadge } from './AccountRoleBadge';
 
 const usersViewStateKey = 'system-users-view-state';
 const readUsersViewState = () => { try { return JSON.parse(sessionStorage.getItem(usersViewStateKey) || '{}') as { searchQuery?: string; roleFilter?: string; statusFilter?: string; page?: number }; } catch { return {}; } };
-
-const roleAppearance: Record<SystemRole, { icon: typeof Shield; className: string }> = {
-  'System Admin': { icon: ShieldCheck, className: 'border-[#CDDDD3] bg-[#EAF1EC] text-[#294E3C]' },
-  'Store Admin': { icon: Store, className: 'border-[#D3DFEC] bg-[#EDF3FA] text-[#45648A]' },
-  'Merchandiser': { icon: BriefcaseBusiness, className: 'border-[#E0E5D3] bg-[#F2F4EB] text-[#627343]' },
-  'End-Customer': { icon: UserRound, className: 'border-[#E2E3DE] bg-[#F4F4F1] text-[#666E64]' }
-};
-
-function AccountRoleBadge({ role }: { role: SystemRole }) {
-  const { icon: Icon, className } = roleAppearance[role];
-  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-medium ${className}`}>
-    <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />{role}
-  </span>;
-}
 
 export function AccountOverview({users,loading,error}:{users:UserAccount[];loading:boolean;error:string|null}){
   const metrics=[
@@ -47,7 +34,6 @@ export function AccountOverview({users,loading,error}:{users:UserAccount[];loadi
         </article>;
       })}
     </div>
-    <p className="mt-2.5 text-xs leading-5 text-[#788479]">Statistics reflect the loaded account list, not system-wide totals.</p>
   </section>;
 }
 
@@ -207,12 +193,12 @@ export const UsersRolesView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <section className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-2" data-purpose="page-title-banner">
+      <section className="flex flex-wrap items-start justify-between gap-3" data-purpose="page-title-banner">
         <div>
-          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-[#191c1b]">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#191C1B]">
             Accounts &amp; Roles
           </h1>
-          <p className="mt-1 text-sm text-[#6d7974]">
+          <p className="mt-1 text-sm sm:text-base leading-6 text-[#6D7974]">
             Manage accounts, store assignments and access roles.
           </p>
           {apiError && !modalMode && (
@@ -230,7 +216,7 @@ export const UsersRolesView: React.FC = () => {
           <button
             data-account-add
             onClick={handleOpenAddModal}
-            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#1e3a2f] hover:bg-[#294d3f] rounded-lg shadow-xs transition-all cursor-pointer"
+            className="inline-flex h-11 min-w-[144px] shrink-0 items-center justify-center rounded-xl bg-[#1E3A2F] px-5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[#2D604A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54]"
             type="button"
           >
             Add Account
@@ -333,11 +319,6 @@ export const UsersRolesView: React.FC = () => {
           </nav>
         </footer>
       </section>
-
-      {/* Footer Note */}
-      <footer className="pt-2 pb-6 text-xs text-[#89938f]">
-        <p>Role and status changes are saved through the backend and can revoke existing sessions. Activation still requires OTP verification.</p>
-      </footer>
 
       {modalMode&&<AccountFormModal mode={modalMode} current={editingUser} actorId={authService.getCurrentUser()?.id??''} draft={draft}
         loading={loadingAccount} submitting={isCreatingUser||isUpdatingUser} error={apiError} roles={backendRoles} rolesLoading={rolesLoading} rolesError={rolesError}
