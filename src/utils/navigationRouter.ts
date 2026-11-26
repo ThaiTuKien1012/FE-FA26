@@ -10,6 +10,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'profile': '/profile',
   'f05-mining': '/mining',
   'f06-recommendations': '/recommendations',
+  'f11-dashboard': '/store/dashboard',
   'f07-f08-workspace': '/layouts-campaigns',
   'customer-storefront': '/storefront',
   'customer-home': '/customer-home',
