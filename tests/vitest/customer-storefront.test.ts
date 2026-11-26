@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { createCustomerApi, customerErrorMessage } from '../../src/features/customer/customer.api';
 import { createCustomerCart } from '../../src/features/customer/customerCart';
 import { formatCustomerMoney } from '../../src/features/customer/customerMoney';
+import { money } from '../../src/features/store/f02.forms';
+import { STOREFRONT_STORE, STOREFRONT_WITH_BROKEN_IMAGES, STOREFRONT_WITH_IMAGES, storefrontFixture } from '../storefront.fixtures';
 import type { CartView } from '../../src/features/customer/customer.types';
 
 const empty: CartView = {
@@ -22,7 +24,7 @@ const components = [{ productId: 4, requested: 1, added: 1 }, { productId: 5, re
 
 describe('F09/F10 API adapter', () => {
   it('uses public paths and passes search, category, paging and sort using contract names', async () => {
-    const publicRequest = vi.fn().mockImplementation(() => ok({}));
+    const publicRequest = vi.fn(async (path: string) => ok(path.endsWith('/stores') ? [] : { store: STOREFRONT_STORE }));
     const privateRequest = vi.fn();
     const api = createCustomerApi(publicRequest, privateRequest);
     await api.stores();
@@ -36,6 +38,30 @@ describe('F09/F10 API adapter', () => {
     ]);
     expect(privateRequest).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['available', STOREFRONT_WITH_IMAGES],
+    ['none', STOREFRONT_STORE],
+    ['broken on fetch', STOREFRONT_WITH_BROKEN_IMAGES],
+    ['relative', { ...STOREFRONT_WITH_IMAGES, iconUrl: STOREFRONT_WITH_IMAGES.iconUrl.slice(1) }],
+  ] as const)('adapts %s Store images on list and home', async (_, store) => {
+    const api = createCustomerApi(async path => ok(storefrontFixture(path, 'GET', store)?.body), vi.fn());
+    const expected = { ...store, iconUrl: store.iconUrl && `/${store.iconUrl.replace(/^\//, '')}` };
+    await expect(api.stores()).resolves.toEqual([expected]);
+    await expect(api.home(store.storeSlug)).resolves.toMatchObject({ store: expected });
+  });
+
+  it('normalizes omitted branding from an older backend', async () => {
+    const { storeSlug, name } = STOREFRONT_STORE;
+    const api = createCustomerApi(async () => ok([{ storeSlug, name }]), vi.fn());
+    await expect(api.stores()).resolves.toEqual([STOREFRONT_STORE]);
+  });
+
+  it.each([[0.5, '1 ₫'], [1234.4, '1,234 ₫'], [1234.5, '1,235 ₫']])(
+    'formats F02 VND %s without decimals and keeps the existing label', (value, expected) => {
+      expect(money(value)).toBe(expected);
+    },
+  );
 
   it('sends the exact cart payloads and quoted If-Match including large int64 values', async () => {
     const request = vi.fn().mockImplementation(() => ok(cart));

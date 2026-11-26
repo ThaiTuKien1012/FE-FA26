@@ -83,6 +83,19 @@ export function isStoreSlug(slug: string | null): slug is string {
 const root = '/api/storefront';
 const storePath = (slug: string) => `${root}/${encodeURIComponent(slug)}`;
 
+type PublicStore = Omit<StoreSummary, 'iconUrl' | 'bannerUrl'> & Partial<Pick<StoreSummary, 'iconUrl' | 'bannerUrl'>>;
+
+// Relative media paths use the same origin and /api proxy as the storefront requests.
+function storeImageUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `/${value.replace(/^\/+/, '')}`;
+}
+
+function normalizeStore(store: PublicStore): StoreSummary {
+  return { ...store, iconUrl: storeImageUrl(store.iconUrl), bannerUrl: storeImageUrl(store.bannerUrl) };
+}
+
 export function createCustomerApi(publicRequest: Transport, cartRequest: Transport) {
   function write<T>(slug: string, suffix: string, method: 'POST' | 'PATCH' | 'DELETE', version: string,
       body: object | undefined, signal?: AbortSignal) {
@@ -92,8 +105,15 @@ export function createCustomerApi(publicRequest: Transport, cartRequest: Transpo
       { method, headers, body: body ? JSON.stringify(body) : undefined, signal }, true);
   }
   return {
-    stores: (signal?: AbortSignal) => read<StoreSummary[]>(publicRequest, `${root}/stores`, { signal }),
-    home: (slug: string, signal?: AbortSignal) => read<StoreHome>(publicRequest, `${storePath(slug)}/home`, { signal }),
+    async stores(signal?: AbortSignal) {
+      const stores = await read<PublicStore[]>(publicRequest, `${root}/stores`, { signal });
+      return stores.map(normalizeStore);
+    },
+    async home(slug: string, signal?: AbortSignal): Promise<StoreHome> {
+      const home = await read<Omit<StoreHome, 'store'> & { store: PublicStore }>(
+        publicRequest, `${storePath(slug)}/home`, { signal });
+      return { ...home, store: normalizeStore(home.store) };
+    },
     products(slug: string, filters: ProductQuery, signal?: AbortSignal) {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key, String(value));

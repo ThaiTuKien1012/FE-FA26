@@ -1,3 +1,4 @@
+import { formatWholeVnd } from '../../../utils/money';
 import React, { useState } from 'react';
 import {
   Calculator,
@@ -150,10 +151,10 @@ export const UtilityProfileView: React.FC<UtilityProfileViewProps> = ({
                           <span className="text-[#707973] font-normal font-mono">/ {prod.sku}</span>
                         </td>
                         <td className="py-3.5 px-3 text-right font-medium text-[#191C1B] tabular-nums font-mono">
-                          {hasPrice ? prod.sellingPrice!.toLocaleString() : '—'}
+                          {hasPrice ? formatWholeVnd(prod.sellingPrice!) : '—'}
                         </td>
                         <td className="py-3.5 px-3 text-right font-medium text-[#707973] tabular-nums font-mono">
-                          {prod.unitCost.toLocaleString()}
+                          {formatWholeVnd(prod.unitCost)}
                         </td>
                         <td className="py-3.5 px-3 text-right">
                           {hasPrice ? (

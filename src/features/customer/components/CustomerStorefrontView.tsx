@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ChevronRight, Package, Store } from 'lucide-react';
 import type { AuthUser } from '../../../services/authService';
 import { CustomerApiError, customerApi, isStoreSlug } from '../customer.api';
-import type { Placement, StoreProduct } from '../customer.types';
+import type { Placement, StoreProduct, StoreSummary } from '../customer.types';
 import { useCustomerCart } from '../hooks/useCustomerCart';
 import { useCustomerResource } from '../hooks/useCustomerResource';
 import { useSavedCustomerProducts } from '../hooks/useSavedCustomerProducts';
@@ -24,6 +24,14 @@ interface Props extends CustomerNavigation {
   onProduct: (id: number) => void;
 }
 
+function StoreImage({ src, alt, className, fallback = null }: {
+  src: string | null; alt: string; className: string; fallback?: ReactNode;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return fallback;
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
+}
+
 export function CustomerStorefrontView(props: Props) {
   const stores = useCustomerResource(customerApi.stores);
   return <div className="customer-storefront isolate min-h-screen bg-white text-sm leading-normal text-[#212529] [&_button]:transition-colors [&_:focus-visible]:outline-2 [&_:focus-visible]:outline-offset-4 [&_:focus-visible]:outline-[#088178] motion-reduce:[&_*]:transition-none" lang="vi">
@@ -38,7 +46,10 @@ export function CustomerStorefrontView(props: Props) {
         <div className="storefront-store-grid grid grid-cols-4 gap-3 max-[800px]:grid-cols-2 max-[580px]:gap-2">
           {stores.data?.map(store => <button key={store.storeSlug} onClick={() => props.onStore(store.storeSlug)}
             className="storefront-store-card flex min-w-0 items-center gap-3 rounded-xl border border-[#e8edeb] bg-white p-3 text-left hover:border-[#b5d7c7] hover:bg-[#f7fbf8]">
-            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[#edf7f1] text-[#088178]"><Store size={21} /></span>
+            <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#edf7f1] text-[#088178]">
+              <StoreImage key={store.iconUrl} src={store.iconUrl} alt={`Biểu tượng ${store.name}`}
+                className="size-full object-cover" fallback={<Store size={21} aria-hidden="true" />} />
+            </span>
             <span className="min-w-0 break-words font-semibold">{store.name}</span><ChevronRight className="ml-auto shrink-0 text-[#088178]" size={16} />
           </button>)}
         </div>
@@ -48,7 +59,7 @@ export function CustomerStorefrontView(props: Props) {
 }
 
 function SelectedStore({ storeSlug, stores, onStore, onProduct, ...navigation }: Props & {
-  storeSlug: string; stores: { storeSlug: string; name: string }[];
+  storeSlug: string; stores: StoreSummary[];
 }) {
   const home = useCustomerResource(useCallback(signal => isStoreSlug(storeSlug) ? customerApi.home(storeSlug, signal) : Promise.reject(new CustomerApiError(404)), [storeSlug]));
   const [query, setQuery] = useState('');
@@ -115,10 +126,15 @@ function SelectedStore({ storeSlug, stores, onStore, onProduct, ...navigation }:
         text={home.error.status === 404 ? 'Cửa hàng không tồn tại hoặc đang ngừng hoạt động.' : home.error.message}
         retry={home.error.status === 404 ? undefined : home.reload} /></div>}
       {store && <>
-        <section className={`${containerClass} flex items-center gap-4 rounded-xl bg-[#edf7f1] p-5`}>
-          <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-white text-[#088178]"><Store size={24} /></span>
+        <section className={`${containerClass} flex flex-wrap items-center gap-4 rounded-xl bg-[#edf7f1] p-5`}>
+          <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-white text-[#088178]">
+            <StoreImage key={store.iconUrl} src={store.iconUrl} alt={`Biểu tượng ${store.name}`}
+              className="size-full object-cover" fallback={<Store size={24} aria-hidden="true" />} />
+          </span>
           <div className="min-w-0"><h1 className="break-words text-2xl font-semibold">{store.name}</h1>
             {home.data?.campaignName && <p className="mt-1 text-xs text-[#65796d]">{home.data.campaignName}</p>}</div>
+          <StoreImage key={store.bannerUrl} src={store.bannerUrl} alt={`Ảnh bìa ${store.name}`}
+            className="ml-auto h-24 w-full rounded-lg object-cover sm:max-w-[40%]" />
         </section>
         {cart.message && <div role="status" className={`${containerClass} mt-4 rounded-xl bg-[#f5faf6] px-4 py-3 text-xs text-[#436858]`}>
           <p>{cart.message}</p>

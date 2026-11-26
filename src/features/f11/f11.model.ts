@@ -1,3 +1,4 @@
+import { formatWholeVnd } from '../../utils/money';
 import type { Period } from './f11.types';
 const DAY = 86_400_000;
 function dateValue(value: string): number {
@@ -21,7 +22,7 @@ export function periodError(from: string, to: string): string | null {
 }
 // Intl's halfExpand is decimal HALF_UP (ties away from zero), including refunds.
 export function formatVnd(value: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
+  return formatWholeVnd(value, 'vi-VN', 'currency');
 }
 export const formatScore = (value: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 6 }).format(value);
 export const formatCount = (value: number) => new Intl.NumberFormat('vi-VN').format(value);
