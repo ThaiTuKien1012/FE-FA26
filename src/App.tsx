@@ -39,6 +39,7 @@ import { SalesTransactionsView } from './features/f04/components/SalesTransactio
 import { isSystemMiningScreen, resolveSystemScreen, systemMiningView, systemScreenUrl } from './features/f05/f05.navigation';
 import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
 import { F06WorkspaceView } from './features/f06/components/F06WorkspaceView';
+import { F11Dashboard } from './features/f11/F11Dashboard';
 import { F07F08WorkspaceView } from './features/f07f08/components/F07F08WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
@@ -328,6 +329,7 @@ export default function App() {
 
           {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
           {currentScreen === 'f06-recommendations' && <F06WorkspaceView />}
+          {currentScreen === 'f11-dashboard' && <F11Dashboard key={`${currentUser?.id}:${currentUser?.storeId}`} />}
           {currentScreen === 'f07-f08-workspace' && <F07F08WorkspaceView key={`${currentUser?.id}:${currentUser?.storeId}`} />}
           {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <F03WorkspaceView currentUser={currentUser} section="f03-configuration" />}
 
