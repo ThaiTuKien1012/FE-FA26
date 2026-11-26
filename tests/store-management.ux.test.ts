@@ -82,4 +82,5 @@ test('Store Management, both My Store roles and Accounts & Roles share responsiv
   if(mode==='system'){assert.ok(html.includes('role="search" aria-label="Store filters"'));assert.equal(html.includes('>Search</button>'),false);}
  }
  const accounts=render(h(UsersRolesView));assert.ok(accounts.includes('<h1 class="'+title+'">'));assert.equal(accounts.includes('sm:text-[28px]'),false);
+ assert.equal(accounts.includes('Role and status changes are saved through the backend'),false);assert.equal(accounts.includes('pt-2 pb-6'),false);
 });

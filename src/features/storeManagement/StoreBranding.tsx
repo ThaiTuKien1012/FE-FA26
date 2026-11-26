@@ -16,10 +16,10 @@ export function useSavedStoreImage(record:StoreView|null,kind:ImageKind){
  return {...current,exists:!!url,revision,retry:()=>setRevision(n=>n+1),loaded:()=>setState(value=>value.key===key?{...value,loading:false}:value),failed:()=>setState(value=>value.key===key?{...value,loading:false,error:'Image preview unavailable.'}:value)};
 }
 export type SavedStoreImage=ReturnType<typeof useSavedStoreImage>;
-export function StoreImagePreview({image,kind,identity=false}:{image:SavedStoreImage;kind:ImageKind;identity?:boolean}){
+export function StoreImagePreview({image,kind,identity=false,dark=false}:{image:SavedStoreImage;kind:ImageKind;identity?:boolean;dark?:boolean}){
  return <div className={'relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl '+(identity?'h-16 w-16 bg-white/10':'bg-[#F6F7F4] '+(kind==='icon'?'h-24 w-24':'h-32 w-full sm:h-40'))}>
   {image.src&&!image.error&&<img key={image.revision} src={image.src} alt={identity?'Store icon':'Saved store '+kind} className={'h-full w-full object-contain '+(identity?'p-1':'')} onLoad={image.loaded} onError={image.failed}/>}
-  {(!image.src||!!image.error)&&<div className="px-2 text-center text-xs text-[#6D7974]">{identity?<Store aria-label={image.error?'Store icon preview unavailable':'Store icon placeholder'} className="h-7 w-7"/>:image.error?<span>Image preview unavailable</span>:image.loading?<span role="status">Loading image…</span>:kind==='icon'?<Store aria-label="No icon uploaded" className="mx-auto h-7 w-7 text-[#89988E]"/>:<span className="flex items-center justify-center gap-2"><ImagePlus aria-hidden="true" className="h-5 w-5"/>No banner uploaded</span>}</div>}
+  {(!image.src||!!image.error)&&<div className={'px-2 text-center text-xs '+(identity&&dark?'text-[#EDF5EF]':'text-[#6D7974]')}>{identity?<Store aria-label={image.error?'Store icon preview unavailable':'Store icon placeholder'} className="h-7 w-7"/>:image.error?<span>Image preview unavailable</span>:image.loading?<span role="status">Loading image…</span>:kind==='icon'?<Store aria-label="No icon uploaded" className="mx-auto h-7 w-7 text-[#89988E]"/>:<span className="flex items-center justify-center gap-2"><ImagePlus aria-hidden="true" className="h-5 w-5"/>No banner uploaded</span>}</div>}
   {image.src&&image.loading&&!image.error&&!identity&&<span role="status" className="absolute bottom-1 rounded bg-white/90 px-2 py-1 text-xs text-[#53665B]">Loading image…</span>}
  </div>;
 }
