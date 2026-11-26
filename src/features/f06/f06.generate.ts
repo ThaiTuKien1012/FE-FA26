@@ -41,6 +41,11 @@ const initial = (): GenerationState => ({
 });
 
 export function generationErrorMessage(error:unknown):string { return recommendationError(error,'generate'); }
+export function defaultGenerationTypes(additional:boolean,counts:Partial<Record<RecType,number>>):RecType[]{
+  if(!additional||!REC_TYPES.every(type=>{const count=counts[type];return typeof count==='number'&&Number.isSafeInteger(count)&&count>=0;}))return [...REC_TYPES];
+  const missing=REC_TYPES.filter(type=>counts[type]===0);
+  return missing.length?missing:[...REC_TYPES];
+}
 
 /** Owns one visible workflow, never a background job. All writes are explicit.
  * Separate abort controllers cancel superseded reads; context fences also drop
@@ -48,6 +53,7 @@ export function generationErrorMessage(error:unknown):string { return recommenda
  */
 export class RecommendationGeneration {
   private state = initial();
+  constructor(types:RecType[]=[...REC_TYPES]){this.state={...this.state,types:[...types]};}
   private scope = context();
   private listeners = new Set<() => void>();
   private unsubscribeAuth: (() => void) | null = null;
@@ -76,12 +82,12 @@ export class RecommendationGeneration {
     this.update({});
     if (readable(this.state.role) && authService.getToken()) { void this.refreshHistory(); void this.refreshPolicy(); }
   };
-  start = (source?: RecommendationSource) => {
+  start = (source?: RecommendationSource,types:RecType[]=[...REC_TYPES]) => {
     if (this.started) return;
     this.started = true;
     this.scope = context();
     this.unsubscribeAuth = authService.subscribe(this.syncContext);
-    this.state = initial();
+    this.state = {...initial(),types:[...new Set(types.filter(type=>REC_TYPES.includes(type)))]};
     this.update({});
     if (readable(this.state.role) && authService.getToken()) {
       if(source&&source.run.status==='COMPLETED'&&source.run.storeId===authService.getCurrentUser()?.storeId&&source.request.requestId===source.run.requestId&&source.request.storeId===source.run.storeId&&source.request.snapshotId===source.run.snapshotId&&sameMiningInput(source.request,source.run)) {
@@ -155,6 +161,10 @@ export class RecommendationGeneration {
     if (this.state.pending || this.state.needsRecheck || this.state.role !== 'Merchandiser' || !REC_TYPES.includes(type)) return;
     this.update({ types: this.state.types.includes(type) ? this.state.types.filter(value => value !== type) : [...this.state.types, type],
       result: null, resultTypes: [], generationError: '' });
+  };
+  selectTypes = (types:RecType[]) => {
+    if(this.state.pending||this.state.needsRecheck||this.state.role!=='Merchandiser'||context()!==this.scope)return;
+    this.update({types:[...new Set(types.filter(type=>REC_TYPES.includes(type)))],result:null,resultTypes:[],generationError:''});
   };
   generate = async () => {
     if (!this.started || this.state.pending || this.state.needsRecheck || context() !== this.scope) return;

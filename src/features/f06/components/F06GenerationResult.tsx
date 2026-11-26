@@ -13,7 +13,7 @@ const skippedReason: Record<string, string> = {
 export function F06GenerationSummary({result}:{result:RecGenerationResult}) {
   const reasons=[...new Set(result.skipped.map(item=>skippedReason[item.reason]||item.reason.replace(/_/g,' ').toLowerCase()))];
   return <section aria-label="Generation summary" className="rounded-xl border border-[#CADACF] bg-[#EDF5F0] p-4 text-sm">
-    <p role="status" className="font-semibold">{result.createdCount} new {result.createdCount===1?'suggestion':'suggestions'} · {result.reusedCount} reused {result.reusedCount===1?'suggestion':'suggestions'}.</p>
+    <p role="status" className="font-semibold">{result.createdCount>0?result.createdCount.toLocaleString('en-US')+' new '+(result.createdCount===1?'recommendation':'recommendations')+' added.':'No new recommendations were added. Existing recommendations remain unchanged.'}{result.reusedCount>0&&' '+result.reusedCount.toLocaleString('en-US')+' existing '+(result.reusedCount===1?'recommendation':'recommendations')+' retained.'}</p>
     <p className="mt-1 text-xs text-[#6D7974]">{result.recommendationIds.length?'Saved suggestions for this analysis are shown below. Reused suggestions keep their review decisions.':'No suggestions were created. Check the reasons below or select different types.'}</p>
     {reasons.length>0&&<details className="mt-3"><summary className="cursor-pointer font-medium">Why some suggestions were skipped ({result.skipped.length})</summary><ul className="mt-2 list-disc space-y-1 pl-5">{reasons.map(reason=><li key={reason}>{reason}</li>)}</ul></details>}
   </section>;

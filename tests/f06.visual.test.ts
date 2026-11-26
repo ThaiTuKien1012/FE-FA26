@@ -113,5 +113,5 @@ test('view generated results is a scoped ranked GET without generation, mining o
   t.mock.method(authService,'request',async()=>Response.json({id:31,name:'Milk'}));
   t.mock.method(f06Api,'generate',async()=>{throw Error('Generation must not run');});
   const workflow=new RecommendationBrowser();t.after(workflow.stop);workflow.start();await flush();await workflow.showGeneratedResults(42);
-  assert.deepEqual(calls.at(-1),{page:0,pageSize:20,miningRunId:42,type:'BUNDLE'});assert.equal(workflow.getSnapshot().mode,'ranked');assert.equal(workflow.getSnapshot().miningRunId,42);
+  assert.deepEqual(calls.filter(params=>(params as RecListParams).pageSize===20).at(-1),{page:0,pageSize:20,miningRunId:42,type:'BUNDLE'});assert.equal(calls.length,6);assert.equal(workflow.getSnapshot().mode,'ranked');assert.equal(workflow.getSnapshot().miningRunId,42);
 });

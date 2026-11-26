@@ -80,7 +80,7 @@ test('opening group candidates retains cached product images; explicit refresh r
 for (const role of ['Merchandiser', 'Store Admin'] as const) test(`${role} selects a completed F05 run even with failed request comparison and reads server ranks`, async t => {
   const f = setup(t, role); f.list.mock.mockImplementation(async (params: RecListParams = {}) => resultPage(params, [recommendation({ rank: params.miningRunId ? 21 : null })]));
   await startSelected(f.workflow); f.workflow.setMode('ranked'); await flush();
-  assert.equal(f.list.mock.callCount(), 2, 'one availability check and one typed page after selecting the run');
+  assert.equal(f.list.mock.callCount(), role==='Merchandiser'?6:2, 'availability, typed page and four optional counts for Merchandiser');
   await f.workflow.selectRequest(17); await f.workflow.selectRun(42);
   assert.equal(f.list.mock.calls.at(-1)!.arguments[0]?.miningRunId, 42);
   assert.ok(table(f.workflow.getSnapshot().list!).includes('data-rank="21"'));
@@ -91,7 +91,7 @@ test('ranked source selection ignores incomplete runs and supports empty/error/m
   const f = setup(t); f.runs.mock.mockImplementation(async () => [runFixture('RUNNING')]);
   await startSelected(f.workflow); f.workflow.setMode('ranked'); await flush();
   await f.workflow.selectRequest(17); await f.workflow.selectRun(42);
-  assert.equal(f.workflow.getSnapshot().miningRunId, null); assert.equal(f.list.mock.callCount(), 2);
+  assert.equal(f.workflow.getSnapshot().miningRunId, null); assert.equal(f.list.mock.callCount(), 6);
   f.requests.mock.mockImplementation(async () => ({ items: [], page: 0, pageSize: 20, totalElements: 0 }));
   await f.workflow.loadRequests(); assert.equal(f.workflow.getSnapshot().requests?.items.length, 0);
   f.requests.mock.mockImplementation(async () => { throw new F06ApiError(403, 'Source access denied'); });
@@ -110,7 +110,7 @@ test('filters reset page to zero and pagination uses backend totalElements/pageS
 test('invalid filter values do not issue a list request', async t => {
   const f = setup(t); await startSelected(f.workflow);
   for (const filters of [{ snapshotId: 2147483648 }, { snapshotId: 1.5 }, { pageSize: 101 }]) await f.workflow.applyFilters(filters);
-  assert.equal(f.list.mock.callCount(), 2); assert.match(f.workflow.getSnapshot().error, /selection/);
+  assert.equal(f.list.mock.callCount(), 6); assert.match(f.workflow.getSnapshot().error, /selection/);
 });
 test('empty/loading/error list states stay distinct and do not display stale rows', async t => {
   const f = setup(t); const pending = deferred<RecPage>(); f.list.mock.mockImplementation((params:RecListParams={}) => params.type?pending.promise:Promise.resolve(resultPage(params)));
@@ -128,7 +128,7 @@ test('ranked 409 retains backend message and recommends narrower filters without
   f.list.mock.mockImplementation(async () => { throw new F06ApiError(409, 'Rank scope exceeds 10000 candidates'); });
   await f.workflow.selectRun(42); await flush();
   assert.match(f.workflow.getSnapshot().availabilityError, /Choose another analysis/);
-  assert.equal(f.list.mock.callCount(), 3); await f.workflow.refresh(); assert.equal(f.list.mock.callCount(), 4);
+  assert.equal(f.list.mock.callCount(), 7); await f.workflow.refresh(); assert.equal(f.list.mock.callCount(), 8);
 });
 test('detail success loads optional product names using GET only; source evidence/history stay intact', async t => {
   const f = setup(t); await startSelected(f.workflow); await f.workflow.openDetail(62);

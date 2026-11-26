@@ -44,7 +44,7 @@ function RecommendationsWorkspace({ merchant, location }: { merchant:boolean;loc
     {generationIssue&&<p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{generationIssue}</p>}
     {choosing&&<F06AnalysisPicker onCancel={()=>setChoosing(false)} onSelectRun={id=>{setChoosing(false);openRunRecommendations(id);}}/>}
     <div id="f06-browse-panel" hidden={choosing}>{notice&&notice.miningRunId===state.miningRunId&&<F06GenerationSummary result={notice}/>}<F06DashboardContent state={state} workflow={workflow} generationAttempted={notice?.miningRunId===state.miningRunId} onSelectRun={openRunRecommendations} onChooseAnalysis={()=>setChoosing(true)} onGenerate={openGeneration}/></div>
-    {merchant&&generateOpen&&stableSource.current&&<F06GenerationPanel key={state.miningRunId} source={stableSource.current} onGenerated={generated} onPendingChange={setBusy} onClose={()=>{setGenerateOpen(false);setBusy(false);}} onCheckSaved={checkSaved}/>}
+    {merchant&&generateOpen&&stableSource.current&&<F06GenerationPanel key={state.miningRunId} source={stableSource.current} additional={(state.runTotal??0)>0} savedCounts={state.typeCounts} onGenerated={generated} onPendingChange={setBusy} onClose={()=>{setGenerateOpen(false);setBusy(false);}} onCheckSaved={checkSaved}/>}
     {rulesOpen&&<F06RulesPanel onClose={()=>setRulesOpen(false)}/>}
     {expiry?.alertsOpen&&<F06ExpiryPanel onClose={expiry.closeAlerts} analysisSelected={!!source}/>}
   </div>;

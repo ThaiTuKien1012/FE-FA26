@@ -1,10 +1,10 @@
 import {useRef,useEffect,useState} from 'react';
-import {miningDate,miningButton,formatMiningNumber} from '../../f05/f05.display';
+import {miningPrimaryButton,miningButton,formatMiningNumber} from '../../f05/f05.display';
 import type {RecommendationBrowseState,RecommendationBrowser} from '../f06.browse';
 import {formatDateRange} from '../../../utils/dateTime';
 import {F06Pages} from './F06Pages';
 import {recommendationLabel} from './F06ReadShared';
-import {analysisTimestamp,F06AnalysisSummary} from './F06AnalysisSummary';
+import {analysisTimestamp,AnalysisTime,F06AnalysisSummary} from './F06AnalysisSummary';
 
 export function F06RankedSource({state,workflow,onSelectRun,onChooseAnalysis}:{state:RecommendationBrowseState;workflow:RecommendationBrowser;onSelectRun?:(id:number)=>void;onChooseAnalysis?:()=>void}){
  const sequence=useRef(0),[selecting,setSelecting]=useState(false);
@@ -19,9 +19,17 @@ export function F06RankedSource({state,workflow,onSelectRun,onChooseAnalysis}:{s
   finally{if(version===sequence.current)setSelecting(false);}
  };
  return <section aria-labelledby="f06-ranked-source-title" className="space-y-4">
-  <header className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="f06-ranked-source-title" className="text-xl font-semibold">Choose an Analysis</h2><p className="mt-1 text-sm text-[#6D7974]">Select a completed sales analysis to explore its recommendations.</p></div><button type="button" className={miningButton} disabled={state.requestsLoading||selecting} onClick={()=>void workflow.loadRequests()}>Refresh Analyses</button></header>
+  <header className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="f06-ranked-source-title" className="text-xl font-semibold">Choose an Analysis</h2><p className="mt-1 text-sm text-[#6D7974]">Select a completed sales analysis to view its recommendations.</p></div><button type="button" className={miningButton} disabled={state.requestsLoading||selecting} onClick={()=>void workflow.loadRequests()}>Refresh Analyses</button></header>
   {state.requestsLoading?<p role="status" className="text-sm text-[#6D7974]">Loading analyses...</p>:state.requestsError?<p role="alert" className="text-sm text-red-800">{state.requestsError}</p>:state.requests&&<>
-   {!state.requests.items.length?<p className="rounded-xl bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">No saved analyses are available for your Store.</p>:<ul aria-label="Saved analyses" className="space-y-2">{state.requests.items.map(request=><li key={request.requestId} data-analysis-id={request.requestId} className={'flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border p-4 '+(state.request?.requestId===request.requestId?'border-[#B8CDBE] bg-[#F4F8F3]':'border-[#E7E2D8] bg-white')}><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-[#243B30]">Analysis #{request.requestId}</h3><span className="text-xs text-[#6D7974]">{recommendationLabel(request.status)}</span></div><p className="mt-1 break-words text-sm text-[#53665B]">Sales period: {formatDateRange(request.snapshot.rangeStart,request.snapshot.rangeEnd)}</p><p className="mt-1 text-xs text-[#6D7974]">Created on: {analysisTimestamp(request.createdAt)}</p></div><button type="button" data-select-analysis={request.requestId} aria-label={'Select Analysis #'+request.requestId} disabled={selecting||state.runsLoading} className={miningButton+' shrink-0'} onClick={()=>void chooseRequest(request.requestId)}>Select Analysis</button></li>)}</ul>}
+   {!state.requests.items.length?<p className="rounded-xl bg-[#FAF8F5] p-4 text-sm text-[#6D7974]">No saved analyses are available for your Store.</p>:<>
+    <div data-analysis-columns aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto] items-center gap-4 rounded-lg bg-[#F5F5F1] px-4 py-2 text-xs font-semibold text-[#53665B] md:grid"><span>Analysis</span><span>Sales period</span><span>Created on</span><span className="w-[146px] text-right">Action</span></div>
+    <ul aria-label="Saved analyses" className="space-y-2">{state.requests.items.map(request=><li key={request.requestId} data-analysis-id={request.requestId} className="grid min-w-0 grid-cols-1 items-center gap-3 rounded-xl border border-[#E7E2D8] bg-white px-4 py-3 transition-colors hover:border-[#B8CDBE] sm:grid-cols-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_auto] md:gap-4">
+     <div className="min-w-0"><h3 className="text-sm font-semibold text-[#243B30]">Analysis #{request.requestId}</h3><p className="mt-1 text-xs text-[#6D7974]">{recommendationLabel(request.status)}</p></div>
+     <div data-analysis-period className="min-w-0 text-sm text-[#53665B]"><span className="mb-1 block text-xs text-[#6D7974] md:hidden">Sales period</span>{formatDateRange(request.snapshot.rangeStart,request.snapshot.rangeEnd)}</div>
+     <div data-analysis-created className="min-w-0 text-sm font-medium"><span className="mb-1 block text-xs font-normal text-[#6D7974] md:hidden">Created on</span><AnalysisTime value={request.createdAt}/></div>
+     <button type="button" data-select-analysis={request.requestId} aria-label={'Select Analysis #'+request.requestId} disabled={selecting||state.runsLoading} className={miningPrimaryButton+' justify-self-start whitespace-nowrap sm:justify-self-end md:w-[146px]'} onClick={()=>void chooseRequest(request.requestId)}>Select Analysis</button>
+    </li>)}</ul></>}
+
    <F06Pages data={state.requests} label="sources" busy={state.requestsLoading||selecting} onPage={page=>void workflow.loadRequests(page)}/>
   </>}
   {state.runsLoading&&<p role="status" className="text-sm text-[#6D7974]">Loading completed results...</p>}

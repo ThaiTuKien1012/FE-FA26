@@ -124,7 +124,7 @@ test('reused approved candidates retain their identity, decision, source relatio
   const f=setup(t);const saved=recommendation({recommendationId:900,reviewStatus:'APPROVED',version:8,utility:(parseRecommendationJson('{"utility":12345678901.123456}') as RecView).utility,sources:[...recommendation().sources,{...recommendation().sources[0],runId:43}]});
   const frozen=JSON.stringify({...saved,utility:String(saved.utility)});f.list.mock.mockImplementation(async()=>({items:[saved],page:0,pageSize:20,totalElements:1,ordering:'RANKED_WITHIN_SOURCE_RUN' as const}));f.browser.start(false);await f.browser.selectSource(43);
   assert.equal(f.browser.getSnapshot().list?.items[0],saved);assert.equal(JSON.stringify({...saved,utility:String(saved.utility)}),frozen);assert.equal(f.generate.mock.callCount(),0);
-  const html=renderToStaticMarkup(createElement(F06GenerationSummary,{result:{...generation,createdCount:0,reusedCount:1}}));assert.ok(html.includes('0 new suggestions'));assert.ok(html.includes('keep their review decisions'));assert.equal(html.includes('recommendation references'),false);
+  const html=renderToStaticMarkup(createElement(F06GenerationSummary,{result:{...generation,createdCount:0,reusedCount:1}}));assert.ok(html.includes('No new recommendations were added.'));assert.ok(html.includes('keep their review decisions'));assert.equal(html.includes('recommendation references'),false);
 });
 test('F05 completed displayed run exposes primary navigation only to its own Store roles',t=>{
   for(const role of ['Merchandiser','Store Admin','System Admin','End-Customer'] as const)for(const status of ['COMPLETED','RUNNING','FAILED','TIMED_OUT'] as const){

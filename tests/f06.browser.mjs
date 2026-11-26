@@ -48,7 +48,7 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], unexpected = [], errors = [], checks = [];
-const state = { role: 'MERCHANDISER', storeId: 1, mode: 'normal', noRequests: false, holdWrite: false, holdHistory: false, runStatus: 'COMPLETED', savedEmpty:false, holdRun:null, multiRuns:false, patternTotal:25, holdAvailability:false, availabilityStatus:200 };
+const state = { role: 'MERCHANDISER', storeId: 1, mode: 'normal', noRequests: false, holdWrite: false, holdHistory: false, runStatus: 'COMPLETED', savedEmpty:false, holdRun:null, multiRuns:false, patternTotal:25, holdAvailability:false, availabilityStatus:200, holdCounts:false };
 const session = "(await (window.fixtureAuth ??= import(performance.getEntriesByType('resource').find(e => new URL(e.name).pathname === '/src/services/authService.ts').name))).authService";
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -82,7 +82,7 @@ async function chooseSource(requestId=17,runId=42){
   }
 async function selectCompleted() {
   if(!await page.evaluate('!!document.querySelector("[aria-label=\\"Selected analysis\\"]")'))await chooseSource();
-  await click('Generate Recommendations');await until('!!document.querySelector("#f06-generate-form")','Selected source reused for generation');
+  await click(await page.evaluate('[...document.querySelectorAll("button")].some(b=>b.textContent==="Generate More"&&b.getClientRects().length)')?'Generate More':'Generate Recommendations');await until('!!document.querySelector("#f06-generate-form")','Selected source reused for generation');
 }
 async function signInThroughForm() {
   await until('!!document.querySelector("#identifier")','Sign-in form');await select('identifier','fixture@example.invalid');await select('passcode','Fixture-password-2026!');
@@ -122,6 +122,7 @@ async function fixture({ requestId, request }) {
   else if (url.pathname === '/api/recommendations/expiry-push') body={items:[],page:Number(url.searchParams.get('page')||0),pageSize:Number(url.searchParams.get('pageSize')||20),totalElements:0,asOfDate:'2026-11-26',timeZone:'Asia/Ho_Chi_Minh',checkedAt:'2026-11-25T17:00:00Z',warnings:[]};
   else if (url.pathname === '/api/recommendations') {
     const runId=Number(url.searchParams.get('miningRunId'));assert.ok(Number.isSafeInteger(runId)&&runId>0,'No unscoped Library request');
+    if(url.searchParams.has('type')&&url.searchParams.get('pageSize')==='1'){assert.equal(url.searchParams.has('reviewStatus'),false,'Saved counts include every review status');assert.equal(url.searchParams.get('page'),'0');while(state.holdCounts&&!closing)await sleep(20);}
     const requestedType=url.searchParams.get('type')||'BUNDLE';assert.ok(['BUNDLE','CROSS_SELL','FBT','BANNER'].includes(requestedType));
     if(!url.searchParams.has('type'))assert.deepEqual([...url.searchParams.keys()].sort(),['miningRunId','page','pageSize']);
     if(!url.searchParams.has('type'))assert.equal(url.searchParams.get('pageSize'),'1');
@@ -167,6 +168,7 @@ try {
   await until('document.querySelectorAll("[data-analysis-id]").length===2','Distinct saved analyses');assert.equal(await page.evaluate('document.querySelectorAll("[data-analysis-id]")[0].innerText.includes("Analysis #17")&&document.querySelectorAll("[data-analysis-id]")[1].innerText.includes("Analysis #18")'),true);assert.notEqual(await page.evaluate('document.querySelectorAll("[data-analysis-id]")[0].innerText'),await page.evaluate('document.querySelectorAll("[data-analysis-id]")[1].innerText'),'Same period is distinguished by ID and created time');
   for(const width of [320,390,820,1440]){await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('[...document.querySelectorAll("[data-analysis-id]")].every(row=>{const r=row.getBoundingClientRect();return row.scrollWidth<=row.clientWidth+1&&r.left>=0&&r.right<=innerWidth;})'),true,'Rendered analysis rows fit '+width);}
   await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  const analysisColumns=await page.evaluate('(()=>{const head=document.querySelector("[data-analysis-columns]"),rows=[...document.querySelectorAll("[data-analysis-id]")];return{head:[...head.children].map(el=>el.getBoundingClientRect().x),rows:rows.map(row=>[...row.children].map(el=>el.getBoundingClientRect().x)),heights:rows.map(row=>row.getBoundingClientRect().height),decorations:rows.some(row=>row.querySelector("svg,input"))};})()');assert.equal(analysisColumns.decorations,false);assert.ok(analysisColumns.rows.every(row=>row.every((x,i)=>Math.abs(x-analysisColumns.head[i])<=1)),'Desktop Analysis, period, created and action columns align');assert.ok(Math.max(...analysisColumns.heights)-Math.min(...analysisColumns.heights)<1,'Row heights stay consistent');
   const runReadsBeforeSelection=calls.filter(call=>/\/api\/mining\/requests\/\d+\/runs$/.test(call.path)).length;assert.equal(runReadsBeforeSelection,0,'No run query for each analysis row');
   await page.evaluate('document.querySelectorAll("[data-select-analysis]")[1].click()');await has('No completed results are available for this analysis.');assert.equal(await page.evaluate('!!document.querySelector("[data-select-run]")'),false);
 
@@ -200,6 +202,7 @@ try {
   await page.evaluate('history.back()');await until('location.pathname==="/mining"','Back to F05');await has('View Recommendations');
   await page.evaluate('history.forward()');await has('1 matching recommendations');
   assert.equal(await page.evaluate('location.search'),'?miningRunId=42');
+  await has('CURRENTLY VIEWING');await has('Recommendations from Analysis #17');assert.equal(await page.evaluate('getComputedStyle(document.querySelector("[data-selected-run] > div")).backgroundColor'),'rgb(29, 60, 48)');for(const width of [320,390,820,1440]){await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('(()=>{const el=document.querySelector("[data-selected-run]");return el.scrollWidth<=el.clientWidth+1&&el.getBoundingClientRect().right<=innerWidth;})()'),true,'Selected summary fits '+width);}await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1080,deviceScaleFactor:1,mobile:false});
   checks.push('Completed displayed F05 result navigates with exact run ID; Back/Forward retains source; no Mining/Generate from navigation');
 
   await page.evaluate('window.phase1ReloadMarker=true');await page.call('Page.reload');
@@ -219,7 +222,7 @@ try {
   const beforeFilter=availabilityReads();await select('f06-filter-review','APPROVED');await has('No recommendations match the selected review status.');
   assert.equal(await page.evaluate('document.querySelectorAll("[role=tab]").length===4&&!document.querySelector("[data-run-empty]")'),true);await click('Clear Review Filter');await has('1 matching recommendations');assert.equal(availabilityReads(),beforeFilter);
   state.savedEmpty=true;state.holdAvailability=true;await click('Refresh');await has('Checking saved recommendations');assert.equal(await page.evaluate('!!document.querySelector("[data-run-empty]")'),false);
-  state.holdAvailability=false;await has('Ready to Generate Recommendations');
+  state.holdAvailability=false;await has('Ready to Generate Recommendations');await click('Generate Recommendations');await has('Choose the recommendation types you want to generate.');assert.equal(await page.evaluate('document.querySelectorAll("#f06-generate-form input:checked").length'),4,'First generation selects every type');assert.equal(await page.evaluate('document.querySelector("#f06-generate-title").textContent'),'Generate Recommendations');await click('Cancel');
   assert.equal(await page.evaluate('document.querySelectorAll("[role=tab],#f06-filter-review,#f06-filter-size").length'),0);
   assert.equal(await page.evaluate('[...document.querySelectorAll("button")].filter(el=>el.textContent==="Generate Recommendations"&&el.getClientRects().length).length'),1);
   state.availabilityStatus=503;await click('Refresh');await has('Retry Recommendations');assert.equal(await page.evaluate('!!document.querySelector("[data-run-empty]")'),false);
@@ -241,7 +244,10 @@ try {
   }
   await navigate('/recommendations?miningRunId=42');await has('1 matching recommendations');
   assert.equal(calls.filter(c=>c.path.endsWith('/generate')).length,0,'Existing saved suggestions never auto-generate');
-  await selectCompleted();
+  state.holdCounts=true;await click('Refresh');await has('1 matching recommendations');await selectCompleted();
+  await has('Generate More Recommendations');await has('Recommendation count unavailable');assert.equal(await page.evaluate('document.querySelectorAll("#f06-generate-form input:checked").length'),4,'Unknown counts fall back to all four');
+  await click('Deselect all');await page.evaluate('document.querySelector("input[value=BUNDLE]").click();document.querySelector("input[value=FBT]").click()');state.holdCounts=false;await has('No saved recommendations');await until('document.querySelectorAll("[data-saved-count]").length===4&&!document.querySelector("dialog").innerText.includes("Recommendation count unavailable")','Type counts finish');assert.equal(await page.evaluate('document.querySelectorAll("#f06-generate-form input:checked").length'),2,'Late counts do not override manual choices');await click('Cancel');await selectCompleted();
+  assert.equal(await page.evaluate('document.querySelectorAll("#f06-generate-form input:checked").length'),1,'Additional generation defaults to the one zero-count type');assert.equal(await page.evaluate('document.querySelector("input[value=BANNER]").checked'),true);await click('Select all');
   assert.equal(await page.evaluate('document.querySelector("main h1").parentElement.firstElementChild.tagName'),'H1');
   assert.equal(await page.evaluate('!!document.querySelector("nav[aria-label=Breadcrumb]")'),false);
   assert.equal(await page.evaluate('!!document.querySelector("#f06-request")'),false,'Generation reuses selected source');
@@ -259,14 +265,14 @@ try {
   await page.evaluate('document.querySelector("input[value=BUNDLE]").click()');state.holdWrite=true;
   await page.evaluate('const form=document.querySelector("#f06-generate-form");form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));');await has('Generating recommendations...');
   await sleep(100);assert.equal(calls.filter(c=>c.path.endsWith('/generate')).length,1);
-  assert.equal(await page.evaluate('document.querySelector("dialog header button").disabled'),true);await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});assert.equal(await page.evaluate('!!document.querySelector("dialog[open]")'),true,'Pending generation blocks Escape');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});assert.equal(await page.evaluate('document.querySelector("dialog").contains(document.activeElement)'),true,'Focus stays inside pending modal');state.holdWrite=false;await has('1 new suggestion');await has('1 matching recommendations');
+  assert.equal(await page.evaluate('document.querySelector("dialog header button").disabled'),true);await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await page.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});assert.equal(await page.evaluate('!!document.querySelector("dialog[open]")'),true,'Pending generation blocks Escape');await page.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});assert.equal(await page.evaluate('document.querySelector("dialog").contains(document.activeElement)'),true,'Focus stays inside pending modal');state.holdWrite=false;await has('1 new recommendation added.');await has('1 matching recommendations');
   assert.deepEqual(JSON.parse(calls.filter(c=>c.path.endsWith('/generate')).at(-1).body),{miningRunId:42,types:['BUNDLE']});
   assert.equal(await page.evaluate('location.search'),'?miningRunId=42');assert.equal(await page.evaluate('!!document.querySelector("#f06-result-title")'),false,'No technical intermediate results screen');
   await page.evaluate('[...document.querySelectorAll("summary")].find(e=>e.textContent.startsWith("Why some suggestions were skipped")).click()');await has('This format needs at least two products.');
   checks.push('Run switch cancels stale reads; bad/foreign/non-completed links fail closed; default four types, manual deselection, keyboard, no types, double submit safety; successful generation returns directly to same run');
 
-  state.mode='empty';state.savedEmpty=true;await selectCompleted();await click('Generate Recommendations');await has('0 new suggestions');await has('No suggestions were created.');await has('No Recommendations Found');await has("No recommendations met your store's rules.");
-  state.mode='reused';state.savedEmpty=false;await selectCompleted();await click('Generate Recommendations');await has('1 reused suggestion');await has('keep their review decisions');await has('1 matching recommendations');
+  state.mode='empty';state.savedEmpty=true;await selectCompleted();await click('Generate Recommendations');await has('No new recommendations were added.');await has('No suggestions were created.');await has('No Recommendations Found');await has("No recommendations met your store's rules.");
+  state.mode='reused';state.savedEmpty=false;await selectCompleted();await click('Generate Recommendations');await has('1 existing recommendation retained.');await has('keep their review decisions');await has('1 matching recommendations');
   state.mode='conflict';await selectCompleted();await click('Generate Recommendations');await has('The saved analysis cannot be used right now');const writes=calls.filter(c=>c.path.endsWith('/generate')).length;await sleep(150);assert.equal(calls.filter(c=>c.path.endsWith('/generate')).length,writes);
   await click('Generate Recommendations');await sleep(100);assert.equal(calls.filter(c=>c.path.endsWith('/generate')).length,writes+1);
   state.mode='tooMany';await click('Generate Recommendations');await has('Select fewer recommendation types');
