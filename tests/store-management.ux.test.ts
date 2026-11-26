@@ -25,12 +25,12 @@ test('field constraints match Backend while Store Admin contact validation ignor
 });
 test('create form has automatic read-only URL, required identity, existing route preview and explicit footer',()=>{
  const html=render(h(StoreManagementForm,{identity:true,busy:false,serverError:'',dialog:true,onSubmit:async()=>true,onCancel:()=>{}}));
- for(const text of ['Store name *','Store URL *','Customize','Automatically generated from your store name.','Address (optional)','Phone number (optional)','New stores are active by default.','Create Store','Cancel'])assert.ok(html.includes(text),text);
- assert.ok(html.includes('readOnly=""'));assert.equal(html.includes('localhost'),false);assert.equal(html.includes('Status'),false);
+ for(const text of ['Store Name *','Store URL *','Customize','Automatically generated from your store name.','Address','Phone Number','New stores are active by default.','Create Store','Cancel'])assert.ok(html.includes(text),text);
+ assert.match(html,/<button type="submit"[^>]*disabled=""/);assert.equal(html.includes('(optional)'),false);assert.ok(html.includes('readOnly=""'));assert.equal(html.includes('localhost'),false);assert.equal(html.includes('Status'),false);
 });
 test('edit form keeps existing URL and only includes authorized contact controls for Store Admin',()=>{
  const common={store:record,busy:false,serverError:'',onSubmit:async()=>true,onCancel:()=>{}};
- const admin=render(h(StoreManagementForm,{...common,identity:false}));assert.equal(admin.includes('Store name *'),false);assert.equal(admin.includes('Store URL *'),false);assert.ok(admin.includes('Phone number'));assert.match(admin,/<button type="submit"[^>]*disabled=""/);
+ const admin=render(h(StoreManagementForm,{...common,identity:false}));assert.equal(admin.includes('Store Name *'),false);assert.equal(admin.includes('Store URL *'),false);assert.ok(admin.includes('Phone Number'));assert.match(admin,/<button type="submit"[^>]*disabled=""/);
  const system=render(h(StoreManagementForm,{...common,identity:true}));assert.ok(system.includes('/storefront?store=fresh-market'));assert.equal(system.includes('Customize'),false);assert.equal(system.includes('readOnly=""'),false);
  for(const [message,friendly]of [['Store name already exists','This store name is already in use.'],['Store slug already exists','This store URL is already in use.']])assert.ok(render(h(StoreManagementForm,{...common,identity:true,serverError:message})).includes(friendly));
 });

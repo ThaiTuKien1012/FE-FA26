@@ -47,7 +47,6 @@ export function AccountOverview({users,loading,error}:{users:UserAccount[];loadi
         </article>;
       })}
     </div>
-    <p className="mt-2.5 text-xs leading-5 text-[#788479]">Statistics reflect the loaded account list, not system-wide totals.</p>
   </section>;
 }
 
@@ -230,7 +229,7 @@ export const UsersRolesView: React.FC = () => {
           <button
             data-account-add
             onClick={handleOpenAddModal}
-            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#1e3a2f] hover:bg-[#294d3f] rounded-lg shadow-xs transition-all cursor-pointer"
+            className="inline-flex h-11 min-w-[144px] shrink-0 items-center justify-center rounded-xl bg-[#1E3A2F] px-5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[#2D604A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54]"
             type="button"
           >
             Add Account

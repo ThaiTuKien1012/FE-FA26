@@ -62,7 +62,7 @@ test('account overview counts only loaded API accounts and distinguishes Store s
   assert.deepEqual(numbers,[5,3,2,3]);
   for(const old of ['Active Directory','Role Profiles','Admin Privileges','Verified','RBAC matrix tiers'])assert.equal(html.includes(old),false);
   assert.ok(html.includes('loaded account list only'));
-  assert.ok(html.includes('Statistics reflect the loaded account list, not system-wide totals.'));
+  assert.equal(html.includes('Statistics reflect the loaded account list, not system-wide totals.'),false);assert.ok(html.includes('Based on the loaded account list, not a system-wide total.'));
   assert.equal(html.includes('>Loaded list only<'),false);
   assert.equal(html.includes('Account Overview'),false);
   assert.equal(html.includes('Counts cover the accounts returned'),false);

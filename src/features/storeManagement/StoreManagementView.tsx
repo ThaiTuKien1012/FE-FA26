@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
-import {Plus,ArrowLeft,Search,RefreshCw,ChevronDown,ChevronLeft,ChevronRight} from 'lucide-react';
+import {ArrowLeft,Search,RefreshCw,ChevronDown,ChevronLeft,ChevronRight} from 'lucide-react';
 import {authService} from '../../services/authService';
 import {getPathForScreen} from '../../utils/navigationRouter';
 import {customerPath} from '../customer/customerRoutes';
@@ -12,6 +12,7 @@ import {storeAccountStatus,storeRoleLabel} from './storeManagement.presentation'
 import {ErrorNotice,StoreDialog,StoreStatusBadge,errorMessage,panel,primary,secondary} from './StoreManagementShared';
 
 const adminPath=getPathForScreen('admin-stores');
+const pageAction='inline-flex h-11 min-w-[144px] shrink-0 items-center justify-center rounded-xl bg-[#1E3A2F] px-5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[#2D604A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#356B54]';
 const pageTitle='text-2xl sm:text-3xl font-semibold tracking-tight text-[#191C1B]';
 const pageSubtitle='mt-1 text-sm sm:text-base leading-6 text-[#6D7974]';
 const subscribe=(listen:()=>void)=>{window.addEventListener('popstate',listen);return()=>window.removeEventListener('popstate',listen);};
@@ -51,7 +52,7 @@ function StoreList(){
  return <>
   <header className="flex flex-wrap items-start justify-between gap-3">
     <div><h1 className={pageTitle}>Store Management</h1><p className={pageSubtitle}>Manage stores and their operational status across the platform.</p></div>
-    <button type="button" className={primary} onClick={()=>{setCreateError('');setUncertain(false);setCreating(true);}}><Plus aria-hidden="true" className="h-4 w-4"/>Create Store</button>
+    <button type="button" className={pageAction} onClick={()=>{setCreateError('');setUncertain(false);setCreating(true);}}>Create Store</button>
   </header>
   <StoreOverview counts={counts} loading={countLoading} status={status} onStatus={value=>{setStatus(value);setPage(0);}}/>
   {!countLoading&&Object.keys(counts).length<3&&<button type="button" className={secondary+' self-start'} onClick={()=>setCountRevision(n=>n+1)}>Retry store counts</button>}
@@ -77,7 +78,6 @@ function StoreList(){
     {error&&<div className="p-5 sm:px-6"><ErrorNotice message={error} retry={()=>setReload(n=>n+1)}/></div>}
     {!result&&!error&&<p role="status" className="px-5 py-10 text-center text-sm text-[#6D7974] sm:px-6">Loading stores...</p>}
     {result&&<>
-      <p className="border-b border-[#EBEEE7] px-5 py-3 text-xs text-[#6D7974] sm:px-6">{result.totalElements.toLocaleString('en-US')} matching {result.totalElements===1?'store':'stores'}</p>
       {!result.items.length?<div className="px-5 py-10 text-center sm:px-6"><h3 className="text-sm font-semibold">No stores found</h3><p className="mt-1 text-sm text-[#6D7974]">Try a different keyword or clear your filters.</p></div>:<>
         <table aria-label="Store directory" className="hidden w-full table-fixed text-left text-sm lg:table">
           <colgroup><col style={{width:'32%'}}/><col style={{width:132}}/><col/><col style={{width:160}}/></colgroup>
@@ -100,7 +100,7 @@ function StoreList(){
       </footer>
     </>}
   </section>
-  {creating&&<StoreDialog title="Create Store" subtitle="Set up a new store and its public profile." busy={busy} onClose={()=>{setCreating(false);if(uncertain)setReload(n=>n+1);}}>{uncertain&&<div className="space-y-4 overflow-y-auto p-5"><ErrorNotice message="The creation could not be confirmed. Check the store directory before trying again; the request was not retried."/><button type="button" className={secondary} onClick={()=>{setCreating(false);setReload(n=>n+1);}}>Check store directory</button></div>}<StoreManagementForm identity busy={busy} blocked={uncertain} serverError={uncertain?'':createError} dialog onCancel={()=>{setCreating(false);if(uncertain)setReload(n=>n+1);}} onSubmit={async values=>{if(pending.current)return false;pending.current=true;setBusy(true);setCreateError('');try{const created=await storesApi.create(values);if(!current())return false;openStore(created.storeId,'Store created successfully.');return true;}catch(err){if(current()){setCreateError(errorMessage(err));if(uncertainStoreWrite(err))setUncertain(true);}return false;}finally{pending.current=false;if(current())setBusy(false);}}}/></StoreDialog>}
+  {creating&&<StoreDialog formLayout title="Create Store" subtitle="Set up a new store and its public profile." busy={busy} onClose={()=>{setCreating(false);if(uncertain)setReload(n=>n+1);}}>{uncertain&&<div className="space-y-4 overflow-y-auto p-5"><ErrorNotice message="The creation could not be confirmed. Check the store directory before trying again; the request was not retried."/><button type="button" className={secondary} onClick={()=>{setCreating(false);setReload(n=>n+1);}}>Check store directory</button></div>}<StoreManagementForm identity busy={busy} blocked={uncertain} serverError={uncertain?'':createError} dialog onCancel={()=>{setCreating(false);if(uncertain)setReload(n=>n+1);}} onSubmit={async values=>{if(pending.current)return false;pending.current=true;setBusy(true);setCreateError('');try{const created=await storesApi.create(values);if(!current())return false;openStore(created.storeId,'Store created successfully.');return true;}catch(err){if(current()){setCreateError(errorMessage(err));if(uncertainStoreWrite(err))setUncertain(true);}return false;}finally{pending.current=false;if(current())setBusy(false);}}}/></StoreDialog>}
  </>;
 }
 

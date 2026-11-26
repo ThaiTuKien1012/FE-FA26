@@ -456,7 +456,8 @@ try{
       if(name==='users'){
         assert.equal(await evaluate("document.querySelector('[data-account-statistics]').innerText.toLowerCase().includes('pending')"),false,'KPI cards never show pending information');
         assert.equal(await evaluate("[...document.querySelectorAll('[data-account-statistics] article')].every(e=>!e.innerText.includes('Loaded list only'))"),true);
-        assert.equal(await evaluate("document.querySelector('[data-account-statistics]').lastElementChild.innerText.includes('not system-wide totals')"),true);
+        assert.equal(await evaluate("document.querySelector('[data-account-statistics]').innerText.includes('Statistics reflect the loaded account list, not system-wide totals.')"),false,'Loaded-list scope sentence is hidden');
+        assert.equal(await evaluate("[...document.querySelectorAll('[data-account-statistics] article')].every(e=>e.title.includes('not a system-wide total')&&e.getAttribute('aria-label').includes('loaded account list only'))"),true,'Loaded-list scope remains in accessible labels and tooltips');
       }
       if(width===390||width===1440)await capture(name+'-'+width);
       if(width<768)assert.equal(await evaluate("document.querySelector('aside').getBoundingClientRect().height<innerHeight/2"),true,'Mobile navigation must leave content accessible');
