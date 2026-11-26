@@ -54,6 +54,8 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-snapshots',
       'f05-mining',
       'f06-recommendations',
+      'f07-f08-workspace',
+      'f11-dashboard',
       'profile'
     ]
   },
@@ -89,13 +91,17 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'f03-configuration', 'f03-seasons', 'f03-product-scores', 'f03-preview', 'f03-snapshots', 'f03-snapshot-detail', 'f03-snapshot-matrix',
       'f05-mining',
       'f06-recommendations',
+      'f07-f08-workspace',
+      'f11-dashboard',
       'profile'
     ]
   },
   'End-Customer': {
     department: 'Retail Loyalty Customer',
-    defaultScreen: 'customer-storefront',
+    defaultScreen: 'customer-home',
     allowedScreens: [
+      'customer-home',
+      'customer-product',
       'customer-storefront',
       'profile'
     ]
@@ -112,12 +118,16 @@ export interface ScreenOwnerInfo {
 export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>> = {
   'admin-stores': { primaryRole: 'System Admin', roleKey: 'system-admin', title: 'Stores', allowedRoles: ['System Admin'] },
   'my-store': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'My Store', allowedRoles: ['Store Admin', 'Merchandiser'] },
+  'customer-home': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Customer Home', allowedRoles: ['End-Customer'] },
+  'customer-product': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Product Details', allowedRoles: ['End-Customer'] },
   'f06-recommendations': {
     primaryRole: 'Merchandiser',
     roleKey: 'merchandiser',
     title: 'Recommendations',
     allowedRoles: ['Merchandiser', 'Store Admin']
   },
+  'f11-dashboard': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Store Dashboard', allowedRoles: ['Merchandiser', 'Store Admin'] },
+  'f07-f08-workspace': { primaryRole: 'Merchandiser', roleKey: 'merchandiser', title: 'Layouts & Campaigns', allowedRoles: ['Merchandiser', 'Store Admin'] },
   // Store Admin Core Modules
   'store-inventory': {
     primaryRole: 'Store Admin',

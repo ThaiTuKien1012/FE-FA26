@@ -70,7 +70,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isStoreAdmin = role === 'Store Admin';
   const isMerchandiser = role === 'Merchandiser';
   const isCustomer = role === 'End-Customer';
-  const compactPlanner = !isSystemAdmin && (currentScreen.startsWith('f03-') || currentScreen === 'f05-mining' && (isStoreAdmin || isMerchandiser));
+  const compactPlanner = !isSystemAdmin && (currentScreen.startsWith('f03-') || currentScreen === 'f07-f08-workspace' || currentScreen === 'f11-dashboard' || currentScreen === 'f05-mining' && (isStoreAdmin || isMerchandiser));
   const [plannerNavOpen, setPlannerNavOpen] = useState(false);
   useEffect(() => { setPlannerNavOpen(false); }, [currentScreen]);
 
@@ -131,6 +131,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   <SidebarItem screen="f03-utility" label="Utility Planner" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
                   <SidebarItem screen="f05-mining" label="Product Combination Analysis" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                   <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f11-dashboard" label="Store Dashboard" icon={LayoutGrid} active={currentScreen === 'f11-dashboard'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f07-f08-workspace" label="Layouts & Campaigns" icon={LayoutGrid} active={currentScreen === 'f07-f08-workspace'} onNavigate={onNavigate} />
                 </SidebarSection>
                 <SidebarSection title="TRANSACTION REVIEW">
                   <SidebarItem screen="f04-import-history" label="Import History" icon={History} active={currentScreen === 'f04-import-history'} onNavigate={onNavigate} />
@@ -155,6 +157,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   <SidebarItem screen="f03-product-scores" label="Product Priorities" icon={SlidersHorizontal} active={currentScreen.startsWith('f03-')} onNavigate={onNavigate} />
                   <SidebarItem screen="f05-mining" label="Analysis History" icon={BarChart3} active={currentScreen === 'f05-mining'} onNavigate={onNavigate} />
                   <SidebarItem screen="f06-recommendations" label="Recommendations" icon={Zap} active={currentScreen === 'f06-recommendations'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f11-dashboard" label="Store Dashboard" icon={LayoutGrid} active={currentScreen === 'f11-dashboard'} onNavigate={onNavigate} />
+                  <SidebarItem screen="f07-f08-workspace" label="Layouts & Campaigns" icon={LayoutGrid} active={currentScreen === 'f07-f08-workspace'} onNavigate={onNavigate} />
                 </SidebarSection>
               </>
             )}

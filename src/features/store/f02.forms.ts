@@ -39,14 +39,32 @@ export function validatePushDay(pushDay: string, expiryDate: string): string {
   return pushDay && expiryDate && pushDay > expiryDate ? 'Push Day must be on or before the expiry date.' : '';
 }
 
-export interface ProductForm { name: string; unit: string; categoryId: string; requiresExpiry: boolean; sellingPrice: string; costPrice: string; status: F02Status; }
-export const emptyProductForm: ProductForm = { name: '', unit: 'Piece', categoryId: '', requiresExpiry: false, sellingPrice: '0', costPrice: '0', status: 'ACTIVE' };
+export interface ProductForm { name: string; unit: string; categoryId: string; requiresExpiry: boolean; sellingPrice: string; costPrice: string; status: F02Status; imageUrl: string; description: string; }
+export const emptyProductForm: ProductForm = { name: '', unit: 'Piece', categoryId: '', requiresExpiry: false, sellingPrice: '0', costPrice: '0', status: 'ACTIVE', imageUrl: '', description: '' };
+export const IMAGE_URL_MAX = 2048, DESCRIPTION_MAX = 2000;
+/** Mirrors the Backend rule (ProductService.validateImageUrl): blank → null, otherwise an absolute http(s) URL with a host. */
+export function imageUrlValue(value: string | undefined): string | null {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return null;
+  if (trimmed.length > IMAGE_URL_MAX) throw new Error(`Image URL must be at most ${IMAGE_URL_MAX} characters.`);
+  let url: URL;
+  try { url = new URL(trimmed); } catch { throw new Error('Image URL must be an absolute HTTP or HTTPS address.'); }
+  if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) throw new Error('Image URL must be an absolute HTTP or HTTPS address.');
+  return trimmed;
+}
+export function descriptionValue(value: string | undefined): string | null {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return null;
+  if (trimmed.length > DESCRIPTION_MAX) throw new Error(`Description must be at most ${DESCRIPTION_MAX} characters.`);
+  return trimmed;
+}
 export function productRequest(form: ProductForm, categories: F02Category[]): F02ProductRequest {
   if (!['ACTIVE', 'INACTIVE'].includes(form.status)) throw new Error('Choose Active or Inactive.');
   const categoryId = form.categoryId ? Number(form.categoryId) : null;
   if (categoryId !== null && !categories.some(c => c.id === categoryId)) throw new Error('Choose a category available in this store.');
   return { name: text(form.name, 'Product name', 180), unit: text(form.unit, 'Unit', 40), categoryId,
-    requiresExpiry: form.requiresExpiry, sellingPrice: price(form.sellingPrice, 'Selling price'), costPrice: price(form.costPrice, 'Cost price'), status: form.status };
+    requiresExpiry: form.requiresExpiry, sellingPrice: price(form.sellingPrice, 'Selling price'), costPrice: price(form.costPrice, 'Cost price'), status: form.status,
+    imageUrl: imageUrlValue(form.imageUrl), description: descriptionValue(form.description) };
 }
 export function categoryRequest(form: { name: string; status: F02Status }) {
   if (!['ACTIVE', 'INACTIVE'].includes(form.status)) throw new Error('Choose Active or Inactive.');

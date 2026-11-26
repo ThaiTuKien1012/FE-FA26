@@ -6,7 +6,7 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen } from './types/mining';
-import { getPathForScreen, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
+import { getCustomerProductId, getPathForScreen, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
@@ -14,12 +14,14 @@ import { ProductInventoryView } from './features/store/components/ProductInvento
 import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
+import { CustomerProductDetailView } from './features/customer/components/CustomerProductDetailView';
 import { LoginView } from './features/auth/components/LoginView';
 import { ForgotPasswordView } from './features/auth/components/ForgotPasswordView';
 import { RegisterView } from './features/auth/components/RegisterView';
 import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
+import { customerLoginPath, customerLoginTarget, customerPath } from './features/customer/customerRoutes';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
 import { PublishedCampaignStatusView } from './features/merchandiser/components/PublishedCampaignStatusView';
@@ -38,8 +40,12 @@ import { isSystemMiningScreen, resolveSystemScreen, systemMiningView, systemScre
 import { F05WorkspaceView } from './features/f05/components/F05WorkspaceView';
 import { F06WorkspaceView } from './features/f06/components/F06WorkspaceView';
 import { recommendationReturnPath } from './features/f06/f06.navigation';
+import { F11Dashboard } from './features/f11/F11Dashboard';
+import { F07F08WorkspaceView } from './features/f07f08/components/F07F08WorkspaceView';
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
+
+const publicScreens: ActiveNavScreen[] = ['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront', 'customer-product'];
 
 const StoreManagementView = lazy(() => import('./features/storeManagement/StoreManagementView')
   .then(module => ({ default: module.StoreManagementView })));
@@ -47,7 +53,10 @@ const StoreManagementView = lazy(() => import('./features/storeManagement/StoreM
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getCurrentUser());
   const recommendationReturn=useRef(recommendationReturnPath(window.location.search));
+  const [customerResume] = useState(() => currentUser?.role === 'End-Customer'
+    ? customerLoginTarget(window.location.pathname, window.location.search) : null);
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
+    if (customerResume) return customerResume.productId ? 'customer-product' : 'customer-storefront';
     const screenFromUrl = typeof window !== 'undefined' ? getScreenFromPathname(window.location.pathname) : null;
     if (screenFromUrl === 'login' && authService.getCurrentUser()) {
       const user=authService.getCurrentUser()!;
@@ -58,11 +67,13 @@ export default function App() {
       return screenFromUrl;
     }
     const user = authService.getCurrentUser();
-    // Default to login page if unauthenticated
-    return user ? user.defaultScreen : 'login';
+    // Guests can browse the customer home before signing in.
+    return user ? user.defaultScreen : 'customer-home';
   });
 
   const [storeProducts, setStoreProducts] = useState<ProductItem[]>([]);
+  const [customerStoreSlug, setCustomerStoreSlug] = useState(() => customerResume?.slug ?? new URLSearchParams(window.location.search).get('store'));
+  const [customerProductId, setCustomerProductId] = useState<string | null>(() => customerResume?.productId ?? getCustomerProductId(window.location.pathname));
   const [editingProductId, setEditingProductId] = useState(() => new URLSearchParams(window.location.search).get('productId') ?? '');
   const isMiningScreen = isSystemMiningScreen(currentScreen);
   const needsAdminSession=isMiningScreen||currentScreen.startsWith('f03-')||['users','lambda-policy','api-connections'].includes(currentScreen);
@@ -89,12 +100,15 @@ export default function App() {
   // Synchronize browser URL bar on load and handle back/forward browser buttons
   useEffect(() => {
     const returnTo=currentScreen==='f06-recommendations'&&window.location.pathname===getPathForScreen('login')?recommendationReturnPath(window.location.search):null;
-    if(returnTo){window.history.replaceState({screen:'f06-recommendations'},'',returnTo);window.dispatchEvent(new Event('popstate'));}
+    if (customerResume) window.history.replaceState({ screen: currentScreen }, '', customerPath(customerResume.slug, customerResume.productId));
+    else if(returnTo){window.history.replaceState({screen:'f06-recommendations'},'',returnTo);window.dispatchEvent(new Event('popstate'));}
     else syncBrowserUrl(currentScreen, true);
 
     const handlePopState = () => {
       const screenFromUrl = getScreenFromPathname(window.location.pathname);
       if (screenFromUrl) {
+        setCustomerProductId(getCustomerProductId(window.location.pathname));
+        setCustomerStoreSlug(new URLSearchParams(window.location.search).get('store'));
         if (screenFromUrl === 'store-edit-product') setEditingProductId(new URLSearchParams(window.location.search).get('productId') ?? '');
         setCurrentScreen(screenFromUrl);
       }
@@ -107,7 +121,7 @@ export default function App() {
 
   // Cover direct URLs, navigation and history after logout without rendering F05 for guests.
   useEffect(() => {
-    if (!currentUser && !['login', 'register', 'activate', 'forgot-password'].includes(currentScreen)) {
+    if (!currentUser && !publicScreens.includes(currentScreen)) {
       const returnTo=currentScreen==='f06-recommendations'&&window.location.pathname===getPathForScreen('f06-recommendations')?window.location.pathname+window.location.search:null;
       if(returnTo)recommendationReturn.current=returnTo;
       syncBrowserUrl('login', true);
@@ -158,8 +172,34 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const openCustomerStore = (slug: string | null, id: string | null = null) => {
+    const screen = id ? 'customer-product' : 'customer-storefront';
+    const url = customerPath(slug, id);
+    if (window.location.pathname + window.location.search !== url) window.history.pushState({ screen }, '', url);
+    setCustomerStoreSlug(slug);
+    setCustomerProductId(id);
+    setCurrentScreen(screen);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const handleCustomerLogin = () => {
+    const slug = currentScreen === 'customer-home' ? null : customerStoreSlug;
+    const id = currentScreen === 'customer-product' ? customerProductId : null;
+    window.history.pushState({ screen: 'login' }, '', customerLoginPath(slug, id));
+    setCurrentScreen('login');
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
   const handleLoginSuccess = (user: AuthUser, destinationScreen: ActiveNavScreen) => {
+    // The session boundary remounts App when login changes the session. Its new
+    // instance consumes the URL destination before an old login callback fires.
+    if (currentScreen === 'login' && window.location.pathname !== '/login') return;
     setCurrentUser(user);
+    const destination = customerLoginTarget(window.location.pathname, window.location.search);
+    if (destination && user.role === 'End-Customer') {
+      openCustomerStore(destination.slug, destination.productId);
+      return;
+    }
     const returnTo=recommendationReturnPath(window.location.search)??recommendationReturn.current;
     if(returnTo&&(user.role==='Merchandiser'||user.role==='Store Admin')){
       // SessionBoundary may already have restored this route in the new App instance.
@@ -184,7 +224,7 @@ export default function App() {
       'store-admin': 'store-inventory',
       'system-admin': 'overview',
       'merchandiser': 'merchandiser-recommendations',
-      'customer': 'customer-storefront'
+      'customer': 'customer-home'
     };
     const dest = roleScreens[roleKey] || 'overview';
     syncBrowserUrl(dest);
@@ -193,7 +233,7 @@ export default function App() {
   };
 
   // 1. If currently on Login screen, render LoginView standalone full-screen
-  if (currentScreen === 'login' || (!currentUser && !['register', 'activate', 'forgot-password'].includes(currentScreen))) {
+  if (currentScreen === 'login' || (!currentUser && !publicScreens.includes(currentScreen))) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
@@ -239,16 +279,22 @@ export default function App() {
     );
   }
 
-  // 2. If Customer role on customer-storefront, render full-screen Kiosk
-  if (currentScreen === 'customer-storefront' && currentUser?.role === 'End-Customer') {
-    return (
-      <CustomerStorefrontView
-        products={storeProducts}
-        user={currentUser}
-        onLogout={handleLogout}
-        onProfile={() => handleNavigate('profile')}
-      />
-    );
+  if (publicScreens.includes(currentScreen) && (!currentUser || currentUser.role === 'End-Customer')) {
+    const customerNavigation = {
+      user: currentUser, onHome: () => handleNavigate('customer-home'), onLogin: handleCustomerLogin,
+      onStore: (slug: string | null) => openCustomerStore(slug),
+      onProfile: () => handleNavigate('profile'), onLogout: handleLogout,
+    };
+    if (currentScreen === 'customer-product') {
+      return <CustomerProductDetailView key={`${customerStoreSlug}/${customerProductId}`}
+        {...customerNavigation} storeSlug={customerStoreSlug} productId={customerProductId}
+        onBack={() => openCustomerStore(customerStoreSlug)} />;
+    }
+    if (currentScreen === 'customer-home' || currentScreen === 'customer-storefront') {
+      const slug = currentScreen === 'customer-home' ? null : customerStoreSlug;
+      return <CustomerStorefrontView {...customerNavigation} storeSlug={slug}
+        onProduct={id => openCustomerStore(slug, String(id))} />;
+    }
   }
 
   // 3. For administrative roles (Store Admin, System Admin, Merchandiser), render within AppLayout
@@ -322,6 +368,8 @@ export default function App() {
 
           {isMiningScreen && currentUser && <F05WorkspaceView key={currentUser.id} currentUser={currentUser} initialView={systemMiningView(currentScreen)} />}
           {currentScreen === 'f06-recommendations' && <F06WorkspaceView />}
+          {currentScreen === 'f11-dashboard' && <F11Dashboard key={`${currentUser?.id}:${currentUser?.storeId}`} />}
+          {currentScreen === 'f07-f08-workspace' && <F07F08WorkspaceView key={`${currentUser?.id}:${currentUser?.storeId}`} />}
           {currentScreen==='lambda-policy' && currentUser?.role==='System Admin' && <F03WorkspaceView currentUser={currentUser} section="f03-configuration" />}
 
           {/* F02: Store Admin - Product & Inventory */}

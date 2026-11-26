@@ -91,6 +91,10 @@ export type ActiveNavScreen =
   | 'f04-transactions' // F04 Store Admin / Merchandiser: Sales Transactions
   | 'f05-mining'       // F05 Merchandiser / Store Admin: High Utility Mining
   | 'f06-recommendations' // F06 own-Store generation workspace
+  | 'f11-dashboard'
+  | 'f07-f08-workspace' // F07 layouts and F08 campaigns
+  | 'customer-home'
+  | 'customer-product'
   | 'login'           // Auth: Login Page
   | 'forgot-password' // Auth: Password reset
   | 'register'        // Auth: Registration Page
