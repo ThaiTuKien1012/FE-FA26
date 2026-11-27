@@ -17,6 +17,7 @@ export interface CustomerNavigation {
   onHome: () => void;
   onLogin: () => void;
   onStore: (slug: string | null) => void;
+  onRegister?: () => void;
 }
 
 interface Props extends CustomerNavigation {
@@ -24,7 +25,7 @@ interface Props extends CustomerNavigation {
   onProduct: (id: number) => void;
 }
 
-function StoreImage({ src, alt, className, fallback = null }: {
+export function StoreImage({ src, alt, className, fallback = null }: {
   src: string | null; alt: string; className: string; fallback?: ReactNode;
 }) {
   const [failed, setFailed] = useState(false);

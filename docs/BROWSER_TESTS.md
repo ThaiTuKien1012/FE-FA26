@@ -29,7 +29,7 @@ npx vite --port=3000 --host=127.0.0.1
 | `F05_TEST_CHROME` | `f05` |
 | `F06_TEST_CHROME` | `f06.browser`, `f06.browse`, `f06.complete`, `f06.expiry` |
 | `F07_TEST_CHROME` | `f07` |
-| `CUSTOMER_TEST_CHROME` | `customer-resume` |
+| `CUSTOMER_TEST_CHROME` | `customer-resume`, `customer-home` |
 | `LEGACY_TEST_CHROME` | `legacy-route` |
 
 **Origin.** The default is `http://127.0.0.1:3000`, except `f11`, which defaults to `3011`. Set `PASPM_TEST_ORIGIN=http://127.0.0.1:3000`

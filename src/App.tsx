@@ -20,6 +20,7 @@ import { ForgotPasswordView } from './features/auth/components/ForgotPasswordVie
 import { RegisterView } from './features/auth/components/RegisterView';
 import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
+import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
 import { customerLoginPath, customerLoginTarget, customerPath } from './features/customer/customerRoutes';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
@@ -292,7 +293,9 @@ export default function App() {
   if (publicScreens.includes(currentScreen) && (!currentUser || currentUser.role === 'End-Customer')) {
     const customerNavigation = {
       user: currentUser, onHome: () => handleNavigate('customer-home'), onLogin: handleCustomerLogin,
-      onStore: (slug: string | null) => openCustomerStore(slug),
+      // `null` means "all Stores", which is the customer home.
+      onStore: (slug: string | null) => slug === null ? handleNavigate('customer-home') : openCustomerStore(slug),
+      onRegister: () => { syncBrowserUrl('register'); setCurrentScreen('register'); },
       onProfile: () => handleNavigate('profile'), onLogout: handleLogout,
     };
     if (currentScreen === 'customer-product') {
@@ -300,10 +303,12 @@ export default function App() {
         {...customerNavigation} storeSlug={customerStoreSlug} productId={customerProductId}
         onBack={() => openCustomerStore(customerStoreSlug)} />;
     }
-    if (currentScreen === 'customer-home' || currentScreen === 'customer-storefront') {
-      const slug = currentScreen === 'customer-home' ? null : customerStoreSlug;
-      return <CustomerStorefrontView {...customerNavigation} storeSlug={slug}
-        onProduct={id => openCustomerStore(slug, String(id))} />;
+    if (currentScreen === 'customer-home') {
+      return <CustomerHomeView {...customerNavigation} onProduct={(slug, id) => openCustomerStore(slug, String(id))} />;
+    }
+    if (currentScreen === 'customer-storefront') {
+      return <CustomerStorefrontView {...customerNavigation} storeSlug={customerStoreSlug}
+        onProduct={id => openCustomerStore(customerStoreSlug, String(id))} />;
     }
   }
 
