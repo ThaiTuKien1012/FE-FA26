@@ -56,6 +56,8 @@ async function click(text){
 }
 async function openConfirmation(){await until("[...document.querySelectorAll('main button[type=submit]')].some(e=>e.getClientRects().length&&!e.disabled)",'Mining submit enabled');await evaluate("[...document.querySelectorAll('main button[type=submit]')].find(e=>e.getClientRects().length&&!e.disabled).click()");await until("document.querySelector('dialog[open]')?.innerText.includes('Confirm Analysis')",'Single short confirmation');assert.equal(await evaluate("!!document.querySelector('input[type=checkbox]')"),false);}
 async function submitMining(){await openConfirmation();await evaluate("(()=>{const b=[...document.querySelectorAll('dialog[open] button')].find(e=>e.innerText==='Confirm Run');b.click();b.click();})()");}
+async function noSystemDetailsDebug(){await until('document.querySelectorAll("dialog [data-result-card]").length===2','System result cards loaded');assert.equal(await evaluate('(()=>{const d=document.querySelector("dialog[open]");return d.querySelectorAll("details,summary,[data-execution-run]").length===0&&!/Execution Details|Technical Details|Request key|Snapshot hash|Input hash|SPMF|Java Heap|library version|conversion metadata|STORED_LEGACY_V0/i.test(d.textContent);})()'),true,'System summary never exposes diagnostic information');}
+
 async function noStoreDebug(){assert.equal(await evaluate("/Technical Details|Additional details|Request key|Snapshot hash|Input hash|SPMF|WHOLE_UNIT_HALF_UP|LOSSLESS|NOT_REQUESTED|outputBytes|Java Heap|STORED_LEGACY_V0|009f3ef1-d4ba-4291-9854-b74c6878d26b/i.test(document.querySelector('main').textContent)"),false,'Store views contain no technical dumps, even collapsed');}
 async function input(label,value){
   assert.equal(await evaluate("(()=>{const e=document.querySelector('input[aria-label="+JSON.stringify(label)+"]');if(!e||e.disabled)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,"+JSON.stringify(value)+");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()"),true,'Input '+label);
@@ -208,12 +210,12 @@ try{
   // Monitoring UI: no Store means no Store request read, and empty history has no pager.
   const noStoreStart=state.calls.length;await session('System Admin','/admin/mining/history');await textIncludes('Select a store to view its mining history.');
   assert.equal(state.calls.slice(noStoreStart).some(c=>/\/mining\/stores\/\d+\/requests/.test(c.path)),false);
-  state.hasRequest=true;state.systemHistoryCount=0;await click('Store A #1');await textIncludes('No analyses have been recorded for this store yet.');
+  state.hasRequest=true;state.systemHistoryCount=0;await click('Change Store');await until("!!document.querySelector('dialog[open] button[aria-label=\"Select Store Store A\"]')",'Store picker row');await evaluate("document.querySelector('dialog[open] button[aria-label=\"Select Store Store A\"]').click()");await textIncludes('No analyses have been recorded for this store yet.');
   assert.equal(await evaluate(`!!document.querySelector('[aria-label="Mining history pages"]')`),false);
   state.systemHistoryCount=45;await click('Refresh history');await textIncludes('Page 1 of 3');await click('Next analyses');await textIncludes('Page 2 of 3');await click('Next analyses');await textIncludes('Page 3 of 3');
   assert.equal(await evaluate('new URLSearchParams(location.search).get("storeId")'),'1');
-  await evaluate(`document.querySelector('button[aria-label="View details for analysis #17"]').click()`);await textIncludes('Analysis Details #17');await textIncludes('Execution Details');
-  await click('Close analysis details');await textIncludes('Page 3 of 3');
+  await evaluate(`document.querySelector('button[aria-label="View details for analysis #17"]').click()`);await textIncludes('Analysis #17');await textIncludes('Analysis Results');
+  await click('Close');await textIncludes('Page 3 of 3');
   state.singleStore=true;await session('System Admin','/admin/overview?storeId=1');await textIncludes('Selected store');
   assert.equal(await evaluate(`document.querySelector('[aria-label="Store selection"]').querySelectorAll("button").length`),0);
   await click('Refresh Overview');await textIncludes('Recent Analyses');assert.equal(await evaluate('new URLSearchParams(location.search).get("storeId")'),'1');
@@ -235,10 +237,10 @@ try{
   assert.equal(await evaluate('sessionStorage.getItem('+JSON.stringify(legacyKey)+')'),'legacy-pending');
   assert.equal(postBodies.length,systemPosts);
   await click('Store A #1');await textIncludes('Recent Analyses');await capture('system-dashboard');
-  await click('View Details');await textIncludes('Execution Details');await textIncludes('Mining in progress');await capture('progress-running');await textIncludes('Mining completed');await capture('progress-completed');
-  await click('View run #42');await textIncludes('Run #42');assert.equal(await evaluate(visibleText+".includes('Open algorithm benchmark')"),false);
+  await click('View Details');await textIncludes('Analysis Results');await until("document.querySelector('dialog [role=status]')?.textContent==='Analyzing'",'System running progress');await capture('progress-running');await until("document.querySelector('dialog [role=status]')?.textContent==='Completed'",'System completed progress');await capture('progress-completed');
+  await noSystemDetailsDebug();assert.equal(await evaluate(visibleText+".includes('Open algorithm benchmark')"),false);
   const benchmarkCalls=()=>state.calls.filter(x=>x.path.endsWith('/benchmark')).length;assert.equal(benchmarkCalls(),0);
-  await session('System Admin','/admin/benchmark?storeId=1&requestId=17&runId=42');await expectRoute('/admin/mining/history','Mining History');await textIncludes('Execution Details');
+  await session('System Admin','/admin/benchmark?storeId=1&requestId=17&runId=42');await expectRoute('/admin/mining/history','Mining History');await textIncludes('Analysis Results');
   assert.equal(await evaluate('location.search.includes("storeId=1")&&location.search.includes("requestId=17")'),true);assert.equal(benchmarkCalls(),0);assert.equal(postBodies.length,systemPosts);
   checks.push('System Admin has no Run action or submit form; all legacy run URLs redirect without POST, old pending drafts remain untouched; Dashboard/History/progress/run metrics remain available');
   await click('Mining Settings');await textIncludes('Current Mining Settings');await capture('system-mining-configuration');
@@ -440,8 +442,8 @@ try{
     ['/admin/overview?storeId=1','Recent Analyses','dashboard'],
     ['/admin/setup?storeId=1','Edit Mining Settings','configuration'],
     ['/admin/mining/run?storeId=1','Recent Analyses','legacy-run-dashboard'],
-    ['/admin/mining/history?storeId=1&requestId=17','Execution Details','history'],
-    ['/admin/benchmark?storeId=1&requestId=17&runId=42','Execution Details','legacy-history'],
+    ['/admin/mining/history?storeId=1&requestId=17','Analysis Results','history'],
+    ['/admin/benchmark?storeId=1&requestId=17&runId=42','Analysis Results','legacy-history'],
     ['/admin/users','User Management','users'],
     ['/admin/lambda-policy','Current Priority Strength Policy','lambda']
   ];
@@ -503,26 +505,15 @@ try{
     for(const mode of ['LOSSLESS','WHOLE_UNIT_HALF_UP','unknown']) {
       state.conversion=mode;state.emptyPatterns=mode==='WHOLE_UNIT_HALF_UP';state.requestReads=5;
       await session(role,role==='System Admin'?'/admin/mining/history?storeId=1&requestId=17':'/mining?view=history&requestId=17');
-      if(role==='System Admin')await textIncludes('Execution Details');
+      if(role==='System Admin')await noSystemDetailsDebug();
       else await until("!!document.querySelector('dialog[open] #f05-patterns-title')",'Completed run details loaded automatically');
-      if(role==='System Admin'){
-      await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Loaded Additional details');
-      await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').closest('details').open=true");
-      await textIncludes(mode==='unknown'?'STORED_LEGACY_V0':mode);
-      assert.equal(await evaluate("document.querySelector('[aria-label=\"Analysis input conversion\"]').innerText.includes("+JSON.stringify(mode==='LOSSLESS'?'None (exact conversion)':mode==='WHOLE_UNIT_HALF_UP'?'1':'Not recorded')+")"),true,'Correct rounding/null label');
-      await textIncludes('Snapshot');await textIncludes('Run #42');
-      }else{await noStoreDebug();if(mode==='WHOLE_UNIT_HALF_UP')await textIncludes('rounded to whole');if(mode==='unknown')await textIncludes('not recorded for this historical analysis');}
       const beforePatterns=state.calls.filter(call=>call.path.endsWith('/patterns')).length;
-      if(role==='System Admin')await click('View run #42');
-      if(role==='System Admin') {
-        await until("!![...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42'))",'System run detail');
-        await evaluate("[...document.querySelectorAll('summary')].find(e=>e.innerText.includes('Run #42')).parentElement.open=true");
+      if(role==='System Admin'){
+        const expected=mode==='WHOLE_UNIT_HALF_UP'?'0':'25';
+        assert.equal(await evaluate('document.querySelector("dialog [data-result-card=combinations]").textContent.includes('+JSON.stringify(expected)+')'),true,'Actual per-run count remains visible for '+mode);
         assert.equal(state.calls.filter(call=>call.path.endsWith('/patterns')).length,beforePatterns);
         assert.equal(await evaluate("!!document.querySelector('main button[type=submit]')"),false);
-      } else {
-        await textIncludes(mode==='WHOLE_UNIT_HALF_UP'?'Zero product combinations is a valid result':'Product Combinations');
-        if(mode==='WHOLE_UNIT_HALF_UP') await textIncludes('saved snapshot is unchanged');await noStoreDebug();
-      }
+      }else{await noStoreDebug();if(mode==='WHOLE_UNIT_HALF_UP'){await textIncludes('rounded to whole');await textIncludes('Zero product combinations is a valid result');await textIncludes('saved snapshot is unchanged');}if(mode==='unknown')await textIncludes('not recorded for this historical analysis');}
       const completedReads=state.calls.filter(call=>call.path.endsWith('/progress')).length;await sleep(1650);assert.equal(state.calls.filter(call=>call.path.endsWith('/progress')).length,completedReads,'Terminal stops polling: '+role+' / '+mode);
       if(mode==='WHOLE_UNIT_HALF_UP') await evaluate("document.querySelectorAll('[aria-label=\"Analysis input conversion\"]').forEach(e=>{const details=e.closest('details');if(details)details.open=true})");
       if(mode==='WHOLE_UNIT_HALF_UP') for(const width of [1440,820,390]) {
@@ -545,12 +536,10 @@ try{
   precisionFixture=true;state.conversion='LOSSLESS';state.requestReads=5;state.hasRequest=true;state.emptyPatterns=false;
   const beforePrecisionPosts=postBodies.length;
   await session('Merchandiser','/mining?view=history&requestId=17');await textIncludes('Product Combinations');await textIncludes('12,345,678,901.123456');
-  await session('System Admin','/admin/mining/history?storeId=1&requestId=17');await textIncludes('Execution Details');
-  await until("Boolean(document.querySelector('[aria-label=\"Analysis input conversion\"]'))",'Precision details loaded');
-  await evaluate("document.querySelectorAll('main details').forEach(e=>e.open=true)");
-  await textIncludes('9,223,372,036,854,775,807');await textIncludes('9,007,199,254,740,993');
+  await session('System Admin','/admin/mining/history?storeId=1&requestId=17');await textIncludes('Analysis Results');
+  await noSystemDetailsDebug();await textIncludes('Minimum Utility');await textIncludes('0.5%');
   assert.equal(postBodies.length,beforePrecisionPosts);precisionFixture=false;state.conversion='legacy';
-  checks.push('Raw numeric precision: exact BigDecimal Pattern results, int64 divisor/scaled total/runtime, completed history and no Mining replay');
+  checks.push('Raw numeric precision: exact BigDecimal Pattern results, System summary with hidden int64 diagnostics, completed history and no Mining replay');
   await session('Merchandiser','/f03/configuration');await textIncludes('Save Configuration');
   assert.equal(await evaluate("[...document.querySelectorAll('main button')].find(b=>b.innerText.includes('Save Configuration')).disabled"),false);
   const featureCalls=()=>state.calls.filter(c=>!c.path.startsWith('/api/auth/')).length;const beforeCustomer=featureCalls();await session('End-Customer');await textIncludes('Access Restricted');assert.equal(featureCalls(),beforeCustomer);

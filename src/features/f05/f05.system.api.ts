@@ -25,8 +25,10 @@ export function validateConfiguration(payload: MiningConfigurationUpdate): void 
   catch (e) { throw new F05ApiError(400, e instanceof Error ? e.message : 'Invalid minimum utility.'); }
 }
 export const f05SystemApi = {
-  async listStores(page = 0, pageSize = 20, signal?: AbortSignal): Promise<Page<StoreView>> {
-    const result = await request<Page<StoreView>>(`/api/system/stores?${miningPagination(page,pageSize,100000)}`, { signal });
+  async listStores(page = 0, pageSize = 20, signal?: AbortSignal, q = ''): Promise<Page<StoreView>> {
+    const query=new URLSearchParams(miningPagination(page,pageSize,100000));
+    if(q.trim())query.set('q',q.trim());
+    const result = await request<Page<StoreView>>(`/api/system/stores?${query}`, { signal });
     miningPage<StoreView>(result,page,pageSize,x => {
       const s = x as StoreView | null;
       return Boolean(s && Number.isInteger(s.storeId) && s.storeId > 0 && s.storeId <= 2147483647 && typeof s.name === 'string');
