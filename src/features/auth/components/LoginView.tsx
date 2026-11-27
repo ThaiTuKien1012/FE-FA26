@@ -408,7 +408,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         {/* BEGIN: MainFooter */}
         <footer className="w-full py-6 text-center text-xs text-white/60 z-20 border-t border-white/10 mt-auto">
           <p>
-            RetailSpace Operations Platform © 2026 | Nền tảng vận hành bán lẻ thông minh
+            RetailSpace Operations Platform © 2026 | Smart retail operations platform
           </p>
         </footer>
         {/* END: MainFooter */}
@@ -421,7 +421,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             type="button"
             onClick={() => setIsMuted(!isMuted)}
             className="w-11 h-11 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/25 text-white flex items-center justify-center transition-all cursor-pointer"
-            title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+            title={isMuted ? 'Turn sound on' : 'Turn sound off'}
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
@@ -432,7 +432,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/30 text-white text-xs font-semibold tracking-wide shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all cursor-pointer"
         >
           <Play className="w-3.5 h-3.5 fill-current" />
-          {cinemaMode ? 'Quay lại biểu mẫu' : 'Xem toàn màn hình video'}
+          {cinemaMode ? 'Back to sign-in form' : 'Watch video full screen'}
         </button>
       </div>
       {/* END: Video Showcase Controls */}

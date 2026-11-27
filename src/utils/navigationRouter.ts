@@ -122,3 +122,18 @@ export function getCustomerProductId(pathname: string): string | null {
   if (!match) return null;
   try { return decodeURIComponent(match[1]); } catch { return null; }
 }
+
+/**
+ * Old Merchandiser screens that no longer exist as a separate page. Their URL and screen id still resolve (bookmarks,
+ * links inside older views), but for the staff roles that can use F06 they lead to the working Recommendations screen
+ * instead of the "Permission Required" page the legacy screen used to show.
+ */
+const LEGACY_SCREEN_REDIRECTS: Partial<Record<ActiveNavScreen, ActiveNavScreen>> = {
+  'merchandiser-recommendations': 'f06-recommendations',
+};
+const LEGACY_REDIRECT_ROLES: readonly string[] = ['Merchandiser', 'Store Admin'];
+
+export function resolveLegacyScreen(screen: ActiveNavScreen, role: string | null | undefined): ActiveNavScreen {
+  const target = LEGACY_SCREEN_REDIRECTS[screen];
+  return target && role && LEGACY_REDIRECT_ROLES.includes(role) ? target : screen;
+}

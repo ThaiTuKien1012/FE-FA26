@@ -46,7 +46,7 @@ function dateMatches(value: string | null, filter: ColumnFilterValue): boolean {
   return inRange(value, filter);
 }
 export function batchExpiryLabel(batch: Pick<F02Batch, 'effectiveStatus' | 'daysToExpiry'>) {
-  if (batch.effectiveStatus === 'EXPIRED') return 'Đã hết hạn';
+  if (batch.effectiveStatus === 'EXPIRED') return 'Expired';
   if (batch.daysToExpiry !== null && batch.daysToExpiry >= 0 && batch.daysToExpiry <= 7) return 'Expiring soon';
   return null;
 }

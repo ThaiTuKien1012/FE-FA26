@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import { ActiveNavScreen } from './types/mining';
-import { getCustomerProductId, getPathForScreen, getScreenFromPathname, syncBrowserUrl } from './utils/navigationRouter';
+import { getCustomerProductId, getPathForScreen, getScreenFromPathname, resolveLegacyScreen, syncBrowserUrl } from './utils/navigationRouter';
 import { AppLayout } from './components/layout/AppLayout';
 import { UsersRolesView } from './features/users/components/UsersRolesView';
 import { ApiConnectionsView } from './features/integrations/components/ApiConnectionsView';
@@ -142,6 +142,16 @@ export default function App() {
       window.dispatchEvent(new Event('popstate'));
     }
   },[currentUser?.role,currentScreen]);
+
+  // A legacy screen (old bookmark, or a link inside an older view) leads Merchandisers and Store Admins to the working
+  // screen. A layout effect runs before paint, so the "Permission Required" page never shows.
+  useLayoutEffect(() => {
+    if (!currentUser) return;
+    const target = resolveLegacyScreen(currentScreen, currentUser.role);
+    if (target === currentScreen) return;
+    window.history.replaceState({ screen: target }, '', getPathForScreen(target));
+    setCurrentScreen(target);
+  }, [currentScreen, currentUser]);
 
   const handleNavigate = (screen: ActiveNavScreen) => {
     scrollPositions.current[currentScreen] = window.scrollY;
