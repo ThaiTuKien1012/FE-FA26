@@ -27,9 +27,11 @@ export function SectionHeading({ id, title, children }: { id?: string; title: st
 
 // `onAdd` is absent on the customer home: a cart belongs to one Store, so the home card opens the
 // product in its Store instead of adding it. `storeLabel` names that Store.
-export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, blocked, storeLabel }: {
+export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, blocked, storeLabel, productHref, showAvailability }: {
   product: StoreProduct; saved: boolean; quantity: number;
   onSave: () => void; onOpen: () => void; onAdd?: () => void; blocked?: boolean; storeLabel?: string;
+  productHref?: string;
+  showAvailability?: boolean;
 }) {
   const unavailable = product.availability !== 'AVAILABLE';
   return (
@@ -48,15 +50,21 @@ export function ProductCard({ product, saved, quantity, onSave, onOpen, onAdd, b
         <div className="fm-product-brand text-[9px] text-[#088178]">{product.category?.name}</div>
         {storeLabel && <div className="fm-product-store mt-0.5 text-[9px] text-[#8a9a90]">Bán tại {storeLabel}</div>}
         <h3 className="mt-[7px] mb-2 text-xs font-semibold">
-          <button className="text-left hover:text-[#088178]" onClick={onOpen}>{product.name}</button>
+          {productHref ? <a href={productHref} className="text-left hover:text-[#088178]" onClick={event => {
+            if (event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) return;
+            event.preventDefault();
+            onOpen();
+          }}>{product.name}</a> : <button className="text-left hover:text-[#088178]" onClick={onOpen}>{product.name}</button>}
         </h3>
         {product.description && <p className="mb-2 line-clamp-2 text-xs text-[#65796d]">{product.description}</p>}
         <div className="fm-product-price mb-[11px] flex flex-wrap items-baseline gap-1">
           <strong className="text-[15px] font-bold max-[580px]:text-[13px]">{money(product.sellingPrice)}</strong>
           <span className="text-[9px] text-[#65796d]">/ {unitLabel(product.unit)}</span>
         </div>
+        {showAvailability && <p className="mb-2 text-xs text-[#4d6658]">{unavailable ? 'Hết hàng' : 'Còn hàng'}</p>}
         {onAdd ? <button className="fm-add-cart flex min-h-8 w-full items-center justify-center gap-[7px] rounded-full bg-[#088178] px-2 py-2 text-[10px] text-white hover:bg-[#06685f] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={blocked || unavailable} onClick={onAdd}><ShoppingCart size={14} />{unavailable ? 'Hết hàng' : 'Thêm vào giỏ'}
+          disabled={blocked || unavailable} onClick={onAdd} aria-label={showAvailability ? `Thêm ${product.name} vào giỏ` : undefined}>
+          <ShoppingCart size={14} />{unavailable && !showAvailability ? 'Hết hàng' : 'Thêm vào giỏ'}
           {quantity > 0 && <span className="fm-in-cart grid size-4 place-items-center rounded-full bg-white/20 text-[8px]">{quantity}</span>}
         </button> : <button className="fm-view-product flex min-h-8 w-full items-center justify-center gap-[7px] rounded-full border border-[#088178] bg-white px-2 py-2 text-[10px] font-medium text-[#08755d] hover:bg-[#ecf7f1]"
           onClick={onOpen}>{unavailable ? 'Hết hàng · Xem sản phẩm' : 'Xem sản phẩm'}<ArrowUpRight size={14} /></button>}

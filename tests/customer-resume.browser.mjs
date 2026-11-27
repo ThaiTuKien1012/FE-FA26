@@ -9,11 +9,11 @@
 import assert from 'node:assert/strict';
 import { waitForDevToolsPage } from './browser-devtools.mjs';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { storefrontFixture, STOREFRONT_PRODUCT, STOREFRONT_PRODUCT_ID, STOREFRONT_SLUG, STOREFRONT_STORE,
-  STOREFRONT_WITH_IMAGES, STOREFRONT_WITH_BROKEN_IMAGES } from './storefront.fixtures.ts';
+  RELATED_PRODUCT_ID, UNAVAILABLE_RELATED_PRODUCT_ID, CROSS_SELL_PRODUCT_ID, storefrontCartFixture, STOREFRONT_WITH_IMAGES, STOREFRONT_WITH_BROKEN_IMAGES } from './storefront.fixtures.ts';
 import { policy } from './f06.fixtures.ts';
 import { conversionRequestFixture, conversionRunFixture } from './f05.fixtures.ts';
 
@@ -55,7 +55,7 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], unexpected = [], errors = [], checks = [];
-const state = { role: 'END_CUSTOMER', storeId: null, storefront: STOREFRONT_STORE };
+const state = { role: 'END_CUSTOMER', storeId: null, storefront: STOREFRONT_STORE, placements: false, cartVersion: 0, cartQuantity: 0 };
 const pixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -95,7 +95,10 @@ async function fixture({ requestId, request }) {
   if (!url.pathname.startsWith('/api/')) return page.call(url.origin === origin ? 'Fetch.continueRequest' : 'Fetch.failRequest', {
     requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' })
   });
-  calls.push({ path: url.pathname, method: request.method });
+  const write = request.method === 'POST' && url.pathname === `/api/storefront/${STOREFRONT_SLUG}/cart/items`;
+  const ifMatch = write ? Object.entries(request.headers).find(([key]) => key.toLowerCase() === 'if-match')?.[1] : undefined;
+  const sent = write ? JSON.parse(request.postData || 'null') : undefined;
+  calls.push({ path: url.pathname, method: request.method, ifMatch, sent });
   if ([STOREFRONT_WITH_IMAGES.iconUrl, STOREFRONT_WITH_IMAGES.bannerUrl].includes(url.pathname)) {
     return page.call('Fetch.fulfillRequest', { requestId, responseCode: 200,
       responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: pixelPng });
@@ -106,7 +109,22 @@ async function fixture({ requestId, request }) {
   else if ([STOREFRONT_WITH_BROKEN_IMAGES.iconUrl, STOREFRONT_WITH_BROKEN_IMAGES.bannerUrl].includes(url.pathname)) {
     responseCode = 404; body = { error: 'Missing image fixture' };
   }
-  else if (front = storefrontFixture(url.pathname, request.method, state.storefront)) { responseCode = front.status; body = front.body; }
+  else if (write && state.placements && sent?.productId === RELATED_PRODUCT_ID && sent?.quantity === 1 && ifMatch === `"${state.cartVersion}"`) {
+    if (state.cartVersion === 0) {
+      state.cartVersion++;
+      responseCode = 409;
+      body = { code: 'CART_VERSION_CONFLICT', error: 'Fixture cart changed' };
+    } else {
+      state.cartVersion++;
+      state.cartQuantity++;
+      body = storefrontCartFixture(state.storefront, state.cartVersion, state.cartQuantity);
+    }
+  }
+  else if (front = storefrontFixture(url.pathname, request.method, state.storefront, state.placements ? origin : undefined)) {
+    responseCode = front.status;
+    body = state.placements && url.pathname === `/api/storefront/${STOREFRONT_SLUG}/cart`
+      ? storefrontCartFixture(state.storefront, state.cartVersion, state.cartQuantity) : front.body;
+  }
   else if (url.pathname === '/api/recommendations/config') body = policy;
   // The F06 run screen reads the analysis list and detail, the selected run, its recommendations and the expiry alerts (all empty pages).
   else if (url.pathname === '/api/mining/requests') body = { items: [{ ...conversionRequestFixture('WHOLE_UNIT_HALF_UP', 'FAILED', state.storeId), comparisonStatus: 'FAILED', requestId: 17 }], page: 0, pageSize: 20, totalElements: 1 };
@@ -166,6 +184,12 @@ try {
   const productPath = `/product/${STOREFRONT_PRODUCT_ID}?store=${STOREFRONT_SLUG}`;
   await openAsGuest(productPath);
   await has(STOREFRONT_PRODUCT.name);
+  await until("!document.body.innerText.includes('Đang tải gợi ý sản phẩm…')", 'empty recommendations finished loading');
+  assert.ok(calls.some(call => call.path === `/api/storefront/${STOREFRONT_SLUG}/home`));
+  assert.equal(await page.evaluate("!document.querySelector('#product-fbt-title,#product-cross-sell-title')"), true, 'Hide both sections without placements');
+  state.placements = true;
+  await openAsGuest(productPath);
+  await has('Thường được mua cùng');
   await clickText('Đăng nhập');
   await until('location.pathname==="/login"', 'login page');
   assert.equal(await where(), `/login?returnStore=${STOREFRONT_SLUG}&returnProduct=${STOREFRONT_PRODUCT_ID}`, 'Login URL remembers the Store and product');
@@ -174,6 +198,40 @@ try {
   await has(STOREFRONT_PRODUCT.name);
   assert.equal(await page.evaluate('!document.querySelector("#identifier")'), true, 'Sign-in form is gone');
   checks.push('Guest product URL -> login -> End-Customer returns to the same Store and product');
+
+  const fbt = 'section[aria-labelledby="product-fbt-title"]';
+  const crossSell = 'section[aria-labelledby="product-cross-sell-title"]';
+  await has('Thường được mua cùng'); await has('Có thể bạn cũng thích');
+  const productLinks = selector => page.evaluate(`[...document.querySelectorAll(${JSON.stringify(selector + ' h3 a')})].map(link => [link.textContent, link.getAttribute('href')])`);
+  assert.deepEqual(await productLinks(fbt), [
+    ['Mật ong nguyên chất', `/product/${RELATED_PRODUCT_ID}?store=${STOREFRONT_SLUG}`],
+    ['Dâu tươi', `/product/${UNAVAILABLE_RELATED_PRODUCT_ID}?store=${STOREFRONT_SLUG}`],
+  ]);
+  assert.deepEqual(await productLinks(crossSell), [['Cà phê rang xay', `/product/${CROSS_SELL_PRODUCT_ID}?store=${STOREFRONT_SLUG}`]]);
+  const fbtText = await page.evaluate(`document.querySelector(${JSON.stringify(fbt)}).innerText`);
+  for (const expected of ['39.000 ₫', '42.000 ₫', 'Còn hàng', 'Hết hàng']) assert.ok(fbtText.includes(expected), expected);
+  assert.equal(await page.evaluate("document.querySelector('button[aria-label=\"Thêm Dâu tươi vào giỏ\"]').disabled"), true);
+  const cartCalls = () => calls.filter(call => call.path.startsWith(`/api/storefront/${STOREFRONT_SLUG}/cart`));
+  const writes = () => cartCalls().filter(call => call.method === 'POST');
+  await clickText('Thêm Mật ong nguyên chất vào giỏ');
+  await has('Giỏ hàng đã thay đổi. Hãy kiểm tra lại trước khi thực hiện lại.');
+  await until(`!!(${buttonByLabel('Thêm Mật ong nguyên chất vào giỏ')})`, 'cart reloaded after conflict');
+  assert.equal(writes().length, 1, 'conflict does not replay the POST');
+  assert.equal(cartCalls().at(-1).method, 'GET');
+  await clickText('Thêm Mật ong nguyên chất vào giỏ');
+  await has('Đã cập nhật giỏ hàng.');
+  assert.deepEqual(writes().map(({ ifMatch, sent }) => [ifMatch, sent]), [
+    ['"0"', { productId: RELATED_PRODUCT_ID, quantity: 1 }], ['"1"', { productId: RELATED_PRODUCT_ID, quantity: 1 }],
+  ]);
+  await until("!!document.querySelector('button[aria-label=\"Mở giỏ hàng (1)\"]')", 'updated cart count');
+  await page.evaluate(`document.querySelector(${JSON.stringify(fbt)}).scrollIntoView()`);
+  await until(`[...document.querySelectorAll(${JSON.stringify(fbt + ' img, ' + crossSell + ' img')})].every(image=>image.naturalWidth>0)`, 'related images decoded');
+  if (process.env.PASPM_PLACEMENT_EVIDENCE) {
+    const screenshot = await page.call('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(process.env.PASPM_PLACEMENT_EVIDENCE, 'product-related-cart.png'), Buffer.from(screenshot.data, 'base64'));
+  }
+  state.placements = false;
+  checks.push('Related products follow current placement membership, mark unavailable stock, and use the versioned Store cart');
 
   // 2. Guest on the Store storefront -> sign in as End-Customer -> same Store.
   await signOutLocally();
