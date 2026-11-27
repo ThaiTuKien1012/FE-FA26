@@ -21,7 +21,7 @@ npx vite --port=3000 --host=127.0.0.1
 
 | Variable | Used by |
 |---|---|
-| `SESSION_TEST_CHROME` | `auth-session`, `f11` |
+| `SESSION_TEST_CHROME` | `auth-session`, `f11`, `store-management` |
 | `DATE_TEST_CHROME` | `date-picker` |
 | `F02_TEST_CHROME` | `f02`, `f02.pagination`, `f02.tables` |
 | `F03_TEST_CHROME` | `f03` |
@@ -67,11 +67,38 @@ Each test prints a JSON result (`PASS …` or `FAIL` with `error`, `unexpected` 
 - A new browser test that renders a guest or customer screen must call `storefrontFixture(path, method)` in its fixture handler.
 - The F02 product form always sends `imageUrl` and `description` (`null` when empty); the tests assert both keys.
 
-## Known issues
+## Test stability notes
 
-| ID | Test | Symptom | Status |
+| ID | Test | Diagnosis | Status |
 |---|---|---|---|
-| KI-01 | `f05.browser.mjs`, "Native Store keyboard selection" (line ~415) | On Users & Roles, pressing ArrowDown on the native "Assigned Store" `<select>` leaves the value `'1'`; the test expects `'2'` (`'1' !== '2'`). Reported by Codex; also fails on `origin/dev` @ `62a853a` (same assertion) | **Open, not fixed.** Not reproduced or diagnosed here: it may be a headless/macOS difference in native `<select>` keyboard handling or an FE defect |
+| KI-01 | `f05.browser.mjs`, "Native Store keyboard selection" | On macOS headless Chrome, CDP arrow keys reach a closed native `<select>` as trusted, uncancelled events. The browser does not change its value or emit `input`/`change`. The same behavior reproduces without React or the account modal. | **Harness fixed.** macOS uses CDP character input and native type-ahead against uniquely named fixture Stores. Other platforms still send ArrowDown/ArrowUp. Both paths require values 2 then 1 and preserve the invitation payload assertion. The headed macOS picker was not retested. |
 
-**Workaround:** select the Store with the mouse (click the select and choose the option). A failure of this one assertion is the known issue; because the test stops at the first failed assertion,
-any check after it in `f05.browser.mjs` does not run until the issue is fixed. All other browser tests must pass.
+To reproduce the macOS diagnosis in a CDP page session, evaluate the setup below
+in an empty page. Then dispatch `Input.dispatchKeyEvent` with
+`{ type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 }`
+followed by the same event with `type: 'keyUp'`.
+
+```js
+document.body.innerHTML = '<select><option value="1">Alpha</option><option value="2">Beta</option></select>';
+const select = document.querySelector('select');
+window.selectionEvents = [];
+for (const type of ['keydown', 'keyup', 'input', 'change']) {
+  select.addEventListener(type, event => {
+    window.selectionEvents.push({ type, trusted: event.isTrusted, cancelled: event.defaultPrevented });
+  });
+}
+select.focus();
+```
+
+On macOS headless Chrome, the closed dropdown stayed at `1`. Adding `size="2"`
+to the minimal fixture made the same arrow events select `2` in the listbox.
+With the original dropdown, CDP `keyDown` with
+`{ key: 'b', code: 'KeyB', windowsVirtualKeyCode: 66, text: 'b', unmodifiedText: 'b' }`
+plus `keyUp` selected `2` and emitted trusted `input` and `change`.
+
+The customer resume and F06 expiry suites share [DevTools readiness discovery](../tests/browser-devtools.mjs).
+It polls the port file and `/json/list` until a page target is available, with a
+bounded deadline and per-request timeout. The F06 expiry test also waits for the
+rules cards to render before checking their exact count. It sets the existing
+login `returnTo` before authentication and waits for the Recommendations
+heading, so the session remount cannot race the test's route change.
