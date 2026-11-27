@@ -135,12 +135,12 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
     {summary && summary.productId === productId && summary.expiringSoonQuantity > 0 && <aside aria-label="Expiring stock" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-[#805f25]"><AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-medium">{summary.expiringSoonQuantity.toLocaleString('en-GB')} units expiring within 7 days</p><p className="mt-0.5 text-xs">Review the batches below to prioritize stock before expiry.</p></div></aside>}
     {summary && summary.productId === productId && summary.batchesMissingPushDay > 0 && <aside className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <AlertTriangle aria-hidden="true" className="h-4 w-4 shrink-0" />
-      Chưa đặt Push Day: {summary.batchesMissingPushDay.toLocaleString('en-GB')} lô
+      Push Day not set: {summary.batchesMissingPushDay.toLocaleString('en-GB')} {summary.batchesMissingPushDay === 1 ? 'batch' : 'batches'}
     </aside>}
     <div className="space-y-2"><p title={`Store time zone: ${storeTimeZone}. Batches remain valid on their expiry date.`} className="flex items-center gap-1.5 text-xs text-[#6d7974]"><Info aria-hidden="true" className="h-3.5 w-3.5" />Expiry status follows the store's local date.</p>
     <div className="f02-toolbar" role="search" aria-label="Batch filters">
       <label className="f02-toolbar-search">Search<input aria-label="Search batch code" placeholder="Search batch code" disabled={busy || !productId} value={filters.batchCode.text || ''} onChange={e => filter('batchCode', { text: e.target.value })} /></label>
-      <label>Status<select aria-label="Filter batch status" disabled={busy || !productId} value={filters.status.choice || ''} onChange={e => filter('status', { choice: e.target.value })}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="BLOCKED">Blocked</option><option value="EXPIRED">Đã hết hạn</option></select></label>
+      <label>Status<select aria-label="Filter batch status" disabled={busy || !productId} value={filters.status.choice || ''} onChange={e => filter('status', { choice: e.target.value })}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="BLOCKED">Blocked</option><option value="EXPIRED">Expired</option></select></label>
       <label>Expiry<select aria-label="Filter batch expiry" disabled={busy || !productId} value={filters.expiryDate.presence || ''} onChange={e => filter('expiryDate', { presence: e.target.value as ColumnFilterValue['presence'] })}><option value="">All expiry dates</option><option value="set">Date is set</option><option value="unset">Not set</option></select></label>
       <F02FilterSummary active={Object.values(filters).some(hasColumnFilter)} onClearAll={clearFilters} />
     </div>
@@ -164,10 +164,10 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
             <td><span>{formatDate(batch.expiryDate, 'Not set')}</span>{expiryLabel && <span className={'mt-1 block text-xs font-medium ' + (batch.effectiveStatus === 'EXPIRED' ? 'text-red-700' : 'text-[#805f25]')}>{expiryLabel}</span>}</td>
             <td>
               <span>{formatDate(batch.pushDay, 'Not set')}</span>
-              {batch.warnings.includes('MISSING_PUSH_DAY') && <div className="mt-1"><span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">Chưa đặt Push Day</span></div>}
+              {batch.warnings.includes('MISSING_PUSH_DAY') && <div className="mt-1"><span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">Push Day not set</span></div>}
             </td>
             <td className="f02-numeric"><span className="f02-cell-amount" title={batch.remainingQuantity + ' / ' + batch.initialQuantity}><strong>{batch.remainingQuantity.toLocaleString('en-GB')}</strong><span className="text-[#89938f]"> / {batch.initialQuantity.toLocaleString('en-GB')}</span></span></td>
-            <td><span className={'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ' + (batch.effectiveStatus === 'ACTIVE' ? 'bg-[#eaf2ec] text-[#315445]' : 'bg-red-50 text-red-700')}>{{ ACTIVE: 'Active', BLOCKED: 'Blocked', EXPIRED: 'Đã hết hạn' }[batch.effectiveStatus]}</span></td>
+            <td><span className={'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ' + (batch.effectiveStatus === 'ACTIVE' ? 'bg-[#eaf2ec] text-[#315445]' : 'bg-red-50 text-red-700')}>{{ ACTIVE: 'Active', BLOCKED: 'Blocked', EXPIRED: 'Expired' }[batch.effectiveStatus]}</span></td>
             <td><div className="f02-cell-actions"><button disabled={busy || loading} onClick={() => editBatch(batch)} className={buttonClass}>Edit</button><button disabled={busy || loading} onClick={() => updateStatus(batch)} className={buttonClass}>{batch.status === 'BLOCKED' ? 'Unblock' : 'Block'}</button></div></td>
           </tr>;
         })}<F02TableEmpty columns={7} message={!visibleBatches.length ? loading ? 'Loading batches...' : !productId ? 'Choose a product to view its batches.' : error && !batches.length ? 'Batch data is unavailable. Please retry.' : batches.length ? 'No matching batches.' : 'No batches found.' : undefined} /></tbody>
@@ -189,7 +189,7 @@ export const StoreBatchesView: React.FC<{ onNavigate?: (screen: ActiveNavScreen)
         <label className="block text-sm">Push Day<AppDatePicker aria-label="Push Day" aria-invalid={Boolean(pushError || pushSaveError)} aria-describedby={`f02-push-help${showMissingPushWarning ? ' f02-push-warning' : ''}${pushError || pushSaveError ? ' f02-push-error' : ''}`}  max={form.expiryDate || undefined} value={form.pushDay} onChange={value => { setFormError(''); setForm({ ...form, pushDay: value }); }} className={inputClass} /></label>
         <p id="f02-push-help" className="text-xs text-[#6d7974]">Set a Push Day to plan when this batch should be prioritized.</p>
         {showMissingPushWarning && <p id="f02-push-warning" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          Chưa đặt Push Day. Bạn vẫn có thể lưu.{editing?.pushDay && ' Dùng Clear Push Day để xóa ngày đã lưu trước khi lưu thay đổi khác.'}
+          Push Day not set. You can still save.{editing?.pushDay && ' Use Clear Push Day to remove the saved date before saving other changes.'}
         </p>}
         {(pushError || pushSaveError) && <p id="f02-push-error" role="alert" className="text-sm text-red-700">{pushError || pushSaveError}</p>}
         {editing?.pushDay && <button type="button" onClick={clearPushDay} className={buttonClass}>Clear Push Day</button>}

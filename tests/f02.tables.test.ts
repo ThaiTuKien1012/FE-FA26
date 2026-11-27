@@ -100,7 +100,7 @@ test('batch expiry label and Status filtering and sorting follow effective backe
   assert.equal(batchExpiryLabel({ effectiveStatus: 'ACTIVE', daysToExpiry: 8 }), null);
   assert.equal(batchExpiryLabel({ effectiveStatus: 'ACTIVE', daysToExpiry: null }), null);
   const expired: F02Batch = { ...batch, id: 5, status: 'BLOCKED', effectiveStatus: 'EXPIRED', daysToExpiry: -1 };
-  assert.equal(batchExpiryLabel(expired), 'Đã hết hạn');
+  assert.equal(batchExpiryLabel(expired), 'Expired');
   const rows = [expired, batches[1], batch];
   assert.deepEqual(ids(batchTableRows(rows, { ...emptyBatchFilters(), status: { choice: 'EXPIRED' } }, null)), [5]);
   assert.deepEqual(ids(batchTableRows(rows, emptyBatchFilters(), { by: 'status', direction: 'asc' })), [1, 2, 5]);
