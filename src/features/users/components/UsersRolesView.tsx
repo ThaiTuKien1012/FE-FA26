@@ -30,7 +30,7 @@ export function AccountOverview({users,loading,error}:{users:UserAccount[];loadi
             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${metric.iconStyle}`}><Icon aria-hidden="true" className="h-5 w-5" strokeWidth={1.7}/></span>
           </div>
           <p data-account-value className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-[#1E3A2F]">{loading?'…':error?'—':metric.value.toLocaleString('en-GB')}</p>
-          <p className="mt-2 text-xs leading-5 text-[#6D7974]">{loading?'Loading accounts...':error?'Account data unavailable':metric.description}</p>
+          <p className="mt-2 text-xs leading-5 text-[#6D7974] sm:min-h-10">{loading?'Loading accounts...':error?'Account data unavailable':metric.description}</p>
         </article>;
       })}
     </div>

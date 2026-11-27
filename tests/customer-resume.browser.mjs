@@ -7,11 +7,13 @@
 // All API traffic is intercepted with fixtures, never a real backend, account or cart write.
 // Any request outside the fixtures lands in `unexpected` and fails the test.
 import assert from 'node:assert/strict';
+import { waitForDevToolsPage } from './browser-devtools.mjs';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { storefrontFixture, STOREFRONT_PRODUCT, STOREFRONT_PRODUCT_ID, STOREFRONT_SLUG } from './storefront.fixtures.ts';
+import { storefrontFixture, STOREFRONT_PRODUCT, STOREFRONT_PRODUCT_ID, STOREFRONT_SLUG, STOREFRONT_STORE,
+  STOREFRONT_WITH_IMAGES, STOREFRONT_WITH_BROKEN_IMAGES } from './storefront.fixtures.ts';
 import { policy } from './f06.fixtures.ts';
 import { conversionRequestFixture, conversionRunFixture } from './f05.fixtures.ts';
 
@@ -53,7 +55,8 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], unexpected = [], errors = [], checks = [];
-const state = { role: 'END_CUSTOMER', storeId: null };
+const state = { role: 'END_CUSTOMER', storeId: null, storefront: STOREFRONT_STORE };
+const pixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 async function until(expression, label) {
   const end = Date.now() + 12000;
   while (Date.now() < end) { if (await page.evaluate(expression)) return; await sleep(40); }
@@ -93,10 +96,17 @@ async function fixture({ requestId, request }) {
     requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' })
   });
   calls.push({ path: url.pathname, method: request.method });
+  if ([STOREFRONT_WITH_IMAGES.iconUrl, STOREFRONT_WITH_IMAGES.bannerUrl].includes(url.pathname)) {
+    return page.call('Fetch.fulfillRequest', { requestId, responseCode: 200,
+      responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: pixelPng });
+  }
   let responseCode = 200, body, front;
   if (['/api/auth/login', '/api/auth/refresh'].includes(url.pathname)) body = { accessToken: 'fixture-access', expiresIn: 3600, tokenType: 'Bearer', csrfToken: 'fixture-csrf' };
   else if (url.pathname === '/api/auth/me') body = { userId: 12, name: 'Customer Fixture', email: 'fixture@example.invalid', roleCode: state.role, storeId: state.storeId, status: 'ACTIVE', emailVerified: true };
-  else if (front = storefrontFixture(url.pathname, request.method)) { responseCode = front.status; body = front.body; }
+  else if ([STOREFRONT_WITH_BROKEN_IMAGES.iconUrl, STOREFRONT_WITH_BROKEN_IMAGES.bannerUrl].includes(url.pathname)) {
+    responseCode = 404; body = { error: 'Missing image fixture' };
+  }
+  else if (front = storefrontFixture(url.pathname, request.method, state.storefront)) { responseCode = front.status; body = front.body; }
   else if (url.pathname === '/api/recommendations/config') body = policy;
   // The F06 run screen reads the analysis list and detail, the selected run, its recommendations and the expiry alerts (all empty pages).
   else if (url.pathname === '/api/mining/requests') body = { items: [{ ...conversionRequestFixture('WHOLE_UNIT_HALF_UP', 'FAILED', state.storeId), comparisonStatus: 'FAILED', requestId: 17 }], page: 0, pageSize: 20, totalElements: 1 };
@@ -108,19 +118,49 @@ async function fixture({ requestId, request }) {
   return page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(body)).toString('base64') });
 }
 try {
-  const portFile = join(profile, 'DevToolsActivePort');
-  for (let i = 0; !existsSync(portFile) && i < 150; i++) await sleep(100);
-  assert.ok(existsSync(portFile), 'Chrome DevTools started');
-  const port = readFileSync(portFile, 'utf8').split('\n')[0];
-  const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
-  const ws = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
+  const pageUrl = await waitForDevToolsPage(profile);
+  assert.ok(pageUrl, 'Chrome DevTools started');
+  const ws = new WebSocket(pageUrl);
   await new Promise((done, reject) => { ws.addEventListener('open', done, { once: true }); ws.addEventListener('error', reject, { once: true }); });
   page = new CDP(ws);
   page.on('Fetch.requestPaused', data => fixture(data).catch(error => { if (!closing && !/Invalid InterceptionId/.test(error.message)) errors.push(error.message); }));
   page.on('Runtime.exceptionThrown', data => errors.push(data.exceptionDetails.exception?.description || data.exceptionDetails.text));
   await page.call('Page.enable'); await page.call('Runtime.enable'); await page.call('Network.enable');
+  await page.call('Network.setCacheDisabled', { cacheDisabled: true });
   await page.call('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
   await page.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false });
+
+  // Branding uses the actual image when it loads and the same default for null and 404 images.
+  const brandingHome = `/storefront?store=${STOREFRONT_SLUG}`;
+  const iconSelector = 'img[alt="Biểu tượng Fixture Store"]';
+  const bannerSelector = 'img[alt="Ảnh bìa Fixture Store"]';
+  const loaded = selector => `document.querySelector(${JSON.stringify(selector)})?.naturalWidth > 0`;
+  for (const [mode, store] of [['available', STOREFRONT_WITH_IMAGES], ['null', STOREFRONT_STORE], ['broken', STOREFRONT_WITH_BROKEN_IMAGES]]) {
+    state.storefront = store;
+    const firstCall = calls.length;
+    await openAsGuest('/storefront');
+    await until(mode === 'available' ? `${loaded('.storefront-store-card ' + iconSelector)} && ${loaded('.storefront-store-card ' + bannerSelector)}` : '!!document.querySelector(".storefront-store-card svg.lucide-store")', 'Store picker icon: ' + mode);
+    if (mode !== 'available') {
+      await until(`!document.querySelector(${JSON.stringify('.storefront-store-card ' + bannerSelector)})`, 'Default picker banner: ' + mode);
+    }
+    await openAsGuest(brandingHome);
+    await until('document.querySelector("#shop-main h1")?.textContent === "Fixture Store"', 'Store heading: ' + mode);
+    if (mode === 'available') {
+      await until(`${loaded(iconSelector)} && ${loaded(bannerSelector)}`, 'Decoded Store icon and banner');
+    } else {
+      await until('!!document.querySelector("#shop-main section svg.lucide-store")', 'Default Store icon: ' + mode);
+      await until(`!document.querySelector(${JSON.stringify(bannerSelector)})`, 'Default Store banner: ' + mode);
+      assert.equal(await page.evaluate(`!document.querySelector(${JSON.stringify(iconSelector)})`), true);
+    }
+    const requests = calls.slice(firstCall);
+    if (mode === 'null') assert.ok(requests.every(call => !call.path.startsWith('/api/public/stores/')));
+    if (mode === 'broken') {
+      assert.ok(requests.some(call => call.path === store.iconUrl), 'Broken icon was attempted');
+      assert.ok(requests.some(call => call.path === store.bannerUrl), 'Broken banner was attempted');
+    }
+    checks.push('Storefront branding: ' + mode);
+  }
+  state.storefront = STOREFRONT_STORE;
 
   // 1. Guest on a storefront product page -> sign in as End-Customer -> same Store and product.
   const productPath = `/product/${STOREFRONT_PRODUCT_ID}?store=${STOREFRONT_SLUG}`;

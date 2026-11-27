@@ -1,3 +1,4 @@
+import { formatWholeVnd } from '../../../utils/money';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { 
   Sparkles, 
@@ -519,7 +520,7 @@ export const MerchandiserRecommendationsView: React.FC<MerchandiserRecommendatio
 
                       <div className="text-right">
                         <div className="text-xs font-bold text-[#191C1B] font-mono">
-                          {item.unitPrice.toLocaleString('vi-VN')} đ
+                          {formatWholeVnd(item.unitPrice, 'vi-VN')} đ
                         </div>
                         <div className="text-[10px] text-[#10B981] font-medium">
                           +{item.utilityContribution} pts

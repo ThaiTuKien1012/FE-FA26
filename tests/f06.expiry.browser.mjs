@@ -1,7 +1,8 @@
 // Fixture-only F06 retail rules/expiry browser coverage. No screenshots, reports or real API writes.
 import assert from 'node:assert/strict';
+import { waitForDevToolsPage } from './browser-devtools.mjs';
 import {spawn} from 'node:child_process';
-import {mkdtempSync,readFileSync,existsSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname,basename} from 'node:path';
 import {requestFixture,runFixture} from './f05.fixtures.ts';
@@ -88,12 +89,26 @@ await until('[...document.querySelectorAll("button")].some(el=>el.textContent.tr
 async function input(selector,value){await page.evaluate('(()=>{const node=document.querySelector('+JSON.stringify(selector)+');node.focus();Object.getOwnPropertyDescriptor(node.tagName==="SELECT"?HTMLSelectElement.prototype:node.tagName==="TEXTAREA"?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,"value").set.call(node,'+JSON.stringify(value)+');node.dispatchEvent(new Event(node.tagName==="SELECT"?"change":"input",{bubbles:true}));})()');}
 async function key(value,modifiers=0){for(const type of ['keyDown','keyUp'])await page.call('Input.dispatchKeyEvent',{type,key:value,windowsVirtualKeyCode:{Tab:9,Escape:27,ArrowDown:40,Enter:13}[value]||0,modifiers});}
 async function navigate(path){await page.evaluate('history.pushState({},"",'+JSON.stringify(path)+');dispatchEvent(new PopStateEvent("popstate"))');}
-async function login(role='MERCHANDISER',storeId=1,runId=null){state.role=role;state.storeId=storeId;await page.evaluate('(async()=>{const {authService}=await import("/src/services/authService.ts");authService.endLocal();await authService.authenticate("/api/auth/login",{email:"fixture@example.invalid",password:"fixture-only"});})()');await navigate('/recommendations'+(runId===null?'':'?miningRunId='+runId));await has('Recommendations');}
+async function login(role='MERCHANDISER',storeId=1,runId=null){
+  state.role=role; state.storeId=storeId;
+  const destination='/recommendations'+(runId===null?'':'?miningRunId='+runId);
+  await page.evaluate('(async()=>{const {authService}=await import("/src/services/authService.ts");authService.endLocal();})()');
+  await navigate('/login');
+  await until('location.pathname==="/login" && !!document.querySelector("#identifier")','Guest login screen');
+  // SessionBoundary remounts App at authentication. Give the new App its URL before the remount.
+  const loginUrl='/login?'+new URLSearchParams({returnTo:destination});
+  await page.evaluate(`(async()=>{
+    const {authService}=await import("/src/services/authService.ts");
+    history.replaceState({screen:'login'},'',${JSON.stringify(loginUrl)});
+    await authService.authenticate("/api/auth/login",{email:"fixture@example.invalid",password:"fixture-only"});
+  })()`);
+  await until(`location.pathname+location.search===${JSON.stringify(destination)} && !!document.querySelector("#f06-library-tab")`,'Recommendations route and heading rendered');
+  await has('Recommendations');
+}
 async function close(title){const selector='button[aria-label="Close '+title+'"]';await page.evaluate('document.querySelector('+JSON.stringify(selector)+').click()');await until('!document.querySelector('+JSON.stringify(selector)+')','Closed '+title);}
 const writes=()=>calls.filter(call=>!['GET','HEAD'].includes(call.method)&&!call.path.startsWith('/api/auth/'));
 try{
-  for(let i=0;!existsSync(join(profile,'DevToolsActivePort'))&&i<150;i++)await sleep(100);
-  const port=readFileSync(join(profile,'DevToolsActivePort'),'utf8').split(/\r?\n/)[0],targets=await(await fetch('http://127.0.0.1:'+port+'/json/list')).json(),ws=new WebSocket(targets.find(target=>target.type==='page').webSocketDebuggerUrl);
+  const ws = new WebSocket(await waitForDevToolsPage(profile));
   await new Promise((done,reject)=>{ws.addEventListener('open',done,{once:true});ws.addEventListener('error',reject,{once:true});});page=new CDP(ws);
   page.on('Fetch.requestPaused',request=>fixture(request).catch(error=>{if(!closing&&!/Invalid InterceptionId/i.test(error.message))errors.push(error.message);}));page.on('Runtime.exceptionThrown',value=>errors.push(value.exceptionDetails.exception?.description||value.exceptionDetails.text));
   await page.call('Page.enable');await page.call('Runtime.enable');await page.call('Fetch.enable',{patterns:[{urlPattern:'*'}]});await page.call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await page.call('Emulation.setTimezoneOverride',{timezoneId:'Pacific/Honolulu'});
@@ -106,7 +121,9 @@ try{
 
   assert.equal(await page.evaluate('[...document.querySelectorAll("summary")].some(el=>el.textContent==="Store tools")'),false);assert.equal(calls.some(call=>call.path==='/api/recommendations'),false);
   const ruleTrigger=await page.evaluate('[...document.querySelectorAll("button")].find(button=>button.textContent.trim()==="Store Rules")?.getBoundingClientRect().height');assert.ok(ruleTrigger<=44,'Compact page-level Rules action');
-  await click('Store Rules');await has('Managed by Store Admin');assert.equal(await page.evaluate('document.querySelectorAll("dialog [data-rule-card]").length'),4,'Four structured policy cards');for(const text of ['4 products','2 transactions','5%','50%','1 unit'])await has(text);
+  await click('Store Rules');await has('Managed by Store Admin');
+  await until('!!document.querySelector("dialog [data-store-rule-groups] [data-rule-card]")', 'Store Rules policy cards rendered');
+  assert.equal(await page.evaluate('document.querySelectorAll("dialog [data-rule-card]").length'),4,'Four structured policy cards');for(const text of ['4 products','2 transactions','5%','50%','1 unit'])await has(text);
   assert.equal(await page.evaluate('document.querySelector("dialog").querySelectorAll("input,button[type=submit]").length'),0);assert.equal(await page.evaluate('/Rules version|expectedVersion|F06_RULES/.test(document.querySelector("dialog").textContent)'),false);
   for(const width of [320,390,820,1280,1440])await inspectRulesLayout('Merchandiser',width);
   const initialRulesReads=calls.filter(call=>call.path==='/api/recommendations/config'&&call.method==='GET').length;await click('Refresh Rules');await until('document.querySelector("dialog").innerText.includes("4 products")','Refreshed read-only rules');assert.equal(calls.filter(call=>call.path==='/api/recommendations/config'&&call.method==='GET').length,initialRulesReads+1);assert.equal(writes().length,0);

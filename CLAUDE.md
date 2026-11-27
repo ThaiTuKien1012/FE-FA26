@@ -35,7 +35,7 @@ Read the relevant API contract and handoff before changing an integration. Never
 
 ## Display and verification
 
-- Show VND as whole đồng using Vietnamese formatting. Reuse the customer price convention in [customerCatalog.ts](src/features/customer/data/customerCatalog.ts), preserving the contract's numerical value and rounding only for display. Keep utility scores separate from currency.
+- Show VND as whole đồng using Vietnamese formatting. Use the shared formatter in [money.ts](src/utils/money.ts), preserving the contract's numerical value and rounding only for display. Keep utility scores separate from currency.
 - Preserve the difference between missing and zero. For example, [f08.simulation.ts](src/features/f07f08/f08.simulation.ts) shows `chưa có` for a null or unavailable priority coverage and formats numeric zero as a percentage. Keep a zero price as `0 ₫`.
 - Use Node 22 and `npm ci`, matching [frontend CI](.github/workflows/frontend-checks.yml). For code changes run `npm run lint` (the `tsc --noEmit` check, also available through `npm exec -- tsc --noEmit`), `npm test` for `tests/*.test.ts`, and `npm run build`.
 - For affected UI flows, start Vite with `npm run dev`. Run the relevant [browser test](tests) with Node and Chrome. [package.json](package.json) exposes `npm run test:session:browser` and `npm run test:f07:browser`. See [auth-session.browser.mjs](tests/auth-session.browser.mjs) for `PASPM_TEST_ORIGIN` and `SESSION_TEST_CHROME` and [f07.browser.mjs](tests/f07.browser.mjs) for `F07_TEST_ORIGIN` and `F07_TEST_CHROME`. Other scripts can be run with `node tests/<feature>.browser.mjs` after checking their setup comments. Report fixture-based browser results separately from live Backend checks.
@@ -44,5 +44,5 @@ Read the relevant API contract and handoff before changing an integration. Never
 ## Git and delivery
 
 - Use one branch per task from the latest `dev`. Keep unrelated working-tree changes out of the branch.
-- Never push directly to `dev`, force-push, or bypass hooks. Merge into `dev` only through a PR with green CI. Commit, push or merge only with the user's authorization.
+- Never push directly to `dev`, force-push, or bypass hooks. Merge into `dev` through a PR with green CI. While the owner account’s billing is locked, the Product Owner permits FE PRs to `dev` to merge without GitHub CI only after full local verification: `npm ci`, `npm run lint`, `tsc --noEmit`, `npm test`, `npm run build`, and every browser test in [docs/BROWSER_TESTS.md](docs/BROWSER_TESTS.md). Record the browser results, including the known F05 keyboard Store selection issue (KI-01) if it occurs. Commit, push or merge only with the user's authorization.
 - Report in Vietnamese and keep technical terms in English. Separate verified results from assumptions and identify checks that were NOT RUN. Include the commands and results actually observed.

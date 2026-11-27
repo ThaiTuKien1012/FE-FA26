@@ -13,7 +13,14 @@
 // Money is VND with 2 decimals, as on the wire.
 
 export const STOREFRONT_SLUG = 'fixture-store';
-export const STOREFRONT_STORE = { storeSlug: STOREFRONT_SLUG, name: 'Fixture Store' };
+export const STOREFRONT_STORE = { storeSlug: STOREFRONT_SLUG, name: 'Fixture Store', iconUrl: null, bannerUrl: null };
+const imagePrefix = '/api/public/stores/1/images';
+export const STOREFRONT_WITH_IMAGES = {
+  ...STOREFRONT_STORE, iconUrl: `${imagePrefix}/icon.png`, bannerUrl: `${imagePrefix}/banner.png`,
+};
+export const STOREFRONT_WITH_BROKEN_IMAGES = {
+  ...STOREFRONT_STORE, iconUrl: `${imagePrefix}/missing-icon.png`, bannerUrl: `${imagePrefix}/missing-banner.png`,
+};
 export const STOREFRONT_PRODUCT_ID = 501;
 
 export const STOREFRONT_PRODUCT = {
@@ -29,13 +36,13 @@ export const STOREFRONT_PRODUCT = {
 
 export type FixtureReply = { status: number; body: unknown };
 
-export function storefrontFixture(pathname: string, method = 'GET'): FixtureReply | undefined {
+export function storefrontFixture(pathname: string, method = 'GET', store: typeof STOREFRONT_STORE | typeof STOREFRONT_WITH_IMAGES = STOREFRONT_STORE): FixtureReply | undefined {
   if (method !== 'GET') return undefined;
-  if (pathname === '/api/storefront/stores') return { status: 200, body: [STOREFRONT_STORE] };
+  if (pathname === '/api/storefront/stores') return { status: 200, body: [store] };
   const prefix = `/api/storefront/${STOREFRONT_SLUG}`;
   if (pathname === `${prefix}/home`) {
     return { status: 200, body: {
-      store: STOREFRONT_STORE, campaignName: null, fallbackType: 'DEFAULT_CATALOG', zones: [],
+      store, campaignName: null, fallbackType: 'DEFAULT_CATALOG', zones: [],
       catalog: [{ categoryId: 7, name: 'Dairy', products: [STOREFRONT_PRODUCT] }],
     } };
   }
@@ -46,7 +53,7 @@ export function storefrontFixture(pathname: string, method = 'GET'): FixtureRepl
   // The cart exists only for a signed-in End-Customer: a never-created cart is virtual (F10).
   if (pathname === `${prefix}/cart`) {
     return { status: 200, body: {
-      cartId: null, store: STOREFRONT_STORE, version: 0, currency: 'VND', updatedAt: null, items: [], subtotal: 0,
+      cartId: null, store, version: 0, currency: 'VND', updatedAt: null, items: [], subtotal: 0,
     } };
   }
   return undefined;

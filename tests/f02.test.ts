@@ -64,7 +64,7 @@ test('Product create/edit payloads select only V26 writable fields; decimal pric
   assert.deepEqual(f.calls.map(c => [c.path, c.init.method]), [['/api/products', 'POST'], ['/api/products/4', 'PUT']]);
   for (const call of f.calls) assert.deepEqual(call.body, request);
   assert.equal('expiryPushDays' in product, false);
-  assert.equal(money(12.75), '12.75 ₫'); assert.equal(money(1000.125), '1,000.125 ₫');
+  assert.equal(money(12.75), '13 ₫'); assert.equal(money(1000.125), '1,000 ₫');
 });
 test('Product category can be null or a valid inactive Store category; statuses are catalog-only', () => {
   assert.equal(productRequest({ ...productForm(), categoryId: '' }, categories).categoryId, null);

@@ -1,5 +1,5 @@
 export type Availability = 'AVAILABLE' | 'OUT_OF_STOCK';
-export type StoreSummary = { storeSlug: string; name: string };
+export type StoreSummary = { storeSlug: string; name: string; iconUrl: string | null; bannerUrl: string | null };
 export type StoreProduct = {
   productId: number;
   name: string;

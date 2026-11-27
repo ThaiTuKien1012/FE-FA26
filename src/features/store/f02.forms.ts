@@ -1,8 +1,9 @@
+import { formatWholeVnd } from '../../utils/money';
 import { formatDateTime } from '../../utils/dateTime';
 import type { F02Batch, F02BatchCreateRequest, F02BatchPatchRequest, F02Category, F02ProductRequest, F02Status } from './store.api';
 
 export const storeTimeZone: string = import.meta.env?.VITE_PASPM_STORE_TIME_ZONE || 'Asia/Ho_Chi_Minh';
-export const money = (value: number) => `${value.toLocaleString('en-GB', { maximumFractionDigits: 20 })} ₫`;
+export const money = (value: number) => `${formatWholeVnd(value, 'en-GB')} ₫`;
 
 export function storeDate(now = new Date(), timeZone = storeTimeZone): string {
   const parts = new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);

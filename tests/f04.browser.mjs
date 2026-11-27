@@ -121,8 +121,8 @@ async function fixture({ requestId, request }) {
     const index = Number(url.searchParams.get('page') || 0);
     const statuses = ['QUEUED', 'PROCESSING', 'COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'RECEIVING'];
     body = { content: index === 0 ? [...excelHistory.values(),...statuses.map((status, i) => summary({ importBatchId: 41 + i, filename: i === 2 ? 'legacy.csv' : 'sales.csv', status }))] : [summary({ importBatchId: 11 })], page: index, pageSize: 20, totalElements: 21 };
-  } else if (path === '/api/transactions') body = { content: [1,2,3,4,5].map(id => ({transactionId:id,sourceSystem:'CSV_UPLOAD',sourceOrderId:'SALE-00'+id,occurredAt:'2026-11-12T02:00:00Z',status:({2:'CANCELLED',3:'REFUNDED',4:'PARTIAL_REFUND'})[id]??'COMPLETED',f03Eligible:id===1,totalAmount:12000,items:[]})),page:0,pageSize:20,totalElements:5 };
-  else if (/^\/api\/transactions\/\d+$/.test(path)) { const id=Number(path.split('/').at(-1));body={transactionId:id,sourceSystem:'CSV_UPLOAD',sourceOrderId:'SALE-00'+id,occurredAt:'2026-11-12T02:00:00Z',status:({2:'CANCELLED',3:'REFUNDED',4:'PARTIAL_REFUND'})[id]??'COMPLETED',f03Eligible:id===1,totalAmount:12000,items:[{transactionItemId:id,productId:31,sku:'FM26-0290',productName:'Fixture milk',quantity:1,unitPrice:id===5?8:12,unitCost:10}]};
+  } else if (path === '/api/transactions') body = { content: [1,2,3,4,5].map(id => ({transactionId:id,sourceSystem:'CSV_UPLOAD',sourceOrderId:'SALE-00'+id,occurredAt:'2026-11-12T02:00:00Z',status:({2:'CANCELLED',3:'REFUNDED',4:'PARTIAL_REFUND'})[id]??'COMPLETED',f03Eligible:id===1,totalAmount:1234.5,items:[]})),page:0,pageSize:20,totalElements:5 };
+  else if (/^\/api\/transactions\/\d+$/.test(path)) { const id=Number(path.split('/').at(-1));body={transactionId:id,sourceSystem:'CSV_UPLOAD',sourceOrderId:'SALE-00'+id,occurredAt:'2026-11-12T02:00:00Z',status:({2:'CANCELLED',3:'REFUNDED',4:'PARTIAL_REFUND'})[id]??'COMPLETED',f03Eligible:id===1,totalAmount:1234.5,items:[{transactionItemId:id,productId:31,sku:'FM26-0290',productName:'Fixture milk',quantity:1,unitPrice:id===5?8:12.5,unitCost:10.4}]};
   } else if (path === '/api/products') body = { content: [], page: 0, pageSize: 20, totalElements: 0, totalPages: 0 };
   else if (path === '/api/categories' || path === '/api/system/stores') body = [];
   else if (path === '/api/utility/config') body = { config: { enableStock: true, enableExpiry: true, enableSeason: true, alpha: 1, beta: 1, gamma: 1, lambda: .1, expiryWindowDays: null, version: 1, scoringVersion: 'v1.2' }, lambdaPolicy: { lambdaMin: 0, lambdaMax: .5, version: 1 }, lambdaValid: true };
@@ -237,11 +237,13 @@ try {
   checks.push('XLSX/XLS official bytes, boundary/file multipart, direct mixed and duplicate Summary, 400/413, lost response and reload without retry, no fake progress/polling, History/errors, template links and responsive desktop/mobile');
   await navigate('/store/transactions');await has('Can be analyzed');await has('Excluded from analysis');
   assert.equal(await page.evaluate("[...document.querySelectorAll('.f04s-details-button')].every(b=>b.textContent==='View Details'&&!b.querySelector('svg')&&b.getAttribute('aria-haspopup')==='dialog'&&getComputedStyle(b).justifyContent==='center'&&getComputedStyle(b).borderTopWidth==='1px')"),true,'Store Admin Sales Records keeps centered, bordered, accessible text-only details buttons');
+  assert.equal(await page.evaluate("document.querySelector('tbody .f04s-money').textContent"), '1.235\u00a0₫', 'Sales Records rounds VND totals HALF_UP');
   for(const id of [1,2,3,4,5]) {
     await page.evaluate(`document.querySelector('[aria-label="View details for transaction ${id}"]').click()`);
     await has('SALE-00'+id);await has('FM26-0290');
     await has(id===1?'This sale is available for analysis; it has not necessarily been analyzed.':id===5?'selling price below their unit cost':({2:'Cancelled sales',3:'Refunded sales',4:'Partially refunded sales'})[id]);
     assert.equal(await page.evaluate(`document.querySelector('[aria-label="Transaction information"]').textContent.includes("utility calculation")`),false);
+    if (id === 1) assert.deepEqual(await page.evaluate("[...document.querySelectorAll('dialog tbody .f04s-money')].map(cell => cell.textContent)"), ['13\u00a0₫', '10\u00a0₫', '13\u00a0₫'], 'Sales details round unit price, unit cost and line total');
     for(const width of [390,820,1440]) {await page.call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768});assert.equal(await page.evaluate('document.querySelector("dialog").getBoundingClientRect().width<=innerWidth'),true);}
     await page.evaluate(`document.querySelector('[aria-label="Close transaction details"]').click()`);
   }
