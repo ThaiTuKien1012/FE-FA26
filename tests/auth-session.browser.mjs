@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import { storefrontFixture } from './storefront.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
@@ -91,8 +92,15 @@ async function fixture(page, { requestId, request }) {
   let code = 200, body, headers = [{ name: 'Content-Type', value: 'application/json' }];
   const header = name => Object.entries(request.headers).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
   try {
+    const storefront = storefrontFixture(path, method);
     if (state.network) return page.call('Fetch.failRequest', { requestId, errorReason: 'InternetDisconnected' });
-    if (['/api/auth/login', '/api/auth/google', '/api/auth/refresh'].includes(path)) {
+    if (storefront) { code = storefront.status; body = storefront.body; }
+    else if (path === '/api/auth/password-reset/request' && method === 'POST') {
+      code = 202; body = { message: 'Controlled backend success payload' };
+      assert.deepEqual(JSON.parse(request.postData), { email: 'fixture@example.invalid' });
+    } else if (path === '/api/auth/login' && state.rejectLogin) {
+      code = 401; body = { error: 'Controlled account-specific backend text' };
+    } else if (['/api/auth/login', '/api/auth/google', '/api/auth/refresh'].includes(path)) {
       if (path.endsWith('/refresh')) {
         while (state.holdRefresh) await sleep(20);
         assert.equal(header('X-CSRF-Token'), state.csrf, 'CSRF must match the latest rotation');
@@ -168,6 +176,40 @@ try {
   assert.ok(existsSync(join(profile, 'DevToolsActivePort')), 'Chrome started');
   const [portText, browserPath] = readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').trim().split(/\r?\n/); port = Number(portText);
   browser = await connect('ws://127.0.0.1:' + port + browserPath); first = await newPage();
+  if (!process.argv.includes('--production')) {
+    const saveEvidence = async name => {
+      if (!process.env.PASPM_UX_EVIDENCE) return;
+      const screenshot = await first.call('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(join(process.env.PASPM_UX_EVIDENCE, name + '.png'), Buffer.from(screenshot.data, 'base64'));
+    };
+    const assertBackLinks = async () => assert.equal(await first.evaluate(`[...document.querySelectorAll('nav[aria-label="Account navigation"] a')].map(a=>[a.textContent,a.getAttribute('href')]).join() === 'Back to sign in,/login,Back to home,/customer-home'`), true);
+    await navigate(first, '/login'); await has(first, 'Sign in to the system');
+    await click(first, 'Sign in');
+    await until(first, "document.querySelector('#identifier-error')?.textContent==='This field is required.' && document.querySelector('#passcode-error')?.textContent==='This field is required.'", 'required field feedback');
+    await input(first, '#identifier', 'invalid'); await click(first, 'Sign in');
+    await until(first, "document.querySelector('#identifier-error')?.textContent==='Please enter a valid email address.' && document.querySelector('#identifier').getAttribute('aria-describedby')==='identifier-error'", 'invalid email feedback');
+    await input(first, '#identifier', 'fixture@example.invalid'); await input(first, '#passcode', 'FixturePassword12');
+    state.rejectLogin = true;
+    await click(first, 'Sign in');
+    await until(first, "Array.from(document.querySelectorAll('[role=alert]')).map(el=>el.textContent.trim()).join()==='Invalid email or password.'", 'generic login error');
+    assert.ok(!(await first.evaluate('document.body.innerText')).includes('Controlled account-specific backend text'));
+    await saveEvidence('after-login-error');
+    state.rejectLogin = false;
+    await click(first, 'Forgot password?'); await has(first, 'Enter your reset email'); await assertBackLinks();
+    await input(first, '#reset-email', 'fixture@example.invalid'); await click(first, 'Continue');
+    await has(first, "If an account exists for this email, we've sent a verification code.");
+    assert.ok(!(await first.evaluate('document.body.innerText')).includes('Controlled backend success payload'));
+    await assertBackLinks(); await saveEvidence('after-password-reset');
+    await first.evaluate("document.querySelector('a[href=\"/login\"]').click()");
+    await has(first, 'Sign in to the system');
+    await click(first, 'Forgot password?'); await has(first, 'Enter your reset email');
+    await first.evaluate("document.querySelector('a[href=\"/customer-home\"]').click()");
+    await until(first, "location.pathname==='/customer-home' && !!document.querySelector('.home-store-card')", 'back to guest home');
+    await navigate(first, '/activate?email=fixture@example.invalid&code=invalid');
+    await has(first, 'This verification link is invalid.'); await assertBackLinks();
+    await saveEvidence('after-invalid-verification-link');
+    checks.push('generic login error, inline field validation, private reset success and both back links');
+  }
   await navigate(first, '/login'); await emailLogin(first); await has(first, 'Weight Settings');
   assert.equal(await first.evaluate("localStorage.getItem('retailspace_auth_token')"), null);
   assert.equal(await first.evaluate("document.cookie.includes('PASPM-REFRESH')"), false);

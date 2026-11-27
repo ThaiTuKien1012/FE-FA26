@@ -1,3 +1,4 @@
+import { authCopy, authResponseMessage } from '../features/auth/authMessages';
 import { AuthSession, SessionError } from './authSession';
 import { SystemRole } from '../types/users';
 import { ActiveNavScreen } from '../types/mining';
@@ -368,16 +369,9 @@ class AuthService extends AuthSession<AuthUser> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() })
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 202 || res.ok) {
-        const message = data.message === 'If the account is eligible, a verification email will be sent'
-          ? 'If eligible, a verification code will be sent to your email.'
-          : data.message;
-        return { success: true, message: message || 'A verification code has been sent to your email.' };
-      }
-      return { success: false, message: data.error || 'Registration request failed.' };
+      return { success: res.ok, message: res.ok ? 'Check your email for a verification code.' : await authResponseMessage('register', res) };
     } catch {
-      return { success: false, message: 'Unable to connect to the Backend server.' };
+      return { success: false, message: authCopy.network };
     }
   }
 
@@ -391,13 +385,9 @@ class AuthService extends AuthSession<AuthUser> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim() })
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        return { success: true, message: data.message || 'OTP verified successfully.' };
-      }
-      return { success: false, message: data.error || 'The OTP is invalid or has expired.' };
+      return { success: res.ok, message: res.ok ? 'Email verified.' : await authResponseMessage('verify', res) };
     } catch {
-      return { success: false, message: 'Unable to connect to the Backend server.' };
+      return { success: false, message: authCopy.network };
     }
   }
 
@@ -411,16 +401,9 @@ class AuthService extends AuthSession<AuthUser> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), purpose })
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 202 || res.ok) {
-        const message = data.message === 'If the account is eligible, a verification email will be sent'
-          ? 'If eligible, a new verification code will be sent to your email.'
-          : data.message;
-        return { success: true, message: message || 'A new OTP has been sent.' };
-      }
-      return { success: false, message: data.error || 'Please wait before requesting another OTP.' };
+      return { success: res.ok, message: res.ok ? 'Check your email for a new verification code.' : await authResponseMessage('resend', res) };
     } catch {
-      return { success: false, message: 'Unable to connect to the Backend server.' };
+      return { success: false, message: authCopy.network };
     }
   }
 
@@ -438,13 +421,9 @@ class AuthService extends AuthSession<AuthUser> {
           password: payload.password
         })
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        return { success: true, message: data.message || 'Account registration completed successfully.' };
-      }
-      return { success: false, message: data.error || 'Registration could not be completed. Please check your password.' };
+      return { success: res.ok, message: res.ok ? 'Account registration completed successfully.' : await authResponseMessage('complete', res) };
     } catch {
-      return { success: false, message: 'Unable to connect to the Backend server.' };
+      return { success: false, message: authCopy.network };
     }
   }
 
@@ -462,13 +441,9 @@ class AuthService extends AuthSession<AuthUser> {
           password: payload.password
         })
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        return { success: true, message: data.message || 'Account activated successfully. You can sign in now.' };
-      }
-      return { success: false, message: data.error || 'Activation failed. Check the OTP and password requirements.' };
+      return { success: res.ok, message: res.ok ? 'Account activated successfully. You can sign in now.' : await authResponseMessage('activate', res) };
     } catch {
-      return { success: false, message: 'Unable to connect to the Backend server.' };
+      return { success: false, message: authCopy.network };
     }
   }
 
@@ -498,15 +473,21 @@ class AuthService extends AuthSession<AuthUser> {
   }
 
   public async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/auth/password-reset/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
-    const data = await res.json().catch(() => ({}));
-    return { success: res.ok, message: data.message || data.error || 'If the account is eligible, a verification code will be sent.' };
+    try {
+      const res = await fetch('/api/auth/password-reset/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      return { success: res.ok, message: res.ok ? authCopy.resetRequested : await authResponseMessage('reset-request', res) };
+    } catch {
+      return { success: false, message: authCopy.network };
+    }
   }
 
   public async confirmPasswordReset(email: string, otp: string, password: string): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/auth/password-reset/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, password }) });
-    const data = await res.json().catch(() => ({}));
-    return { success: res.ok, message: data.message || data.error || (res.ok ? 'Password reset successfully.' : 'Unable to reset password.') };
+    try {
+      const res = await fetch('/api/auth/password-reset/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, password }) });
+      return { success: res.ok, message: res.ok ? 'Password reset successfully.' : await authResponseMessage('verify', res) };
+    } catch {
+      return { success: false, message: authCopy.network };
+    }
   }
 
   public async uploadAvatar(file: File): Promise<any> {

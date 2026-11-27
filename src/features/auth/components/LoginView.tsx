@@ -1,3 +1,5 @@
+import { authCopy, authRequestMessage, authResponseMessage } from '../authMessages';
+import { useAuthFields } from './AuthFormFeedback';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
@@ -31,6 +33,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   onNavigateForgotPassword,
   onNavigateActivate
 }) => {
+  const fields = useAuthFields();
   const [identifier, setIdentifier] = useState('');
   const [passcode, setPasscode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -66,6 +69,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
     return () => { script.remove(); };
   }, []);
 
+  const showSignInError = (message: string) => {
+    if (message !== authCopy.storeInactive || authService.getSnapshot().notice !== message) setErrorMessage(message);
+  };
+
   const handleGoogleLogin = () => {
     setErrorMessage(null);
     setIsLoading(true);
@@ -82,7 +89,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             const user = await authService.loginGoogle(response.credential);
             setSuccessNotice('Signed in with Google successfully.');
             onLoginSuccess(user, user.defaultScreen);
-          } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Google sign-in failed.'); } finally { setIsLoading(false); }
+          } catch (error) { showSignInError(error instanceof Error ? error.message : authCopy.server); } finally { setIsLoading(false); }
         };
       if (!googleInitialized.current) {
         window.google.accounts.id.initialize({ client_id: clientId, callback });
@@ -103,11 +110,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setIsLoading(true); setErrorMessage(null);
     try {
       const verify = await fetch('/api/auth/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: googlePending.email, otp: googleOtp }) });
-      const verifyData = await verify.json().catch(() => ({}));
-      if (!verify.ok) throw new Error(verifyData.error || 'The verification code is invalid or expired.');
+      if (!verify.ok) { setErrorMessage(await authResponseMessage('verify', verify)); return; }
       const user = await authService.loginGoogle(googlePending.token);
       onLoginSuccess(user, user.defaultScreen);
-    } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Google registration failed.'); } finally { setIsLoading(false); }
+    } catch (error) { showSignInError(error instanceof TypeError ? authCopy.network : error instanceof Error ? error.message : authCopy.server); } finally { setIsLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,7 +123,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setSuccessNotice(null);
 
     if (!identifier.trim() || !passcode) {
-    setErrorMessage('Please enter your email and password.');
+      if (!identifier.trim()) fields.setError('identifier', authCopy.required);
+      if (!passcode) fields.setError('passcode', authCopy.required);
       setIsLoading(false);
       return;
     }
@@ -135,10 +142,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
           onLoginSuccess(response.user!, response.user!.defaultScreen);
         }, 350);
       } else {
-      setErrorMessage(response.error || 'Incorrect email or password.');
+              showSignInError(response.error || authRequestMessage('login', 401));
       }
     } catch {
-      setErrorMessage('Unable to connect to the authentication server.');
+      setErrorMessage(authCopy.network);
     } finally {
       setIsLoading(false);
     }
@@ -149,7 +156,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     const result = await authService.requestPasswordReset(forgotEmail.trim());
     setForgotLoading(false);
     if (!result.success) { setForgotError(result.message); return; }
-    setForgotStep('confirm'); setForgotMessage(result.message || 'If eligible, a verification code was sent to your email.');
+    setForgotStep('confirm'); setForgotMessage(authCopy.resetRequested);
   };
 
   const confirmPasswordReset = async (event: React.FormEvent) => {
@@ -163,7 +170,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#102019] text-[#191C1B] selection:bg-[#1E3A2F] selection:text-white antialiased font-sans">
-      {forgotOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1E3A2F]/35 p-4"><div className="w-full max-w-lg rounded-3xl border border-[#E7E2D8] bg-[#FFFDFB] p-7 shadow-2xl"><div className="mb-6 flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#707973]">Account recovery</p><h2 className="mt-1 text-2xl font-bold text-[#191C1B]">Reset your password</h2><p className="mt-1 text-sm text-[#707973]">Recover access securely in three simple steps.</p></div><button type="button" onClick={() => setForgotOpen(false)} className="text-xl text-[#707973]">✕</button></div><div className="mb-7 grid grid-cols-3 gap-2">{['Email', 'Verification code', 'New password'].map((label, index) => { const active = (forgotStep === 'email' && index === 0) || (forgotStep === 'confirm' && index > 0); return <div key={label} className="text-center"><div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${active ? 'bg-[#1E3A2F] text-white' : 'bg-[#E6EDF6] text-[#68809F]'}`}>{index + 1}</div><p className={`mt-2 text-[11px] font-semibold ${active ? 'text-[#1E3A2F]' : 'text-[#89938F]'}`}>{label}</p></div>; })}</div>{forgotError && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{forgotError}</div>}{forgotMessage && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{forgotMessage}</div>}{forgotStep === 'email' ? <form onSubmit={requestPasswordReset} className="space-y-5"><p className="text-sm leading-6 text-[#707973]">Enter the email address linked to your account. If eligible, we will send a 6-digit verification code.</p><label className="block text-sm font-semibold">Email address<input required type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="yourname@example.com" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><button disabled={forgotLoading} className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60">{forgotLoading ? 'Sending…' : 'Send verification code →'}</button></form> : <form onSubmit={confirmPasswordReset} className="space-y-4"><p className="text-sm leading-6 text-[#707973]">Enter the code sent to <strong>{forgotEmail}</strong>, then create a new secure password.</p><label className="block text-sm font-semibold">Verification code<input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} placeholder="000000" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 tracking-[0.3em] outline-none focus:border-[#1E3A2F]" /></label><label className="block text-sm font-semibold">New password<input required minLength={12} type="password" value={forgotPassword} onChange={e => setForgotPassword(e.target.value)} placeholder="At least 12 characters" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><label className="block text-sm font-semibold">Confirm new password<input required minLength={12} type="password" value={forgotConfirm} onChange={e => setForgotConfirm(e.target.value)} placeholder="Re-enter your password" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><button disabled={forgotLoading} className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60">{forgotLoading ? 'Resetting…' : 'Reset password →'}</button><button type="button" onClick={() => setForgotStep('email')} className="w-full text-center text-sm font-semibold text-[#1E3A2F] hover:underline">Use a different email</button></form>}</div></div>}
+      {forgotOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1E3A2F]/35 p-4"><div className="w-full max-w-lg rounded-3xl border border-[#E7E2D8] bg-[#FFFDFB] p-7 shadow-2xl"><div className="mb-6 flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#707973]">Account recovery</p><h2 className="mt-1 text-2xl font-bold text-[#191C1B]">Reset your password</h2><p className="mt-1 text-sm text-[#707973]">Recover access securely in three simple steps.</p></div><button type="button" onClick={() => setForgotOpen(false)} className="text-xl text-[#707973]">✕</button></div><div className="mb-7 grid grid-cols-3 gap-2">{['Email', 'Verification code', 'New password'].map((label, index) => { const active = (forgotStep === 'email' && index === 0) || (forgotStep === 'confirm' && index > 0); return <div key={label} className="text-center"><div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${active ? 'bg-[#1E3A2F] text-white' : 'bg-[#E6EDF6] text-[#68809F]'}`}>{index + 1}</div><p className={`mt-2 text-[11px] font-semibold ${active ? 'text-[#1E3A2F]' : 'text-[#89938F]'}`}>{label}</p></div>; })}</div>{forgotError && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{forgotError}</div>}{forgotMessage && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{forgotMessage}</div>}{forgotStep === 'email' ? <form onSubmit={requestPasswordReset} className="space-y-5"><p className="text-sm leading-6 text-[#707973]">Enter the email address linked to your account. If eligible, we will send a 6-digit verification code.</p><label className="block text-sm font-semibold">Email address<input required type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="yourname@example.com" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><button disabled={forgotLoading} className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60">{forgotLoading ? 'Sending…' : 'Send verification code →'}</button></form> : <form onSubmit={confirmPasswordReset} className="space-y-4"><p className="text-sm leading-6 text-[#707973]">Enter the code sent to <strong>{forgotEmail}</strong>, then create a new secure password.</p><label className="block text-sm font-semibold">Verification code<input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} placeholder="000000" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 tracking-[0.3em] outline-none focus:border-[#1E3A2F]" /></label><label className="block text-sm font-semibold">New password<input required minLength={12} type="password" value={forgotPassword} onChange={e => setForgotPassword(e.target.value)} placeholder="At least 12 characters" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><label className="block text-sm font-semibold">Confirm new password<input required minLength={12} type="password" value={forgotConfirm} onChange={e => setForgotConfirm(e.target.value)} placeholder="Re-enter your password" className="mt-2 w-full rounded-xl border border-[#E1D8D6] bg-white p-3 outline-none focus:border-[#1E3A2F]" /></label><button disabled={forgotLoading} className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60">{forgotLoading ? 'Resetting…' : 'Reset password →'}</button><button type="button" onClick={() => setForgotStep('email')} className="w-full text-center text-sm font-semibold text-[#1E3A2F] hover:underline">Use a different email</button></form>}</div></div>}
       {/* BEGIN: FullScreenVideoBackground */}
       <video
         className="fixed inset-0 w-full h-full object-cover z-0"
@@ -266,7 +273,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               )}
 
               {/* Form Element */}
-              <form className="space-y-4" onSubmit={handleSubmit}>
+              <form {...fields.form} className="space-y-4" onSubmit={handleSubmit}>
                 {/* Username / Email Field */}
                 <div>
                   <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="identifier">
@@ -277,6 +284,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     <input
                       className="w-full h-11 pl-10 pr-3.5 text-sm bg-[#EEF5FD] text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#D5E2F1] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
                       id="identifier"
+                      {...fields.input('identifier')}
                       name="identifier"
                       placeholder="Enter your email"
                       required
@@ -285,6 +293,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       onChange={(e) => setIdentifier(e.target.value)}
                     />
                   </div>
+                  {fields.message('identifier')}
                 </div>
 
                 {/* Password Field */}
@@ -297,6 +306,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     <input
                       className="w-full h-11 pl-10 pr-12 text-sm bg-[#EEF5FD] text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#D5E2F1] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all duration-200 font-medium"
                       id="passcode"
+                      {...fields.input('passcode')}
                       name="passcode"
                       placeholder="••••••••••••"
                       required
@@ -313,6 +323,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {fields.message('passcode')}
                 </div>
 
                 {/* Remember Me & Forgot Password */}

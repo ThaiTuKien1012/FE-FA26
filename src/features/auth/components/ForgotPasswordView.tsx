@@ -1,6 +1,7 @@
+import { authCopy } from '../authMessages';
+import { AuthBackLinks, useAuthFields } from './AuthFormFeedback';
 import React, { useState } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   KeyRound,
@@ -11,9 +12,11 @@ import { authService } from "../../../services/authService";
 
 interface Props {
   onNavigateLogin: () => void;
+  onNavigateHome: () => void;
 }
 
-export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
+export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin, onNavigateHome }) => {
+  const fields = useAuthFields();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -34,7 +37,7 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
       setError(result.message);
       return;
     }
-    setMessage(result.message || "A verification code was sent to your email.");
+    setMessage(result.message);
     setStep(2);
   };
   const resetPassword = async (event: React.FormEvent) => {
@@ -42,7 +45,7 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
     setError("");
     setMessage("");
     if (password !== confirm) {
-      setError("Passwords do not match.");
+      fields.setError("reset-confirm", authCopy.passwordMismatch);
       return;
     }
     setLoading(true);
@@ -72,12 +75,6 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
         <div className="grid flex-1 grid-cols-1 items-center gap-10 lg:grid-cols-[1.1fr_1fr] xl:gap-20">
         <section className="hidden text-white lg:block"><h2 className="text-5xl font-bold leading-[1.05] tracking-tight xl:text-6xl">Recover your account <span className="bg-gradient-to-r from-emerald-200 via-[#CAEADA] to-white bg-clip-text text-transparent">with secure verification.</span></h2><p className="mt-6 max-w-xl text-base leading-relaxed text-white/75">A secure three-step password recovery process: verify your email, confirm your identity, and create a new password.</p><div className="mt-10 grid max-w-xl grid-cols-3 gap-4">{[{ v: 'Verified', l: 'Email security' }, { v: 'Simple', l: 'Three steps' }, { v: 'Secure', l: 'Account recovery' }].map((item) => <div key={item.l} className="rounded-2xl border border-white/20 bg-white/10 px-4 py-4 shadow-lg backdrop-blur-xl"><div className="text-xl font-bold">{item.v}</div><div className="mt-2 text-[10px] uppercase tracking-wider text-white/65">{item.l}</div></div>)}</div></section>
         <div className="w-full max-w-3xl lg:ml-auto">
-        <button
-          onClick={onNavigateLogin}
-          className="mb-8 hidden items-center gap-2 text-sm font-semibold text-[#1E3A2F]"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to sign in
-        </button>
         <section className="rounded-[42px] border border-white/60 bg-white/95 p-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-12">
           <div className="mb-8 text-center">
             <div className="hidden">
@@ -111,17 +108,17 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
             )}
           </div>
           {error && (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
           {message && (
-            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+            <div role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
               {message}
             </div>
           )}
           {step === 1 && (
-            <form onSubmit={requestCode} className="space-y-5">
+            <form {...fields.form} onSubmit={requestCode} className="space-y-5">
               <p className="text-sm leading-6 text-[#707973]">
                 Enter the email address linked to your account. If eligible, we
                 will send a 6-digit verification code.
@@ -131,6 +128,8 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
                 <div className="relative mt-2">
                   <Mail className="absolute left-3 top-3 h-5 w-5 text-[#89938F]" />
                   <input
+                    id="reset-email"
+                    {...fields.input('reset-email')}
                     required
                     type="email"
                     value={email}
@@ -140,6 +139,7 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
                   />
                 </div>
               </label>
+              {fields.message('reset-email')}
               <button
                 disabled={loading}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60"
@@ -150,7 +150,7 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
             </form>
           )}
           {step === 2 && (
-            <form onSubmit={resetPassword} className="space-y-5">
+            <form {...fields.form} onSubmit={resetPassword} className="space-y-5">
               <p className="text-sm leading-6 text-[#707973]">
                 Enter the code sent to <strong>{email}</strong>, then create a
                 new secure password.
@@ -158,6 +158,8 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
               <label className="block text-sm font-semibold">
                 Verification code
                 <input
+                  id="reset-code"
+                  {...fields.input('reset-code')}
                   required
                   inputMode="numeric"
                   pattern="[0-9]{6}"
@@ -168,9 +170,12 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
                   className="mt-2 w-full rounded-xl border border-[#E1D8D6] p-3 tracking-[0.3em] outline-none focus:border-[#1E3A2F]"
                 />
               </label>
+              {fields.message('reset-code')}
               <label className="block text-sm font-semibold">
                 New password
                 <input
+                  id="reset-password"
+                  {...fields.input('reset-password')}
                   required
                   minLength={12}
                   type="password"
@@ -180,9 +185,12 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
                   className="mt-2 w-full rounded-xl border border-[#E1D8D6] p-3 outline-none focus:border-[#1E3A2F]"
                 />
               </label>
+              {fields.message('reset-password')}
               <label className="block text-sm font-semibold">
                 Confirm new password
                 <input
+                  id="reset-confirm"
+                  {...fields.input('reset-confirm')}
                   required
                   minLength={12}
                   type="password"
@@ -192,6 +200,7 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
                   className="mt-2 w-full rounded-xl border border-[#E1D8D6] p-3 outline-none focus:border-[#1E3A2F]"
                 />
               </label>
+              {fields.message('reset-confirm')}
               <button
                 disabled={loading}
                 className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white disabled:opacity-60"
@@ -219,10 +228,11 @@ export const ForgotPasswordView: React.FC<Props> = ({ onNavigateLogin }) => {
                 onClick={onNavigateLogin}
                 className="w-full rounded-xl bg-[#1E3A2F] px-4 py-3.5 font-semibold text-white"
               >
-                Back to sign in
+                Sign in
               </button>
             </div>
           )}
+          <AuthBackLinks onNavigateLogin={onNavigateLogin} onNavigateHome={onNavigateHome} />
         </section>
         </div>
       </div>

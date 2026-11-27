@@ -1,3 +1,5 @@
+import { authCopy } from '../authMessages';
+import { AuthBackLinks, useAuthFields } from './AuthFormFeedback';
 import React, { useState, useEffect } from 'react';
 import { 
   AlertCircle, 
@@ -20,13 +22,15 @@ import { ActiveNavScreen } from '../../../types/mining';
 interface RegisterViewProps {
   onRegisterSuccess: (user: AuthUser, destinationScreen: ActiveNavScreen) => void;
   onNavigateLogin: () => void;
+  onNavigateHome: () => void;
 }
 
 export const RegisterView: React.FC<RegisterViewProps> = ({
   onRegisterSuccess,
-  onNavigateLogin
+  onNavigateLogin, onNavigateHome
 }) => {
   // Step 1: Email Request, Step 2: OTP Verification, Step 3: Name & Password Setup
+  const fields = useAuthFields();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form fields
@@ -73,7 +77,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setSuccessNotice(null);
 
     if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Please enter a valid email address.');
+      fields.setError('reg-email', authCopy.email);
       return;
     }
 
@@ -101,7 +105,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setSuccessNotice(null);
 
     if (otp.trim().length !== 6) {
-      setErrorMessage('The verification code must contain exactly 6 digits.');
+      fields.setError('reg-otp', authCopy.otpFormat);
       return;
     }
 
@@ -148,22 +152,22 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
     setSuccessNotice(null);
 
     if (!fullName.trim()) {
-      setErrorMessage('Please enter your full name.');
+      fields.setError('reg-name', authCopy.required);
       return;
     }
 
     if (!isPasswordValid) {
-      setErrorMessage('Your password must be at least 12 characters and include uppercase, lowercase, and numbers.');
+      fields.setError('reg-password', 'Use at least 12 characters, including uppercase, lowercase and a digit.');
       return;
     }
 
     if (!isPasswordMatch) {
-      setErrorMessage('Passwords do not match.');
+      fields.setError('reg-confirm', authCopy.passwordMismatch);
       return;
     }
 
     if (!agreeTerms) {
-      setErrorMessage('Please agree to the Terms of Service.');
+      fields.setError('reg-terms', authCopy.required);
       return;
     }
 
@@ -314,14 +318,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
               {/* Alerts */}
               {errorMessage && (
-                <div className="mb-4 p-3 rounded-xl bg-[#FDF2F0] border border-[#F6D5CF] text-[#98211A] text-xs flex items-center gap-2">
+                <div className="mb-4 p-3 rounded-xl bg-[#FDF2F0] border border-[#F6D5CF] text-[#98211A] text-xs flex items-center gap-2" role="alert">
                   <AlertCircle className="w-4 h-4 shrink-0 text-[#B3261E]" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
               {successNotice && (
-                <div className="mb-4 p-3 rounded-xl bg-[#EEF5F1] border border-[#D8E8DF] text-[#1E3A2F] text-xs flex items-center gap-2">
+                <div className="mb-4 p-3 rounded-xl bg-[#EEF5F1] border border-[#D8E8DF] text-[#1E3A2F] text-xs flex items-center gap-2" role="status">
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-[#1E3A2F]" />
                   <span>{successNotice}</span>
                 </div>
@@ -329,7 +333,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
               {/* STEP 1: Email Form */}
               {step === 1 && (
-                <form onSubmit={handleRequestOtp} className="space-y-4">
+                <form {...fields.form} onSubmit={handleRequestOtp} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="reg-email">
                       Email address
@@ -337,7 +341,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     <div className="relative">
                       <Mail className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        id="reg-email"
+                        id="reg-email" {...fields.input('reg-email')}
                         type="email"
                         required
                         value={email}
@@ -346,6 +350,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         className="w-full h-11 pl-11 pr-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all font-medium"
                       />
                     </div>
+                    {fields.message('reg-email')}
                     <p className="text-[11px] text-[#6D7974] mt-1.5">
                       We will send a 6-digit verification code to your inbox.
                     </p>
@@ -353,7 +358,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                   <button
                     type="submit"
-                    disabled={isLoading || !email.trim()}
+                    disabled={isLoading}
                     className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isLoading ? (
@@ -370,7 +375,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
               {/* STEP 2: OTP Verification Form */}
               {step === 2 && (
-                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <form {...fields.form} onSubmit={handleVerifyOtp} className="space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="block text-xs font-semibold text-[#191C1B]" htmlFor="reg-otp">
@@ -387,16 +392,17 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     <div className="relative">
                       <ShieldCheck className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        id="reg-otp"
+                        id="reg-otp" {...fields.input('reg-otp')}
                         type="text"
                         maxLength={6}
-                        required
+                        required pattern="[0-9]{6}"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                         placeholder="123456"
                         className="w-full h-11 pl-11 pr-3.5 text-base font-mono tracking-widest bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all font-bold"
                       />
                     </div>
+                    {fields.message('reg-otp')}
                     <div className="flex items-center justify-between mt-2 text-xs">
                         <span className="text-slate-500">Didn’t receive the code?</span>
                       <button
@@ -413,7 +419,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                   <button
                     type="submit"
-                    disabled={isLoading || otp.trim().length !== 6}
+                    disabled={isLoading}
                     className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isLoading ? (
@@ -430,12 +436,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
               {/* STEP 3: Complete Profile & Password */}
               {step === 3 && (
-                <form onSubmit={handleComplete} className="space-y-3.5">
+                <form {...fields.form} onSubmit={handleComplete} className="space-y-3.5">
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1">
                       Full name
                     </label>
-                    <input
+                    <input id="reg-name" {...fields.input('reg-name')}
                       type="text"
                       required
                       value={fullName}
@@ -443,6 +449,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                       placeholder="John Doe"
                       className="w-full h-10 px-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-1 focus:ring-[#1E3A2F] outline-hidden font-medium"
                     />
+                    {fields.message('reg-name')}
                   </div>
 
                   <div>
@@ -451,7 +458,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
+                      <input id="reg-password" {...fields.input('reg-password')}
                         type={showPassword ? 'text' : 'password'}
                         required
                         value={password}
@@ -467,6 +474,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    {fields.message('reg-password')}
 
                     <div className="mt-1.5 grid grid-cols-2 gap-1 text-[10px]">
                       <span className={`flex items-center gap-1 ${hasMinLength ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
@@ -490,7 +498,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
+                      <input id="reg-confirm" {...fields.input('reg-confirm')}
                         type={showPassword ? 'text' : 'password'}
                         required
                         value={confirmPassword}
@@ -499,6 +507,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         className="w-full h-10 pl-9 pr-3.5 text-sm bg-white text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#E1D8D6] focus:border-[#1E3A2F] focus:ring-1 focus:ring-[#1E3A2F] outline-hidden font-medium"
                       />
                     </div>
+                    {fields.message('reg-confirm')}
                     {confirmPassword && (
                       <p className={`text-[10px] mt-1 ${isPasswordMatch ? 'text-emerald-600 font-semibold' : 'text-rose-600 font-semibold'}`}>
                         {isPasswordMatch ? '✓ Passwords match' : '✕ Passwords do not match'}
@@ -508,8 +517,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
                   <div className="pt-1">
                     <label className="flex items-start gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
+                      <input id="reg-terms" {...fields.input('reg-terms')}
+                        type="checkbox" required
                         checked={agreeTerms}
                         onChange={(e) => setAgreeTerms(e.target.checked)}
                         className="mt-0.5 rounded text-[#1E3A2F]"
@@ -518,11 +527,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                         I agree to the system’s Terms of Service and Privacy Policy.
                       </span>
                     </label>
+                    {fields.message('reg-terms')}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isLoading || !isPasswordValid || !isPasswordMatch || !agreeTerms}
+                    disabled={isLoading}
                     className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isLoading ? (
@@ -537,19 +547,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
                 </form>
               )}
 
-              {/* Bottom Login Link */}
-              <div className="text-center pt-3 border-t border-[#E1D8D6]/70 mt-4">
-                <p className="text-xs text-[#6D7974]">
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={onNavigateLogin}
-                    className="font-bold text-[#1E3A2F] hover:underline transition-colors cursor-pointer"
-                  >
-                    Sign in now
-                  </button>
-                </p>
-              </div>
+              <AuthBackLinks onNavigateLogin={onNavigateLogin} onNavigateHome={onNavigateHome} />
             </div>
           </main>
         </div>

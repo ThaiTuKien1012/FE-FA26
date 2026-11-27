@@ -2,6 +2,8 @@
  * Credentials live only in memory. localStorage contains coordination metadata, never tokens.
  * Web Locks serialize cookie rotation; the channel transfers credentials to waiting/new tabs.
  */
+import { authCopy, authRequestMessage, authResponseMessage } from '../features/auth/authMessages';
+
 export interface TokenCredentials {
   accessToken: string;
   expiresIn: number;
@@ -22,7 +24,7 @@ export interface SessionState<U> {
 export class SessionError extends Error {
   constructor(public status: number | null, message: string) { super(message); }
 }
-const STORE_INACTIVE_NOTICE = 'Your store is inactive. Contact your system administrator before signing in again.';
+const STORE_INACTIVE_NOTICE = authCopy.storeInactive;
 class StoreInactiveError extends SessionError {
   constructor() { super(403, STORE_INACTIVE_NOTICE); }
 }
@@ -185,19 +187,25 @@ export class AuthSession<U> {
     return this.lock(async () => {
       const before = this.meta().epoch;
       const startedAt = this.now();
-      const response = await this.raw(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const response = await this.raw(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .catch(() => { throw new SessionError(null, authCopy.network); });
       if (await isStoreInactive(response)) {
         if (this.meta().epoch === before) this.endLocal(STORE_INACTIVE_NOTICE);
         throw new StoreInactiveError();
       }
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new SessionError(response.status, data.error || (response.status === 429 ? 'Too many sign-in requests. Please wait and try again.' : 'Sign-in failed. Check your credentials and account status.'));
+        throw new SessionError(response.status, await authResponseMessage('login', response));
       }
       const credentials = await this.tokenResponse(response, startedAt);
       const user = await this.validate(credentials).catch(error => {
-        if (error instanceof StoreInactiveError && this.meta().epoch === before) this.endLocal(error.message);
-        throw error;
+        if (error instanceof StoreInactiveError) {
+          if (this.meta().epoch === before) this.endLocal(error.message);
+          throw error;
+        }
+        if (error instanceof SessionError) {
+          throw new SessionError(error.status, authRequestMessage('login', error.status));
+        }
+        throw new SessionError(null, authCopy.server);
       });
       if (this.meta().epoch !== before) throw new SessionError(401, 'Sign-in was cancelled because the session changed.');
       const epoch = freshEpoch();

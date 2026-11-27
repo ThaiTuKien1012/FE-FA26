@@ -262,13 +262,14 @@ export default function App() {
   }
 
   if (currentScreen === 'forgot-password') {
-    return <ForgotPasswordView onNavigateLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }} />;
+    return <ForgotPasswordView onNavigateHome={() => handleNavigate('customer-home')} onNavigateLogin={() => { syncBrowserUrl('login'); setCurrentScreen('login'); }} />;
   }
 
   // 1b. If currently on Register screen, render RegisterView standalone full-screen
   if (currentScreen === 'register') {
     return (
       <RegisterView
+        onNavigateHome={() => handleNavigate('customer-home')}
         onRegisterSuccess={handleLoginSuccess}
         onNavigateLogin={() => {
           syncBrowserUrl('login');
@@ -282,6 +283,7 @@ export default function App() {
   if (currentScreen === 'activate') {
     return (
       <ActivateView
+        onNavigateHome={() => handleNavigate('customer-home')}
         onNavigateLogin={() => {
           syncBrowserUrl('login');
           setCurrentScreen('login');

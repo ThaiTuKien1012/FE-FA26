@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { AuthSession, INACTIVITY_MS, SessionError } from '../src/services/authSession';
 import { mapAuthUser, ROLE_PERMISSIONS } from '../src/services/authService';
-import { transform } from 'esbuild';
-import { readFile } from 'node:fs/promises';
+import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 
 const me = { userId: 12, email: 'fixture@example.invalid', name: 'Fixture User', roleCode: 'MERCHANDISER', status: 'ACTIVE', emailVerified: true, storeId: 7 };
 const token = (id = 'one', expiresIn = 3600) => ({ accessToken: `fixture-${id}`, expiresIn, tokenType: 'Bearer', csrfToken: `csrf-${id}` });
@@ -139,11 +139,12 @@ test('recovery queued behind logout retains the success classification instead o
 // Compile the actual session manager with Vite-style constants. No runtime
 // backdoor or configurable token lifetime is added for these isolated fixtures.
 async function sessionBuild(development: boolean, flag: string, devServer = development) {
-  const result = await transform(await readFile(new URL('../src/services/authSession.ts', import.meta.url), 'utf8'), {
-    loader: 'ts', format: 'esm', minify: true,
+  const result = await build({
+    entryPoints: [fileURLToPath(new URL('../src/services/authSession.ts', import.meta.url))],
+    bundle: true, write: false, format: 'esm', minify: true,
     define: { 'import.meta.env': JSON.stringify({ DEV: development, PROD: !development, SESSION_DEV_SERVER: devServer, VITE_SESSION_TIMEOUT_TEST: flag }) }
   });
-  const module = await import('data:text/javascript;base64,' + Buffer.from(result.code).toString('base64'));
+  const module = await import('data:text/javascript;base64,' + Buffer.from(result.outputFiles[0].contents).toString('base64'));
   return module.AuthSession as typeof AuthSession;
 }
 
