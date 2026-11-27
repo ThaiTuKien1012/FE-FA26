@@ -318,14 +318,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({
 
               {/* Alerts */}
               {errorMessage && (
-                <div className="mb-4 p-3 rounded-xl bg-[#FDF2F0] border border-[#F6D5CF] text-[#98211A] text-xs flex items-center gap-2">
+                <div className="mb-4 p-3 rounded-xl bg-[#FDF2F0] border border-[#F6D5CF] text-[#98211A] text-xs flex items-center gap-2" role="alert">
                   <AlertCircle className="w-4 h-4 shrink-0 text-[#B3261E]" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
               {successNotice && (
-                <div className="mb-4 p-3 rounded-xl bg-[#EEF5F1] border border-[#D8E8DF] text-[#1E3A2F] text-xs flex items-center gap-2">
+                <div className="mb-4 p-3 rounded-xl bg-[#EEF5F1] border border-[#D8E8DF] text-[#1E3A2F] text-xs flex items-center gap-2" role="status">
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-[#1E3A2F]" />
                   <span>{successNotice}</span>
                 </div>

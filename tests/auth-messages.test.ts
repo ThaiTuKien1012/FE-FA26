@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { authCopy, authRequestMessage, authResponseMessage, type AuthAction } from '../src/features/auth/authMessages';
 
@@ -28,5 +29,14 @@ for (const [name, action, status, code, text] of scenarios) {
 test('auth responses ignore raw Backend text and handle empty or non-JSON responses', async () => {
   for (const body of ['{"error":"This account is disabled"}', '', '<html>private message</html>']) {
     assert.equal(await authResponseMessage('login', new Response(body, { status: 401 })), 'Invalid email or password.');
+  }
+});
+
+// Every auth screen announces its one alert area to screen readers (role="alert" for errors, role="status" for notices).
+test('each auth screen announces its error and notice areas', () => {
+  for (const view of ['LoginView', 'RegisterView', 'ActivateView', 'ForgotPasswordView']) {
+    const source = readFileSync(new URL(`../src/features/auth/components/${view}.tsx`, import.meta.url), 'utf8');
+    assert.match(source, /role="alert"/, `${view} has an alert area`);
+    assert.match(source, /role="status"/, `${view} has a status area`);
   }
 });
