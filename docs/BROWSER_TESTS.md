@@ -30,6 +30,7 @@ npx vite --port=3000 --host=127.0.0.1
 | `F06_TEST_CHROME` | `f06.browser`, `f06.browse`, `f06.complete`, `f06.expiry` |
 | `F07_TEST_CHROME` | `f07` |
 | `CUSTOMER_TEST_CHROME` | `customer-resume` |
+| `LEGACY_TEST_CHROME` | `legacy-route` |
 
 **Origin.** The default is `http://127.0.0.1:3000`, except `f11`, which defaults to `3011`. Set `PASPM_TEST_ORIGIN=http://127.0.0.1:3000`
 for all, plus `F07_TEST_ORIGIN` for `f07`. Set `PASPM_TEST_NO_ARTIFACTS=1` to skip screenshots in the temp folder.
@@ -45,7 +46,7 @@ in the background and kills it after 240 s. (`brew install coreutils` provides `
 export PASPM_TEST_NO_ARTIFACTS=1 PASPM_TEST_ORIGIN=http://127.0.0.1:3000 F07_TEST_ORIGIN=http://127.0.0.1:3000
 C="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 export SESSION_TEST_CHROME="$C" DATE_TEST_CHROME="$C" F02_TEST_CHROME="$C" F03_TEST_CHROME="$C" F04_TEST_CHROME="$C" \
-       F05_TEST_CHROME="$C" F06_TEST_CHROME="$C" F07_TEST_CHROME="$C" CUSTOMER_TEST_CHROME="$C"
+       F05_TEST_CHROME="$C" F06_TEST_CHROME="$C" F07_TEST_CHROME="$C" CUSTOMER_TEST_CHROME="$C" LEGACY_TEST_CHROME="$C"
 for f in tests/*.browser.mjs; do
   node --import tsx "$f" > "/tmp/$(basename "$f" .mjs).log" 2>&1 &
   pid=$!
