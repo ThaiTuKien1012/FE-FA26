@@ -21,7 +21,7 @@ const sampleUsers=[
  {userId:6,name:'Store Staff',email:'store@example.invalid',roleCode:'STORE_ADMIN',status:'ACTIVE',emailVerified:true,storeId:1,avatarUrl:'/unavailable-avatar.png'},
  {userId:7,name:'Customer Fixture',email:'customer@example.invalid',roleCode:'END_CUSTOMER',status:'PENDING_VERIFICATION',emailVerified:false,storeId:null,avatarUrl:null}
 ];
-let precisionFixture=false;
+let precisionFixture=false, accountKeyboardFixture=false;
 const state={systemHistoryCount:1,singleStore:false,conversion:'legacy',emptyPatterns:false,failedRun:false,storeHistory:'normal',users:sampleUsers.map(x=>({...x})),usersError:false,userSaveError:false,userRoleError:false,activationBlocked:false,holdAccountWrites:false,missingRuntime:false,snapshotCount:1,snapshotWarnings:[],submitError:null,progressOverride:null,progressError:null,legacySingle:false,policy:{scoringVersion:'W2_EXPIRY_SEASON_V1',lambdaMax:0.5,version:1},config:{version:0,algorithm:'EFIM',minUtilMode:null,minUtilValue:null,changedBy:null,changedAt:null},conflict:false,hasRequest:false,failPost:true,compare:true,requestReads:0,mismatchStore2:false,slowHistory:false,holdConfig:false,calls:[]};
 class CDP {
   pending=new Map();id=0;listeners=new Map();
@@ -103,7 +103,7 @@ async function paused({requestId,request}){
       if(method==='PUT'){const sent=JSON.parse(request.postData);assert.deepEqual(Object.keys(sent).sort(),['lambdaMax']);state.policy={...state.policy,...sent,version:state.policy.version+1};}body=state.policy;
     }
     else if(path==='/api/utility/config')body={...structuredClone(weightConfig),lambdaPolicy:state.policy};
-    else if(path==='/api/system/stores')body=responsePage(state.singleStore?[{storeId:1,name:'Store A'}]:[{storeId:1,name:'Store A'},{storeId:2,name:'Store B'}],url.searchParams);
+    else if(path==='/api/system/stores')body=responsePage(state.singleStore?[{storeId:1,name:'Store A'}]:[{storeId:1,name:accountKeyboardFixture?'Alpha Store':'Store A'},{storeId:2,name:accountKeyboardFixture?'Beta Store':'Store B'}],url.searchParams);
     else if(path==='/api/system/mining/config'){
       if(method==='PUT'){
         const sent=JSON.parse(request.postData);
@@ -387,6 +387,8 @@ try{
   assert.equal(state.users.find(x=>x.userId===1).roleCode,'SYSTEM_ADMIN');
   checks.push('current System Admin keeps active access; focus trap, Escape and focus restoration work');
 
+  const usesTypeAhead = process.platform === 'darwin';
+  accountKeyboardFixture = usesTypeAhead;
   await click('Add Account');await chooseStore('1');
   const invalidStart=userWrites().length;
   await click('Create & Send Invitation');
@@ -408,12 +410,21 @@ try{
   await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
   await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
   assert.equal(await evaluate("document.activeElement.getAttribute('aria-label')"),'Assigned Store','Native role to Store keyboard traversal');
-  for(const key of ['ArrowDown','ArrowUp']){
-    await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:key==='ArrowDown'?40:38});
-    await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,windowsVirtualKeyCode:key==='ArrowDown'?40:38});
+  // CDP on macOS cannot drive the native closed select popup with arrow keys.
+  // Type-ahead uses trusted key input and still exercises the select's real change event.
+  const selectionKeys = usesTypeAhead
+    ? [[{key:'b',code:'KeyB',windowsVirtualKeyCode:66},'2'],[{key:'a',code:'KeyA',windowsVirtualKeyCode:65},'1']]
+    : [[{key:'ArrowDown',code:'ArrowDown',windowsVirtualKeyCode:40},'2'],[{key:'ArrowUp',code:'ArrowUp',windowsVirtualKeyCode:38},'1']];
+  for (const [event, expected] of selectionKeys) {
+    await cdp.call('Input.dispatchKeyEvent', { ...event, type:'keyDown',
+      ...(usesTypeAhead ? { text:event.key, unmodifiedText:event.key } : {}) });
+    await cdp.call('Input.dispatchKeyEvent', { ...event, type:'keyUp' });
     await sleep(50);
-    assert.equal(await evaluate("document.querySelector('select[aria-label=\"Assigned Store\"]').value"),key==='ArrowDown'?'2':'1','Native Store keyboard selection');
+    assert.equal(await evaluate("document.querySelector('select[aria-label=\"Assigned Store\"]').value"), expected, 'Native Store keyboard selection');
+    // Let Chrome's one-second search prefix expire before typing a different initial.
+    if (usesTypeAhead && expected === '2') await sleep(1100);
   }
+  accountKeyboardFixture = false;
   await capture('add-account-desktop');
   const inviteStart=userWrites().length;state.holdAccountWrites=true;
   await evaluate("(()=>{const b=document.querySelector('[role=dialog] button[type=submit]');b.click();b.click();})()");

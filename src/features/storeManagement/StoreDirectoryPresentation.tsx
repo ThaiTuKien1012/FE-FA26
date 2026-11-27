@@ -33,7 +33,7 @@ export function StoreOverview({counts, loading, status, onStatus}:{
         <span data-store-value className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-[#1E3A2F]">
           {counts[metric.status]===undefined ? loading?'…':'Unavailable' : counts[metric.status]!.toLocaleString('en-US')}
         </span>
-        <span className="mt-2 text-xs leading-5 text-[#6D7974] sm:max-[87.5rem]:min-h-10">{metric.description}</span>
+        <span className="mt-2 text-xs leading-5 text-[#6D7974] sm:min-h-10">{metric.description}</span>
       </button>)}
     </div>
   </section>;

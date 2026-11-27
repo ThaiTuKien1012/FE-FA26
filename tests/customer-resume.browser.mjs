@@ -7,8 +7,9 @@
 // All API traffic is intercepted with fixtures, never a real backend, account or cart write.
 // Any request outside the fixtures lands in `unexpected` and fails the test.
 import assert from 'node:assert/strict';
+import { waitForDevToolsPage } from './browser-devtools.mjs';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { storefrontFixture, STOREFRONT_PRODUCT, STOREFRONT_PRODUCT_ID, STOREFRONT_SLUG, STOREFRONT_STORE,
@@ -117,12 +118,9 @@ async function fixture({ requestId, request }) {
   return page.call('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(body)).toString('base64') });
 }
 try {
-  const portFile = join(profile, 'DevToolsActivePort');
-  for (let i = 0; !existsSync(portFile) && i < 150; i++) await sleep(100);
-  assert.ok(existsSync(portFile), 'Chrome DevTools started');
-  const port = readFileSync(portFile, 'utf8').split('\n')[0];
-  const targets = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
-  const ws = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
+  const pageUrl = await waitForDevToolsPage(profile);
+  assert.ok(pageUrl, 'Chrome DevTools started');
+  const ws = new WebSocket(pageUrl);
   await new Promise((done, reject) => { ws.addEventListener('open', done, { once: true }); ws.addEventListener('error', reject, { once: true }); });
   page = new CDP(ws);
   page.on('Fetch.requestPaused', data => fixture(data).catch(error => { if (!closing && !/Invalid InterceptionId/.test(error.message)) errors.push(error.message); }));
