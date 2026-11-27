@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  ArrowUpRight, ChevronDown, ChevronRight, Grid2X2, Headphones, Package, Search, Store, X,
+  ArrowUpRight, ChevronRight, Headphones, Package, Search, Store, X,
 } from 'lucide-react';
 import { AppLogo } from '../../../components/common/AppLogo';
 import { APP_BRAND } from '../../../app/branding';
@@ -71,9 +71,8 @@ function StoreCard({ store, tint, onOpen }: { store: HomeStore; tint: string; on
 
 export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, onProfile, onLogout, onProduct }: Props) {
   const home = useCustomerHome();
-  const { model, filter, saved, visible, filtered, categories, promos } = home;
+  const { model, filter, saved, visible, filtered, promos } = home;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   useEffect(() => {
     const previous = document.title;
     document.title = APP_BRAND.customerTitle;
@@ -84,10 +83,9 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
   const featured = home.products.find(product => product.imageUrl);
   const openProduct = (product: HomeProduct) => onProduct(product.storeSlug, product.productId);
   const showProducts = () => { home.reset(); scrollTo('fm-products'); };
-  const chooseCategory = (name: string | null) => { home.setCategory(name); setCategoryMenuOpen(false); scrollTo('fm-products'); };
   const navLinks = [
     ...(model?.bundles.length ? [['Gói sản phẩm', 'fm-bundles']] : []),
-    ['Danh mục', 'fm-categories'], ['Sản phẩm', 'fm-products'], ['Cửa hàng', 'fm-stores'],
+    ['Sản phẩm', 'fm-products'], ['Cửa hàng', 'fm-stores'],
   ];
 
   return (
@@ -95,17 +93,10 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
       <a className="absolute -top-25 left-[15px] z-100 bg-white p-3 focus:top-[10px]" href="#fm-main">Chuyển đến nội dung chính</a>
       <CustomerHeader query={filter.query} setQuery={home.setQuery} onSearch={() => scrollTo('fm-products')} savedCount={saved.length} savedOnly={filter.savedOnly}
         toggleSavedOnly={() => { home.toggleSavedOnly(); scrollTo('fm-products'); }} cartCount={0} onLogin={onLogin} onHome={onHome}
-        user={user} onProfile={onProfile} onLogout={onLogout} menuOpen={menuOpen} onToggleMenu={() => setMenuOpen(!menuOpen)} />
+        showSignInLabel user={user} onProfile={onProfile} onLogout={onLogout} menuOpen={menuOpen} onToggleMenu={() => setMenuOpen(!menuOpen)} />
 
       <div className="border-t border-[#e9eded]">
         <div className={`fm-navbar ${containerClass} relative flex min-h-14 items-center justify-between gap-5 text-[11px] max-[1100px]:gap-[15px] max-[580px]:min-h-[45px]`}>
-          <div className="relative">
-            <button className="flex items-center gap-[9px] border-0 bg-transparent py-3 text-[11px] max-[580px]:py-[10px] max-[580px]:text-[10px]" onClick={() => setCategoryMenuOpen(!categoryMenuOpen)} aria-expanded={categoryMenuOpen}><Grid2X2 size={16} />Xem danh mục<ChevronDown size={13} className="ml-[7px]" /></button>
-            {categoryMenuOpen && <div className="absolute top-11 left-0 z-15 w-[235px] rounded-xl border border-[#e9eded] bg-white p-[7px] shadow-[0_15px_40px_#03272418] max-[580px]:top-[39px] max-[580px]:w-[225px]">
-              {categories.length === 0 && <p className="px-[10px] py-3 text-xs text-[#52615e]">Chưa có danh mục.</p>}
-              {categories.map(item => <button className="flex w-full items-center justify-between rounded-md border-0 bg-transparent px-[10px] py-3 text-left text-xs text-[#52615e] hover:bg-[#e9f5f1] hover:text-[#088178]" key={item.name} onClick={() => chooseCategory(item.name)}>{item.name}<ChevronRight size={13} /></button>)}
-            </div>}
-          </div>
           <nav className={`fm-navigation items-center gap-[29px] max-[1100px]:gap-5 max-[800px]:gap-[13px] max-[580px]:absolute max-[580px]:top-11 max-[580px]:-right-4 max-[580px]:-left-4 max-[580px]:z-20 max-[580px]:flex-col max-[580px]:items-start max-[580px]:gap-0 max-[580px]:border-t max-[580px]:border-[#e9eded] max-[580px]:bg-white max-[580px]:px-5 max-[580px]:py-[14px] max-[580px]:shadow-[0_20px_25px_#03272410] ${menuOpen ? 'flex' : 'flex max-[580px]:hidden'}`} aria-label="Điều hướng chính">
             {navLinks.map(([label, id]) => <a className={`inline-flex items-center gap-1.5 hover:text-[#088178] max-[580px]:text-xs ${id === 'fm-bundles' ? 'rounded-full bg-[#fff0eb] px-3 py-1.5 font-semibold text-[#bd4634] hover:bg-[#ffe3db] max-[580px]:my-1 max-[580px]:py-2' : 'max-[580px]:py-[11px]'}`} key={id} href={`#${id}`} onClick={() => setMenuOpen(false)}>{id === 'fm-bundles' && <Package size={14} />}{label}</a>)}
           </nav>
@@ -124,15 +115,12 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
 
         {model && model.bundles.length > 0 && <BundleRail bundles={model.bundles} onStore={onStore} />}
 
-        {categories.length > 0 && <section id="fm-categories" className={`${containerClass} scroll-mt-5 pt-9 max-[580px]:pt-7`} aria-labelledby="fm-categories-title">
-          <div className="mb-4 flex items-end justify-between gap-3"><div><span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#088178]">TÌM NHANH</span><h2 id="fm-categories-title" className="mt-1 text-2xl font-semibold tracking-tight max-[580px]:text-xl">Mua theo danh mục</h2></div><button className="inline-flex items-center gap-1 text-[10px] text-[#088178]" onClick={() => scrollTo('fm-products')}>Xem {categories.length} danh mục <ArrowUpRight size={13} /></button></div>
-          <div className="grid grid-cols-4 gap-3 max-[800px]:grid-cols-3 max-[580px]:grid-cols-2 max-[580px]:gap-2">
-            {categories.slice(0, 8).map((item, index) => <button key={item.name} className="group flex min-h-22 items-center gap-3 rounded-xl border border-[#e7eeea] bg-[#f8faf8] p-3 text-left hover:border-[#80b4a1] hover:bg-[#f0f8f3] max-[580px]:gap-2 max-[580px]:p-2" onClick={() => chooseCategory(item.name)}>
-              <span className={`grid size-14 shrink-0 place-items-center rounded-lg max-[580px]:size-12 ${['bg-[#e7f4e9]', 'bg-[#fff1df]', 'bg-[#e8f0fa]', 'bg-[#faeaf1]'][index % 4]}`}>
-                {item.imageUrl ? <img className="size-11 object-contain transition-transform group-hover:scale-110 max-[580px]:size-9" src={item.imageUrl} alt="" loading="lazy" /> : <Package className="size-7 text-[#9daea5]" aria-hidden="true" />}
-              </span>
-              <span className="min-w-0"><strong className="block text-xs leading-snug max-[580px]:text-[10px]">{item.name}</strong><small className="mt-1 block text-[9px] text-[#829189]">{item.storeCount} cửa hàng</small></span>
-            </button>)}
+        {!home.error && <section className={`fm-stores-section ${containerClass} scroll-mt-5 py-11 max-[580px]:py-7`} id="fm-stores" aria-labelledby="fm-stores-title">
+          <div className="mb-5 flex items-end justify-between gap-4"><div><span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#088178]">CỬA HÀNG</span><h2 id="fm-stores-title" className="mt-1 text-[29px] font-semibold tracking-tight max-[580px]:text-[23px]">Khám phá cửa hàng</h2><p className="mt-1 text-xs text-[#819188]">Mỗi cửa hàng có sản phẩm và giỏ hàng riêng.</p></div>{model && <span className="text-xs text-[#84958c]">{stores.length} cửa hàng</span>}</div>
+          {home.loading && <p role="status" className="text-xs text-[#6f8880]">Đang tải cửa hàng…</p>}
+          {model && stores.length === 0 && <p role="status" className="rounded-xl bg-[#f5faf6] p-5 text-xs text-[#436858]">Chưa có cửa hàng đang hoạt động.</p>}
+          <div className="home-store-grid grid grid-cols-4 gap-4 max-[800px]:grid-cols-2 max-[580px]:gap-2">
+            {stores.map((store, index) => <StoreCard key={store.storeSlug} store={store} tint={storeTints[index % storeTints.length]} onOpen={() => onStore(store.storeSlug)} />)}
           </div>
         </section>}
 
@@ -140,11 +128,8 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
           <div className={containerClass}>
             <SectionHeading id="fm-products-title" title={filter.savedOnly ? 'Sản phẩm đã lưu' : 'Sản phẩm từ các cửa hàng'}><button onClick={() => scrollTo('fm-stores')} className="inline-flex items-center gap-1 text-[10px] font-medium text-[#088178]">Xem cửa hàng <ArrowUpRight size={14} /></button></SectionHeading>
             {model && <p className="fm-catalog-store -mt-[10px] mb-[17px] flex flex-wrap items-center gap-[6px] text-[9px] text-[#8c9b91] max-[580px]:text-[8px]"><Store size={13} />Sản phẩm từ <strong className="font-[550] text-[#5d806b]">{model.sampledStores} cửa hàng</strong><span>•</span>Mỗi cửa hàng có sản phẩm và giỏ hàng riêng{model.truncated && ' · Mỗi cửa hàng hiển thị tối đa 12 sản phẩm đầu, hãy vào cửa hàng để xem tất cả'}</p>}
-            {model && <div className="fm-product-toolbar flex items-center justify-between gap-[15px] max-[800px]:items-start max-[580px]:flex-wrap max-[580px]:gap-[10px]">
-              <div className="fm-category-tabs flex flex-wrap items-center gap-[7px] max-[1100px]:gap-[5px] max-[800px]:flex-nowrap max-[800px]:overflow-auto max-[800px]:py-[2px] max-[800px]:[scrollbar-width:none] max-[580px]:-mr-4 max-[580px]:w-[calc(100%_+_16px)] max-[580px]:gap-[6px] max-[580px]:pr-4" aria-label="Lọc theo danh mục">
-                {[null, ...categories.map(item => item.name)].map(item => <button key={item ?? 'all'} className={`shrink-0 rounded-full border bg-white px-[15px] py-2 text-[10px] whitespace-nowrap hover:bg-[#e7f1ed] max-[1100px]:px-3 max-[1100px]:py-[7px] max-[1100px]:text-[9px] ${filter.category === item ? 'border-[#088178] text-[#088178]' : 'border-[#e9eceb] text-[#4d5856]'}`} aria-pressed={filter.category === item} onClick={() => home.setCategory(item)}>{item ?? 'Tất cả sản phẩm'}</button>)}
-              </div>
-              {stores.length > 1 && <select className="max-w-[180px] rounded-full border border-[#e2e7e5] bg-white px-3 py-2 text-[10px] text-[#677370] max-[1100px]:max-w-[153px] max-[1100px]:text-[9px] max-[580px]:max-w-none max-[580px]:px-[10px] max-[580px]:py-[6px]" aria-label="Lọc theo cửa hàng" value={filter.storeSlug ?? ''} onChange={event => home.setStore(event.target.value || null)}><option value="">Tất cả cửa hàng</option>{stores.map(item => <option key={item.storeSlug} value={item.storeSlug}>{item.name}</option>)}</select>}
+            {stores.length > 1 && <div className="fm-product-toolbar flex items-center justify-between gap-[15px] max-[800px]:items-start max-[580px]:flex-wrap max-[580px]:gap-[10px]">
+              <select className="max-w-[180px] rounded-full border border-[#e2e7e5] bg-white px-3 py-2 text-[10px] text-[#677370] max-[1100px]:max-w-[153px] max-[1100px]:text-[9px] max-[580px]:max-w-none max-[580px]:px-[10px] max-[580px]:py-[6px]" aria-label="Lọc theo cửa hàng" value={filter.storeSlug ?? ''} onChange={event => home.setStore(event.target.value || null)}><option value="">Tất cả cửa hàng</option>{stores.map(item => <option key={item.storeSlug} value={item.storeSlug}>{item.name}</option>)}</select>
             </div>}
             {model && <div className="fm-filter-status flex min-h-[43px] items-center gap-3 text-[9px] text-[#929b98] max-[580px]:min-h-9 max-[580px]:flex-wrap max-[580px]:gap-[9px] max-[580px]:text-[8px]">
               <p className="m-0 max-[580px]:max-w-[58%]" role="status" aria-live="polite">Hiển thị {visible.length}/{filtered.length} sản phẩm{filter.query.trim() && ` cho “${filter.query.trim()}”`}</p>
@@ -164,23 +149,14 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
           </div>
         </section>}
 
-        {!home.error && <section className={`fm-stores-section ${containerClass} scroll-mt-5 py-11 max-[580px]:py-7`} id="fm-stores" aria-labelledby="fm-stores-title">
-          <div className="mb-5 flex items-end justify-between gap-4"><div><span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#088178]">CỬA HÀNG</span><h2 id="fm-stores-title" className="mt-1 text-[29px] font-semibold tracking-tight max-[580px]:text-[23px]">Khám phá cửa hàng</h2><p className="mt-1 text-xs text-[#819188]">Mỗi cửa hàng có sản phẩm và giỏ hàng riêng.</p></div>{model && <span className="text-xs text-[#84958c]">{stores.length} cửa hàng</span>}</div>
-          {home.loading && <p role="status" className="text-xs text-[#6f8880]">Đang tải cửa hàng…</p>}
-          {model && stores.length === 0 && <p role="status" className="rounded-xl bg-[#f5faf6] p-5 text-xs text-[#436858]">Chưa có cửa hàng đang hoạt động.</p>}
-          <div className="home-store-grid grid grid-cols-4 gap-4 max-[800px]:grid-cols-2 max-[580px]:gap-2">
-            {stores.map((store, index) => <StoreCard key={store.storeSlug} store={store} tint={storeTints[index % storeTints.length]} onOpen={() => onStore(store.storeSlug)} />)}
-          </div>
-        </section>}
-
         <section id="fm-collections" className={`fm-promos ${containerClass} grid scroll-mt-0 gap-4 py-11 max-[800px]:gap-3 max-[580px]:py-[29px] ${promos.length === 2 ? 'grid-cols-[1fr_1.5fr] grid-rows-[175px_175px] max-[1100px]:grid-rows-[160px_160px] max-[800px]:grid-rows-[145px_145px] max-[580px]:grid-cols-2 max-[580px]:grid-rows-[160px_275px] max-[580px]:gap-[10px]' : 'grid-cols-1'}`} aria-label="Bộ sưu tập mua sắm">
           {promos.length === 2 && <>
             <article className="fm-promo fm-promo-snack relative col-start-1 row-start-1 overflow-hidden rounded-xl bg-[radial-gradient(ellipse_at_90%_100%,#96dbc7,transparent_60%),linear-gradient(115deg,#4d43df,#6d68e8)] p-[26px] text-white max-[1100px]:p-6 max-[800px]:p-[22px] max-[580px]:rounded-[10px] max-[580px]:px-[14px] max-[580px]:py-[18px]">
-              <div className="relative z-2"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">SẢN PHẨM TỪ CỬA HÀNG</span><h2 className="mt-[9px] mb-[14px] text-[27px] leading-[1.15] font-[650] tracking-[-0.8px] max-[1100px]:text-[25px] max-[800px]:text-[22px] max-[580px]:text-xl">Chọn món<br />theo danh mục.</h2><PillButton compact onClick={() => chooseCategory(promos[0].category!.name)}>Xem {promos[0].category!.name}</PillButton></div>
+              <div className="relative z-2"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">SẢN PHẨM TỪ CỬA HÀNG</span><h2 className="mt-[9px] mb-[14px] text-[27px] leading-[1.15] font-[650] tracking-[-0.8px] max-[1100px]:text-[25px] max-[800px]:text-[22px] max-[580px]:text-xl">Chọn món<br />tại cửa hàng.</h2><PillButton compact onClick={() => onStore(promos[0].storeSlug)}>Xem cửa hàng</PillButton></div>
               <img className="absolute -right-px bottom-[-6px] h-[165px] w-[175px] -rotate-8 object-contain max-[1100px]:right-[-8px] max-[1100px]:h-[140px] max-[1100px]:w-[150px] max-[800px]:right-[-9px] max-[800px]:size-[110px] max-[580px]:bottom-[-7px] max-[580px]:h-[98px] max-[580px]:w-[105px]" src={promos[0].imageUrl!} alt={promos[0].name} loading="lazy" />
             </article>
             <article className="fm-promo fm-promo-pantry relative col-start-1 row-start-2 overflow-hidden rounded-xl bg-[linear-gradient(115deg,#dbc19b,#f5e7d4)] p-[26px] text-white max-[1100px]:p-6 max-[800px]:p-[22px] max-[580px]:col-start-2 max-[580px]:row-start-1 max-[580px]:rounded-[10px] max-[580px]:px-[14px] max-[580px]:py-[18px]">
-              <div className="relative z-2"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">THÊM MÓN CHO BỮA ĂN</span><h2 className="mt-[9px] mb-[14px] text-[27px] leading-[1.15] font-[650] tracking-[-0.8px] max-[1100px]:text-[25px] max-[800px]:text-[22px] max-[580px]:text-[19px]">Thêm món ngon.<br />Thêm niềm vui.</h2><PillButton compact onClick={() => chooseCategory(promos[1].category!.name)}>Xem {promos[1].category!.name}</PillButton></div>
+              <div className="relative z-2"><span className="text-[7px] tracking-[1.1px] opacity-80 max-[580px]:text-[5px]">THÊM MÓN CHO BỮA ĂN</span><h2 className="mt-[9px] mb-[14px] text-[27px] leading-[1.15] font-[650] tracking-[-0.8px] max-[1100px]:text-[25px] max-[800px]:text-[22px] max-[580px]:text-[19px]">Thêm món ngon.<br />Thêm niềm vui.</h2><PillButton compact onClick={() => onStore(promos[1].storeSlug)}>Xem cửa hàng</PillButton></div>
               <img className="absolute right-[5px] bottom-[-8px] h-[154px] w-[158px] rotate-10 object-contain max-[1100px]:right-[-4px] max-[1100px]:size-[135px] max-[800px]:right-[-9px] max-[800px]:bottom-[-10px] max-[800px]:size-[110px] max-[580px]:right-[-8px] max-[580px]:bottom-[-7px] max-[580px]:size-[95px]" src={promos[1].imageUrl!} alt={promos[1].name} loading="lazy" />
             </article>
           </>}
@@ -210,8 +186,8 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
         <div className="flex items-center justify-between gap-5 border-y border-white/10 py-5 text-[11px] max-[580px]:flex-col max-[580px]:items-start max-[580px]:gap-[11px] max-[580px]:py-[19px] max-[580px]:text-[9px]"><p className="text-[#a7c4b8]">Nhiều cửa hàng trong một nơi.</p><button className="flex items-center gap-[10px] border-0 bg-transparent text-[10px] text-[#d3e5dc] max-[580px]:text-[9px]" onClick={() => scrollTo('fm-stores')}>Khám phá cửa hàng <ArrowUpRight size={18} /></button></div>
         <div className="grid grid-cols-[1.1fr_.7fr_.7fr_1.5fr] gap-[25px] py-7 max-[800px]:gap-[18px] max-[580px]:grid-cols-2 max-[580px]:gap-x-[17px] max-[580px]:gap-y-6 max-[580px]:py-[25px]">
           <div><a className="fm-footer-logo inline-flex items-center gap-2 text-[19px] font-bold tracking-[-0.7px] text-[#e3f0e7]" href="/customer-home" onClick={event => { event.preventDefault(); onHome(); }}><AppLogo className="size-[29px] shrink-0" variant="system-contrast" />{APP_BRAND.name}</a><p className="mt-[9px] text-[9px] leading-[1.9] text-[#83a79b] max-[800px]:text-[8px]">Nhiều cửa hàng, nhiều lựa chọn.<br />Mua sắm dễ dàng hơn.</p></div>
-          <nav className="flex flex-col items-start gap-[9px] text-[9px] [&_a:hover]:text-white [&_a:hover]:underline" aria-label="Explore RetailSpace"><span className="mb-[5px] text-[7px] tracking-[1px] text-[#6e9a8c]">KHÁM PHÁ</span>{[['Cửa hàng', 'fm-stores'], ['Danh mục', 'fm-categories'], ['Sản phẩm', 'fm-products'], ['Bộ sưu tập', 'fm-collections']].map(([label, id]) => <a key={id} href={`#${id}`}>{label}</a>)}</nav>
-          <nav className="flex flex-col items-start gap-[9px] text-[9px] max-[580px]:col-start-1 max-[580px]:row-start-2 [&_button:hover]:text-white [&_button:hover]:underline" aria-label="RetailSpace account"><span className="mb-[5px] text-[7px] tracking-[1px] text-[#6e9a8c]">TÀI KHOẢN</span>{!user && <button onClick={onLogin}>Đăng nhập</button>}{!user && onRegister && <button onClick={onRegister}>Tạo tài khoản</button>}<button onClick={() => scrollTo('fm-stores')}>Đến cửa hàng</button></nav>
+          <nav className="flex flex-col items-start gap-[9px] text-[9px] [&_a:hover]:text-white [&_a:hover]:underline" aria-label="Khám phá RetailSpace"><span className="mb-[5px] text-[7px] tracking-[1px] text-[#6e9a8c]">KHÁM PHÁ</span>{[['Cửa hàng', 'fm-stores'], ['Sản phẩm', 'fm-products'], ['Bộ sưu tập', 'fm-collections']].map(([label, id]) => <a key={id} href={`#${id}`}>{label}</a>)}</nav>
+          <nav className="flex flex-col items-start gap-[9px] text-[9px] max-[580px]:col-start-1 max-[580px]:row-start-2 [&_button:hover]:text-white [&_button:hover]:underline" aria-label="Tài khoản RetailSpace"><span className="mb-[5px] text-[7px] tracking-[1px] text-[#6e9a8c]">TÀI KHOẢN</span>{!user && <button onClick={onLogin}>Đăng nhập</button>}{!user && onRegister && <button onClick={onRegister}>Tạo tài khoản</button>}<button onClick={() => scrollTo('fm-stores')}>Đến cửa hàng</button></nav>
           <div className="max-[580px]:col-start-2 max-[580px]:row-start-2"><span className="text-[7px] tracking-[1px] text-[#6e9a8c]">VỀ RETAILSPACE</span><p className="mt-[9px] text-[9px] leading-[1.9] text-[#83a79b] max-[800px]:text-[8px]">Nền tảng nhiều cửa hàng.<br />Cửa hàng, sản phẩm và giá lấy từ dữ liệu của từng cửa hàng.</p><a className="mt-3 flex items-center gap-[5px] text-[8px] text-[#b1cec1] max-[580px]:flex-wrap max-[580px]:text-[6px]" href="https://dribbble.com/shots/27839977-Grocery-E-Commerce-Website-UI-UX-Design" target="_blank" rel="noreferrer">Design reference: Farmora by Ali Mortuja <ArrowUpRight size={12} /></a></div>
         </div>
         <div className="flex justify-between gap-[15px] border-t border-white/10 py-[18px] text-[8px] text-[#5e8b7d] max-[580px]:text-[6px]"><span>© {new Date().getFullYear()} {APP_BRAND.name} · Trang mua sắm</span><span>Khám phá mỗi ngày.</span></div>

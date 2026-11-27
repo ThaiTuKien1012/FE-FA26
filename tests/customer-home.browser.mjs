@@ -4,14 +4,14 @@
 //   1. the restored design is shown with real data: header and navigation, hero carousel, product cards, Store cards;
 //   2. Store cards (icon/banner behaviour), hero banner fallback (art when the Store has no banner or it fails);
 //   3. navigation: Store card -> storefront, back to the home, product card -> product page, bundle -> its Store;
-//   4. search, category, Store and saved filters; loading/empty/error/partial-failure states; bundles from the API;
+//   4. search, Store-local category and saved filters; loading/empty/error/partial-failure states; bundles from the API;
 //   5. a 390 px wide screen has no horizontal overflow; a signed-in End-Customer keeps the home (no join banner).
 // All API traffic is intercepted with fixtures, never a real backend, account or cart write.
 // Any request outside the fixtures lands in `unexpected` and fails the test.
 import assert from 'node:assert/strict';
 import { waitForDevToolsPage } from './browser-devtools.mjs';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { storefrontFixture, STOREFRONT_PRODUCT, STOREFRONT_PRODUCT_ID, STOREFRONT_SLUG, STOREFRONT_STORE,
@@ -100,7 +100,7 @@ async function fixture({ requestId, request }) {
   if (!url.pathname.startsWith('/api/')) return page.call(url.origin === origin ? 'Fetch.continueRequest' : 'Fetch.failRequest', {
     requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' })
   });
-  calls.push({ path: url.pathname, method: request.method });
+  calls.push({ path: url.pathname, method: request.method, query: url.searchParams });
   if ([STOREFRONT_WITH_IMAGES.iconUrl, STOREFRONT_WITH_IMAGES.bannerUrl].includes(url.pathname)) {
     return page.call('Fetch.fulfillRequest', { requestId, responseCode: 200,
       responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: pixelPng });
@@ -117,8 +117,13 @@ async function fixture({ requestId, request }) {
   }
   else if (front = storefrontFixture(url.pathname, request.method, state.storefront)) {
     responseCode = front.status; body = front.body;
+    if (state.bundle && url.pathname === `/api/storefront/${STOREFRONT_SLUG}/products` && url.searchParams.get('pageSize') === '100') {
+      const page = Number(url.searchParams.get('page'));
+      const item = page === 0 ? STOREFRONT_PRODUCT : { ...STOREFRONT_PRODUCT, productId: 503, category: { categoryId: 8, name: 'Pantry' } };
+      body = { items: [item], page, pageSize: 100, totalElements: 101 };
+    }
     if (state.bundle && url.pathname === `/api/storefront/${STOREFRONT_SLUG}/home`) {
-      body = { ...body, fallbackType: null, zones: [{ name: 'BUNDLE', placements: [{
+      body = { ...body, fallbackType: null, catalog: [], zones: [{ name: 'BUNDLE', placements: [{
         type: 'BUNDLE', blockNo: 1, startPosition: 1, bundleKey: 'bundle-key-1',
         products: [STOREFRONT_PRODUCT, { ...STOREFRONT_PRODUCT, productId: 502, name: 'Fixture granola', availability: 'OUT_OF_STOCK' }] }] }] };
     }
@@ -141,11 +146,17 @@ try {
   // Keep the carousel still so slide checks do not race with the timer.
   await page.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
 
+  const saveEvidence = async name => {
+    if (!process.env.PASPM_UX_EVIDENCE) return;
+    const screenshot = await page.call('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(process.env.PASPM_UX_EVIDENCE, name + '.png'), Buffer.from(screenshot.data, 'base64'));
+  };
+
   // 1. The restored design, fed by the F09 fixture.
   await openHome();
   await until('!!document.querySelector(".fm-product")', 'product card');
   for (const [selector, label] of [['.fm-topbar', 'top bar'], ['.fm-header', 'header'], ['.fm-navbar', 'navigation bar'],
-    ['section[aria-roledescription="carousel"]', 'hero carousel'], ['#fm-categories', 'category section'], ['#fm-products', 'product section'],
+    ['section[aria-roledescription="carousel"]', 'hero carousel'], ['#fm-products', 'product section'],
     ['#fm-stores', 'Store section'], ['#fm-collections', 'collection tiles'], ['#fm-help', 'help section'], ['#fm-join', 'join banner'], ['#fm-footer', 'footer']]) {
     assert.equal(await page.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`), true, 'Restored section: ' + label);
   }
@@ -153,6 +164,13 @@ try {
   const card = await page.evaluate('document.querySelector(".fm-product").innerText');
   for (const expected of [STOREFRONT_PRODUCT.name, 'Dairy', 'Bán tại Fixture Store', '32.001 ₫', 'Xem sản phẩm']) assert.ok(card.includes(expected), 'Product card shows ' + expected + ': ' + card);
   assert.equal(await page.evaluate('!document.querySelector(".fm-add-cart")'), true, 'The home has no add-to-cart: a cart belongs to one Store');
+  assert.equal(await page.evaluate("document.querySelector('#fm-stores h2')?.textContent"), 'Khám phá cửa hàng');
+  assert.equal(await page.evaluate("!document.querySelector('#fm-categories,.fm-category-tabs') && (document.querySelector('#fm-stores').compareDocumentPosition(document.querySelector('#fm-products')) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0"), true);
+  assert.ok(calls.some(call => call.method === 'GET' && call.path === '/api/storefront/stores'));
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.fm-header button')].filter(b=>b.innerText.trim()==='Đăng nhập').length"), 1);
+  await saveEvidence('after-home-header');
+  await page.evaluate("document.querySelector('#fm-stores').scrollIntoView()");
+  await saveEvidence('after-home-directory');
   const page1 = await text();
   assert.ok(page1.includes('1 sản phẩm'), 'Store card shows the API product total');
   // Mock leftovers of the old design must not come back.
@@ -191,6 +209,13 @@ try {
   await page.evaluate('document.querySelector(".home-store-card").click()');
   await until(`location.pathname + location.search === "/storefront?store=${STOREFRONT_SLUG}"`, 'Store storefront');
   await until('document.querySelector("#shop-main h1")?.textContent === "Fixture Store"', 'Store heading');
+  await until("!!document.querySelector('#shop-products select[aria-label=\"Danh mục sản phẩm\"] option[value=\"7\"]')", 'category from Store products');
+  const from = calls.length;
+  await page.evaluate(`(()=>{const select=document.querySelector('#shop-products select[aria-label="Danh mục sản phẩm"]');select.value='7';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until("document.querySelector('#shop-products select').value==='7' && document.querySelector('#shop-products').innerText.includes('Fixture oat milk')", 'selected Store category');
+  assert.ok(calls.slice(from).some(call=>call.path===`/api/storefront/${STOREFRONT_SLUG}/products` && call.query.get('categoryId')==='7'));
+  await page.evaluate("document.querySelector('#shop-products').scrollIntoView()");
+  await saveEvidence('after-store-category');
   await clickText('Các cửa hàng');
   await until('location.pathname === "/customer-home" && !!document.querySelector(".home-store-card")', 'back on the home');
   await page.evaluate('document.querySelector(".fm-view-product").click()');
@@ -198,7 +223,7 @@ try {
   await has(STOREFRONT_PRODUCT.name);
   checks.push('Home -> Store -> back to home -> product page');
 
-  // 4a. Search, category, Store and saved filters.
+  // 4a. Search, Store and saved filters on the home.
   await openHome();
   await until('!!document.querySelector(".fm-product")', 'product card');
   await setSearch('OAT'); await has('Hiển thị 1/1 sản phẩm');
@@ -206,16 +231,13 @@ try {
   assert.equal(await page.evaluate('document.querySelectorAll(".fm-product").length'), 0);
   await clickText('Xóa bộ lọc'); await until('document.querySelectorAll(".fm-product").length === 1', 'filters cleared');
   await setSearch('sua'); await has('Không tìm thấy sản phẩm'); await clickText('Xóa bộ lọc');
-  await page.evaluate('[...document.querySelectorAll("#fm-categories button")].find(b=>b.innerText.includes("Dairy")).click()');
-  await until('[...document.querySelectorAll(".fm-category-tabs button")].some(b=>b.innerText==="Dairy"&&b.getAttribute("aria-pressed")==="true")', 'Dairy category selected');
-  await clickText('Tất cả sản phẩm');
   await clickText(`Lưu ${STOREFRONT_PRODUCT.name}`);
   await until(`!!document.querySelector('button[aria-label="Sản phẩm đã lưu (1)"]')`, 'saved count');
   await clickText('Sản phẩm đã lưu (1)'); await until('document.querySelectorAll(".fm-product").length === 1', 'saved only');
   await clickText('Sản phẩm đã lưu (1)');
   await clickText(`Bỏ lưu ${STOREFRONT_PRODUCT.name}`); await clickText('Sản phẩm đã lưu (0)');
   await has('Chưa có sản phẩm đã lưu'); await clickText('Sản phẩm đã lưu (0)');
-  checks.push('Search (case and diacritics), category, saved filters');
+  checks.push('Search (case and diacritics), saved filters and Store-local category');
 
   // 4b. Loading is followed by empty, error, retry and partial-failure states.
   state.stores = json([]);
@@ -244,8 +266,9 @@ try {
   await clickText('Xem gói tại cửa hàng');
   await until(`location.pathname + location.search === "/storefront?store=${STOREFRONT_SLUG}"`, 'bundle opens its Store');
   await until('[...document.querySelectorAll("button")].some(b=>b.innerText.includes("Thêm gói vào giỏ"))', 'bundle add stays on the Store page');
+  await until("document.querySelector('#shop-products select option[value=\"8\"]')?.textContent==='Pantry'", 'category from a later catalog page during an active campaign');
   state.bundle = false;
-  checks.push('Bundles from the API, opened in their Store');
+  checks.push('Bundles open in their Store; campaign Store categories include unplaced products from later catalog pages');
 
   // 5a. A narrow screen has no horizontal overflow.
   await openHome(390);
@@ -266,6 +289,7 @@ try {
   await until('location.pathname === "/customer-home" && !!document.querySelector(".home-store-card")', 'End-Customer lands on /customer-home');
   assert.equal(await page.evaluate('!document.querySelector("#fm-join")'), true, 'Join banner hidden when signed in');
   await hasNot('Tạo tài khoản');
+  assert.equal(await page.evaluate("[...document.querySelectorAll('.fm-header button')].some(b=>b.innerText.trim()==='Đăng nhập')"), false);
   checks.push('End-Customer signs in from the home and lands on /customer-home');
 
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);

@@ -16,7 +16,7 @@ for (const [screen, path] of [['Sign-in page', 'src/features/auth/components/Log
 }
 
 test('the inactive-Store notice is in the same language as the sign-in page', () => {
-  assert.match(visibleSource('src/services/authSession.ts'), /Your store is inactive\./);
+  assert.match(visibleSource('src/features/auth/authMessages.ts'), /Your store is inactive\./);
   assert.match(visibleSource('src/features/auth/components/LoginView.tsx'), /Sign in to the system/);
 });
 

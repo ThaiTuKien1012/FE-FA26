@@ -15,6 +15,7 @@ interface CustomerHeaderProps {
   cartCount: number;
   openCart?: () => void;
   onLogin: () => void;
+  showSignInLabel?: boolean;
   onHome?: () => void;
   user?: AuthUser | null;
   onProfile?: () => void;
@@ -25,7 +26,7 @@ interface CustomerHeaderProps {
 
 const iconButtonClass = 'relative flex items-center justify-center border-0 bg-transparent p-[7px] max-[580px]:p-[5px]';
 
-export function CustomerHeader({ query, setQuery, onSearch, savedCount, savedOnly, toggleSavedOnly, cartCount, openCart, onLogin, onHome, user, onProfile, onLogout, menuOpen = false, onToggleMenu }: CustomerHeaderProps) {
+export function CustomerHeader({ query, setQuery, onSearch, savedCount, savedOnly, toggleSavedOnly, cartCount, openCart, onLogin, showSignInLabel, onHome, user, onProfile, onLogout, menuOpen = false, onToggleMenu }: CustomerHeaderProps) {
   return (<>
       <div className="fm-topbar bg-[#088178] text-[10px] text-[#def3ed] max-[580px]:text-[8px]">
         <div className={`${containerClass} flex min-h-8 items-center justify-between gap-5 max-[580px]:min-h-[30px] max-[580px]:gap-2`}>
@@ -50,7 +51,7 @@ export function CustomerHeader({ query, setQuery, onSearch, savedCount, savedOnl
           {openCart && <button className={`${iconButtonClass} fm-cart-trigger`} aria-label={`Mở giỏ hàng (${cartCount})`} onClick={openCart}>
             <ShoppingCart size={22} />{cartCount > 0 && <span className="absolute top-0 -right-px grid size-[15px] place-items-center rounded-full bg-[#e76b58] text-[8px] text-white">{cartCount}</span>}
           </button>}
-          {user ? <AvatarDropdown user={user} onProfile={onProfile || onLogin} onLogout={onLogout} /> : <button className="grid size-8 place-items-center rounded-full border border-[#d3e9df] bg-[#e3f0e6] text-[#088178] max-[580px]:size-7" onClick={onLogin} aria-label="Đăng nhập"><UserRound size={18} /></button>}
+          {user ? <AvatarDropdown user={user} onProfile={onProfile || onLogin} onLogout={onLogout} /> : showSignInLabel ? <button type="button" onClick={onLogin} className="min-h-9 shrink-0 whitespace-nowrap rounded-full bg-[#088178] px-3 text-xs font-semibold text-white hover:bg-[#06685f]">Đăng nhập</button> : <button className="grid size-8 place-items-center rounded-full border border-[#d3e9df] bg-[#e3f0e6] text-[#088178] max-[580px]:size-7" onClick={onLogin} aria-label="Đăng nhập"><UserRound size={18} /></button>}
           {onToggleMenu && <button className="hidden items-center justify-center border-0 bg-transparent p-[5px] max-[580px]:flex" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} onClick={() => onToggleMenu?.()}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>}
         </div>
       </header>

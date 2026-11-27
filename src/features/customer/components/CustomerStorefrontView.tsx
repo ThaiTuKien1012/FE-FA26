@@ -82,6 +82,18 @@ function SelectedStore({ storeSlug, stores, onStore, onProduct, ...navigation }:
       sortBy: sort === 'name' ? 'name' : 'sellingPrice', sortDirection: sort === 'price-desc' ? 'desc' : 'asc' }, signal)
     : Promise.resolve(undefined), [storeSlug, storeReady, search, categoryId, page, sort]);
   const products = useCustomerResource(requestProducts);
+  const hasFullCatalog = home.data?.fallbackType === 'DEFAULT_CATALOG';
+  const loadCategoryOptions = useCallback(async (signal: AbortSignal) => {
+    const categories = new Map<number, string>();
+    if (!storeReady || hasFullCatalog) return categories;
+    // A campaign home contains only placed products. Read the unfiltered Store catalog for its category options.
+    for (let page = 0; ; page++) {
+      const data = await customerApi.products(storeSlug, { page, pageSize: 100 }, signal);
+      for (const { category } of data.items) if (category) categories.set(category.categoryId, category.name);
+      if (data.items.length === 0 || (data.page + 1) * data.pageSize >= data.totalElements) return categories;
+    }
+  }, [storeReady, hasFullCatalog, storeSlug]);
+  const catalogCategories = useCustomerResource(loadCategoryOptions);
   const cart = useCustomerCart(isStoreSlug(storeSlug) ? storeSlug : '', navigation.user);
   const store = home.data?.store;
   const openCart = () => {
@@ -107,6 +119,7 @@ function SelectedStore({ storeSlug, stores, onStore, onProduct, ...navigation }:
     quantity={cart.cart?.items.find(line => line.productId === product.productId)?.quantity ?? 0}
     onOpen={() => onProduct(product.productId)} onAdd={() => add(product)} blocked={cart.blocked} />;
   const categoryOptions = new Map(home.data?.catalog.flatMap(group => group.categoryId === null ? [] : [[group.categoryId, group.name]]));
+  catalogCategories.data?.forEach((name, id) => categoryOptions.set(id, name));
   for (const item of products.data?.items ?? []) if (item.category) categoryOptions.set(item.category.categoryId, item.category.name);
   const visible = products.data?.items.filter(item => !savedOnly || saved.includes(savedKey(item.productId))) ?? [];
   const categories = [...categoryOptions];

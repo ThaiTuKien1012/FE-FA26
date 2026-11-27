@@ -1,3 +1,5 @@
+import { authCopy } from '../authMessages';
+import { AuthBackLinks, useAuthFields } from './AuthFormFeedback';
 import React, { useState, useEffect } from 'react';
 import { 
   KeyRound, 
@@ -21,9 +23,10 @@ import { authService } from '../../../services/authService';
 
 interface ActivateViewProps {
   onNavigateLogin: () => void;
+  onNavigateHome: () => void;
 }
 
-export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) => {
+export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin, onNavigateHome }) => {
   // Support auto-fill if user clicks link with query params (?email=...&otp=...)
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -32,6 +35,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
   const [showPassword, setShowPassword] = useState(false);
 
   // Multi-step flow: 1 = Verify Invite & OTP, 2 = Set Password, 3 = Activated Success
+  const fields = useAuthFields();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +53,10 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
       const params = new URLSearchParams(window.location.search);
       const urlEmail = params.get('email');
       const urlOtp = params.get('otp') || params.get('code');
+      if ((params.has('email') || params.has('otp') || params.has('code'))
+        && (!urlEmail || !/^[^\s@]+@[^\s@]+$/.test(urlEmail) || !urlOtp || !/^\d{6}$/.test(urlOtp))) {
+        setErrorMessage(authCopy.invalidLink);
+      }
       if (urlEmail) setEmail(urlEmail);
       if (urlOtp) setOtp(urlOtp.replace(/\D/g, '').slice(0, 6));
     }
@@ -79,12 +87,12 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
 
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      setErrorMessage('Please enter a valid email address.');
+      fields.setError('act-email', authCopy.email);
       return;
     }
 
     if (!otp.trim() || otp.trim().length !== 6) {
-      setErrorMessage('The verification code must contain exactly 6 digits.');
+      fields.setError('act-otp', authCopy.otpFormat);
       return;
     }
 
@@ -96,7 +104,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
     if (resendCooldown > 0 || isLoading) return;
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      setErrorMessage('Please enter your email address before requesting a new code.');
+      fields.setError('act-email', !cleanEmail ? authCopy.required : authCopy.email);
       return;
     }
 
@@ -124,12 +132,12 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
     setSuccessNotice(null);
 
     if (!isPasswordValid) {
-      setErrorMessage('Password must be at least 12 characters and include uppercase, lowercase, and numbers.');
+      fields.setError('act-password', 'Use at least 12 characters, including uppercase, lowercase and a digit.');
       return;
     }
 
     if (!isMatch) {
-      setErrorMessage('Passwords do not match. Please check again.');
+      fields.setError('act-confirm', authCopy.passwordMismatch);
       return;
     }
 
@@ -294,7 +302,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
 
               {/* STEP 1: Verify Email & OTP */}
               {step === 1 && (
-                <form onSubmit={handleProceedToPassword} className="space-y-4">
+                <form {...fields.form} onSubmit={handleProceedToPassword} className="space-y-4">
                   <div className="text-center mb-4">
                     <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-[#1E3A2F] flex items-center justify-center mx-auto mb-2.5">
                       <KeyRound className="w-5 h-5" />
@@ -315,7 +323,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                     <div className="relative">
                       <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        id="act-email"
+                        id="act-email" {...fields.input('act-email')}
                         type="email"
                         required
                         value={email}
@@ -324,6 +332,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                         className="w-full h-11 pl-10 pr-3.5 text-sm bg-[#EEF5FD] text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#D5E2F1] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all font-medium"
                       />
                     </div>
+                    {fields.message('act-email')}
                   </div>
 
                   {/* OTP Input */}
@@ -345,23 +354,24 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                     <div className="relative">
                       <ShieldCheck className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        id="act-otp"
+                        id="act-otp" {...fields.input('act-otp')}
                         type="text"
                         maxLength={6}
-                        required
+                        required pattern="[0-9]{6}"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                         placeholder="••••••"
                         className="w-full h-11 pl-10 pr-3.5 text-base font-mono tracking-[0.35em] text-center bg-[#EEF5FD] text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#D5E2F1] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all font-bold"
                       />
                     </div>
+                    {fields.message('act-otp')}
                   </div>
 
                   {/* Continue Button */}
                   <div className="pt-2">
                     <button
                       type="submit"
-                      disabled={!email || otp.length !== 6}
+                      disabled={isLoading}
                       className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       <span>Continue to set password</span>
@@ -369,31 +379,18 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                     </button>
                   </div>
 
-                  {/* Back to Login Link */}
-                  <div className="text-center pt-3 border-t border-slate-100">
-                    <p className="text-xs text-[#6D7974]">
-                      Already activated?{' '}
-                      <button
-                        type="button"
-                        onClick={onNavigateLogin}
-                        className="font-semibold text-[#1E3A2F] hover:underline transition-colors cursor-pointer"
-                      >
-                        Return to sign in
-                      </button>
-                    </p>
-                  </div>
                 </form>
               )}
 
               {/* STEP 2: Set New Password */}
               {step === 2 && (
-                <form onSubmit={handleActivateSubmit} className="space-y-4">
+                <form {...fields.form} onSubmit={handleActivateSubmit} className="space-y-4">
                   <div className="text-center mb-3">
                     <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-[#1E3A2F] flex items-center justify-center mx-auto mb-2">
                       <Lock className="w-5 h-5" />
                     </div>
                     <h1 className="text-xl font-bold text-[#191C1B]">
-                      Thiết lập mật khẩu
+                      Set your password
                     </h1>
                     <div className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-[11px] text-slate-700 font-medium">
                       <span>{email}</span>
@@ -402,7 +399,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                         onClick={() => setStep(1)}
                         className="text-[#1E3A2F] hover:underline font-semibold text-[10px] ml-1"
                       >
-                        Đổi
+                        Edit
                       </button>
                     </div>
                   </div>
@@ -410,17 +407,17 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                   {/* Password Input */}
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="act-password">
-                      Mật khẩu mới
+                      New password
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        id="act-password"
+                        id="act-password" {...fields.input('act-password')}
                         type={showPassword ? 'text' : 'password'}
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Tối thiểu 12 ký tự"
+                        placeholder="At least 12 characters"
                         className="w-full h-11 pl-10 pr-12 text-sm bg-[#EEF5FD] text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#D5E2F1] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all font-medium"
                       />
                       <button
@@ -431,24 +428,25 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    {fields.message('act-password')}
 
                     {/* Requirements Matrix */}
                     <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px]">
                       <span className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${hasMinLength ? 'bg-emerald-600' : 'bg-slate-300'}`} />
-                        Từ 12 ký tự trở lên
+                        At least 12 characters
                       </span>
                       <span className={`flex items-center gap-1.5 ${hasUpper ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${hasUpper ? 'bg-emerald-600' : 'bg-slate-300'}`} />
-                        Chữ in hoa (A-Z)
+                        Uppercase letter (A-Z)
                       </span>
                       <span className={`flex items-center gap-1.5 ${hasLower ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${hasLower ? 'bg-emerald-600' : 'bg-slate-300'}`} />
-                        Chữ in thường (a-z)
+                        Lowercase letter (a-z)
                       </span>
                       <span className={`flex items-center gap-1.5 ${hasNumber ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${hasNumber ? 'bg-emerald-600' : 'bg-slate-300'}`} />
-                        Chữ số (0-9)
+                        Digit (0-9)
                       </span>
                     </div>
                   </div>
@@ -456,23 +454,24 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                   {/* Confirm Password Input */}
                   <div>
                     <label className="block text-xs font-semibold text-[#191C1B] mb-1.5" htmlFor="act-confirm">
-                      Xác nhận lại mật khẩu
+                      Confirm new password
                     </label>
                     <div className="relative">
                       <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        id="act-confirm"
+                        id="act-confirm" {...fields.input('act-confirm')}
                         type={showPassword ? 'text' : 'password'}
                         required
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Nhập lại chính xác mật khẩu"
+                        placeholder="Re-enter your password"
                         className="w-full h-11 pl-10 pr-3.5 text-sm bg-[#EEF5FD] text-[#191C1B] placeholder-[#89938F] rounded-xl border border-[#D5E2F1] focus:border-[#1E3A2F] focus:ring-2 focus:ring-[#1E3A2F]/15 outline-hidden transition-all font-medium"
                       />
                     </div>
+                    {fields.message('act-confirm')}
                     {confirmPassword && (
                       <p className={`text-[11px] mt-1 font-medium ${isMatch ? 'text-emerald-700' : 'text-rose-600'}`}>
-                        {isMatch ? '✓ Mật khẩu khớp nhau' : '✕ Mật khẩu xác nhận chưa khớp'}
+                        {isMatch ? '✓ Passwords match' : '✕ Passwords do not match'}
                       </p>
                     )}
                   </div>
@@ -485,18 +484,18 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                       className="h-11 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Quay lại</span>
+                      <span>Back</span>
                     </button>
                     <button
                       type="submit"
-                      disabled={isLoading || !isPasswordValid || !isMatch}
+                      disabled={isLoading}
                       className="flex-1 h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] active:scale-[0.99] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? (
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <>
-                          <span>Hoàn tất kích hoạt</span>
+                          <span>Activate account</span>
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
@@ -512,9 +511,9 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                     <CheckCircle2 className="w-10 h-10" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900">Kích hoạt thành công!</h2>
+                    <h2 className="text-xl font-bold text-slate-900">Account activated</h2>
                     <p className="mt-2 text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
-                      Tài khoản của bạn đã được thiết lập thành công. Hệ thống đang tự động chuyển hướng bạn đến màn hình Đăng nhập...
+                      Your account is ready. Redirecting to sign in…
                     </p>
                   </div>
                   <div className="pt-2">
@@ -523,13 +522,14 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
                       onClick={onNavigateLogin}
                       className="w-full h-11 rounded-xl bg-[#1E3A2F] hover:bg-[#294D3F] text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <span>Đăng nhập ngay</span>
+                      <span>Sign in</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               )}
 
+              <AuthBackLinks onNavigateLogin={onNavigateLogin} onNavigateHome={onNavigateHome} />
             </div>
           </main>
 
@@ -537,7 +537,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
 
         {/* Bottom Footer */}
         <footer className="w-full py-5 text-center text-xs text-white/60 z-20 border-t border-white/10 mt-auto">
-          <p>RetailSpace Operations Platform © 2026 | Nền tảng vận hành bán lẻ thông minh</p>
+          <p>RetailSpace Operations Platform © 2026 | Smart retail operations platform</p>
         </footer>
       </div>
 
@@ -548,7 +548,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
             type="button"
             onClick={() => setIsMuted(!isMuted)}
             className="w-11 h-11 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md border border-white/25 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg"
-            title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+            title={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
@@ -558,7 +558,7 @@ export const ActivateView: React.FC<ActivateViewProps> = ({ onNavigateLogin }) =
             className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/35 text-white text-xs font-semibold tracking-wide shadow-2xl transition-all cursor-pointer"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
-            <span>Quay lại biểu mẫu kích hoạt</span>
+            <span>Return to the activation form</span>
           </button>
         </div>
       )}
