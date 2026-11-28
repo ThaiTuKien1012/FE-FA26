@@ -1,4 +1,4 @@
-export type AuthAction = 'login' | 'verify' | 'resend' | 'reset-request' | 'activate' | 'register' | 'complete';
+export type AuthAction = 'login' | 'google' | 'verify' | 'resend' | 'reset-request' | 'activate' | 'register' | 'complete';
 
 export const authCopy = {
   network: 'Unable to connect to the server. Please try again.',
@@ -10,11 +10,14 @@ export const authCopy = {
   passwordMismatch: 'Passwords do not match.',
   invalidLink: 'This verification link is invalid. Enter your email and verification code below.',
   resetRequested: "If an account exists for this email, we've sent a verification code.",
+  googleUnavailable: 'Google sign-in is currently unavailable. Please use your email and password.',
   storeInactive: 'Your store is inactive. Contact your system administrator for help.',
 } as const;
 
-export function authRequestMessage(action: AuthAction, status: number | null, code?: string): string {
+export function authRequestMessage(requested: AuthAction, status: number | null, code?: string): string {
   if (status === null) return authCopy.network;
+  if (status === 503 && requested === 'google') return authCopy.googleUnavailable;
+  const action: AuthAction = requested === 'google' ? 'login' : requested; // every other Google sign-in answer reads like a sign-in answer
   if (status >= 500) return authCopy.server;
   if (status === 403 && code === 'STORE_INACTIVE') return authCopy.storeInactive;
   if (status === 401 && action === 'login') return 'Invalid email or password.';
