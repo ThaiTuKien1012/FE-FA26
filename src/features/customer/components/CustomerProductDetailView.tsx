@@ -4,22 +4,30 @@ import { APP_BRAND } from '../../../app/branding';
 import { AppLogo } from '../../../components/common/AppLogo';
 import { AvatarDropdown } from '../../../components/common/AvatarDropdown';
 import { CustomerApiError, customerApi, isStoreSlug } from '../customer.api';
+import { relatedPlacementProducts } from '../customerPlacements';
+import { customerPath } from '../customerRoutes';
 import { formatCustomerMoney as money } from '../customerMoney';
 import { unitLabel } from '../data/customerLocale';
 import { useCustomerCart } from '../hooks/useCustomerCart';
 import { useCustomerResource } from '../hooks/useCustomerResource';
 import { useSavedCustomerProducts } from '../hooks/useSavedCustomerProducts';
 import { CustomerCartDialog } from './CustomerCartDialog';
-import { containerClass } from './CustomerCommerce';
+import { containerClass, ProductCard, SectionHeading } from './CustomerCommerce';
 import { type CustomerNavigation, StoreMessage } from './CustomerStorefrontView';
 
 interface Props extends CustomerNavigation {
   storeSlug: string | null;
   productId: string | null;
+  onProduct: (id: number) => void;
 }
 
+const RELATED_SECTIONS = [
+  { type: 'FBT', title: 'Thường được mua cùng', headingId: 'product-fbt-title' },
+  { type: 'CROSS_SELL', title: 'Có thể bạn cũng thích', headingId: 'product-cross-sell-title' },
+] as const;
+
 export function CustomerProductDetailView({ storeSlug, productId, user, onBack, onHome, onStore,
-  onLogin, onProfile, onLogout }: Props & { onBack: () => void }) {
+  onLogin, onProfile, onLogout, onProduct }: Props & { onBack: () => void }) {
   const id = /^\d+$/.test(productId ?? '') ? Number(productId) : 0;
   const valid = isStoreSlug(storeSlug) && id > 0 && id <= 2147483647;
   const loadProduct = useCallback((signal: AbortSignal) => valid && storeSlug
@@ -27,11 +35,24 @@ export function CustomerProductDetailView({ storeSlug, productId, user, onBack, 
   const stores = useCustomerResource(customerApi.stores);
   const result = useCustomerResource(loadProduct);
   const product = result.data;
+  const productLoaded = Boolean(product);
+  const loadPlacements = useCallback((signal: AbortSignal) => productLoaded && storeSlug
+    ? customerApi.home(storeSlug, signal) : Promise.resolve(undefined), [productLoaded, storeSlug]);
+  const placements = useCustomerResource(loadPlacements);
   const cart = useCustomerCart(product && storeSlug ? storeSlug : '', user);
   const storeName = stores.data?.find(store => store.storeSlug === storeSlug)?.name ?? cart.cart?.store.name ?? 'Cửa hàng';
   const { saved, toggle } = useSavedCustomerProducts();
   const savedKey = `${storeSlug}/${id}`;
   const [quantity, setQuantity] = useState(1);
+  const [feedbackSection, setFeedbackSection] = useState<string>();
+  const addToCart = (productId: number, quantity: number, section?: string) => {
+    if (!user) {
+      onLogin();
+      return;
+    }
+    setFeedbackSection(section);
+    void cart.mutate({ kind: 'add', productId, quantity });
+  };
   const dialog = useRef<HTMLDialogElement>(null);
   const openCart = () => user ? dialog.current?.showModal() : onLogin();
   return <div className="min-h-dvh bg-[#f7f9f7] text-[#212d27]" lang="vi">
@@ -86,12 +107,12 @@ export function CustomerProductDetailView({ storeSlug, productId, user, onBack, 
                 </div>
               </div>
               <div className="mt-6 grid grid-cols-[1fr_auto] gap-3 max-[580px]:grid-cols-1">
-                <button onClick={() => user ? void cart.mutate({ kind: 'add', productId: id, quantity }) : onLogin()}
+                <button onClick={() => addToCart(id, quantity)}
                   disabled={product.availability !== 'AVAILABLE' || cart.blocked}
                   className="flex min-h-13 items-center justify-center gap-2 rounded-xl bg-[#088178] px-6 text-sm font-semibold text-white hover:bg-[#066c66] disabled:opacity-50"><ShoppingCart size={18} />Thêm vào giỏ</button>
                 <button onClick={openCart} className="flex min-h-13 items-center justify-center gap-2 rounded-xl border border-[#088178] px-5 text-sm font-semibold text-[#088178] hover:bg-[#f1faf6]">Xem giỏ <ArrowRight size={16} /></button>
               </div>
-              {cart.message && <p className="mt-3 text-xs text-[#167c63]" role="status">{cart.message}</p>}
+              {!feedbackSection && cart.message && <p className="mt-3 text-xs text-[#167c63]" role="status">{cart.message}</p>}
             </div>
             <button onClick={() => onStore(storeSlug)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#d6e7dd] py-3 text-sm font-medium text-[#088178] hover:bg-[#f2faf5]"><Store size={16} />Đến {storeName} <ArrowRight size={15} /></button>
           </section>
@@ -100,6 +121,30 @@ export function CustomerProductDetailView({ storeSlug, productId, user, onBack, 
           <h2 id="product-details-title" className="text-xl font-semibold">Thông tin sản phẩm</h2>
           <p className="mt-4 whitespace-pre-line text-sm leading-6 text-[#65796d]">{product.description}</p>
         </section>}
+        {placements.loading && <p className="mt-8 text-sm text-[#65796d]" role="status">Đang tải gợi ý sản phẩm…</p>}
+        {placements.error && <div className="mt-8"><StoreMessage text="Chưa tải được gợi ý sản phẩm." retry={placements.reload} /></div>}
+        {RELATED_SECTIONS.map(({ type, title, headingId }) => {
+          const related = relatedPlacementProducts(placements.data, type, id);
+          if (related.length === 0) return null;
+          return <section key={type} className="mt-8" aria-labelledby={headingId}>
+            <SectionHeading id={headingId} title={title} />
+            {feedbackSection === type && cart.message && <div role="status" className="mb-4 rounded-xl border border-[#e2ebe5] bg-white p-3 text-sm text-[#167c63]">
+              <p>{cart.message}</p>
+              {cart.signInRequired && <button onClick={onLogin} className="mt-2 underline">Đăng nhập</button>}
+              {cart.needsReload && !cart.signInRequired && !cart.pending && <button onClick={() => void cart.load()} className="mt-2 underline">Tải lại giỏ hàng</button>}
+            </div>}
+            <div className="grid grid-cols-4 gap-4 max-[800px]:grid-cols-3 max-[580px]:grid-cols-2 max-[580px]:gap-2">
+              {related.map(item => {
+                const key = `${storeSlug}/${item.productId}`;
+                return <ProductCard key={key} product={item} showAvailability blocked={cart.blocked}
+                  productHref={customerPath(storeSlug, String(item.productId))} onOpen={() => onProduct(item.productId)}
+                  saved={saved.includes(key)} onSave={() => toggle(key)}
+                  quantity={cart.cart?.items.find(line => line.productId === item.productId)?.quantity ?? 0}
+                  onAdd={() => addToCart(item.productId, 1, type)} />;
+              })}
+            </div>
+          </section>;
+        })}
         <CustomerCartDialog dialogRef={dialog} storeName={cart.cart?.store.name ?? storeName} state={cart} onLogin={onLogin} />
       </>}
     </main>

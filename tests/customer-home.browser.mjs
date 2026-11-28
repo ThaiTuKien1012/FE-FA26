@@ -15,7 +15,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { storefrontFixture, STOREFRONT_PRODUCT, STOREFRONT_PRODUCT_ID, STOREFRONT_SLUG, STOREFRONT_STORE,
-  STOREFRONT_WITH_IMAGES, STOREFRONT_WITH_BROKEN_IMAGES } from './storefront.fixtures.ts';
+  FEATURED_PRODUCT_ID, STOREFRONT_WITH_IMAGES, STOREFRONT_WITH_BROKEN_IMAGES } from './storefront.fixtures.ts';
 
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
@@ -56,7 +56,7 @@ class CDP {
 let page, closing = false;
 const calls = [], unexpected = [], errors = [], checks = [];
 // `stores`, `productsStatus` and `bundle` bend the shared fixture for the empty/error/partial/bundle states only.
-const state = { role: 'END_CUSTOMER', storeId: null, storefront: STOREFRONT_STORE, stores: null, productsStatus: 200, bundle: false };
+const state = { role: 'END_CUSTOMER', storeId: null, storefront: STOREFRONT_STORE, stores: null, productsStatus: 200, bundle: false, placements: false };
 const pixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -115,7 +115,7 @@ async function fixture({ requestId, request }) {
   else if (url.pathname === `/api/storefront/${STOREFRONT_SLUG}/products` && state.productsStatus !== 200) {
     responseCode = state.productsStatus; body = { error: 'Fixture products failure' };
   }
-  else if (front = storefrontFixture(url.pathname, request.method, state.storefront)) {
+  else if (front = storefrontFixture(url.pathname, request.method, state.storefront, state.placements ? origin : undefined)) {
     responseCode = front.status; body = front.body;
     if (state.bundle && url.pathname === `/api/storefront/${STOREFRONT_SLUG}/products` && url.searchParams.get('pageSize') === '100') {
       const page = Number(url.searchParams.get('page'));
@@ -147,9 +147,10 @@ try {
   await page.call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
 
   const saveEvidence = async name => {
-    if (!process.env.PASPM_UX_EVIDENCE) return;
+    const evidence = name.startsWith('homepage-featured') ? process.env.PASPM_PLACEMENT_EVIDENCE : process.env.PASPM_UX_EVIDENCE;
+    if (!evidence) return;
     const screenshot = await page.call('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(join(process.env.PASPM_UX_EVIDENCE, name + '.png'), Buffer.from(screenshot.data, 'base64'));
+    writeFileSync(join(evidence, name + '.png'), Buffer.from(screenshot.data, 'base64'));
   };
 
   // 1. The restored design, fed by the F09 fixture.
@@ -175,6 +176,7 @@ try {
   assert.ok(page1.includes('1 sản phẩm'), 'Store card shows the API product total');
   // Mock leftovers of the old design must not come back.
   for (const forbidden of ['Bản xem thử', 'minh họa', 'Ưu đãi', 'Mới trên', 'Thảo Điền', 'Ba Đình', 'Hải Châu', 'Ninh Kiều']) assert.ok(!page1.includes(forbidden), 'No mock copy: ' + forbidden);
+  assert.equal(await page.evaluate('!document.querySelector("#fm-featured")'), true, 'No featured products from the catalog fallback');
   assert.equal(await page.evaluate('!document.querySelector("#fm-bundles")'), true, 'No bundle section without a bundle placement');
   assert.equal(await page.evaluate('[...document.images].every(i=>!i.src.includes("/images/customer-home/fresh/")||i.closest("#fm-collections,.fm-join"))'), true, 'No static mock product pictures');
   checks.push('Restored homepage design with Store, product and price data from the F09 fixture');
@@ -269,6 +271,30 @@ try {
   await until("document.querySelector('#shop-products select option[value=\"8\"]')?.textContent==='Pantry'", 'category from a later catalog page during an active campaign');
   state.bundle = false;
   checks.push('Bundles open in their Store; campaign Store categories include unplaced products from later catalog pages');
+
+  state.placements = true;
+  const startFeatured = calls.length;
+  await openHome();
+  const featuredLink = '#fm-featured h3 a';
+  const featuredPath = `/product/${FEATURED_PRODUCT_ID}?store=${STOREFRONT_SLUG}`;
+  await until(`document.querySelector('${featuredLink}')?.textContent==='Bánh mì nguyên cám'`, 'featured product from BANNER');
+  assert.equal(await page.evaluate("document.querySelector('#fm-featured h2').textContent"), 'Sản phẩm nổi bật');
+  assert.equal(await page.evaluate("document.querySelectorAll('#fm-featured .fm-product').length"), 1);
+  assert.equal(await page.evaluate(`document.querySelector('${featuredLink}').getAttribute('href')`), featuredPath);
+  assert.equal(calls.slice(startFeatured).filter(call => call.path === `/api/storefront/${STOREFRONT_SLUG}/home`).length, 1, 'Featured reuses the existing Store home read');
+  await page.evaluate("document.querySelector('#fm-featured').scrollIntoView()");
+  await until("document.querySelector('#fm-featured img')?.naturalWidth > 0", 'featured image decoded');
+  await saveEvidence('homepage-featured');
+  await page.evaluate(`document.querySelector('${featuredLink}').click()`);
+  await until(`location.pathname + location.search === ${JSON.stringify(featuredPath)} && document.querySelector('main h1')?.textContent==='Bánh mì nguyên cám'`, 'featured opens the product in its Store');
+  await openHome(390);
+  await until("!!document.querySelector('#fm-featured img')", 'featured on mobile');
+  await page.evaluate("document.querySelector('#fm-featured').scrollIntoView()");
+  await until("document.querySelector('#fm-featured img')?.naturalWidth > 0", 'mobile featured image decoded');
+  assert.ok(await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'));
+  await saveEvidence('homepage-featured-mobile');
+  state.placements = false;
+  checks.push('BANNER-only featured section, reused Store home read, localized heading and Store-scoped product link');
 
   // 5a. A narrow screen has no horizontal overflow.
   await openHome(390);

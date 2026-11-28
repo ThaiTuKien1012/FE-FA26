@@ -303,7 +303,8 @@ export default function App() {
     if (currentScreen === 'customer-product') {
       return <CustomerProductDetailView key={`${customerStoreSlug}/${customerProductId}`}
         {...customerNavigation} storeSlug={customerStoreSlug} productId={customerProductId}
-        onBack={() => openCustomerStore(customerStoreSlug)} />;
+        onBack={() => openCustomerStore(customerStoreSlug)}
+        onProduct={id => openCustomerStore(customerStoreSlug, String(id))} />;
     }
     if (currentScreen === 'customer-home') {
       return <CustomerHomeView {...customerNavigation} onProduct={(slug, id) => openCustomerStore(slug, String(id))} />;

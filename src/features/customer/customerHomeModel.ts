@@ -1,8 +1,9 @@
 import type { Placement, StoreHome, StoreProduct, StoreProductPage, StoreSummary } from './customer.types';
+import { placementProducts } from './customerPlacements';
 import { BANNER_ART, WELCOME_BANNER, type BannerArt } from './data/customerBanners';
 
 // How much of the public catalogue the home page samples. The Store list is always complete;
-// products and bundles come from the first HOME_STORE_LIMIT Stores, HOME_PRODUCTS_PER_STORE each.
+// products and placements come from the first HOME_STORE_LIMIT Stores, with at most HOME_PRODUCTS_PER_STORE catalog products each.
 export const HOME_STORE_LIMIT = 6;
 export const HOME_PRODUCTS_PER_STORE = 12;
 export const HOME_BANNER_STORES = 4;
@@ -14,6 +15,7 @@ export type HomeModel = {
   stores: HomeStore[];
   products: HomeProduct[];
   bundles: HomeBundle[];
+  featured: HomeProduct[];
   /** Stores whose products were requested. */
   sampledStores: number;
   /** Sampled Stores for which the products or the homepage request failed. */
@@ -64,6 +66,9 @@ export function buildHomeModel(stores: StoreSummary[], results: StoreData[]): Ho
     products: interleave(results.map(item => (item.page?.items ?? []).map(product => ({
       ...product, storeSlug: item.store.storeSlug, storeName: item.store.name })))),
     bundles: interleave(results.map(bundlesOf)),
+    featured: results.flatMap(({ store, home }) => placementProducts(home, 'BANNER').map(product => ({
+      ...product, storeSlug: store.storeSlug, storeName: store.name,
+    }))),
     sampledStores: results.length,
     failedStores: results.filter(item => !item.page || !item.home).length,
     truncated: results.some(item => item.page !== undefined && item.page.totalElements > item.page.items.length),

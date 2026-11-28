@@ -5,6 +5,7 @@ import {
 import { AppLogo } from '../../../components/common/AppLogo';
 import { APP_BRAND } from '../../../app/branding';
 import { buildBannerSlides, homeSavedKey, type HomeBundle, type HomeProduct, type HomeStore } from '../customerHomeModel';
+import { customerPath } from '../customerRoutes';
 import { useCustomerHome } from '../hooks/useCustomerHome';
 import { CustomerBannerCarousel } from './CustomerBannerCarousel';
 import { CustomerHeader } from './CustomerHeader';
@@ -114,6 +115,18 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
           text={`Chưa tải đủ sản phẩm của ${model.failedStores}/${model.sampledStores} cửa hàng. Danh sách bên dưới có thể chưa đầy đủ.`} retry={home.reload} /></div>}
 
         {model && model.bundles.length > 0 && <BundleRail bundles={model.bundles} onStore={onStore} />}
+
+        {model && model.featured.length > 0 && <section id="fm-featured" className={`${containerClass} py-8`} aria-labelledby="fm-featured-title">
+          <SectionHeading id="fm-featured-title" title="Sản phẩm nổi bật" />
+          <div className="grid grid-cols-4 gap-4 max-[800px]:grid-cols-3 max-[580px]:grid-cols-2 max-[580px]:gap-2">
+            {model.featured.map(product => {
+              const key = homeSavedKey(product);
+              return <ProductCard key={key} product={product} storeLabel={product.storeName} quantity={0}
+                productHref={customerPath(product.storeSlug, String(product.productId))}
+                saved={saved.includes(key)} onSave={() => home.toggleSaved(key)} onOpen={() => openProduct(product)} />;
+            })}
+          </div>
+        </section>}
 
         {!home.error && <section className={`fm-stores-section ${containerClass} scroll-mt-5 py-11 max-[580px]:py-7`} id="fm-stores" aria-labelledby="fm-stores-title">
           <div className="mb-5 flex items-end justify-between gap-4"><div><span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#088178]">CỬA HÀNG</span><h2 id="fm-stores-title" className="mt-1 text-[29px] font-semibold tracking-tight max-[580px]:text-[23px]">Khám phá cửa hàng</h2><p className="mt-1 text-xs text-[#819188]">Mỗi cửa hàng có sản phẩm và giỏ hàng riêng.</p></div>{model && <span className="text-xs text-[#84958c]">{stores.length} cửa hàng</span>}</div>
