@@ -194,7 +194,7 @@ export class AuthSession<U> {
         throw new StoreInactiveError();
       }
       if (!response.ok) {
-        throw new SessionError(response.status, await authResponseMessage('login', response));
+        throw new SessionError(response.status, await authResponseMessage(path === '/api/auth/google' ? 'google' : 'login', response));
       }
       const credentials = await this.tokenResponse(response, startedAt);
       const user = await this.validate(credentials).catch(error => {

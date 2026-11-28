@@ -510,3 +510,12 @@ test('a system operation returning 409 STORE_INACTIVE leaves the session signed 
   assert.equal(f.session.getSnapshot().status, 'authenticated');
   assert.equal(f.session.getToken(), 'fixture-one');
 });
+
+test('a 503 from Google sign-in tells the user to use email and password; a 503 from the email sign-in stays generic', async t => {
+  const f = setup(t);
+  f.handle(async () => Response.json({ error: 'Google sign-in is not configured' }, { status: 503 }));
+  await assert.rejects(f.session.authenticate('/api/auth/google', { idToken: 'test-only-google' }),
+    (error: unknown) => error instanceof SessionError && error.status === 503
+      && error.message === 'Google sign-in is currently unavailable. Please use your email and password.');
+  await assert.rejects(f.login(), (error: unknown) => error instanceof SessionError && error.message === 'Something went wrong. Please try again later.');
+});
