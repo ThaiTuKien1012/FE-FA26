@@ -141,6 +141,8 @@ export function createCustomerApi(publicRequest: Transport, cartRequest: Transpo
       writeCart(slug, `/items/${encodeURIComponent(itemId)}`, 'PATCH', version, { quantity }, signal),
     removeItem: (slug: string, version: string, itemId: string, signal?: AbortSignal) =>
       writeCart(slug, `/items/${encodeURIComponent(itemId)}`, 'DELETE', version, undefined, signal),
+    clearCart: (slug: string, version: string, signal?: AbortSignal) =>
+      writeCart(slug, '', 'DELETE', version, undefined, signal),
     async addBundle(slug: string, version: string, bundleKey: string, signal?: AbortSignal): Promise<BundleAddResult> {
       const result = await write<Omit<BundleAddResult, 'cart'> & { cart: CartResponse }>(slug, '/bundles', 'POST', version, { bundleKey }, signal);
       if (!componentsOf(result?.components)) throw new CustomerApiError(502);

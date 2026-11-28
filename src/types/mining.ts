@@ -94,6 +94,7 @@ export type ActiveNavScreen =
   | 'f11-dashboard'
   | 'f07-f08-workspace' // F07 layouts and F08 campaigns
   | 'customer-home'
+  | 'customer-cart'
   | 'customer-product'
   | 'login'           // Auth: Login Page
   | 'forgot-password' // Auth: Password reset

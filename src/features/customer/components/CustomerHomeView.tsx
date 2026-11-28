@@ -69,7 +69,7 @@ function StoreCard({ store, tint, onOpen }: { store: HomeStore; tint: string; on
   </button>;
 }
 
-export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, onProfile, onLogout, onProduct }: Props) {
+export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, onProfile, onLogout, onProduct, onCart }: Props) {
   const home = useCustomerHome();
   const { model, filter, saved, visible, filtered, promos } = home;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -98,6 +98,7 @@ export function CustomerHomeView({ user, onLogin, onRegister, onHome, onStore, o
       <div className="border-t border-[#e9eded]">
         <div className={`fm-navbar ${containerClass} relative flex min-h-14 items-center justify-between gap-5 text-[11px] max-[1100px]:gap-[15px] max-[580px]:min-h-[45px]`}>
           <nav className={`fm-navigation items-center gap-[29px] max-[1100px]:gap-5 max-[800px]:gap-[13px] max-[580px]:absolute max-[580px]:top-11 max-[580px]:-right-4 max-[580px]:-left-4 max-[580px]:z-20 max-[580px]:flex-col max-[580px]:items-start max-[580px]:gap-0 max-[580px]:border-t max-[580px]:border-[#e9eded] max-[580px]:bg-white max-[580px]:px-5 max-[580px]:py-[14px] max-[580px]:shadow-[0_20px_25px_#03272410] ${menuOpen ? 'flex' : 'flex max-[580px]:hidden'}`} aria-label="Điều hướng chính">
+            {onCart && <button onClick={onCart} className="whitespace-nowrap font-semibold text-[#088178] max-[580px]:py-[11px]">Giỏ hàng</button>}
             {navLinks.map(([label, id]) => <a className={`inline-flex items-center gap-1.5 hover:text-[#088178] max-[580px]:text-xs ${id === 'fm-bundles' ? 'rounded-full bg-[#fff0eb] px-3 py-1.5 font-semibold text-[#bd4634] hover:bg-[#ffe3db] max-[580px]:my-1 max-[580px]:py-2' : 'max-[580px]:py-[11px]'}`} key={id} href={`#${id}`} onClick={() => setMenuOpen(false)}>{id === 'fm-bundles' && <Package size={14} />}{label}</a>)}
           </nav>
           <a className="flex items-center gap-[7px] text-[10px] max-[800px]:gap-0 max-[800px]:text-[0px] max-[580px]:gap-[5px] max-[580px]:text-[8px]" href="#fm-help"><Headphones className="size-[22px] rounded-full bg-[#088178] p-1 text-white max-[580px]:size-[18px] max-[580px]:p-[3px]" />Trợ giúp</a>

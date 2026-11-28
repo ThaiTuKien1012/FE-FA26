@@ -1,0 +1,1360 @@
+{
+  "date": "2026-11-28",
+  "products": [
+    {
+      "storeId": 1,
+      "id": 59,
+      "sku": "STOREMORE-26",
+      "name": "Bàn chải đánh răng",
+      "unit": "cái",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 28000,
+      "costPrice": 18000,
+      "status": "ACTIVE",
+      "stockQuantity": 0,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 12,
+      "sku": "STORE30-09",
+      "name": "Bánh mì sandwich",
+      "unit": "gói",
+      "requiresExpiry": true,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 28000,
+      "costPrice": 19000,
+      "status": "ACTIVE",
+      "stockQuantity": 200,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 13,
+      "sku": "STORE30-10",
+      "name": "Bánh quy bơ",
+      "unit": "hộp",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 35000,
+      "costPrice": 24000,
+      "status": "ACTIVE",
+      "stockQuantity": 200,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 52,
+      "sku": "STOREMORE-19",
+      "name": "Bánh snack khoai tây",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 27000,
+      "costPrice": 18000,
+      "status": "ACTIVE",
+      "stockQuantity": 0,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 7,
+      "sku": "STORE30-04",
+      "name": "Bơ lạt Anchor",
+      "unit": "gói",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 68000,
+      "costPrice": 50000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 57,
+      "sku": "STOREMORE-24",
+      "name": "Bột giặt cửa trước",
+      "unit": "túi",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 145000,
+      "costPrice": 110000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 30,
+      "sku": "STORE30-27",
+      "name": "Cà chua bi",
+      "unit": "hộp",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 32000,
+      "costPrice": 22000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 46,
+      "sku": "STOREMORE-13",
+      "name": "Cá ngừ đóng hộp",
+      "unit": "lon",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 35000,
+      "costPrice": 24500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 22,
+      "sku": "STORE30-19",
+      "name": "Cà phê rang xay",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 78000,
+      "costPrice": 56000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 29,
+      "sku": "STORE30-26",
+      "name": "Cam vàng Úc",
+      "unit": "kg",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 55000,
+      "costPrice": 39000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 31,
+      "sku": "STORE30-28",
+      "name": "Chuối già Nam Mỹ",
+      "unit": "nải",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 28000,
+      "costPrice": 18000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 63,
+      "sku": "STOREMORE-30",
+      "name": "Dao cạo dùng một lần",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 45000,
+      "costPrice": 30000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 19,
+      "sku": "STORE30-16",
+      "name": "Dầu ăn hướng dương",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 52000,
+      "costPrice": 39000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 47,
+      "sku": "STOREMORE-14",
+      "name": "Đậu đỏ đóng hộp",
+      "unit": "lon",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 26000,
+      "costPrice": 18000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 61,
+      "sku": "STOREMORE-28",
+      "name": "Dầu gội phục hồi",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 89000,
+      "costPrice": 65000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 41,
+      "sku": "STOREMORE-08",
+      "name": "Dầu hào",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 38000,
+      "costPrice": 26000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 21,
+      "sku": "STORE30-18",
+      "name": "Đường tinh luyện",
+      "unit": "kg",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 26000,
+      "costPrice": 19000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 44,
+      "sku": "STOREMORE-11",
+      "name": "Đường tinh luyện",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 22000,
+      "costPrice": 15000,
+      "status": "INACTIVE",
+      "stockQuantity": 0,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 2,
+      "sku": "F02-COFFEE-01",
+      "name": "F02 Demo Coffee",
+      "unit": "each",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 1,
+      "costPrice": 0.5,
+      "status": "ACTIVE",
+      "stockQuantity": 8,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 1,
+      "sku": "F02-MILK-01",
+      "name": "F02 Demo Milk",
+      "unit": "each",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 1,
+      "costPrice": 0.5,
+      "status": "ACTIVE",
+      "stockQuantity": 21,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 45,
+      "sku": "STOREMORE-12",
+      "name": "Gạo thơm Jasmine",
+      "unit": "túi",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 185000,
+      "costPrice": 155000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 20,
+      "sku": "STORE30-17",
+      "name": "Gạo thơm Jasmine 5kg",
+      "unit": "túi",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 135000,
+      "costPrice": 110000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 60,
+      "sku": "STOREMORE-27",
+      "name": "Kem đánh răng bạc hà",
+      "unit": "tuýp",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 39000,
+      "costPrice": 26000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 9,
+      "sku": "STORE30-06",
+      "name": "Kem vani",
+      "unit": "hộp",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 39000,
+      "costPrice": 28000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 37,
+      "sku": "STOREMORE-04",
+      "name": "Kem vani hộp",
+      "unit": "hộp",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 45000,
+      "costPrice": 32000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 53,
+      "sku": "STOREMORE-20",
+      "name": "Kẹo dẻo trái cây",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 30000,
+      "costPrice": 20500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 54,
+      "sku": "STOREMORE-21",
+      "name": "Khăn giấy bỏ túi",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 12000,
+      "costPrice": 7500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 14,
+      "sku": "STORE30-11",
+      "name": "Khoai tây chiên",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 27000,
+      "costPrice": 18000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 32,
+      "sku": "STORE30-29",
+      "name": "Mật ong nguyên chất",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 92000,
+      "costPrice": 68000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 17,
+      "sku": "STORE30-14",
+      "name": "Mì gói tôm chua cay",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 6000,
+      "costPrice": 3500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 16,
+      "sku": "STORE30-13",
+      "name": "Mì ly bò hầm",
+      "unit": "ly",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 12000,
+      "costPrice": 7000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 39,
+      "sku": "STOREMORE-06",
+      "name": "Mì Ý spaghetti",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 28000,
+      "costPrice": 19000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 43,
+      "sku": "STOREMORE-10",
+      "name": "Muối iốt",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 9000,
+      "costPrice": 6000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 48,
+      "sku": "STOREMORE-15",
+      "name": "Ngô ngọt đóng hộp",
+      "unit": "lon",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 24000,
+      "costPrice": 16500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 33,
+      "sku": "STORE30-30",
+      "name": "Ngũ cốc dinh dưỡng",
+      "unit": "hộp",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 85000,
+      "costPrice": 62000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 24,
+      "sku": "STORE30-21",
+      "name": "Nước cam ép",
+      "unit": "chai",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 30000,
+      "costPrice": 21000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 38,
+      "sku": "STOREMORE-05",
+      "name": "Nước cam nguyên chất",
+      "unit": "chai",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 32000,
+      "costPrice": 22000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 49,
+      "sku": "STOREMORE-16",
+      "name": "Nước khoáng 500ml",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 7000,
+      "costPrice": 4500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 56,
+      "sku": "STOREMORE-23",
+      "name": "Nước lau sàn",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 58000,
+      "costPrice": 40000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 26,
+      "sku": "STORE30-23",
+      "name": "Nước ngọt cola",
+      "unit": "lon",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 12000,
+      "costPrice": 7000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 55,
+      "sku": "STOREMORE-22",
+      "name": "Nước rửa chén",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 42000,
+      "costPrice": 29000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 25,
+      "sku": "STORE30-22",
+      "name": "Nước suối 500ml",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 5000,
+      "costPrice": 2500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 27,
+      "sku": "STORE30-24",
+      "name": "Nước tăng lực",
+      "unit": "lon",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 15000,
+      "costPrice": 9000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 51,
+      "sku": "STOREMORE-18",
+      "name": "Nước tăng lực",
+      "unit": "lon",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 14000,
+      "costPrice": 9500,
+      "status": "INACTIVE",
+      "stockQuantity": 0,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 40,
+      "sku": "STOREMORE-07",
+      "name": "Nước tương đậm đặc",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 24000,
+      "costPrice": 16000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 18,
+      "sku": "STORE30-15",
+      "name": "Nước tương đậu nành",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 24000,
+      "costPrice": 16000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 58,
+      "sku": "STOREMORE-25",
+      "name": "Nước xả vải",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 98000,
+      "costPrice": 72000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 6,
+      "sku": "STORE30-03",
+      "name": "Phô mai lát",
+      "unit": "gói",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 42000,
+      "costPrice": 30000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 36,
+      "sku": "STOREMORE-03",
+      "name": "Phô mai lát cheddar",
+      "unit": "gói",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 52000,
+      "costPrice": 39000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 15,
+      "sku": "STORE30-12",
+      "name": "Snack vị phô mai",
+      "unit": "gói",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 16000,
+      "costPrice": 10000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 5,
+      "sku": "STORE30-02",
+      "name": "Sữa chua dâu",
+      "unit": "hộp",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 18000,
+      "costPrice": 12000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 35,
+      "sku": "STOREMORE-02",
+      "name": "Sữa chua nha đam",
+      "unit": "hộp",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 16000,
+      "costPrice": 10500,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 34,
+      "sku": "STOREMORE-01",
+      "name": "Sữa chua uống dâu",
+      "unit": "chai",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 18000,
+      "costPrice": 12000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 8,
+      "sku": "STORE30-05",
+      "name": "Sữa hạt óc chó",
+      "unit": "chai",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 45000,
+      "costPrice": 33000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 62,
+      "sku": "STOREMORE-29",
+      "name": "Sữa tắm dịu nhẹ",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 76000,
+      "costPrice": 54000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 4,
+      "sku": "STORE30-01",
+      "name": "Sữa tươi nguyên chất",
+      "unit": "chai",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 32000,
+      "costPrice": 24000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 28,
+      "sku": "STORE30-25",
+      "name": "Táo đỏ Mỹ",
+      "unit": "kg",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 65000,
+      "costPrice": 47000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 50,
+      "sku": "STOREMORE-17",
+      "name": "Trà xanh không đường",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 12000,
+      "costPrice": 8000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 23,
+      "sku": "STORE30-20",
+      "name": "Trà xanh túi lọc",
+      "unit": "hộp",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 42000,
+      "costPrice": 30000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 11,
+      "sku": "STORE30-08",
+      "name": "Trứng gà hộp 10 quả",
+      "unit": "hộp",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 36000,
+      "costPrice": 26000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 42,
+      "sku": "STOREMORE-09",
+      "name": "Tương ớt cay",
+      "unit": "chai",
+      "requiresExpiry": false,
+      "category": {
+        "id": 2,
+        "name": "F02 Pantry",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 18000,
+      "costPrice": 12000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 1,
+      "id": 10,
+      "sku": "STORE30-07",
+      "name": "Yaourt uống",
+      "unit": "chai",
+      "requiresExpiry": true,
+      "category": {
+        "id": 1,
+        "name": "F02 Dai",
+        "status": "INACTIVE"
+      },
+      "sellingPrice": 22000,
+      "costPrice": 15000,
+      "status": "ACTIVE",
+      "stockQuantity": 20,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 2,
+      "id": 3,
+      "sku": "F02-TEA-01",
+      "name": "F02 Demo Tea",
+      "unit": "each",
+      "requiresExpiry": true,
+      "category": {
+        "id": 3,
+        "name": "F02 Drinks",
+        "status": "ACTIVE"
+      },
+      "sellingPrice": 1,
+      "costPrice": 0.5,
+      "status": "ACTIVE",
+      "stockQuantity": 7,
+      "imageUrl": null,
+      "description": null
+    },
+    {
+      "storeId": 3,
+      "id": 65,
+      "sku": "SKU-00000000065",
+      "name": "Bánh mì nguyên cám QA",
+      "unit": "each",
+      "requiresExpiry": false,
+      "category": {
+        "id": 4,
+        "name": "QA Live Catalogue",
+        "status": "ACTIVE"
+      },
+      "sellingPrice": 17000,
+      "costPrice": 9000,
+      "status": "ACTIVE",
+      "stockQuantity": 2,
+      "imageUrl": null,
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1"
+    },
+    {
+      "storeId": 3,
+      "id": 66,
+      "sku": "SKU-00000000066",
+      "name": "Cà phê rang QA",
+      "unit": "each",
+      "requiresExpiry": false,
+      "category": {
+        "id": 4,
+        "name": "QA Live Catalogue",
+        "status": "ACTIVE"
+      },
+      "sellingPrice": 85000,
+      "costPrice": 50000,
+      "status": "ACTIVE",
+      "stockQuantity": 30,
+      "imageUrl": null,
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1"
+    },
+    {
+      "storeId": 3,
+      "id": 69,
+      "sku": "SKU-00000000069",
+      "name": "Mặt hàng ngừng bán QA",
+      "unit": "each",
+      "requiresExpiry": false,
+      "category": {
+        "id": 4,
+        "name": "QA Live Catalogue",
+        "status": "ACTIVE"
+      },
+      "sellingPrice": 25000,
+      "costPrice": 10000,
+      "status": "INACTIVE",
+      "stockQuantity": 3,
+      "imageUrl": null,
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1"
+    },
+    {
+      "storeId": 3,
+      "id": 68,
+      "sku": "SKU-00000000068",
+      "name": "Nước ép hết hạn QA",
+      "unit": "each",
+      "requiresExpiry": true,
+      "category": {
+        "id": 4,
+        "name": "QA Live Catalogue",
+        "status": "ACTIVE"
+      },
+      "sellingPrice": 15000,
+      "costPrice": 7000,
+      "status": "ACTIVE",
+      "stockQuantity": 4,
+      "imageUrl": null,
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1"
+    },
+    {
+      "storeId": 3,
+      "id": 67,
+      "sku": "SKU-00000000067",
+      "name": "Sữa tươi hết hạn hôm nay QA",
+      "unit": "each",
+      "requiresExpiry": true,
+      "category": {
+        "id": 4,
+        "name": "QA Live Catalogue",
+        "status": "ACTIVE"
+      },
+      "sellingPrice": 10000,
+      "costPrice": 6000,
+      "status": "ACTIVE",
+      "stockQuantity": 4,
+      "imageUrl": null,
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1"
+    },
+    {
+      "storeId": 3,
+      "id": 64,
+      "sku": "SKU-00000000064",
+      "name": "Sữa yến mạch QA",
+      "unit": "each",
+      "requiresExpiry": false,
+      "category": {
+        "id": 4,
+        "name": "QA Live Catalogue",
+        "status": "ACTIVE"
+      },
+      "sellingPrice": 21000.5,
+      "costPrice": 12000,
+      "status": "ACTIVE",
+      "stockQuantity": 150,
+      "imageUrl": null,
+      "description": "Sản phẩm dùng riêng cho kiểm tra F07–F11 mwztnod1"
+    }
+  ],
+  "stores": [
+    {
+      "storeId": 1,
+      "name": "F02 Demo Store A",
+      "slug": "f02-demo-store-a-1",
+      "status": "ACTIVE",
+      "address": null,
+      "phone": null,
+      "iconUrl": null,
+      "bannerUrl": null,
+      "version": 1,
+      "createdAt": "2026-11-24T05:24:05Z",
+      "updatedAt": "2026-11-24T05:24:05Z",
+      "deactivatedAt": null
+    },
+    {
+      "storeId": 2,
+      "name": "F02 Demo Store B",
+      "slug": "f02-demo-store-b-2",
+      "status": "ACTIVE",
+      "address": null,
+      "phone": null,
+      "iconUrl": null,
+      "bannerUrl": null,
+      "version": 1,
+      "createdAt": "2026-11-24T05:24:05Z",
+      "updatedAt": "2026-11-24T05:24:05Z",
+      "deactivatedAt": null
+    },
+    {
+      "storeId": 3,
+      "name": "QA F07-F11 mwztnod1",
+      "slug": "qa-f07-f11-mwztnod1",
+      "status": "ACTIVE",
+      "address": null,
+      "phone": null,
+      "iconUrl": null,
+      "bannerUrl": null,
+      "version": 3,
+      "createdAt": "2026-11-28T02:59:35Z",
+      "updatedAt": "2026-11-28T03:09:38Z",
+      "deactivatedAt": null
+    }
+  ]
+}

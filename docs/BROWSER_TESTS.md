@@ -97,6 +97,8 @@ With the original dropdown, CDP `keyDown` with
 plus `keyUp` selected `2` and emitted trusted `input` and `change`.
 
 The customer resume and F06 expiry suites share [DevTools readiness discovery](../tests/browser-devtools.mjs).
+The customer resume suite also covers the full F10 cart page, all six cart routes, partial bundle additions,
+clear confirmation/cancellation, and the cart sign-in return path. See [F10/F11 integration](F10_F11_INTEGRATION.md).
 It polls the port file and `/json/list` until a page target is available, with a
 bounded deadline and per-request timeout. The F06 expiry test also waits for the
 rules cards to render before checking their exact count. It sets the existing

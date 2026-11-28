@@ -18,6 +18,7 @@ export interface CustomerNavigation {
   onLogin: () => void;
   onStore: (slug: string | null) => void;
   onRegister?: () => void;
+  onCart?: () => void;
 }
 
 interface Props extends CustomerNavigation {
@@ -98,7 +99,7 @@ function SelectedStore({ storeSlug, stores, onStore, onProduct, ...navigation }:
   const store = home.data?.store;
   const openCart = () => {
     if (!navigation.user) navigation.onLogin();
-    else dialog.current?.showModal();
+    else { void cart.load(); dialog.current?.showModal(); }
   };
   const add = (product: StoreProduct) => {
     if (product.availability !== 'AVAILABLE') return;
@@ -207,7 +208,7 @@ function SelectedStore({ storeSlug, stores, onStore, onProduct, ...navigation }:
               </nav>}
           </div>
         </section>
-        <CustomerCartDialog dialogRef={dialog} storeName={store.name} state={cart} onLogin={navigation.onLogin} />
+        <CustomerCartDialog dialogRef={dialog} storeName={store.name} state={cart} onLogin={navigation.onLogin} onFullCart={navigation.onCart} />
       </>}
     </main>
   </>;

@@ -77,6 +77,7 @@ describe('F09/F10 API adapter', () => {
     await api.addItem('qa-store-b', '0', 4, 1);
     await api.changeQuantity('qa-store-b', '9007199254740993', '9007199254740995', 99);
     await api.removeItem('qa-store-b', '1', '11');
+    await api.clearCart('qa-store-b', '1');
     request.mockImplementationOnce(() => ok({ cart, components }));
     await api.addBundle('qa-store-b', '1', 'opaque-key');
     expect(request.mock.calls.map(([path, init]) => [path, init?.method, new Headers(init?.headers).get('If-Match'), init?.body])).toEqual([
@@ -84,6 +85,7 @@ describe('F09/F10 API adapter', () => {
       ['/api/storefront/qa-store-b/cart/items', 'POST', '"0"', '{"productId":4,"quantity":1}'],
       ['/api/storefront/qa-store-b/cart/items/9007199254740995', 'PATCH', '"9007199254740993"', '{"quantity":99}'],
       ['/api/storefront/qa-store-b/cart/items/11', 'DELETE', '"1"', undefined],
+      ['/api/storefront/qa-store-b/cart', 'DELETE', '"1"', undefined],
       ['/api/storefront/qa-store-b/cart/bundles', 'POST', '"1"', '{"bundleKey":"opaque-key"}'],
     ]);
     request.mockImplementationOnce(() => ok({ ...cart, version: '9007199254740993' }));
@@ -116,6 +118,24 @@ describe('server-backed cart state', () => {
     const api = createCustomerApi(vi.fn(), request);
     return { request, state: createCustomerCart(api, 'qa-store-b') };
   }
+
+  it('clears the server cart with its last version and retains the server cart identity', async () => {
+    const { request, state } = fixture();
+    await state.load();
+    request.mockImplementationOnce(() => ok({ ...empty, cartId: '9', version: '2' }));
+    await state.mutate({ kind: 'clear' });
+    expect(state.getSnapshot().cart).toMatchObject({ cartId: '9', version: '2', items: [], subtotal: 0 });
+    expect(request.mock.calls.at(-1)).toEqual(['/api/storefront/qa-store-b/cart', expect.objectContaining({ method: 'DELETE', headers: { 'If-Match': '"1"' }, body: undefined })]);
+  });
+
+  it('reloads a conflicting clear without automatically clearing the refreshed cart', async () => {
+    const { request, state } = fixture();
+    await state.load();
+    request.mockImplementationOnce(() => conflict('CART_VERSION_CONFLICT')).mockImplementationOnce(() => ok({ ...cart, version: '8' }));
+    await state.mutate({ kind: 'clear' });
+    expect(request.mock.calls.map(([, init]) => init?.method ?? 'GET')).toEqual(['GET', 'DELETE', 'GET']);
+    expect(state.getSnapshot().cart).toMatchObject({ version: '8', items: [line] });
+  });
 
   it('reloads on version conflict and never replays the write', async () => {
     const { request, state } = fixture();

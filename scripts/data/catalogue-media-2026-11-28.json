@@ -1,0 +1,1347 @@
+{
+  "date": "2026-11-28",
+  "assetOrigin": "http://localhost:3000",
+  "scope": "local demo catalogue",
+  "note": "Representative photos match the product type; packaging/brand/size may differ for generic demo SKUs. Existing named brand Anchor uses a matching brand photo. Not a production product photography licence grant.",
+  "groups": [
+    {
+      "key": "milk",
+      "ids": [
+        1,
+        4,
+        67
+      ],
+      "path": "/images/customer-home/fresh/milk.webp",
+      "description": "Sữa tươi dạng lỏng, dùng trực tiếp hoặc kết hợp cùng ngũ cốc và các món ăn sáng.",
+      "products": [
+        {
+          "id": 1,
+          "storeId": 1,
+          "name": "F02 Demo Milk"
+        },
+        {
+          "id": 4,
+          "storeId": 1,
+          "name": "Sữa tươi nguyên chất"
+        },
+        {
+          "id": 67,
+          "storeId": 3,
+          "name": "Sữa tươi hết hạn hôm nay QA"
+        }
+      ]
+    },
+    {
+      "key": "ground-coffee",
+      "ids": [
+        2,
+        22,
+        66
+      ],
+      "description": "Cà phê rang xay, phù hợp pha phin hoặc các dụng cụ pha cà phê theo sở thích.",
+      "path": "/images/catalogue-2026/ground-coffee.jpg",
+      "products": [
+        {
+          "id": 22,
+          "storeId": 1,
+          "name": "Cà phê rang xay"
+        },
+        {
+          "id": 2,
+          "storeId": 1,
+          "name": "F02 Demo Coffee"
+        },
+        {
+          "id": 66,
+          "storeId": 3,
+          "name": "Cà phê rang QA"
+        }
+      ]
+    },
+    {
+      "key": "green-tea",
+      "ids": [
+        3,
+        23
+      ],
+      "description": "Trà xanh dạng túi lọc, tiện pha một tách trà nóng hoặc làm trà lạnh.",
+      "path": "/images/catalogue-2026/green-tea.jpg",
+      "products": [
+        {
+          "id": 23,
+          "storeId": 1,
+          "name": "Trà xanh túi lọc"
+        },
+        {
+          "id": 3,
+          "storeId": 2,
+          "name": "F02 Demo Tea"
+        }
+      ]
+    },
+    {
+      "key": "strawberry-yogurt",
+      "ids": [
+        5
+      ],
+      "description": "Sữa chua vị dâu dùng lạnh, phù hợp làm món ăn nhẹ hoặc dùng cùng trái cây.",
+      "path": "/images/catalogue-2026/strawberry-yogurt.png",
+      "products": [
+        {
+          "id": 5,
+          "storeId": 1,
+          "name": "Sữa chua dâu"
+        }
+      ]
+    },
+    {
+      "key": "cheese",
+      "ids": [
+        6,
+        36
+      ],
+      "description": "Phô mai dạng lát, tiện dùng cho bánh mì sandwich, burger hoặc món nướng.",
+      "path": "/images/catalogue-2026/cheese.jpg",
+      "products": [
+        {
+          "id": 6,
+          "storeId": 1,
+          "name": "Phô mai lát"
+        },
+        {
+          "id": 36,
+          "storeId": 1,
+          "name": "Phô mai lát cheddar"
+        }
+      ]
+    },
+    {
+      "key": "anchor-butter",
+      "ids": [
+        7
+      ],
+      "description": "Bơ lạt Anchor, dùng làm bánh, nấu ăn hoặc phết bánh mì theo khẩu vị.",
+      "path": "/images/catalogue-2026/anchor-butter.jpg",
+      "products": [
+        {
+          "id": 7,
+          "storeId": 1,
+          "name": "Bơ lạt Anchor"
+        }
+      ]
+    },
+    {
+      "key": "walnut-milk",
+      "ids": [
+        8
+      ],
+      "description": "Đồ uống từ hạt óc chó, dùng trực tiếp hoặc phối hợp với ngũ cốc trong bữa sáng.",
+      "path": "/images/catalogue-2026/walnut-milk.jpg",
+      "products": [
+        {
+          "id": 8,
+          "storeId": 1,
+          "name": "Sữa hạt óc chó"
+        }
+      ]
+    },
+    {
+      "key": "vanilla-ice-cream",
+      "ids": [
+        9,
+        37
+      ],
+      "description": "Kem vị vani đựng hộp, dùng làm món tráng miệng và bảo quản ở ngăn đông.",
+      "path": "/images/catalogue-2026/vanilla-ice-cream.jpg",
+      "products": [
+        {
+          "id": 9,
+          "storeId": 1,
+          "name": "Kem vani"
+        },
+        {
+          "id": 37,
+          "storeId": 1,
+          "name": "Kem vani hộp"
+        }
+      ]
+    },
+    {
+      "key": "drinking-yogurt",
+      "ids": [
+        10,
+        34
+      ],
+      "description": "Sữa chua uống vị dâu, dùng trực tiếp; làm lạnh trước khi uống theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/drinking-yogurt.png",
+      "products": [
+        {
+          "id": 34,
+          "storeId": 1,
+          "name": "Sữa chua uống dâu"
+        },
+        {
+          "id": 10,
+          "storeId": 1,
+          "name": "Yaourt uống"
+        }
+      ]
+    },
+    {
+      "key": "eggs",
+      "ids": [
+        11
+      ],
+      "path": "/images/customer-home/fresh/eggs.webp",
+      "description": "Trứng gà đóng hộp, dùng cho các món luộc, chiên, làm bánh hoặc chế biến bữa ăn gia đình.",
+      "products": [
+        {
+          "id": 11,
+          "storeId": 1,
+          "name": "Trứng gà hộp 10 quả"
+        }
+      ]
+    },
+    {
+      "key": "sandwich-bread",
+      "ids": [
+        12
+      ],
+      "description": "Bánh mì sandwich cắt lát, tiện làm bánh kẹp hoặc nướng cho bữa sáng.",
+      "path": "/images/catalogue-2026/sandwich-bread.jpg",
+      "products": [
+        {
+          "id": 12,
+          "storeId": 1,
+          "name": "Bánh mì sandwich"
+        }
+      ]
+    },
+    {
+      "key": "butter-cookies",
+      "ids": [
+        13
+      ],
+      "description": "Bánh quy bơ đóng hộp, phù hợp dùng cùng trà, cà phê hoặc làm món ăn nhẹ.",
+      "path": "/images/catalogue-2026/butter-cookies.jpg",
+      "products": [
+        {
+          "id": 13,
+          "storeId": 1,
+          "name": "Bánh quy bơ"
+        }
+      ]
+    },
+    {
+      "key": "potato-chips",
+      "ids": [
+        14,
+        52
+      ],
+      "path": "/images/products/lays.png",
+      "description": "Snack khoai tây dạng lát, dùng trực tiếp như món ăn vặt.",
+      "products": [
+        {
+          "id": 52,
+          "storeId": 1,
+          "name": "Bánh snack khoai tây"
+        },
+        {
+          "id": 14,
+          "storeId": 1,
+          "name": "Khoai tây chiên"
+        }
+      ]
+    },
+    {
+      "key": "cheese-snack",
+      "ids": [
+        15
+      ],
+      "description": "Snack bắp vị phô mai, dùng trực tiếp và đậy kín bao bì sau khi mở.",
+      "path": "/images/catalogue-2026/cheese-snack.jpg",
+      "products": [
+        {
+          "id": 15,
+          "storeId": 1,
+          "name": "Snack vị phô mai"
+        }
+      ]
+    },
+    {
+      "key": "beef-noodles",
+      "ids": [
+        16
+      ],
+      "description": "Mì ăn liền dạng ly vị bò, pha với nước nóng theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/beef-noodles.jpg",
+      "products": [
+        {
+          "id": 16,
+          "storeId": 1,
+          "name": "Mì ly bò hầm"
+        }
+      ]
+    },
+    {
+      "key": "shrimp-noodles",
+      "ids": [
+        17
+      ],
+      "path": "/images/products/haohao.jpg",
+      "description": "Mì gói vị tôm chua cay, nấu hoặc pha với nước nóng theo hướng dẫn trên bao bì.",
+      "products": [
+        {
+          "id": 17,
+          "storeId": 1,
+          "name": "Mì gói tôm chua cay"
+        }
+      ]
+    },
+    {
+      "key": "soy-sauce",
+      "ids": [
+        18,
+        40
+      ],
+      "description": "Nước tương đậu nành dùng làm nước chấm hoặc nêm các món xào, kho và ướp thực phẩm.",
+      "path": "/images/catalogue-2026/soy-sauce.jpg",
+      "products": [
+        {
+          "id": 40,
+          "storeId": 1,
+          "name": "Nước tương đậm đặc"
+        },
+        {
+          "id": 18,
+          "storeId": 1,
+          "name": "Nước tương đậu nành"
+        }
+      ]
+    },
+    {
+      "key": "sunflower-oil",
+      "ids": [
+        19
+      ],
+      "description": "Dầu ăn hướng dương dùng trong chế biến thực phẩm, chiên xào và trộn món ăn theo hướng dẫn sử dụng.",
+      "path": "/images/catalogue-2026/sunflower-oil.jpg",
+      "products": [
+        {
+          "id": 19,
+          "storeId": 1,
+          "name": "Dầu ăn hướng dương"
+        }
+      ]
+    },
+    {
+      "key": "rice",
+      "ids": [
+        20,
+        45
+      ],
+      "path": "/images/customer-home/fresh/rice.webp",
+      "description": "Gạo Jasmine dùng nấu cơm; bảo quản trong hộp kín, nơi khô ráo và thoáng mát.",
+      "products": [
+        {
+          "id": 45,
+          "storeId": 1,
+          "name": "Gạo thơm Jasmine"
+        },
+        {
+          "id": 20,
+          "storeId": 1,
+          "name": "Gạo thơm Jasmine 5kg"
+        }
+      ]
+    },
+    {
+      "key": "sugar",
+      "ids": [
+        21,
+        44
+      ],
+      "description": "Đường trắng tinh luyện dùng pha đồ uống, làm bánh hoặc nêm nếm món ăn.",
+      "path": "/images/catalogue-2026/sugar.jpg",
+      "products": [
+        {
+          "id": 21,
+          "storeId": 1,
+          "name": "Đường tinh luyện"
+        },
+        {
+          "id": 44,
+          "storeId": 1,
+          "name": "Đường tinh luyện"
+        }
+      ]
+    },
+    {
+      "key": "orange-juice",
+      "ids": [
+        24,
+        38,
+        68
+      ],
+      "path": "/images/customer-home/fresh/juice.webp",
+      "description": "Nước cam dùng trực tiếp, có thể làm lạnh trước khi uống; bảo quản theo hướng dẫn trên bao bì.",
+      "products": [
+        {
+          "id": 24,
+          "storeId": 1,
+          "name": "Nước cam ép"
+        },
+        {
+          "id": 38,
+          "storeId": 1,
+          "name": "Nước cam nguyên chất"
+        },
+        {
+          "id": 68,
+          "storeId": 3,
+          "name": "Nước ép hết hạn QA"
+        }
+      ]
+    },
+    {
+      "key": "water",
+      "ids": [
+        25,
+        49
+      ],
+      "path": "/images/products/aquafina.jpg",
+      "description": "Nước uống đóng chai 500ml, tiện mang theo khi đi học, đi làm hoặc di chuyển.",
+      "products": [
+        {
+          "id": 49,
+          "storeId": 1,
+          "name": "Nước khoáng 500ml"
+        },
+        {
+          "id": 25,
+          "storeId": 1,
+          "name": "Nước suối 500ml"
+        }
+      ]
+    },
+    {
+      "key": "cola",
+      "ids": [
+        26
+      ],
+      "path": "/images/products/cocacola.jpg",
+      "description": "Nước giải khát có ga vị cola, dùng trực tiếp và có thể uống cùng đá.",
+      "products": [
+        {
+          "id": 26,
+          "storeId": 1,
+          "name": "Nước ngọt cola"
+        }
+      ]
+    },
+    {
+      "key": "energy-drink",
+      "ids": [
+        27,
+        51
+      ],
+      "description": "Nước tăng lực đóng lon. Đọc thông tin thành phần và hướng dẫn sử dụng trên bao bì.",
+      "path": "/images/catalogue-2026/energy-drink.jpg",
+      "products": [
+        {
+          "id": 27,
+          "storeId": 1,
+          "name": "Nước tăng lực"
+        },
+        {
+          "id": 51,
+          "storeId": 1,
+          "name": "Nước tăng lực"
+        }
+      ]
+    },
+    {
+      "key": "apple",
+      "ids": [
+        28
+      ],
+      "path": "/images/customer-home/fresh/apple.png",
+      "description": "Táo đỏ tươi, dùng trực tiếp sau khi rửa sạch hoặc chế biến thành món tráng miệng.",
+      "products": [
+        {
+          "id": 28,
+          "storeId": 1,
+          "name": "Táo đỏ Mỹ"
+        }
+      ]
+    },
+    {
+      "key": "orange",
+      "ids": [
+        29
+      ],
+      "path": "/images/customer-home/fresh/orange.png",
+      "description": "Cam tươi dùng ăn trực tiếp hoặc vắt lấy nước; rửa sạch trước khi chế biến.",
+      "products": [
+        {
+          "id": 29,
+          "storeId": 1,
+          "name": "Cam vàng Úc"
+        }
+      ]
+    },
+    {
+      "key": "cherry-tomato",
+      "ids": [
+        30
+      ],
+      "description": "Cà chua bi tươi, phù hợp làm salad, ăn kèm hoặc chế biến món ăn; rửa sạch trước khi dùng.",
+      "path": "/images/catalogue-2026/cherry-tomato.jpg",
+      "products": [
+        {
+          "id": 30,
+          "storeId": 1,
+          "name": "Cà chua bi"
+        }
+      ]
+    },
+    {
+      "key": "banana",
+      "ids": [
+        31
+      ],
+      "description": "Chuối tươi dùng trực tiếp khi chín, có thể kết hợp với ngũ cốc hoặc làm sinh tố.",
+      "path": "/images/catalogue-2026/banana.jpg",
+      "products": [
+        {
+          "id": 31,
+          "storeId": 1,
+          "name": "Chuối già Nam Mỹ"
+        }
+      ]
+    },
+    {
+      "key": "honey",
+      "ids": [
+        32
+      ],
+      "path": "/images/customer-home/fresh/honey-jar.webp",
+      "description": "Mật ong đựng lọ, dùng pha đồ uống, làm bánh hoặc phối hợp với món ăn theo khẩu vị.",
+      "products": [
+        {
+          "id": 32,
+          "storeId": 1,
+          "name": "Mật ong nguyên chất"
+        }
+      ]
+    },
+    {
+      "key": "cereal",
+      "ids": [
+        33
+      ],
+      "description": "Ngũ cốc ăn sáng dùng với sữa, sữa chua hoặc đồ uống từ hạt.",
+      "path": "/images/catalogue-2026/cereal.jpg",
+      "products": [
+        {
+          "id": 33,
+          "storeId": 1,
+          "name": "Ngũ cốc dinh dưỡng"
+        }
+      ]
+    },
+    {
+      "key": "aloe-yogurt",
+      "ids": [
+        35
+      ],
+      "description": "Sữa chua nha đam đóng hũ, dùng lạnh như món ăn nhẹ hoặc tráng miệng.",
+      "path": "/images/catalogue-2026/aloe-yogurt.png",
+      "products": [
+        {
+          "id": 35,
+          "storeId": 1,
+          "name": "Sữa chua nha đam"
+        }
+      ]
+    },
+    {
+      "key": "spaghetti",
+      "ids": [
+        39
+      ],
+      "description": "Mì Ý spaghetti dạng khô, luộc chín và dùng cùng các loại sốt theo sở thích.",
+      "path": "/images/catalogue-2026/spaghetti.jpg",
+      "products": [
+        {
+          "id": 39,
+          "storeId": 1,
+          "name": "Mì Ý spaghetti"
+        }
+      ]
+    },
+    {
+      "key": "oyster-sauce",
+      "ids": [
+        41
+      ],
+      "description": "Dầu hào dùng nêm món xào, làm sốt hoặc ướp thực phẩm; bảo quản theo hướng dẫn trên nhãn.",
+      "path": "/images/catalogue-2026/oyster-sauce.jpg",
+      "products": [
+        {
+          "id": 41,
+          "storeId": 1,
+          "name": "Dầu hào"
+        }
+      ]
+    },
+    {
+      "key": "chili-sauce",
+      "ids": [
+        42
+      ],
+      "description": "Tương ớt cay dùng làm nước chấm hoặc thêm vào món ăn theo khẩu vị.",
+      "path": "/images/catalogue-2026/chili-sauce.jpg",
+      "products": [
+        {
+          "id": 42,
+          "storeId": 1,
+          "name": "Tương ớt cay"
+        }
+      ]
+    },
+    {
+      "key": "salt",
+      "ids": [
+        43
+      ],
+      "description": "Muối iốt dùng nêm nếm trong chế biến món ăn; giữ kín bao bì và bảo quản nơi khô ráo.",
+      "path": "/images/catalogue-2026/salt.jpg",
+      "products": [
+        {
+          "id": 43,
+          "storeId": 1,
+          "name": "Muối iốt"
+        }
+      ]
+    },
+    {
+      "key": "tuna",
+      "ids": [
+        46
+      ],
+      "description": "Cá ngừ đóng hộp, tiện dùng làm salad, bánh mì kẹp hoặc chế biến cùng các món ăn khác.",
+      "path": "/images/catalogue-2026/tuna.jpg",
+      "products": [
+        {
+          "id": 46,
+          "storeId": 1,
+          "name": "Cá ngừ đóng hộp"
+        }
+      ]
+    },
+    {
+      "key": "red-beans",
+      "ids": [
+        47
+      ],
+      "description": "Đậu đỏ đóng hộp dùng cho món hầm, salad hoặc chế biến bữa ăn theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/red-beans.jpg",
+      "products": [
+        {
+          "id": 47,
+          "storeId": 1,
+          "name": "Đậu đỏ đóng hộp"
+        }
+      ]
+    },
+    {
+      "key": "corn",
+      "ids": [
+        48
+      ],
+      "description": "Ngô ngọt đóng hộp, phù hợp làm salad, súp hoặc dùng kèm các món ăn.",
+      "path": "/images/catalogue-2026/corn.jpg",
+      "products": [
+        {
+          "id": 48,
+          "storeId": 1,
+          "name": "Ngô ngọt đóng hộp"
+        }
+      ]
+    },
+    {
+      "key": "bottled-green-tea",
+      "ids": [
+        50
+      ],
+      "description": "Trà xanh không đường đóng chai, dùng trực tiếp; có thể làm lạnh trước khi uống.",
+      "path": "/images/catalogue-2026/bottled-green-tea.jpg",
+      "products": [
+        {
+          "id": 50,
+          "storeId": 1,
+          "name": "Trà xanh không đường"
+        }
+      ]
+    },
+    {
+      "key": "gummies",
+      "ids": [
+        53
+      ],
+      "description": "Kẹo dẻo hương trái cây, dùng trực tiếp và giữ kín bao bì sau khi mở.",
+      "path": "/images/catalogue-2026/gummies.jpg",
+      "products": [
+        {
+          "id": 53,
+          "storeId": 1,
+          "name": "Kẹo dẻo trái cây"
+        }
+      ]
+    },
+    {
+      "key": "pocket-tissues",
+      "ids": [
+        54
+      ],
+      "description": "Khăn giấy gói nhỏ tiện mang theo trong túi xách khi đi học, đi làm hoặc đi du lịch.",
+      "path": "/images/catalogue-2026/pocket-tissues.jpg",
+      "products": [
+        {
+          "id": 54,
+          "storeId": 1,
+          "name": "Khăn giấy bỏ túi"
+        }
+      ]
+    },
+    {
+      "key": "dish-soap",
+      "ids": [
+        55
+      ],
+      "description": "Nước rửa chén dùng làm sạch bát đĩa và dụng cụ nhà bếp; tráng kỹ lại bằng nước sạch.",
+      "path": "/images/catalogue-2026/dish-soap.jpg",
+      "products": [
+        {
+          "id": 55,
+          "storeId": 1,
+          "name": "Nước rửa chén"
+        }
+      ]
+    },
+    {
+      "key": "floor-cleaner",
+      "ids": [
+        56
+      ],
+      "description": "Dung dịch lau sàn dùng làm sạch bề mặt sàn phù hợp; pha và sử dụng theo hướng dẫn trên nhãn.",
+      "path": "/images/catalogue-2026/floor-cleaner.jpg",
+      "products": [
+        {
+          "id": 56,
+          "storeId": 1,
+          "name": "Nước lau sàn"
+        }
+      ]
+    },
+    {
+      "key": "laundry-powder",
+      "ids": [
+        57
+      ],
+      "description": "Bột giặt dành cho máy giặt cửa trước; dùng đúng lượng và chương trình theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/laundry-powder.jpg",
+      "products": [
+        {
+          "id": 57,
+          "storeId": 1,
+          "name": "Bột giặt cửa trước"
+        }
+      ]
+    },
+    {
+      "key": "fabric-softener",
+      "ids": [
+        58
+      ],
+      "description": "Nước xả vải dùng trong bước xả cuối của quá trình giặt; sử dụng theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/fabric-softener.jpg",
+      "products": [
+        {
+          "id": 58,
+          "storeId": 1,
+          "name": "Nước xả vải"
+        }
+      ]
+    },
+    {
+      "key": "toothbrush",
+      "ids": [
+        59
+      ],
+      "description": "Bàn chải đánh răng cầm tay dùng vệ sinh răng miệng hằng ngày; rửa sạch và để khô sau khi dùng.",
+      "path": "/images/catalogue-2026/toothbrush.jpg",
+      "products": [
+        {
+          "id": 59,
+          "storeId": 1,
+          "name": "Bàn chải đánh răng"
+        }
+      ]
+    },
+    {
+      "key": "toothpaste",
+      "ids": [
+        60
+      ],
+      "description": "Kem đánh răng hương bạc hà, dùng cùng bàn chải theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/toothpaste.jpg",
+      "products": [
+        {
+          "id": 60,
+          "storeId": 1,
+          "name": "Kem đánh răng bạc hà"
+        }
+      ]
+    },
+    {
+      "key": "shampoo",
+      "ids": [
+        61
+      ],
+      "description": "Dầu gội chăm sóc tóc, dùng trên tóc ướt rồi xả sạch theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/shampoo.jpg",
+      "products": [
+        {
+          "id": 61,
+          "storeId": 1,
+          "name": "Dầu gội phục hồi"
+        }
+      ]
+    },
+    {
+      "key": "body-wash",
+      "ids": [
+        62
+      ],
+      "description": "Sữa tắm dùng làm sạch cơ thể; tạo bọt và xả sạch bằng nước theo hướng dẫn sử dụng.",
+      "path": "/images/catalogue-2026/body-wash.png",
+      "products": [
+        {
+          "id": 62,
+          "storeId": 1,
+          "name": "Sữa tắm dịu nhẹ"
+        }
+      ]
+    },
+    {
+      "key": "razor",
+      "ids": [
+        63
+      ],
+      "description": "Dao cạo dùng một lần cho nhu cầu chăm sóc cá nhân; sử dụng cẩn thận theo hướng dẫn trên bao bì.",
+      "path": "/images/catalogue-2026/razor.jpg",
+      "products": [
+        {
+          "id": 63,
+          "storeId": 1,
+          "name": "Dao cạo dùng một lần"
+        }
+      ]
+    },
+    {
+      "key": "oat-milk",
+      "ids": [
+        64
+      ],
+      "description": "Đồ uống từ yến mạch dùng trực tiếp, phối hợp với ngũ cốc hoặc pha cùng cà phê.",
+      "path": "/images/catalogue-2026/oat-milk.png",
+      "products": [
+        {
+          "id": 64,
+          "storeId": 3,
+          "name": "Sữa yến mạch QA"
+        }
+      ]
+    },
+    {
+      "key": "wholegrain-bread",
+      "ids": [
+        65
+      ],
+      "description": "Bánh mì nguyên cám, tiện làm sandwich hoặc dùng cùng các món ăn sáng.",
+      "path": "/images/catalogue-2026/wholegrain-bread.png",
+      "products": [
+        {
+          "id": 65,
+          "storeId": 3,
+          "name": "Bánh mì nguyên cám QA"
+        }
+      ]
+    },
+    {
+      "key": "retired-product",
+      "ids": [
+        69
+      ],
+      "path": "/images/catalogue-2026/retired-product.svg",
+      "description": "Mặt hàng QA đang ngừng bán, được giữ lại để kiểm tra cách hiển thị và xử lý sản phẩm không còn khả dụng.",
+      "products": [
+        {
+          "id": 69,
+          "storeId": 3,
+          "name": "Mặt hàng ngừng bán QA"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "key": "cheese-snack",
+      "title": "Hawkins Cheezies Corn Snacks 210g",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download_66_65e67cfd-146e-40e5-9fde-a178570f084f.jpg?v=1601582344",
+      "source": "https://mikedeans.com/products/hawkins-cheezies-corn-snacks-210-g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/cheese-snack.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 10890
+    },
+    {
+      "key": "sugar",
+      "title": "Lantic /RedPath White Sugar 2 Kg",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/LanticWhiteSugar2KG.jpg?v=1607168671",
+      "source": "https://mikedeans.com/products/6284721023",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/sugar.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 15671
+    },
+    {
+      "key": "soy-sauce",
+      "title": "VH Regular Soya Sauce 380ml",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download-2020-06-19T133414.673.jpg?v=1601574025",
+      "source": "https://mikedeans.com/products/vh-regular-soya-sauce-380ml",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/soy-sauce.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 3990
+    },
+    {
+      "key": "green-tea",
+      "title": "Tetley Green Tea Bags 24pk",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/999999-5717402440_rev1.jpg?v=1601575832",
+      "source": "https://mikedeans.com/products/tetley-green-tea-bags-24bags",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/green-tea.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 87833
+    },
+    {
+      "key": "cheese",
+      "title": "Black Diamond Cheddar Slices Original 410 G",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/6000201310741.jpg?v=1601572447",
+      "source": "https://mikedeans.com/products/black-diamond-cheddar-slices-original-410-g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/cheese.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 71688
+    },
+    {
+      "key": "energy-drink",
+      "title": "Red Bull Energy Drink 250 Ml",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/Red-Bull-Energy-Drink-250ml-for-Sale.jpg?v=1601577204",
+      "source": "https://mikedeans.com/products/18085400010",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/energy-drink.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 10700
+    },
+    {
+      "key": "spaghetti",
+      "title": "Arbella Spaghetti450 G",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/08697430885677_A1C1_1000x_3f92ce46-7928-44d9-bd46-1ed0fd31c247.jpg?v=1601575203",
+      "source": "https://mikedeans.com/products/arbella-spaghetti-450-g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/spaghetti.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 46679
+    },
+    {
+      "key": "banana",
+      "title": "Bananas Cabana Per Kg",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download_47.jpg?v=1601576955",
+      "source": "https://mikedeans.com/products/4011",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/banana.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 4352
+    },
+    {
+      "key": "cereal",
+      "title": "Cheerios™ Multi-Grain Cereal Family Size 585 g",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/6000201538350.jpg?v=1601574832",
+      "source": "https://mikedeans.com/products/cheerios-multi-grain-cereal-family-size-585-g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/cereal.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 113992
+    },
+    {
+      "key": "salt",
+      "title": "Windsor Table Salt Iodized 1 kg - Voilà Online Groceries & Offers",
+      "url": "https://voila.ca/images-v3/2d92d19c-0354-49c0-8a91-5260ed0bf531/c40ef286-6565-4095-8bd3-0d10911d9ec8/800x800.jpg",
+      "source": "https://voila.ca/products/windsor-table-salt-iodized-1-kg/637515EA",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/salt.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 89159
+    },
+    {
+      "key": "floor-cleaner",
+      "title": "LYSOL MULTI SURFACE CLEANER LEMON 1.2 LT",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/LYSOLMULTISURFACECLEANERLEMON1.2LT.jpg?v=1616608665",
+      "source": "https://mikedeans.com/products/lysol-multi-surface-cleaner-lemon-1-2-lt",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/floor-cleaner.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 86055
+    },
+    {
+      "key": "corn",
+      "title": "No Name Whole Kernel Corn 341 ML",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download-2020-07-03T163828.315.jpg?v=1601573522",
+      "source": "https://mikedeans.com/products/nn-whole-kernel-corn-341-ml",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/corn.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 9131
+    },
+    {
+      "key": "tuna",
+      "title": "No Name Flaked Light Tuna In Water 170 G",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/20521648_lrg_1__1x_abfb8030-7406-41d9-af69-1ff20c5dcbb0.jpg?v=1601573706",
+      "source": "https://mikedeans.com/products/nn-flaked-light-tuna-in-water-170-g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/tuna.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 73982
+    },
+    {
+      "key": "dish-soap",
+      "title": "Palmolive Original Dish Liquid 828 Ml",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/999999-35000463036.jpg?v=1601579690",
+      "source": "https://mikedeans.com/products/3500046303",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/dish-soap.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 55795
+    },
+    {
+      "key": "red-beans",
+      "title": "Clic Dark Red Kidney Beans 540 ML",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/0005850477104.jpg?v=1601573799",
+      "source": "https://mikedeans.com/products/clic-dark-red-kidney-beans-540-ml",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/red-beans.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 97763
+    },
+    {
+      "key": "strawberry-yogurt",
+      "title": "Astro Yogurt Strawberry Cup 125 G",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/AstroYogurtStrawberryCup175G.png?v=1607482021",
+      "source": "https://mikedeans.com/products/astro-yogurt-strawberry-cup-175-g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/strawberry-yogurt.png",
+      "contentType": "image/png",
+      "bytes": 83510
+    },
+    {
+      "key": "body-wash",
+      "title": "Life Brand Spring Fresh Body Wash532mL",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/21194519_front_a01_06cd9b26-582f-47d1-b24e-5d42b3312175.png?v=1601574956",
+      "source": "https://mikedeans.com/products/life-brand-spring-fresh-body-wash-532-ml-1",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/body-wash.png",
+      "contentType": "image/png",
+      "bytes": 26979
+    },
+    {
+      "key": "ground-coffee",
+      "title": "Cimo House Blend Ground Coffee 250g",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/files/Cimehouse.jpg?v=1756843887",
+      "source": "https://mikedeans.com/products/cimo-house-blend-ground-coffee-250g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/ground-coffee.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 14623
+    },
+    {
+      "key": "toothpaste",
+      "title": "CREST TARTAR CONTROL FRESH MINT",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/files/9640343666718.jpg?v=1782325283",
+      "source": "https://mikedeans.com/products/crest-tartar-control-fresh-mint",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/toothpaste.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 12484
+    },
+    {
+      "key": "shampoo",
+      "title": "Dove Nutritive Solutions, Everyday Moisturizing & Intensive Repair Shampoo with Keratin, Big 20.4 fl oz Bottle - Walmart.com",
+      "url": "https://i5.walmartimages.com/seo/Dove-Nutritive-Solutions-Nourishing-Intensive-Repair-Daily-Shampoo-with-Keratin-20-4-fl-oz_aff7807d-2049-4bad-8596-095d365d7fd9.0b11464f05deaf25ab7cd49d20eaf44d.jpeg",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/shampoo.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 96393
+    },
+    {
+      "key": "beef-noodles",
+      "title": "Mr Noodles In a Cup, Beef 64g",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download-2020-06-15T200859.828.jpg?v=1601574270",
+      "source": "https://mikedeans.com/products/mr-noodles-in-a-cup-beef-64g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/beef-noodles.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 12659
+    },
+    {
+      "key": "sunflower-oil",
+      "title": "Unico Sunflower Oil 1 Litre",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download_-_2020-01-19T224856.589.jpg?v=1601579795",
+      "source": "https://mikedeans.com/products/6780000202",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/sunflower-oil.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 5338
+    },
+    {
+      "key": "gummies",
+      "title": "Maynards Original Gummies150g",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download_80_0084a140-3eac-4d39-85e5-33f7ba9f9be8.jpg?v=1601582863",
+      "source": "https://mikedeans.com/products/maynards-original-gummies-170-g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/gummies.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 15714
+    },
+    {
+      "key": "vanilla-ice-cream",
+      "title": "Chapmans Vanilla Ice Cream 2L",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/download_34_2f2cfad8-33ac-4ba0-a41f-a754440dfe54.jpg?v=1601575377",
+      "source": "https://mikedeans.com/products/chapmans-vanilla-ice-cream-2-l-2l",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/vanilla-ice-cream.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 10589
+    },
+    {
+      "key": "sandwich-bread",
+      "title": "Wonder White Thin Sandwich Bread 675g",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/20308743_lrg_1__1x_da47fc52-a9f2-4841-8a38-26229115e8fc.jpg?v=1601578616",
+      "source": "https://mikedeans.com/products/6494713062",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/sandwich-bread.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 65582
+    },
+    {
+      "key": "wholegrain-bread",
+      "title": "Country Harvest Bread, Whole Grain  675g",
+      "url": "https://cdn.shopify.com/s/files/1/0419/7508/7263/products/thumbnail.png?v=1601578652",
+      "source": "https://mikedeans.com/products/6340013890",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/wholegrain-bread.png",
+      "contentType": "image/png",
+      "bytes": 62197
+    },
+    {
+      "key": "laundry-powder",
+      "title": "OMO Matic Detergent Powder 4,5kg - Front Load",
+      "url": "https://thqvietnam.com/upload/files/omo%20mactic%20cua%20truoc%204%2C5kg.jpg",
+      "source": "https://www.thqvietnam.com/omo-matic-detergent-powder-4-5kg-front-load-sp985.html",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/laundry-powder.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 97703
+    },
+    {
+      "key": "fabric-softener",
+      "title": "COMFORT đậm đặc 1 lần xả hương ban maiCOMFORT đậm đặc 1 lần xả hương ban mai – Tổng kho Takara",
+      "url": "https://product.hstatic.net/200000814381/product/150020746_8bb8a991aa2b4e63b64461cb7971d023_29d87b725c7c486883a5d188d993225f.jpg",
+      "source": "https://www.tongkhotakara.com/products/comfort-dam-dac-1-lan-xa-huong-ban-mai",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/fabric-softener.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 107683
+    },
+    {
+      "key": "razor",
+      "title": "Bic Razor Disposable 1'S",
+      "url": "https://shop.nwk.co.za/cdn/shop/files/780070330704176.jpg?v=1772100823&width=1200",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/razor.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 36947
+    },
+    {
+      "key": "toothbrush",
+      "title": "Electric Tooth Brush | Health Online | Omninela Medical — Omninela.co.za",
+      "url": "https://omninela.co.za/cdn/shop/files/colgate-toothbrush-extra-clean-1-pack-omninelacoza-770550_384x384.jpg?v=1718878017",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/toothbrush.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 16615
+    },
+    {
+      "key": "oyster-sauce",
+      "title": "Dầu hào Maggi chai 350g – Chuỗi Tạp Hóa Việt - Chuyên Sỉ Và Lẻ",
+      "url": "https://product.hstatic.net/1000288770/product/d_u_h_o_maggi_chai_350g_ae43ff2a3d4b43c3a368e909ac77f2a6_master.jpg",
+      "source": "https://www.webtaphoa.vn/products/dau-hao-maggi-chai-350g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/oyster-sauce.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 28031
+    },
+    {
+      "key": "drinking-yogurt",
+      "title": "TH True - Natural Strawberry Yogurt Drink (180ml) (48/carton) – Tasty Snack Asia",
+      "url": "https://www.tastysnack.asia/cdn/shop/files/thstrawberry_1024x.png?v=1698045381",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/drinking-yogurt.png",
+      "contentType": "image/png",
+      "bytes": 231664
+    },
+    {
+      "key": "pocket-tissues",
+      "title": "Buy Kleenex 4 Ply Pocket Pack Facial Tissues White 6 pack | Coles",
+      "url": "https://cdn.productimages.coles.com.au/productimages/8/8741740.jpg",
+      "source": "https://www.coles.com.au/product/kleenex-4-ply-pocket-pack-facial-tissues-white-6-pack-8741740",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/pocket-tissues.jpg",
+      "contentType": "image/jpg",
+      "bytes": 36241
+    },
+    {
+      "key": "walnut-milk",
+      "title": "137 Degrees  นมวอลนัท สูตรดั้งเดิม ขนาด 180 มล. (03596) - Baimiang Healthy Shop ใบเมี่ยง",
+      "url": "https://f.btwcdn.com/store-45801/product/8de40b0b-8336-0909-6fb6-662b8a08e6b5.jpg",
+      "source": "https://www.baimianghealthyshop.com/th/product/613001/product-613001",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/walnut-milk.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 131240
+    },
+    {
+      "key": "butter-cookies",
+      "title": "Danisa Traditional Assorted Butter Cookies  | Weee!",
+      "url": "https://img06.weeecdn.com/item/image/589/983/4A034E9C5A90D787.jpg",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/butter-cookies.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 252110
+    },
+    {
+      "key": "chili-sauce",
+      "title": "Tương ớt Cholimex chai nhựa 270g – Chuỗi Tạp Hóa Việt - Chuyên Sỉ Và Lẻ",
+      "url": "https://product.hstatic.net/1000288770/product/tuong_ot_cholimex_chai__270_g_1d3eddbabacf4035b96d025aae17be57_grande.jpg",
+      "source": "https://www.webtaphoa.vn/products/tuong-ot-cholimex-chai-nhua-270g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/chili-sauce.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 16972
+    },
+    {
+      "key": "anchor-butter",
+      "title": "File:Anchor New Zealand unsalted butter.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/Anchor_New_Zealand_unsalted_butter.jpg/960px-Anchor_New_Zealand_unsalted_butter.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "source": "https://commons.wikimedia.org/wiki/File:Anchor_New_Zealand_unsalted_butter.jpg",
+      "license": "CC0",
+      "description": "Anchor New Zealand unsalted butter",
+      "kind": "matching brand product photo",
+      "path": "/images/catalogue-2026/anchor-butter.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 148401
+    },
+    {
+      "key": "bottled-green-tea",
+      "title": "Ito En Oi Ocha Green Tea Pet Bottle 500ml",
+      "url": "https://klec.jayagrocer.com/cdn/shop/files/169265-U-1-1_055584ea-2258-4cf8-b0b4-648b4fe78776.jpg?v=1758792021",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/bottled-green-tea.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 86837
+    },
+    {
+      "key": "oat-milk",
+      "title": "Oatly Original Oatmilk Same-Day Delivery or Pickup | Sprouts Farmers Market",
+      "url": "https://d2lnr5mha7bycj.cloudfront.net/product-image/file/large_7ccfba50-874a-461e-8c80-4e69cb12b910.png",
+      "source": "https://shop.sprouts.com/store/sprouts/products/21526570-oatly-oat-milk-32-oz",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/oat-milk.png",
+      "contentType": "image/png",
+      "bytes": 729678
+    },
+    {
+      "key": "aloe-yogurt",
+      "title": "Sữa Chua Ăn Vinamilk Nha Đam (Hộp 100Gr) – 3Sach Mart",
+      "url": "https://cdn.hstatic.net/products/200000460455/s_a_chua__n_vinamilk_nha_dam__h_p_100g__a30ee73cef1442ae9bcc182188f60e8e_grande.png",
+      "source": "https://3sach.vn/products/sua-chua-an-vinamilk-nha-dam-hop-100gr",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/aloe-yogurt.png",
+      "contentType": "image/png",
+      "bytes": 213386
+    },
+    {
+      "key": "cherry-tomato",
+      "title": "Tomatoes cherry punnet English 250g | Veg Express",
+      "url": "https://static.wixstatic.com/media/8408a8_e4decb595b0f432d83a862c2d9cb37f1.jpg/v1/fit/w_500%2Ch_500%2Cq_90/file.jpg",
+      "source": "https://www.veg-express.co.uk/product-page/tomatoes-cherry-punnet-250g",
+      "kind": "representative product photo",
+      "path": "/images/catalogue-2026/cherry-tomato.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 37620
+    },
+    {
+      "key": "store-b-banner",
+      "title": "File:Green tea 11.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Green_tea_11.jpg/960px-Green_tea_11.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "source": "https://commons.wikimedia.org/wiki/File:Green_tea_11.jpg",
+      "license": "CC BY-SA 4.0",
+      "description": "Green tea in a white cup",
+      "kind": "tea Store banner",
+      "path": "/images/catalogue-2026/store-b-banner.jpg",
+      "contentType": "image/jpeg",
+      "bytes": 99985,
+      "author": "BogTar201213",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "stores": [
+    {
+      "storeId": 1,
+      "slug": "f02-demo-store-a-1",
+      "iconSvg": "/images/catalogue-2026/store-a-icon.svg",
+      "icon": "/images/catalogue-2026/store-a-icon.png",
+      "banner": "/images/customer-home/banners/garden.jpg",
+      "meaning": "Basket icon and groceries/vegetables for the general grocery Store."
+    },
+    {
+      "storeId": 2,
+      "slug": "f02-demo-store-b-2",
+      "iconSvg": "/images/catalogue-2026/store-b-icon.svg",
+      "icon": "/images/catalogue-2026/store-b-icon.png",
+      "banner": "/images/catalogue-2026/store-b-banner.jpg",
+      "meaning": "Tea-cup icon and green-tea photograph for the Store whose catalogue is tea."
+    },
+    {
+      "storeId": 3,
+      "slug": "qa-f07-f11-mwztnod1",
+      "iconSvg": "/images/catalogue-2026/store-qa-icon.svg",
+      "icon": "/images/catalogue-2026/store-qa-icon.png",
+      "banner": "/images/customer-home/banners/morning.jpg",
+      "meaning": "QA checklist icon and bread/milk breakfast banner for the testing Store."
+    }
+  ]
+}

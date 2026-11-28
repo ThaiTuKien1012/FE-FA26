@@ -19,7 +19,7 @@ interface Props extends CustomerNavigation {
 }
 
 export function CustomerProductDetailView({ storeSlug, productId, user, onBack, onHome, onStore,
-  onLogin, onProfile, onLogout }: Props & { onBack: () => void }) {
+  onLogin, onProfile, onLogout, onCart }: Props & { onBack: () => void }) {
   const id = /^\d+$/.test(productId ?? '') ? Number(productId) : 0;
   const valid = isStoreSlug(storeSlug) && id > 0 && id <= 2147483647;
   const loadProduct = useCallback((signal: AbortSignal) => valid && storeSlug
@@ -33,7 +33,7 @@ export function CustomerProductDetailView({ storeSlug, productId, user, onBack, 
   const savedKey = `${storeSlug}/${id}`;
   const [quantity, setQuantity] = useState(1);
   const dialog = useRef<HTMLDialogElement>(null);
-  const openCart = () => user ? dialog.current?.showModal() : onLogin();
+  const openCart = () => { if (!user) onLogin(); else { void cart.load(); dialog.current?.showModal(); } };
   return <div className="min-h-dvh bg-[#f7f9f7] text-[#212d27]" lang="vi">
     <div className="border-b border-[#e7eeea] bg-white">
       <div className={`${containerClass} flex min-h-19 items-center justify-between gap-4 max-[580px]:min-h-16`}>
@@ -100,7 +100,7 @@ export function CustomerProductDetailView({ storeSlug, productId, user, onBack, 
           <h2 id="product-details-title" className="text-xl font-semibold">Thông tin sản phẩm</h2>
           <p className="mt-4 whitespace-pre-line text-sm leading-6 text-[#65796d]">{product.description}</p>
         </section>}
-        <CustomerCartDialog dialogRef={dialog} storeName={cart.cart?.store.name ?? storeName} state={cart} onLogin={onLogin} />
+        <CustomerCartDialog dialogRef={dialog} storeName={cart.cart?.store.name ?? storeName} state={cart} onLogin={onLogin} onFullCart={onCart} />
       </>}
     </main>
   </div>;

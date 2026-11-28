@@ -5,10 +5,15 @@ export function customerPath(slug: string | null, productId: string | null = nul
   return slug ? path + '?' + new URLSearchParams({ store: slug }) : path;
 }
 
-export function customerLoginPath(slug: string | null, productId: string | null = null): string {
+export function customerCartPath(slug: string | null): string {
+  return '/cart' + (isStoreSlug(slug) ? '?' + new URLSearchParams({ store: slug }) : '');
+}
+
+export function customerLoginPath(slug: string | null, productId: string | null = null, cart = false): string {
   if (!isStoreSlug(slug)) return '/login';
   const query = new URLSearchParams({ returnStore: slug });
   if (productId) query.set('returnProduct', productId);
+  if (cart) query.set('returnCart', '1');
   return '/login?' + query;
 }
 
@@ -19,5 +24,5 @@ export function customerLoginTarget(pathname: string, search: string) {
   const product = params.get('returnProduct');
   if (!isStoreSlug(slug)) return null;
   const productId = product && /^[1-9]\d{0,9}$/.test(product) && Number(product) <= 2147483647 ? product : null;
-  return { slug, productId };
+  return { slug, productId, ...(params.get('returnCart') === '1' ? { cart: true as const } : {}) };
 }

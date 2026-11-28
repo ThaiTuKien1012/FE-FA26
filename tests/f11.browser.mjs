@@ -110,7 +110,7 @@ async function fixture(page, { requestId, request }) {
     else if (path === '/api/system/utility/lambda-policy') body = { lambdaMax: 0.5, version: 1, scoringVersion: 'W2_EXPIRY_SEASON_V1' };
     else if (path === '/api/system/mining/stores') body = { items: [], page: 0, pageSize: 20, totalElements: 0 };
     else if (path === '/api/dashboard/snapshot-utilities') {
-      code = state.snapshotStatus;
+      code = url.searchParams.get('snapshotId') === '999' ? 404 : state.snapshotStatus;
       const pageNumber = Number(url.searchParams.get('page') || 0);
       body = code === 200 ? { items: state.empty ? [] : [{ snapshotId: pageNumber ? 17 : 18, rangeStart: '2026-10-01', rangeEnd: '2026-10-04', analysisDate: '2026-10-05', createdAt: '2026-11-25T05:00:00Z', totalWeightedUtility: 219.430001 }], page: pageNumber, pageSize: 20, totalElements: state.empty ? 0 : 21 } : { error: 'Fixture failure', ...(state.inactive ? { code: 'STORE_INACTIVE' } : {}) };
     }
@@ -179,6 +179,17 @@ try {
   await first.evaluate("history.pushState({},'', '/store/dashboard');window.dispatchEvent(new Event('popstate'))");
   await has(first, '219,430001'); await has(first, '2026-11-24');
   await click(first, 'Next page'); await has(first, '#17'); await click(first, 'Previous page'); await has(first, '#18');
+  await input(first, 'input[type=number]', '18');
+  await click(first, 'Find snapshot');
+  await until(first, `performance.getEntriesByType('resource').some(e=>e.name.includes('/api/dashboard/snapshot-utilities?')&&e.name.includes('snapshotId=18'))`, 'snapshot-specific API request');
+  await has(first, '219,430001');
+  await click(first, 'Clear snapshot filter');
+  await has(first, '219,430001');
+  await input(first, 'input[type=number]', '999');
+  await click(first, 'Find snapshot');
+  await has(first, 'selected snapshot was not found');
+  await has(first, '219,430001');
+  assert.equal(await first.evaluate('document.querySelector("input[type=number]").value'), '', 'A missing snapshot clears the selection and reloads the Store list');
   await select(first, 'Campaign filter', '42'); await click(first, 'Apply filters');
   await select(first, 'Report campaign', '42'); await has(first, 'Saved report'); await select(first, 'Saved report', '72');
   await has(first, '12 evaluation transactions'); await has(first, 'A: 2 products, B: 3 products'); await has(first, 'chưa có');

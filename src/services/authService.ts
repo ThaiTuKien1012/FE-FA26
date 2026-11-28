@@ -104,6 +104,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, { department: string; defaultS
       'customer-home',
       'customer-product',
       'customer-storefront',
+      'customer-cart',
       'profile'
     ]
   }
@@ -121,6 +122,7 @@ export const SCREEN_OWNER_MAP: Partial<Record<ActiveNavScreen, ScreenOwnerInfo>>
   'my-store': { primaryRole: 'Store Admin', roleKey: 'store-admin', title: 'My Store', allowedRoles: ['Store Admin', 'Merchandiser'] },
   'customer-home': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Customer Home', allowedRoles: ['End-Customer'] },
   'customer-product': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Product Details', allowedRoles: ['End-Customer'] },
+  'customer-cart': { primaryRole: 'End-Customer', roleKey: 'customer', title: 'Giỏ hàng', allowedRoles: ['End-Customer'] },
   'f06-recommendations': {
     primaryRole: 'Merchandiser',
     roleKey: 'merchandiser',

@@ -1,0 +1,1747 @@
+{
+  "date": "2026-11-28",
+  "timeZone": "Asia/Ho_Chi_Minh",
+  "scope": "Live local API and browser F07-F11",
+  "runId": "mwztnod1",
+  "store": {
+    "id": 3,
+    "slug": "qa-f07-f11-mwztnod1"
+  },
+  "backend": "2871d2b",
+  "frontendBase": "89e51de",
+  "checks": [
+    {
+      "result": "PASS",
+      "check": "F07 baseline A contains the four training products"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 baseline A rejects edits (409)"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 stale layout version rejects overwrite (409)"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 Store Admin cannot edit Layout B (403)"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 foreign Store layout hidden (404)"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 live preview validates placements and computes snapshot utility"
+    },
+    {
+      "result": "PASS",
+      "check": "F08 overlapping training/evaluation dates rejected (400)"
+    },
+    {
+      "result": "PASS",
+      "check": "F08 simulation uses only the three later evaluation baskets and returns A/B"
+    },
+    {
+      "result": "PASS",
+      "check": "F08 publish alone leaves public Store on default catalogue"
+    },
+    {
+      "result": "PASS",
+      "check": "F08 Merchandiser cannot activate campaigns (403)"
+    },
+    {
+      "result": "PASS",
+      "check": "F08/F09 activation exposes only the selected READY layout and an opaque bundle key"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 hides INACTIVE products before pagination"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 stock remains sellable on its expiry date"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 yesterday-expired stock is unavailable"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 public home does not leak staff-only inventory/evidence"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 Unicode search, price sort and pagination use the real catalogue"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 hidden Product detail returns 404"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 cross-Store Product detail returns 404"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 cart requires authentication (401)"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 cart denies Store staff (403)"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 a new shopper receives the virtual empty cart"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 rejects writes without If-Match"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 uses exact server monetary totals (21000.50 × 2 = 42001)"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 stale cart writes return CART_VERSION_CONFLICT"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 insufficient stock rejects the entire mutation and retains version"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 enforces 99 units per Product"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 quantity edit and line removal succeed"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 clearing an already empty cart is a version-preserving no-op"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 adds the whole current bundle as ordinary cart lines"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 partial bundle success skips only exhausted components"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 all-zero bundle rejection retains the cart version"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 exactly counts successful bundle actions and actual added units, excluding rejection"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 clear empties server cart and retains its identity"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 displays the frozen snapshot total without changing money/utility meaning"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 foreign Store snapshot is hidden (404)"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 denies customer dashboard access (403)"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 denies anonymous dashboard access (401)"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 accepts exactly 90 inclusive days and returns real daily zero buckets"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 rejects 91 inclusive days (400)"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 rejects an unpaired date filter (400)"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 foreign campaign filter is hidden (404)"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 foreign report detail is hidden (404)"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 reuses immutable F08 report detail for Store Admin"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 concurrent first-cart creation accepts one write and rejects the stale peer"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 parallel writes do not duplicate Product quantities"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 a valid bundle key cannot be applied to another Store"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 rejects a pending-review F06 recommendation"
+    },
+    {
+      "result": "PASS",
+      "check": "F06 approved live recommendation is ready for F07 consumption"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 library exposes approved currently eligible recommendations"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 creates the complete recommendation block with source provenance"
+    },
+    {
+      "result": "PASS",
+      "check": "F10/F11 full and partial mined bundle actions increment MINED exactly and count actual units"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 earlier MANUAL events remain historical after approving a matching recommendation"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 a customer cannot delete another customer cart line"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 attempted cross-customer line removal leaves the owner cart intact"
+    },
+    {
+      "result": "PASS",
+      "check": "F08 rollback restores the previous active campaign and public storefront"
+    },
+    {
+      "result": "PASS",
+      "check": "F10 a stale same-Store bundle key is rejected after campaign rollback"
+    },
+    {
+      "result": "PASS",
+      "check": "F08 end returns F09 and staff projection to default catalogue"
+    },
+    {
+      "result": "PASS",
+      "check": "F08 empty evaluation reports null rates rather than fabricated zero conversions"
+    },
+    {
+      "result": "PASS",
+      "check": "F09/F10 hide an INACTIVE Store from customers"
+    },
+    {
+      "result": "PASS",
+      "check": "F11 central inactive-Store guard returns 403 STORE_INACTIVE"
+    },
+    {
+      "result": "PASS",
+      "check": "F09/F11 Store visibility and staff reads recover after reactivation"
+    },
+    {
+      "result": "PASS",
+      "check": "F09 public Product detail returns current name, price and availability"
+    },
+    {
+      "result": "PASS",
+      "check": "F07 snapshot selector receives the own-Store READY snapshot"
+    }
+  ],
+  "api": [
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/stores",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/mining/snapshots?page=0&pageSize=10",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/system/stores",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/users?q=qa-owner-mwztnod1%40paspm.example&size=100",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/otp/request",
+      "status": 202
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/activate",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/users?q=qa-merch-mwztnod1%40paspm.example&size=100",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/activate",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "status": 202
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/otp/verify",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register/complete",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/categories",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products/64/batches",
+      "status": 400,
+      "error": "Invalid request fields"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products?page=0&pageSize=100",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/products/64/batches",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products/65/batches",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products/66/batches",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products/67/batches",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products/68/batches",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/products/69/batches",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/transactions/imports/csv",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/utility/snapshots",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/7",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/8",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/layouts/7/placements",
+      "status": 409,
+      "error": "Layout A is immutable and read-only"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/layouts/8/placements",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/layouts/8/placements",
+      "status": 409,
+      "error": "Layout version is stale"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/layouts/8/placements",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/1",
+      "status": 404,
+      "error": "Layout not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/8/preview",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/layouts/8/ready",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/4",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/4/simulations",
+      "status": 400,
+      "error": "Simulation rangeStart must be after the utility snapshot rangeEnd"
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/4/simulations",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/4",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/4/decision",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/4/publish",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/4/activate",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/4/activate",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/products?page=0&pageSize=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/products?search=B%C3%A1nh%20m%C3%AC&sortBy=sellingPrice&sortDirection=desc&pageSize=2",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/products/69",
+      "status": 404,
+      "error": "Product not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/products/1",
+      "status": 404,
+      "error": "Product not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 400,
+      "error": "Bad Request"
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 200
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items/2",
+      "status": 409,
+      "error": "Cart version changed; reload the cart",
+      "code": "CART_VERSION_CONFLICT"
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 409,
+      "error": "Insufficient sellable stock",
+      "code": "INSUFFICIENT_SELLABLE_STOCK"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items/2",
+      "status": 409,
+      "error": "A cart can hold at most 99 units per product",
+      "code": "CART_QUANTITY_LIMIT"
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 404,
+      "error": "Product not found"
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 400,
+      "error": "Invalid request fields"
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 400,
+      "error": "Invalid request fields"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items/2",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items/2",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 200
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items/3",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 409,
+      "error": "No bundle component can be added",
+      "code": "BUNDLE_ADD_REJECTED"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions?campaignId=4",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 404,
+      "error": "Bundle not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/snapshot-utilities?page=0&pageSize=20&snapshotId=3",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/snapshot-utilities?snapshotId=1",
+      "status": 404,
+      "error": "Snapshot not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/snapshot-utilities",
+      "status": 403,
+      "error": "Forbidden"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions?from=2026-01-01&to=2026-03-31",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions?from=2026-01-01&to=2026-04-01",
+      "status": 400,
+      "error": "Date window must contain 1 to 90 inclusive days"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions?from=2026-11-01",
+      "status": 400,
+      "error": "Supply both from and to"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions?campaignId=1",
+      "status": 404,
+      "error": "Campaign not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaign-reports/1",
+      "status": 404,
+      "error": "Campaign report not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaign-reports/3",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "status": 202
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/otp/verify",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register/complete",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items",
+      "status": 409,
+      "error": "Cart version changed; reload the cart",
+      "code": "CART_VERSION_CONFLICT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/f02-demo-store-b-2/cart/bundles",
+      "status": 404,
+      "error": "Bundle not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/system/mining/config",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/mining/requests",
+      "status": 202
+    },
+    {
+      "method": "GET",
+      "path": "/api/mining/requests/3",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/mining/requests/3/runs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/mining/requests/3/runs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/recommendations/generate",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/recommendations?miningRunId=3&type=BUNDLE&page=0&pageSize=100",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns",
+      "status": 409,
+      "error": "Recommendation must be APPROVED"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recommendations/657/approve",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/recommendations?snapshotId=3",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/12",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/layouts/12/ready",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/6",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/6/decision",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/6/publish",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/6/activate",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 409,
+      "error": "Cart version changed; reload the cart",
+      "code": "CART_VERSION_CONFLICT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/items/7",
+      "status": 404,
+      "error": "Cart item not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/6/rollback",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+      "status": 409,
+      "error": "The bundle is no longer current; refresh the storefront",
+      "code": "BUNDLE_UNAVAILABLE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/5",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/5/end",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/active-layout",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/13",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/layouts/14",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/layouts/14/ready",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/7/simulations",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/7/simulations",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/7",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/campaigns/7/decision",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/7/publish",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/campaigns/7/activate",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/system/stores/3",
+      "status": 200
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/system/stores/3/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 404,
+      "error": "Storefront not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+      "status": 404,
+      "error": "Storefront not found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions",
+      "status": 403,
+      "error": "Store is inactive",
+      "code": "STORE_INACTIVE"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/system/stores/3/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/bundle-additions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/products/64",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/mining/snapshots?page=0&pageSize=100",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/campaigns/5/reports",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+      "status": 200
+    }
+  ],
+  "browser": {
+    "result": "PASS (live Backend, no interception)",
+    "checks": [
+      "F07/F08 real UI: create, group manual products, save, READY, simulate, decide, publish, withdraw, republish",
+      "F08 Store Admin activates the published UI campaign through the real API",
+      "F09/F10 real UI: public active layout, guest sign-in return, whole/partial bundle add, actual counts, VND rounding, full cart and confirmed clear",
+      "F11 real UI: both staff roles, snapshot filter, 3 actual bundle actions on the UI campaign, saved A/B report, desktop/mobile"
+    ],
+    "responses": [
+      {
+        "path": "/api/auth/login",
+        "status": 200
+      },
+      {
+        "path": "/api/auth/me",
+        "status": 200
+      },
+      {
+        "path": "/api/utility/config",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/mining/snapshots?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/4",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/4/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/7",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/8",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns",
+        "status": 201
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/products?snapshotId=3&q=&page=0&pageSize=20",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10/placements",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10/ready",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/products?snapshotId=3&q=&page=0&pageSize=20",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/simulations",
+        "status": 201
+      },
+      {
+        "path": "/api/campaigns/5/decision",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/publish",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/withdraw",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/decision",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/publish",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/auth/login",
+        "status": 200
+      },
+      {
+        "path": "/api/auth/me",
+        "status": 200
+      },
+      {
+        "path": "/api/products?page=0&pageSize=1",
+        "status": 200
+      },
+      {
+        "path": "/api/products?status=ACTIVE&page=0&pageSize=1",
+        "status": 200
+      },
+      {
+        "path": "/api/products?status=INACTIVE&page=0&pageSize=1",
+        "status": 200
+      },
+      {
+        "path": "/api/products?page=0&pageSize=10&sortBy=name&sortDirection=asc",
+        "status": 200
+      },
+      {
+        "path": "/api/categories",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/mining/snapshots?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/activate",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/policy",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/active-layout",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/9",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/recommendations?snapshotId=3&page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/layouts/10",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/stores",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/products?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/products?page=0&pageSize=20&sortBy=name&sortDirection=asc",
+        "status": 200
+      },
+      {
+        "path": "/api/auth/login",
+        "status": 200
+      },
+      {
+        "path": "/api/auth/me",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/stores",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/home",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/products?page=0&pageSize=20&sortBy=name&sortDirection=asc",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/products?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/cart/bundles",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/stores",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+        "status": 200
+      },
+      {
+        "path": "/api/storefront/qa-f07-f11-mwztnod1/cart",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/dashboard/snapshot-utilities?page=0&pageSize=20",
+        "status": 200
+      },
+      {
+        "path": "/api/dashboard/bundle-additions",
+        "status": 200
+      },
+      {
+        "path": "/api/dashboard/snapshot-utilities?page=0&pageSize=20&snapshotId=3",
+        "status": 200
+      },
+      {
+        "path": "/api/dashboard/bundle-additions?from=2026-10-30&to=2026-11-28&campaignId=5",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns/5/reports?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/campaign-reports/4",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns?page=0&pageSize=100",
+        "status": 200
+      },
+      {
+        "path": "/api/dashboard/bundle-additions",
+        "status": 200
+      },
+      {
+        "path": "/api/dashboard/snapshot-utilities?page=0&pageSize=20",
+        "status": 200
+      }
+    ],
+    "errors": [],
+    "artifacts": "/var/folders/xh/49tf3mqn7dq_hr6pj74lmyjc0000gn/T/paspm-live-f07-f11-dI0xXP",
+    "campaignId": 5
+  },
+  "issues": [
+    {
+      "type": "LOCAL_CONFIG",
+      "severity": "blocker",
+      "finding": "Browser login through Vite fails 403 Origin is not permitted",
+      "cause": "paspm.session.allowed-origins is empty while Vite changes proxy Host to port 8080",
+      "workaround": "Runtime allowlist http://localhost:3000,http://127.0.0.1:3000"
+    },
+    {
+      "type": "LOCAL_CONFIG",
+      "severity": "setup",
+      "finding": "Mailpit remains empty after test invitations",
+      "cause": "Existing .env SMTP points to Gmail:587 instead of Docker Mailpit",
+      "workaround": "Local runtime SMTP localhost:1025, auth/TLS disabled"
+    },
+    {
+      "type": "UI",
+      "severity": "minor",
+      "finding": "F07 score-card small descriptions run together without a line break",
+      "source": "src/features/f07f08/components/F07LayoutDesigner.tsx:78"
+    }
+  ],
+  "created": {
+    "productIds": [
+      64,
+      65,
+      66,
+      67,
+      68,
+      69
+    ],
+    "snapshotId": 3,
+    "miningRequestId": 3,
+    "miningRunId": 3,
+    "recommendationId": 657,
+    "campaignIds": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "finalActiveCampaignId": 7,
+    "reportIds": [
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "bundleTotals": {
+    "actions": 8,
+    "units": 13,
+    "origins": {
+      "MINED": 3,
+      "MANUAL": 5
+    }
+  }
+}

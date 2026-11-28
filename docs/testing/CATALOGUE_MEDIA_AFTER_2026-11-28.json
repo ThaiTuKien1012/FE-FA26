@@ -1,0 +1,1133 @@
+{
+  "date": "2026-11-28",
+  "environment": "local Docker MySQL + Backend :8080 + FE :3000",
+  "backendSourceChanged": false,
+  "assetOrigin": "http://localhost:3000",
+  "products": [
+    {
+      "storeId": 1,
+      "productId": 59,
+      "name": "Bàn chải đánh răng",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/toothbrush.jpg",
+      "description": "Bàn chải đánh răng cầm tay dùng vệ sinh răng miệng hằng ngày; rửa sạch và để khô sau khi dùng."
+    },
+    {
+      "storeId": 1,
+      "productId": 12,
+      "name": "Bánh mì sandwich",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/sandwich-bread.jpg",
+      "description": "Bánh mì sandwich cắt lát, tiện làm bánh kẹp hoặc nướng cho bữa sáng."
+    },
+    {
+      "storeId": 1,
+      "productId": 13,
+      "name": "Bánh quy bơ",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/butter-cookies.jpg",
+      "description": "Bánh quy bơ đóng hộp, phù hợp dùng cùng trà, cà phê hoặc làm món ăn nhẹ."
+    },
+    {
+      "storeId": 1,
+      "productId": 52,
+      "name": "Bánh snack khoai tây",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/products/lays.png",
+      "description": "Snack khoai tây dạng lát, dùng trực tiếp như món ăn vặt."
+    },
+    {
+      "storeId": 1,
+      "productId": 7,
+      "name": "Bơ lạt Anchor",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/anchor-butter.jpg",
+      "description": "Bơ lạt Anchor, dùng làm bánh, nấu ăn hoặc phết bánh mì theo khẩu vị."
+    },
+    {
+      "storeId": 1,
+      "productId": 57,
+      "name": "Bột giặt cửa trước",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/laundry-powder.jpg",
+      "description": "Bột giặt dành cho máy giặt cửa trước; dùng đúng lượng và chương trình theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 30,
+      "name": "Cà chua bi",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/cherry-tomato.jpg",
+      "description": "Cà chua bi tươi, phù hợp làm salad, ăn kèm hoặc chế biến món ăn; rửa sạch trước khi dùng."
+    },
+    {
+      "storeId": 1,
+      "productId": 46,
+      "name": "Cá ngừ đóng hộp",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/tuna.jpg",
+      "description": "Cá ngừ đóng hộp, tiện dùng làm salad, bánh mì kẹp hoặc chế biến cùng các món ăn khác."
+    },
+    {
+      "storeId": 1,
+      "productId": 22,
+      "name": "Cà phê rang xay",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/ground-coffee.jpg",
+      "description": "Cà phê rang xay, phù hợp pha phin hoặc các dụng cụ pha cà phê theo sở thích."
+    },
+    {
+      "storeId": 1,
+      "productId": 29,
+      "name": "Cam vàng Úc",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/orange.png",
+      "description": "Cam tươi dùng ăn trực tiếp hoặc vắt lấy nước; rửa sạch trước khi chế biến."
+    },
+    {
+      "storeId": 1,
+      "productId": 31,
+      "name": "Chuối già Nam Mỹ",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/banana.jpg",
+      "description": "Chuối tươi dùng trực tiếp khi chín, có thể kết hợp với ngũ cốc hoặc làm sinh tố."
+    },
+    {
+      "storeId": 1,
+      "productId": 63,
+      "name": "Dao cạo dùng một lần",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/razor.jpg",
+      "description": "Dao cạo dùng một lần cho nhu cầu chăm sóc cá nhân; sử dụng cẩn thận theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 19,
+      "name": "Dầu ăn hướng dương",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/sunflower-oil.jpg",
+      "description": "Dầu ăn hướng dương dùng trong chế biến thực phẩm, chiên xào và trộn món ăn theo hướng dẫn sử dụng."
+    },
+    {
+      "storeId": 1,
+      "productId": 47,
+      "name": "Đậu đỏ đóng hộp",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/red-beans.jpg",
+      "description": "Đậu đỏ đóng hộp dùng cho món hầm, salad hoặc chế biến bữa ăn theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 61,
+      "name": "Dầu gội phục hồi",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/shampoo.jpg",
+      "description": "Dầu gội chăm sóc tóc, dùng trên tóc ướt rồi xả sạch theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 41,
+      "name": "Dầu hào",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/oyster-sauce.jpg",
+      "description": "Dầu hào dùng nêm món xào, làm sốt hoặc ướp thực phẩm; bảo quản theo hướng dẫn trên nhãn."
+    },
+    {
+      "storeId": 1,
+      "productId": 21,
+      "name": "Đường tinh luyện",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/sugar.jpg",
+      "description": "Đường trắng tinh luyện dùng pha đồ uống, làm bánh hoặc nêm nếm món ăn."
+    },
+    {
+      "storeId": 1,
+      "productId": 44,
+      "name": "Đường tinh luyện",
+      "status": "INACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/sugar.jpg",
+      "description": "Đường trắng tinh luyện dùng pha đồ uống, làm bánh hoặc nêm nếm món ăn."
+    },
+    {
+      "storeId": 1,
+      "productId": 2,
+      "name": "F02 Demo Coffee",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/ground-coffee.jpg",
+      "description": "Cà phê rang xay, phù hợp pha phin hoặc các dụng cụ pha cà phê theo sở thích."
+    },
+    {
+      "storeId": 1,
+      "productId": 1,
+      "name": "F02 Demo Milk",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/milk.webp",
+      "description": "Sữa tươi dạng lỏng, dùng trực tiếp hoặc kết hợp cùng ngũ cốc và các món ăn sáng."
+    },
+    {
+      "storeId": 1,
+      "productId": 45,
+      "name": "Gạo thơm Jasmine",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/rice.webp",
+      "description": "Gạo Jasmine dùng nấu cơm; bảo quản trong hộp kín, nơi khô ráo và thoáng mát."
+    },
+    {
+      "storeId": 1,
+      "productId": 20,
+      "name": "Gạo thơm Jasmine 5kg",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/rice.webp",
+      "description": "Gạo Jasmine dùng nấu cơm; bảo quản trong hộp kín, nơi khô ráo và thoáng mát."
+    },
+    {
+      "storeId": 1,
+      "productId": 60,
+      "name": "Kem đánh răng bạc hà",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/toothpaste.jpg",
+      "description": "Kem đánh răng hương bạc hà, dùng cùng bàn chải theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 9,
+      "name": "Kem vani",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/vanilla-ice-cream.jpg",
+      "description": "Kem vị vani đựng hộp, dùng làm món tráng miệng và bảo quản ở ngăn đông."
+    },
+    {
+      "storeId": 1,
+      "productId": 37,
+      "name": "Kem vani hộp",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/vanilla-ice-cream.jpg",
+      "description": "Kem vị vani đựng hộp, dùng làm món tráng miệng và bảo quản ở ngăn đông."
+    },
+    {
+      "storeId": 1,
+      "productId": 53,
+      "name": "Kẹo dẻo trái cây",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/gummies.jpg",
+      "description": "Kẹo dẻo hương trái cây, dùng trực tiếp và giữ kín bao bì sau khi mở."
+    },
+    {
+      "storeId": 1,
+      "productId": 54,
+      "name": "Khăn giấy bỏ túi",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/pocket-tissues.jpg",
+      "description": "Khăn giấy gói nhỏ tiện mang theo trong túi xách khi đi học, đi làm hoặc đi du lịch."
+    },
+    {
+      "storeId": 1,
+      "productId": 14,
+      "name": "Khoai tây chiên",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/products/lays.png",
+      "description": "Snack khoai tây dạng lát, dùng trực tiếp như món ăn vặt."
+    },
+    {
+      "storeId": 1,
+      "productId": 32,
+      "name": "Mật ong nguyên chất",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/honey-jar.webp",
+      "description": "Mật ong đựng lọ, dùng pha đồ uống, làm bánh hoặc phối hợp với món ăn theo khẩu vị."
+    },
+    {
+      "storeId": 1,
+      "productId": 17,
+      "name": "Mì gói tôm chua cay",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/products/haohao.jpg",
+      "description": "Mì gói vị tôm chua cay, nấu hoặc pha với nước nóng theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 16,
+      "name": "Mì ly bò hầm",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/beef-noodles.jpg",
+      "description": "Mì ăn liền dạng ly vị bò, pha với nước nóng theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 39,
+      "name": "Mì Ý spaghetti",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/spaghetti.jpg",
+      "description": "Mì Ý spaghetti dạng khô, luộc chín và dùng cùng các loại sốt theo sở thích."
+    },
+    {
+      "storeId": 1,
+      "productId": 43,
+      "name": "Muối iốt",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/salt.jpg",
+      "description": "Muối iốt dùng nêm nếm trong chế biến món ăn; giữ kín bao bì và bảo quản nơi khô ráo."
+    },
+    {
+      "storeId": 1,
+      "productId": 48,
+      "name": "Ngô ngọt đóng hộp",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/corn.jpg",
+      "description": "Ngô ngọt đóng hộp, phù hợp làm salad, súp hoặc dùng kèm các món ăn."
+    },
+    {
+      "storeId": 1,
+      "productId": 33,
+      "name": "Ngũ cốc dinh dưỡng",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/cereal.jpg",
+      "description": "Ngũ cốc ăn sáng dùng với sữa, sữa chua hoặc đồ uống từ hạt."
+    },
+    {
+      "storeId": 1,
+      "productId": 24,
+      "name": "Nước cam ép",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/juice.webp",
+      "description": "Nước cam dùng trực tiếp, có thể làm lạnh trước khi uống; bảo quản theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 38,
+      "name": "Nước cam nguyên chất",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/juice.webp",
+      "description": "Nước cam dùng trực tiếp, có thể làm lạnh trước khi uống; bảo quản theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 49,
+      "name": "Nước khoáng 500ml",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/products/aquafina.jpg",
+      "description": "Nước uống đóng chai 500ml, tiện mang theo khi đi học, đi làm hoặc di chuyển."
+    },
+    {
+      "storeId": 1,
+      "productId": 56,
+      "name": "Nước lau sàn",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/floor-cleaner.jpg",
+      "description": "Dung dịch lau sàn dùng làm sạch bề mặt sàn phù hợp; pha và sử dụng theo hướng dẫn trên nhãn."
+    },
+    {
+      "storeId": 1,
+      "productId": 26,
+      "name": "Nước ngọt cola",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/products/cocacola.jpg",
+      "description": "Nước giải khát có ga vị cola, dùng trực tiếp và có thể uống cùng đá."
+    },
+    {
+      "storeId": 1,
+      "productId": 55,
+      "name": "Nước rửa chén",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/dish-soap.jpg",
+      "description": "Nước rửa chén dùng làm sạch bát đĩa và dụng cụ nhà bếp; tráng kỹ lại bằng nước sạch."
+    },
+    {
+      "storeId": 1,
+      "productId": 25,
+      "name": "Nước suối 500ml",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/products/aquafina.jpg",
+      "description": "Nước uống đóng chai 500ml, tiện mang theo khi đi học, đi làm hoặc di chuyển."
+    },
+    {
+      "storeId": 1,
+      "productId": 27,
+      "name": "Nước tăng lực",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/energy-drink.jpg",
+      "description": "Nước tăng lực đóng lon. Đọc thông tin thành phần và hướng dẫn sử dụng trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 51,
+      "name": "Nước tăng lực",
+      "status": "INACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/energy-drink.jpg",
+      "description": "Nước tăng lực đóng lon. Đọc thông tin thành phần và hướng dẫn sử dụng trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 40,
+      "name": "Nước tương đậm đặc",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/soy-sauce.jpg",
+      "description": "Nước tương đậu nành dùng làm nước chấm hoặc nêm các món xào, kho và ướp thực phẩm."
+    },
+    {
+      "storeId": 1,
+      "productId": 18,
+      "name": "Nước tương đậu nành",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/soy-sauce.jpg",
+      "description": "Nước tương đậu nành dùng làm nước chấm hoặc nêm các món xào, kho và ướp thực phẩm."
+    },
+    {
+      "storeId": 1,
+      "productId": 58,
+      "name": "Nước xả vải",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/fabric-softener.jpg",
+      "description": "Nước xả vải dùng trong bước xả cuối của quá trình giặt; sử dụng theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 6,
+      "name": "Phô mai lát",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/cheese.jpg",
+      "description": "Phô mai dạng lát, tiện dùng cho bánh mì sandwich, burger hoặc món nướng."
+    },
+    {
+      "storeId": 1,
+      "productId": 36,
+      "name": "Phô mai lát cheddar",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/cheese.jpg",
+      "description": "Phô mai dạng lát, tiện dùng cho bánh mì sandwich, burger hoặc món nướng."
+    },
+    {
+      "storeId": 1,
+      "productId": 15,
+      "name": "Snack vị phô mai",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/cheese-snack.jpg",
+      "description": "Snack bắp vị phô mai, dùng trực tiếp và đậy kín bao bì sau khi mở."
+    },
+    {
+      "storeId": 1,
+      "productId": 5,
+      "name": "Sữa chua dâu",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/strawberry-yogurt.png",
+      "description": "Sữa chua vị dâu dùng lạnh, phù hợp làm món ăn nhẹ hoặc dùng cùng trái cây."
+    },
+    {
+      "storeId": 1,
+      "productId": 35,
+      "name": "Sữa chua nha đam",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/aloe-yogurt.png",
+      "description": "Sữa chua nha đam đóng hũ, dùng lạnh như món ăn nhẹ hoặc tráng miệng."
+    },
+    {
+      "storeId": 1,
+      "productId": 34,
+      "name": "Sữa chua uống dâu",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/drinking-yogurt.png",
+      "description": "Sữa chua uống vị dâu, dùng trực tiếp; làm lạnh trước khi uống theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 1,
+      "productId": 8,
+      "name": "Sữa hạt óc chó",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/walnut-milk.jpg",
+      "description": "Đồ uống từ hạt óc chó, dùng trực tiếp hoặc phối hợp với ngũ cốc trong bữa sáng."
+    },
+    {
+      "storeId": 1,
+      "productId": 62,
+      "name": "Sữa tắm dịu nhẹ",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/body-wash.png",
+      "description": "Sữa tắm dùng làm sạch cơ thể; tạo bọt và xả sạch bằng nước theo hướng dẫn sử dụng."
+    },
+    {
+      "storeId": 1,
+      "productId": 4,
+      "name": "Sữa tươi nguyên chất",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/milk.webp",
+      "description": "Sữa tươi dạng lỏng, dùng trực tiếp hoặc kết hợp cùng ngũ cốc và các món ăn sáng."
+    },
+    {
+      "storeId": 1,
+      "productId": 28,
+      "name": "Táo đỏ Mỹ",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/apple.png",
+      "description": "Táo đỏ tươi, dùng trực tiếp sau khi rửa sạch hoặc chế biến thành món tráng miệng."
+    },
+    {
+      "storeId": 1,
+      "productId": 50,
+      "name": "Trà xanh không đường",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/bottled-green-tea.jpg",
+      "description": "Trà xanh không đường đóng chai, dùng trực tiếp; có thể làm lạnh trước khi uống."
+    },
+    {
+      "storeId": 1,
+      "productId": 23,
+      "name": "Trà xanh túi lọc",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/green-tea.jpg",
+      "description": "Trà xanh dạng túi lọc, tiện pha một tách trà nóng hoặc làm trà lạnh."
+    },
+    {
+      "storeId": 1,
+      "productId": 11,
+      "name": "Trứng gà hộp 10 quả",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/eggs.webp",
+      "description": "Trứng gà đóng hộp, dùng cho các món luộc, chiên, làm bánh hoặc chế biến bữa ăn gia đình."
+    },
+    {
+      "storeId": 1,
+      "productId": 42,
+      "name": "Tương ớt cay",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/chili-sauce.jpg",
+      "description": "Tương ớt cay dùng làm nước chấm hoặc thêm vào món ăn theo khẩu vị."
+    },
+    {
+      "storeId": 1,
+      "productId": 10,
+      "name": "Yaourt uống",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/drinking-yogurt.png",
+      "description": "Sữa chua uống vị dâu, dùng trực tiếp; làm lạnh trước khi uống theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 2,
+      "productId": 3,
+      "name": "F02 Demo Tea",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/green-tea.jpg",
+      "description": "Trà xanh dạng túi lọc, tiện pha một tách trà nóng hoặc làm trà lạnh."
+    },
+    {
+      "storeId": 3,
+      "productId": 65,
+      "name": "Bánh mì nguyên cám QA",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/wholegrain-bread.png",
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1 Bánh mì nguyên cám, tiện làm sandwich hoặc dùng cùng các món ăn sáng."
+    },
+    {
+      "storeId": 3,
+      "productId": 66,
+      "name": "Cà phê rang QA",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/ground-coffee.jpg",
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1 Cà phê rang xay, phù hợp pha phin hoặc các dụng cụ pha cà phê theo sở thích."
+    },
+    {
+      "storeId": 3,
+      "productId": 69,
+      "name": "Mặt hàng ngừng bán QA",
+      "status": "INACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/retired-product.svg",
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1 Mặt hàng QA đang ngừng bán, được giữ lại để kiểm tra cách hiển thị và xử lý sản phẩm không còn khả dụng."
+    },
+    {
+      "storeId": 3,
+      "productId": 68,
+      "name": "Nước ép hết hạn QA",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/juice.webp",
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1 Nước cam dùng trực tiếp, có thể làm lạnh trước khi uống; bảo quản theo hướng dẫn trên bao bì."
+    },
+    {
+      "storeId": 3,
+      "productId": 67,
+      "name": "Sữa tươi hết hạn hôm nay QA",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/customer-home/fresh/milk.webp",
+      "description": "Dữ liệu kiểm thử F07–F11 mwztnod1 Sữa tươi dạng lỏng, dùng trực tiếp hoặc kết hợp cùng ngũ cốc và các món ăn sáng."
+    },
+    {
+      "storeId": 3,
+      "productId": 64,
+      "name": "Sữa yến mạch QA",
+      "status": "ACTIVE",
+      "imageUrl": "http://localhost:3000/images/catalogue-2026/oat-milk.png",
+      "description": "Sản phẩm dùng riêng cho kiểm tra F07–F11 mwztnod1 Đồ uống từ yến mạch dùng trực tiếp, phối hợp với ngũ cốc hoặc pha cùng cà phê."
+    }
+  ],
+  "checks": [
+    {
+      "id": 59,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 12,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 13,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 52,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 7,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 57,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 30,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 46,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 22,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 29,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 31,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 63,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 19,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 47,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 61,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 41,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 21,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 44,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 2,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 1,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 45,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 20,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 60,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 9,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 37,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 53,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 54,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 14,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 32,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 17,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 16,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 39,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 43,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 48,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 33,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 24,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 38,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 49,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 56,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 26,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 55,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 25,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 27,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 51,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 40,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 18,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 58,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 6,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 36,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 15,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 5,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 35,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 34,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 8,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 62,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 4,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 28,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 50,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 23,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 11,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 42,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 10,
+      "storeId": 1,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 3,
+      "storeId": 2,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 65,
+      "storeId": 3,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 66,
+      "storeId": 3,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 69,
+      "storeId": 3,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 68,
+      "storeId": 3,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 67,
+      "storeId": 3,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    },
+    {
+      "id": 64,
+      "storeId": 3,
+      "hasImage": true,
+      "hasDescription": true,
+      "businessFieldsUnchanged": true
+    }
+  ],
+  "storeImages": [
+    {
+      "storeId": 1,
+      "kind": "icon",
+      "url": "/api/public/stores/1/images/fc68a560-a5e0-47b4-8e48-455ffe90e706.png",
+      "version": 2,
+      "bytes": 7414
+    },
+    {
+      "storeId": 1,
+      "kind": "banner",
+      "url": "/api/public/stores/1/images/3d5b2426-1ce5-4f67-aeb7-67617371b02a.jpg",
+      "version": 3,
+      "bytes": 338084
+    },
+    {
+      "storeId": 2,
+      "kind": "icon",
+      "url": "/api/public/stores/2/images/5f5b5a97-1e36-42b3-965d-39018a119eab.png",
+      "version": 2,
+      "bytes": 7506
+    },
+    {
+      "storeId": 2,
+      "kind": "banner",
+      "url": "/api/public/stores/2/images/40afbde5-43ac-464d-b09f-0b901c7b4990.jpg",
+      "version": 3,
+      "bytes": 99985
+    },
+    {
+      "storeId": 3,
+      "kind": "icon",
+      "url": "/api/public/stores/3/images/93a26286-db43-4848-ad82-46eeef9e2329.png",
+      "version": 4,
+      "bytes": 8832
+    },
+    {
+      "storeId": 3,
+      "kind": "banner",
+      "url": "/api/public/stores/3/images/44129208-1090-4e4b-83eb-4b79d0d4f527.jpg",
+      "version": 5,
+      "bytes": 337718
+    }
+  ],
+  "publicImageChecks": [
+    {
+      "slug": "f02-demo-store-a-1",
+      "kind": "icon",
+      "status": 200,
+      "contentType": "image/png",
+      "bytes": 7414
+    },
+    {
+      "slug": "f02-demo-store-a-1",
+      "kind": "banner",
+      "status": 200,
+      "contentType": "image/jpeg",
+      "bytes": 338084
+    },
+    {
+      "slug": "f02-demo-store-b-2",
+      "kind": "icon",
+      "status": 200,
+      "contentType": "image/png",
+      "bytes": 7506
+    },
+    {
+      "slug": "f02-demo-store-b-2",
+      "kind": "banner",
+      "status": 200,
+      "contentType": "image/jpeg",
+      "bytes": 99985
+    },
+    {
+      "slug": "qa-f07-f11-mwztnod1",
+      "kind": "icon",
+      "status": 200,
+      "contentType": "image/png",
+      "bytes": 8832
+    },
+    {
+      "slug": "qa-f07-f11-mwztnod1",
+      "kind": "banner",
+      "status": 200,
+      "contentType": "image/jpeg",
+      "bytes": 337718
+    }
+  ]
+}

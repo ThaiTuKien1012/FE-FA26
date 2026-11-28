@@ -15,6 +15,7 @@ import { EditProductView } from './features/store/components/EditProductView';
 import { StoreCategoriesView } from './features/store/components/StoreCategoriesView';
 import { StoreBatchesView } from './features/store/components/StoreBatchesView';
 import { CustomerProductDetailView } from './features/customer/components/CustomerProductDetailView';
+import { CustomerCartView } from './features/customer/components/CustomerCartView';
 import { LoginView } from './features/auth/components/LoginView';
 import { ForgotPasswordView } from './features/auth/components/ForgotPasswordView';
 import { RegisterView } from './features/auth/components/RegisterView';
@@ -22,7 +23,7 @@ import { ActivateView } from './features/auth/components/ActivateView';
 import { ProfileView } from './features/auth/components/ProfileView';
 import { CustomerHomeView } from './features/customer/components/CustomerHomeView';
 import { CustomerStorefrontView } from './features/customer/components/CustomerStorefrontView';
-import { customerLoginPath, customerLoginTarget, customerPath } from './features/customer/customerRoutes';
+import { customerCartPath, customerLoginPath, customerLoginTarget, customerPath } from './features/customer/customerRoutes';
 import { MerchandiserRecommendationsView } from './features/merchandiser/components/MerchandiserRecommendationsView';
 import { ReviewApproveGroupView } from './features/merchandiser/components/ReviewApproveGroupView';
 import { PublishedCampaignStatusView } from './features/merchandiser/components/PublishedCampaignStatusView';
@@ -46,7 +47,7 @@ import { F07F08WorkspaceView } from './features/f07f08/components/F07F08Workspac
 import { authService, AuthUser } from './services/authService';
 import { ProductItem } from './types/storeInventory';
 
-const publicScreens: ActiveNavScreen[] = ['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront', 'customer-product'];
+const publicScreens: ActiveNavScreen[] = ['login', 'register', 'activate', 'forgot-password', 'customer-home', 'customer-storefront', 'customer-product', 'customer-cart'];
 
 const StoreManagementView = lazy(() => import('./features/storeManagement/StoreManagementView')
   .then(module => ({ default: module.StoreManagementView })));
@@ -57,7 +58,7 @@ export default function App() {
   const [customerResume] = useState(() => currentUser?.role === 'End-Customer'
     ? customerLoginTarget(window.location.pathname, window.location.search) : null);
   const [currentScreen, setCurrentScreen] = useState<ActiveNavScreen>(() => {
-    if (customerResume) return customerResume.productId ? 'customer-product' : 'customer-storefront';
+    if (customerResume) return customerResume.cart ? 'customer-cart' : customerResume.productId ? 'customer-product' : 'customer-storefront';
     const screenFromUrl = typeof window !== 'undefined' ? getScreenFromPathname(window.location.pathname) : null;
     if (screenFromUrl === 'login' && authService.getCurrentUser()) {
       const user=authService.getCurrentUser()!;
@@ -101,7 +102,7 @@ export default function App() {
   // Synchronize browser URL bar on load and handle back/forward browser buttons
   useEffect(() => {
     const returnTo=currentScreen==='f06-recommendations'&&window.location.pathname===getPathForScreen('login')?recommendationReturnPath(window.location.search):null;
-    if (customerResume) window.history.replaceState({ screen: currentScreen }, '', customerPath(customerResume.slug, customerResume.productId));
+    if (customerResume) window.history.replaceState({ screen: currentScreen }, '', customerResume.cart ? customerCartPath(customerResume.slug) : customerPath(customerResume.slug, customerResume.productId));
     else if(returnTo){window.history.replaceState({screen:'f06-recommendations'},'',returnTo);window.dispatchEvent(new Event('popstate'));}
     else syncBrowserUrl(currentScreen, true);
 
@@ -196,8 +197,16 @@ export default function App() {
   const handleCustomerLogin = () => {
     const slug = currentScreen === 'customer-home' ? null : customerStoreSlug;
     const id = currentScreen === 'customer-product' ? customerProductId : null;
-    window.history.pushState({ screen: 'login' }, '', customerLoginPath(slug, id));
+    window.history.pushState({ screen: 'login' }, '', customerLoginPath(slug, id, currentScreen === 'customer-cart'));
     setCurrentScreen('login');
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const openCustomerCart = (slug: string | null) => {
+    window.history.pushState({ screen: 'customer-cart' }, '', customerCartPath(slug));
+    setCustomerStoreSlug(slug);
+    setCustomerProductId(null);
+    setCurrentScreen('customer-cart');
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -208,7 +217,8 @@ export default function App() {
     setCurrentUser(user);
     const destination = customerLoginTarget(window.location.pathname, window.location.search);
     if (destination && user.role === 'End-Customer') {
-      openCustomerStore(destination.slug, destination.productId);
+      if (destination.cart) openCustomerCart(destination.slug);
+      else openCustomerStore(destination.slug, destination.productId);
       return;
     }
     const returnTo=recommendationReturnPath(window.location.search)??recommendationReturn.current;
@@ -298,8 +308,12 @@ export default function App() {
       // `null` means "all Stores", which is the customer home.
       onStore: (slug: string | null) => slug === null ? handleNavigate('customer-home') : openCustomerStore(slug),
       onRegister: () => { syncBrowserUrl('register'); setCurrentScreen('register'); },
+      onCart: () => openCustomerCart(currentScreen === 'customer-home' ? null : customerStoreSlug),
       onProfile: () => handleNavigate('profile'), onLogout: handleLogout,
     };
+    if (currentScreen === 'customer-cart') {
+      return <CustomerCartView key={customerStoreSlug} {...customerNavigation} storeSlug={customerStoreSlug} />;
+    }
     if (currentScreen === 'customer-product') {
       return <CustomerProductDetailView key={`${customerStoreSlug}/${customerProductId}`}
         {...customerNavigation} storeSlug={customerStoreSlug} productId={customerProductId}

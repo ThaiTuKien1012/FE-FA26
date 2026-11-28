@@ -5,6 +5,7 @@ export type CartMutation =
   | { kind: 'add'; productId: number; quantity: number }
   | { kind: 'quantity'; itemId: string; quantity: number }
   | { kind: 'remove'; itemId: string }
+  | { kind: 'clear' }
   | { kind: 'bundle'; bundleKey: string };
 
 type CartSnapshot = {
@@ -71,6 +72,7 @@ export function createCustomerCart(api: ReturnType<typeof createCustomerApi>, sl
       } else {
         const next = mutation.kind === 'add' ? await api.addItem(slug, version, mutation.productId, mutation.quantity, signal)
           : mutation.kind === 'quantity' ? await api.changeQuantity(slug, version, mutation.itemId, mutation.quantity, signal)
+          : mutation.kind === 'clear' ? await api.clearCart(slug, version, signal)
           : await api.removeItem(slug, version, mutation.itemId, signal);
         if (operation === current) { accept(next); update({ message: 'Đã cập nhật giỏ hàng.' }); }
       }

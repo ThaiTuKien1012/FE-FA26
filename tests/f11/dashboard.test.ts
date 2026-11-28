@@ -39,6 +39,13 @@ it('maps the dashboard route and limits access to Store staff', () => {
 });
 describe('API transport', () => {
   const staff = () => vi.spyOn(authService, 'getCurrentUser').mockReturnValue({ id: 1, storeId: 2, role: 'Merchandiser' } as never);
+  it('filters a READY snapshot without adding a Store override and rejects invalid IDs', async () => {
+    staff(); const request = vi.spyOn(authService, 'request').mockResolvedValue(new Response('{"items":[]}'));
+    await f11Api.snapshots(0, 20, undefined, 18);
+    expect(request.mock.calls[0][0]).toBe('/api/dashboard/snapshot-utilities?page=0&pageSize=20&snapshotId=18');
+    await expect(f11Api.snapshots(0, 20, undefined, 0)).rejects.toMatchObject({ status: 400 });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
   it('uses the shared session transport and default pagination, never sends Store IDs', async () => {
     staff(); const request = vi.spyOn(authService, 'request').mockResolvedValue(new Response(JSON.stringify({ items: [], page: 0, pageSize: 20, totalElements: 0 })));
     expect((await f11Api.snapshots()).items).toEqual([]);

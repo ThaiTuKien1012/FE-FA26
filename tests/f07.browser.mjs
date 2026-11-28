@@ -40,6 +40,13 @@ async function until(expression, label = expression) { for (let i = 0; i < 150; 
 async function click(label) { const expr = '[...document.querySelectorAll("button")].find(b=>b.getClientRects().length&&!b.disabled&&(b.getAttribute("aria-label")===' + JSON.stringify(label) + '||b.textContent.trim()===' + JSON.stringify(label) + '))'; await until('Boolean(' + expr + ')', label); await evaluate(expr + '.click()'); }
 async function go(path) { await call('Page.navigate', { url: origin + path }); await sleep(500); }
 async function capture(name) { const shot = await call('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(artifacts, name + '.png'), Buffer.from(shot.data, 'base64')); }
+async function checkScoreDescriptions(viewport) {
+  const cards = await evaluate(`Array.from(document.querySelectorAll('.f07-score')).slice(0,2).map(card => {
+    const lines = Array.from(card.querySelectorAll('small'));
+    return lines.length === 2 && lines[1].getBoundingClientRect().top >= lines[0].getBoundingClientRect().bottom;
+  })`);
+  assert.deepEqual(cards, [true, true], `Product count and Priority coverage occupy separate lines on ${viewport}`);
+}
 async function fixture({ requestId, request }) {
   const url = new URL(request.url), path = url.pathname;
   if (!path.startsWith('/api/')) return call(url.origin === origin ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' }) });
@@ -143,6 +150,7 @@ try {
   await click('Mark ready'); await until("document.body.innerText.includes('Layout B is ready for')");
   checks.push('per-product save, sourced and manual provenance, duplicate prevention, individual reorder, preview and READY');
   await capture('f07-saved-desktop');
+  await checkScoreDescriptions('desktop');
   await click('Remove product 3'); invalidSave = true; await click('Save Layout B');
   await until("document.body.innerText.includes('Fixture validation rejected the placement')");
   assert.equal(await evaluate("Boolean(document.querySelector('[aria-label=\"Remove product 3\"]'))"), false, '400 preserves draft');
@@ -182,6 +190,8 @@ try {
   await until("document.body.innerText.includes('F06 #101')");
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await capture('f07-mobile'); assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+2'), false, 'No mobile page overflow');
+  await checkScoreDescriptions('mobile');
+  checks.push('A/B Product counts and Priority coverage use separate non-overlapping lines on desktop and mobile');
   checks.push('read-only A and mobile layout');
   role = 'STORE_ADMIN'; await go('/store/layout'); await until("document.body.innerText.includes('View-only.')");
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Save Layout B')"), false);

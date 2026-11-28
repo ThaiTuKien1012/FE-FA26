@@ -25,9 +25,10 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
 }
 function positiveId(value: number) { if (!Number.isSafeInteger(value) || value <= 0) throw new DashboardApiError(400, 'Invalid resource ID.'); }
 export const f11Api = {
-  async snapshots(page = 0, pageSize = 20, signal?: AbortSignal): Promise<Page<SnapshotUtility>> {
+  async snapshots(page = 0, pageSize = 20, signal?: AbortSignal, snapshotId?: number): Promise<Page<SnapshotUtility>> {
     if (!Number.isSafeInteger(page) || page < 0 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) throw new DashboardApiError(400, 'Invalid pagination.');
-    return request(`/api/dashboard/snapshot-utilities?page=${page}&pageSize=${pageSize}`, signal);
+    if (snapshotId !== undefined) positiveId(snapshotId);
+    return request(`/api/dashboard/snapshot-utilities?page=${page}&pageSize=${pageSize}${snapshotId === undefined ? '' : `&snapshotId=${snapshotId}`}`, signal);
   },
   async additions(filter: AdditionFilter = {}, signal?: AbortSignal): Promise<BundleAdditions> {
     const query = new URLSearchParams();

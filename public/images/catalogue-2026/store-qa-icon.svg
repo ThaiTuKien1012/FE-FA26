@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="56" fill="#244b6b"/>
+  <rect x="53" y="58" width="150" height="160" rx="22" fill="#edf5fa"/>
+  <rect x="88" y="40" width="80" height="37" rx="12" fill="#99c7d1"/>
+  <path d="m89 112 16 16 37-35" fill="none" stroke="#248675" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="128" y="189" text-anchor="middle" font-family="Arial,sans-serif" font-size="55" font-weight="700" fill="#244b6b">QA</text>
+</svg>

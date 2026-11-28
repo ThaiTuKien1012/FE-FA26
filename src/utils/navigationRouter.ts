@@ -14,6 +14,7 @@ export const SCREEN_TO_PATH: Partial<Record<ActiveNavScreen, string>> = {
   'f07-f08-workspace': '/layouts-campaigns',
   'customer-storefront': '/storefront',
   'customer-home': '/customer-home',
+  'customer-cart': '/cart',
   'customer-product': '/product',
 
   // Merchandiser Screens

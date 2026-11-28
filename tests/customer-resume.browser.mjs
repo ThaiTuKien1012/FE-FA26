@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { waitForDevToolsPage } from './browser-devtools.mjs';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { storefrontFixture, STOREFRONT_PRODUCT, STOREFRONT_PRODUCT_ID, STOREFRONT_SLUG, STOREFRONT_STORE,
@@ -20,6 +20,7 @@ import { conversionRequestFixture, conversionRunFixture } from './f05.fixtures.t
 const origin = process.env.PASPM_TEST_ORIGIN || 'http://127.0.0.1:3000';
 const base = resolve(tmpdir());
 const profile = mkdtempSync(join(base, 'paspm-customer-resume-'));
+const artifacts = process.env.PASPM_TEST_NO_ARTIFACTS === '1' ? null : mkdtempSync(join(base, 'paspm-cart-preview-'));
 const chrome = spawn(process.env.CUSTOMER_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
   '--disable-sync', '--disable-extensions', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'
@@ -55,7 +56,10 @@ class CDP {
 }
 let page, closing = false;
 const calls = [], unexpected = [], errors = [], checks = [];
-const state = { role: 'END_CUSTOMER', storeId: null, storefront: STOREFRONT_STORE };
+const state = { role: 'END_CUSTOMER', storeId: null, storefront: STOREFRONT_STORE, bundle: false };
+let cartVersion = 0;
+let cartItems = [];
+const cartWrites = [];
 const pixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 async function until(expression, label) {
   const end = Date.now() + 12000;
@@ -96,6 +100,25 @@ async function fixture({ requestId, request }) {
     requestId, ...(url.origin === origin ? {} : { errorReason: 'BlockedByClient' })
   });
   calls.push({ path: url.pathname, method: request.method });
+  if (url.pathname === `/api/storefront/${STOREFRONT_SLUG}/cart` || url.pathname.startsWith(`/api/storefront/${STOREFRONT_SLUG}/cart/items`) || url.pathname === `/api/storefront/${STOREFRONT_SLUG}/cart/bundles`) {
+    let code = 200;
+    const bundle = url.pathname.endsWith('/bundles');
+    if (request.method !== 'GET') {
+      const version = Object.entries(request.headers).find(([key]) => key.toLowerCase() === 'if-match')?.[1];
+      assert.equal(version, `"${cartVersion}"`, 'Every cart write sends the last confirmed version');
+      cartWrites.push({ method: request.method, path: url.pathname, body: request.postData });
+      const payload = JSON.parse(request.postData || '{}');
+      if (bundle) assert.deepEqual(payload, { bundleKey: 'fixture-opaque-bundle' }, 'Add-bundle accepts only the opaque home key');
+      const quantity = bundle ? 1 : payload.quantity;
+      if (request.method === 'POST') cartItems = [{ itemId: 71, productId: STOREFRONT_PRODUCT_ID, name: STOREFRONT_PRODUCT.name, imageUrl: null, unit: STOREFRONT_PRODUCT.unit, quantity, unitPrice: 21000.5, lineTotal: 21000.5 * quantity, state: 'AVAILABLE', addedFromBundle: bundle }];
+      else if (request.method === 'PATCH') cartItems = cartItems.map(item => ({ ...item, quantity: payload.quantity, lineTotal: item.unitPrice * payload.quantity }));
+      else if (request.method === 'DELETE') cartItems = [];
+      cartVersion++;
+    }
+    const cart = { cartId: cartVersion ? 31 : null, store: state.storefront, version: cartVersion, currency: 'VND', updatedAt: null, items: cartItems, subtotal: cartItems.reduce((sum, item) => sum + item.lineTotal, 0) };
+    const body = bundle ? { cart, components: [{ productId: STOREFRONT_PRODUCT_ID, requested: 1, added: 1 }, { productId: 502, requested: 1, added: 0 }] } : cart;
+    return page.call('Fetch.fulfillRequest', { requestId, responseCode: code, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(body)).toString('base64') });
+  }
   if ([STOREFRONT_WITH_IMAGES.iconUrl, STOREFRONT_WITH_IMAGES.bannerUrl].includes(url.pathname)) {
     return page.call('Fetch.fulfillRequest', { requestId, responseCode: 200,
       responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: pixelPng });
@@ -106,7 +129,10 @@ async function fixture({ requestId, request }) {
   else if ([STOREFRONT_WITH_BROKEN_IMAGES.iconUrl, STOREFRONT_WITH_BROKEN_IMAGES.bannerUrl].includes(url.pathname)) {
     responseCode = 404; body = { error: 'Missing image fixture' };
   }
-  else if (front = storefrontFixture(url.pathname, request.method, state.storefront)) { responseCode = front.status; body = front.body; }
+  else if (front = storefrontFixture(url.pathname, request.method, state.storefront)) {
+    responseCode = front.status; body = front.body;
+    if (state.bundle && url.pathname.endsWith('/home')) body = { ...body, fallbackType: null, campaignName: 'Fixture campaign', zones: [{ name: 'BUNDLE', placements: [{ type: 'BUNDLE', blockNo: 1, startPosition: 0, bundleKey: 'fixture-opaque-bundle', products: [STOREFRONT_PRODUCT, { ...STOREFRONT_PRODUCT, productId: 502, name: 'Fixture bread', availability: 'OUT_OF_STOCK' }] }] }] };
+  }
   else if (url.pathname === '/api/recommendations/config') body = policy;
   // The F06 run screen reads the analysis list and detail, the selected run, its recommendations and the expiry alerts (all empty pages).
   else if (url.pathname === '/api/mining/requests') body = { items: [{ ...conversionRequestFixture('WHOLE_UNIT_HALF_UP', 'FAILED', state.storeId), comparisonStatus: 'FAILED', requestId: 17 }], page: 0, pageSize: 20, totalElements: 1 };
@@ -187,6 +213,60 @@ try {
   await until(`location.pathname + location.search === ${JSON.stringify(storePath)}`, 'back on the Store storefront');
   checks.push('Guest Store storefront URL -> login -> End-Customer returns to the same Store');
 
+  // Full F10 page uses the same server cart, supports clear, and restores its URL after sign-in.
+  await clickText('Thêm vào giỏ');
+  await until('!!document.querySelector(".fm-cart-trigger") && document.querySelector(".fm-cart-trigger").getAttribute("aria-label").includes("(1)")', 'cart badge after server add');
+  await clickText('Mở giỏ hàng (1)');
+  await clickText('Mở trang giỏ hàng');
+  await until(`location.pathname + location.search === ${JSON.stringify(`/cart?store=${STOREFRONT_SLUG}`)}`, 'full cart route');
+  await has('21.001 ₫');
+  await clickText(`Tăng số lượng ${STOREFRONT_PRODUCT.name}`);
+  await has('42.001 ₫');
+  for (const width of [1440, 768, 390]) {
+    await page.call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
+    assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true, `Filled cart fits ${width}px`);
+    if (artifacts) {
+      const shot = await page.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      writeFileSync(join(artifacts, `cart-${width}.png`), Buffer.from(shot.data, 'base64'));
+    }
+  }
+  await clickText('Xóa toàn bộ');
+  await clickText('Hủy');
+  assert.equal(cartWrites.filter(call => call.method === 'DELETE').length, 0, 'Cancel leaves the server cart untouched');
+  await clickText('Xóa toàn bộ');
+  await clickText('Xác nhận xóa');
+  await has('Giỏ hàng đang trống.');
+  assert.equal(cartWrites.at(-1).path, `/api/storefront/${STOREFRONT_SLUG}/cart`);
+  assert.equal(cartWrites.at(-1).method, 'DELETE');
+  for (const width of [1440, 768, 390]) {
+    await page.call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
+    assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true, `Cart fits ${width}px`);
+  }
+  await signOutLocally();
+  await openAsGuest(`/cart?store=${STOREFRONT_SLUG}`);
+  await has('Đăng nhập để xem giỏ hàng');
+  await clickText('Đăng nhập');
+  await until('location.pathname==="/login"', 'cart sign-in');
+  assert.equal(await where(), `/login?returnStore=${STOREFRONT_SLUG}&returnCart=1`);
+  await signInThroughForm('END_CUSTOMER');
+  await until(`location.pathname + location.search === ${JSON.stringify(`/cart?store=${STOREFRONT_SLUG}`)}`, 'return to full cart');
+  await has('Giỏ hàng đang trống.');
+  checks.push('F10 server cart add, quantity edit, HALF_UP totals, clear confirmation/cancel, responsive full page, and sign-in return');
+
+  state.bundle = true;
+  await page.evaluate(`history.pushState({}, '', ${JSON.stringify(storePath)}); window.dispatchEvent(new Event('popstate'))`);
+  await has('Gói sản phẩm');
+  await clickText('Thêm gói vào giỏ');
+  await has('Đã thêm 1/1');
+  await has('Đã thêm 0/1');
+  await clickText('Mở giỏ hàng (1)');
+  await has('Thêm từ gói sản phẩm');
+  await clickText(`Xóa ${STOREFRONT_PRODUCT.name}`);
+  await has('Giỏ hàng đang trống.');
+  assert.match(cartWrites.at(-1).path, /\/items\/71$/);
+  state.bundle = false;
+  checks.push('F10 whole-bundle key, visible partial success/skipped component, provenance label and independent line removal');
+
   // 3. Guest on a F06 run URL -> sign in as Merchandiser -> same F06 run.
   await signOutLocally();
   const f06Path = '/recommendations?miningRunId=42';
@@ -208,7 +288,7 @@ try {
   checks.push('End-Customer signing in from a F06 returnTo does not land on F06');
 
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ result: 'PASS (controlled browser fixtures)', checks, interceptedApiCalls: calls.length, realBackendWrites: 0 }, null, 2));
+  console.log(JSON.stringify({ result: 'PASS (controlled browser fixtures)', checks, interceptedApiCalls: calls.length, realBackendWrites: 0, artifacts }, null, 2));
 } catch (error) {
   const context = page ? await page.evaluate('({url:location.pathname+location.search,text:document.body.innerText.slice(-900)})').catch(() => null) : null;
   console.log(JSON.stringify({ result: 'FAIL', error: error.stack, checks, unexpected, errors, context, recentCalls: calls.slice(-12) }, null, 2));

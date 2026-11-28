@@ -35,12 +35,27 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 function SnapshotPanel() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(20);
-  const resource = useResource(useCallback((signal: AbortSignal) => f11Api.snapshots(page, size, signal), [page, size]));
+  const [snapshotInput, setSnapshotInput] = useState('');
+  const [snapshotId, setSnapshotId] = useState<number>();
+  const [missingSnapshot, setMissingSnapshot] = useState(false);
+  const resource = useResource(useCallback((signal: AbortSignal) => f11Api.snapshots(page, size, signal, snapshotId), [page, size, snapshotId]));
+  const reset = () => { setSnapshotInput(''); setSnapshotId(undefined); setPage(0); setMissingSnapshot(false); };
+  useEffect(() => {
+    if ((resource.error as { status?: number })?.status === 404 && snapshotId !== undefined) {
+      setSnapshotInput(''); setSnapshotId(undefined); setPage(0); setMissingSnapshot(true);
+    }
+  }, [resource.error, snapshotId]);
   return <Panel title="Snapshot utilities">
     <p className="f07-muted">READY snapshots, newest first. Frozen weighted utility is a priority score, not revenue or profit.</p>
+    <form className="f11-snapshot-filter" onSubmit={event => { event.preventDefault(); setPage(0); setMissingSnapshot(false); setSnapshotId(snapshotInput ? Number(snapshotInput) : undefined); }}>
+      <label className="f07-field">Snapshot ID (optional)<input type="number" min="1" max="2147483647" step="1" value={snapshotInput} onChange={event => setSnapshotInput(event.target.value)} placeholder="All READY snapshots" /></label>
+      <button className="f07-button f07-primary" disabled={resource.loading}>Find snapshot</button>
+      <button className="f07-button" type="button" onClick={reset}>Clear snapshot filter</button>
+    </form>
+    {missingSnapshot && <p role="status">The selected snapshot was not found. The Store snapshot list has been refreshed.</p>}
     <label className="f07-field">Snapshots per page<select value={size} onChange={event => { setSize(Number(event.target.value)); setPage(0); }}>{[20, 50, 100].map(value => <option key={value}>{value}</option>)}</select></label>
     {resource.loading && <p role="status">Loading snapshots…</p>}
-    {!!resource.error && <Failure error={resource.error} retry={resource.retry} />}
+    {!!resource.error && <Failure error={resource.error} retry={() => { if ((resource.error as { status?: number }).status === 404 && snapshotId !== undefined) reset(); else resource.retry(); }} />}
     {resource.data && <>
       {resource.data.items.length === 0 ? <p role="status">No READY snapshots on this page.</p> : <div className="f11-table-scroll" tabIndex={0} role="region" aria-label="Snapshot utility table"><table className="f11-table"><thead><tr><th scope="col">Snapshot</th><th scope="col">Window</th><th scope="col">Analysis date</th><th scope="col">Weighted utility</th></tr></thead><tbody>{resource.data.items.map(item => <tr key={item.snapshotId}><th scope="row">#{item.snapshotId}</th><td>{item.rangeStart} – {item.rangeEnd}</td><td>{item.analysisDate}</td><td>{formatScore(item.totalWeightedUtility)}</td></tr>)}</tbody></table></div>}
     </>}
